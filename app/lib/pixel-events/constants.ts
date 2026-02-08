@@ -9,7 +9,7 @@ export const PIXEL_EVENT_NAMES = [
   "product_added_to_cart",
 ] as const;
 
-export type PixelEventName = typeof PIXEL_EVENT_NAMES[number];
+export type PixelEventName = (typeof PIXEL_EVENT_NAMES)[number];
 
 export const PRIMARY_EVENTS = ["checkout_completed"] as const;
 

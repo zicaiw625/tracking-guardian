@@ -75,9 +75,7 @@ if (!finalApiKey || !finalApiSecretKey || !finalAppUrl) {
   if (!finalApiKey) missing.push("SHOPIFY_API_KEY");
   if (!finalApiSecretKey) missing.push("SHOPIFY_API_SECRET");
   if (!finalAppUrl) missing.push("SHOPIFY_APP_URL");
-  const error = new Error(
-    `Missing required Shopify configuration: ${missing.join(", ")}`
-  );
+  const error = new Error(`Missing required Shopify configuration: ${missing.join(", ")}`);
   logger.error("[Shopify App Config] Missing required configuration", error);
   if (process.env.NODE_ENV === "production") {
     throw error;
@@ -86,7 +84,10 @@ if (!finalApiKey || !finalApiSecretKey || !finalAppUrl) {
 
 let shopify: ReturnType<typeof shopifyApp>;
 try {
-  const scopes = process.env.SCOPES?.split(",").map((s) => s.trim()).filter(Boolean) || [];
+  const scopes =
+    process.env.SCOPES?.split(",")
+      .map((s) => s.trim())
+      .filter(Boolean) || [];
   if (process.env.NODE_ENV === "production" && scopes.length === 0) {
     throw new Error("SCOPES must be set and contain at least one scope in production");
   }
@@ -107,10 +108,20 @@ try {
       SHOP_REDACT: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
     } as any,
     hooks: {
-      afterAuth: async ({ session, admin }: { session: { shop: string; accessToken?: string }; admin?: AdminApiContext }) => {
+      afterAuth: async ({
+        session,
+        admin,
+      }: {
+        session: { shop: string; accessToken?: string };
+        admin?: AdminApiContext;
+      }) => {
         if (shopify) {
           try {
-            const responses = await (shopify.registerWebhooks as (opts: { session: { shop: string; accessToken?: string } }) => Promise<Record<string, unknown[]>>)({ session });
+            const responses = await (
+              shopify.registerWebhooks as (opts: {
+                session: { shop: string; accessToken?: string };
+              }) => Promise<Record<string, unknown[]>>
+            )({ session });
             logger.info("[Webhooks] Webhooks registered successfully", {
               shop: session.shop,
               topics: Object.keys(responses || {}),
@@ -122,9 +133,7 @@ try {
             });
           }
         }
-        await handleAfterAuth(
-          { session, admin }
-        );
+        await handleAfterAuth({ session, admin });
       },
     },
     future: {
@@ -132,9 +141,7 @@ try {
     },
   };
   if (process.env.SHOP_CUSTOM_DOMAIN) {
-    (config as typeof config & { customShopDomains: string[] }).customShopDomains = [
-      process.env.SHOP_CUSTOM_DOMAIN,
-    ];
+    (config as typeof config & { customShopDomains: string[] }).customShopDomains = [process.env.SHOP_CUSTOM_DOMAIN];
   }
   logger.info("[Shopify App Config] Initializing shopifyApp", {
     hasApiKey: !!finalApiKey,
@@ -163,9 +170,7 @@ try {
   if (process.env.NODE_ENV === "production") {
     throw error;
   }
-  throw new Error(
-    `Failed to initialize Shopify app: ${errorMessage}`
-  );
+  throw new Error(`Failed to initialize Shopify app: ${errorMessage}`);
 }
 
 if (!shopify) {

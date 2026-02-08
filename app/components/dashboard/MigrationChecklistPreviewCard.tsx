@@ -40,9 +40,7 @@ export function MigrationChecklistPreviewCard({
       : `${estimatedMinutes} m`;
   const completedItems = checklist.topItems.filter((item) => item.status === "completed").length;
   const remainingItems = checklist.totalItems - completedItems;
-  const avgTimePerItem = checklist.totalItems > 0
-    ? checklist.estimatedTotalTime / checklist.totalItems
-    : 0;
+  const avgTimePerItem = checklist.totalItems > 0 ? checklist.estimatedTotalTime / checklist.totalItems : 0;
   const remainingTime = Math.ceil(remainingItems * avgTimePerItem);
   const remainingHours = Math.floor(remainingTime / 60);
   const remainingMinutes = remainingTime % 60;
@@ -110,7 +108,8 @@ export function MigrationChecklistPreviewCard({
                   {t("dashboard.checklist.progress")}
                 </Text>
                 <Text as="span" fontWeight="semibold">
-                  {completedItems} / {checklist.totalItems} ({Math.round((completedItems / checklist.totalItems) * 100)}%)
+                  {completedItems} / {checklist.totalItems} ({Math.round((completedItems / checklist.totalItems) * 100)}
+                  %)
                 </Text>
               </InlineStack>
             )}
@@ -123,10 +122,7 @@ export function MigrationChecklistPreviewCard({
             </Text>
             <BlockStack gap="200">
               {checklist.topItems.map((item) => {
-                const priorityBadgeTone =
-                  item.priority >= 8 ? "critical" :
-                  item.priority >= 5 ? "warning" :
-                  "info";
+                const priorityBadgeTone = item.priority >= 8 ? "critical" : item.priority >= 5 ? "warning" : "info";
                 const estimatedTimeText = item.estimatedTime
                   ? item.estimatedTime < 60
                     ? `${item.estimatedTime} m`
@@ -144,23 +140,21 @@ export function MigrationChecklistPreviewCard({
                         <InlineStack gap="200" blockAlign="center" wrap>
                           <Badge
                             tone={
-                              item.riskLevel === "high"
-                                ? "critical"
-                                : item.riskLevel === "medium"
-                                  ? "warning"
-                                  : "info"
+                              item.riskLevel === "high" ? "critical" : item.riskLevel === "medium" ? "warning" : "info"
                             }
                           >
-                            {item.riskLevel === "high" ? t("dashboard.checklist.high") : item.riskLevel === "medium" ? t("dashboard.checklist.medium") : t("dashboard.checklist.low")}
+                            {item.riskLevel === "high"
+                              ? t("dashboard.checklist.high")
+                              : item.riskLevel === "medium"
+                                ? t("dashboard.checklist.medium")
+                                : t("dashboard.checklist.low")}
                           </Badge>
                           {item.priority > 0 && (
                             <Badge tone={priorityBadgeTone}>
                               {t("dashboard.checklist.priority", { level: item.priority })}
                             </Badge>
                           )}
-                          {item.status === "completed" && (
-                            <Icon source={CheckCircleIcon} tone="success" />
-                          )}
+                          {item.status === "completed" && <Icon source={CheckCircleIcon} tone="success" />}
                           {item.status === "in_progress" && (
                             <Badge tone="info">{t("dashboard.checklist.inProgress")}</Badge>
                           )}
@@ -176,10 +170,7 @@ export function MigrationChecklistPreviewCard({
                         </InlineStack>
                       </BlockStack>
                       {item.status === "pending" && (
-                        <Button
-                          size="slim"
-                          url={`/app/migrate?asset=${item.id.replace("checklist-", "")}`}
-                        >
+                        <Button size="slim" url={`/app/migrate?asset=${item.id.replace("checklist-", "")}`}>
                           {t("dashboard.checklist.startMigration")}
                         </Button>
                       )}

@@ -84,9 +84,8 @@ export function parsePixelConfig(configStr?: string): PixelConfig {
       return DEFAULT_PIXEL_CONFIG;
     }
     const mode = parsed.mode === "full_funnel" ? "full_funnel" : "purchase_only";
-    const enabled_platforms = typeof parsed.enabled_platforms === "string"
-      ? parsed.enabled_platforms
-      : DEFAULT_PIXEL_CONFIG.enabled_platforms;
+    const enabled_platforms =
+      typeof parsed.enabled_platforms === "string" ? parsed.enabled_platforms : DEFAULT_PIXEL_CONFIG.enabled_platforms;
     const strictness = parsed.strictness === "balanced" ? "balanced" : "strict";
     return {
       schema_version: "1",
@@ -94,7 +93,7 @@ export function parsePixelConfig(configStr?: string): PixelConfig {
       enabled_platforms,
       strictness,
     };
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (_e) {
     return DEFAULT_PIXEL_CONFIG;
   }

@@ -50,10 +50,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return json({ error: "缺少配置数据" }, { status: 400 });
     }
     if (!isPlanAtLeast(shop.plan, "starter")) {
-      return json({
-        success: false,
-        error: "启用像素迁移需要 Migration ($49/月) 及以上套餐。请先升级套餐。",
-      }, { status: 403 });
+      return json(
+        {
+          success: false,
+          error: "启用像素迁移需要 Migration ($49/月) 及以上套餐。请先升级套餐。",
+        },
+        { status: 403 }
+      );
     }
     try {
       const BaseConfigSchema = z.object({
@@ -66,19 +69,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
 
       const ConfigsArraySchema = z.array(BaseConfigSchema);
-      
+
       let configs;
       try {
         configs = ConfigsArraySchema.parse(JSON.parse(configsJson));
       } catch (error) {
-         if (error instanceof z.ZodError) {
-             return json({ success: false, error: `配置格式错误: ${error.issues[0].message}` }, { status: 400 });
-         }
-         // JSON parse error
-         if (error instanceof SyntaxError) {
-             return json({ success: false, error: "无效的 JSON 数据" }, { status: 400 });
-         }
-         throw error;
+        if (error instanceof z.ZodError) {
+          return json({ success: false, error: `配置格式错误: ${error.issues[0].message}` }, { status: 400 });
+        }
+        // JSON parse error
+        if (error instanceof SyntaxError) {
+          return json({ success: false, error: "无效的 JSON 数据" }, { status: 400 });
+        }
+        throw error;
       }
 
       const configIds: string[] = [];
@@ -87,18 +90,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         const platform = config.platform as SupportedPlatform;
 
         if (!SUPPORTED_PLATFORMS.includes(platform)) {
-           return json({
-             success: false,
-             error: `平台 ${config.platform} 尚未在 v1 支持，请仅选择 GA4、Meta 或 TikTok。`,
-           }, { status: 400 });
+          return json(
+            {
+              success: false,
+              error: `平台 ${config.platform} 尚未在 v1 支持，请仅选择 GA4、Meta 或 TikTok。`,
+            },
+            { status: 400 }
+          );
         }
 
         if (!["test", "live"].includes(config.environment)) {
-             return json({ success: false, error: "Invalid environment" }, { status: 400 });
+          return json({ success: false, error: "Invalid environment" }, { status: 400 });
         }
-        
+
         const platformIdValue = config.platformId?.trim() || null;
-        const creds = (typeof config.credentials === 'object' && config.credentials !== null) ? config.credentials : {};
+        const creds = typeof config.credentials === "object" && config.credentials !== null ? config.credentials : {};
         const hasCredentials =
           platform === "google"
             ? !!(creds.measurementId?.trim() && creds.apiSecret?.trim())
@@ -106,19 +112,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
         // Validate credentials format if they are considered "present"
         if (hasCredentials) {
-            let validationResult;
-            if (platform === 'google') {
-                validationResult = GoogleCredentialsInputSchema.safeParse(creds);
-            } else if (platform === 'meta') {
-                 validationResult = MetaCredentialsInputSchema.safeParse(creds);
-            } else if (platform === 'tiktok') {
-                 validationResult = TikTokCredentialsInputSchema.safeParse(creds);
-            }
-            
-            if (validationResult && !validationResult.success) {
-                 const errorMsg = validationResult.error.issues[0].message;
-                 return json({ success: false, error: `${platform} 配置错误: ${errorMsg}` }, { status: 400 });
-            }
+          let validationResult;
+          if (platform === "google") {
+            validationResult = GoogleCredentialsInputSchema.safeParse(creds);
+          } else if (platform === "meta") {
+            validationResult = MetaCredentialsInputSchema.safeParse(creds);
+          } else if (platform === "tiktok") {
+            validationResult = TikTokCredentialsInputSchema.safeParse(creds);
+          }
+
+          if (validationResult && !validationResult.success) {
+            const errorMsg = validationResult.error.issues[0].message;
+            return json({ success: false, error: `${platform} 配置错误: ${errorMsg}` }, { status: 400 });
+          }
         }
 
         const credentialsEncrypted = hasCredentials
@@ -141,16 +147,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             ...(platformIdValue
               ? { platformId: platformIdValue }
               : {
-                  OR: [
-                    { platformId: null },
-                    { platformId: "" },
-                  ],
+                  OR: [{ platformId: null }, { platformId: "" }],
                 }),
           },
           select: { id: true },
         });
         const fullFunnelEvents = ["page_viewed", "product_viewed", "product_added_to_cart", "checkout_started"];
-        const hasFullFunnelEvents = Object.keys(config.eventMappings || {}).some(eventName =>
+        const hasFullFunnelEvents = Object.keys(config.eventMappings || {}).some((eventName) =>
           fullFunnelEvents.includes(eventName)
         );
         const mode: "purchase_only" | "full_funnel" = hasFullFunnelEvents ? "full_funnel" : "purchase_only";
@@ -239,10 +242,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       } else {
         const globalEnvironment = configs.length > 0 ? (configs[0].environment as "test" | "live") : "live";
         const fullFunnelEventsList = ["page_viewed", "product_viewed", "product_added_to_cart", "checkout_started"];
-        const globalMode = configs.some(c => 
-            Object.keys(c.eventMappings || {}).some(eventName => fullFunnelEventsList.includes(eventName))
-        ) ? "full_funnel" : "purchase_only";
-        
+        const globalMode = configs.some((c) =>
+          Object.keys(c.eventMappings || {}).some((eventName) => fullFunnelEventsList.includes(eventName))
+        )
+          ? "full_funnel"
+          : "purchase_only";
+
         const result = await createWebPixel(admin, ingestionSecret, shopDomain, globalEnvironment, globalMode);
         if (result.success && result.webPixelId) {
           await prisma.shop.update({
@@ -294,10 +299,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return json({ success: true, configIds });
     } catch (error) {
       logger.error("Failed to save pixel configs", error);
-      return json({
-        success: false,
-        error: error instanceof Error ? error.message : "保存配置失败",
-      }, { status: 500 });
+      return json(
+        {
+          success: false,
+          error: error instanceof Error ? error.message : "保存配置失败",
+        },
+        { status: 500 }
+      );
     }
   }
   return json({ error: "Unknown action" }, { status: 400 });

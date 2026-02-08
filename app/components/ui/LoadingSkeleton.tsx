@@ -17,17 +17,9 @@ export interface PageSkeletonProps {
   title?: string;
 }
 
-export function PageSkeleton({
-  cards = 2,
-  showTabs = false,
-  primaryAction = false,
-  title,
-}: PageSkeletonProps) {
+export function PageSkeleton({ cards = 2, showTabs = false, primaryAction = false, title }: PageSkeletonProps) {
   return (
-    <SkeletonPage
-      title={title}
-      primaryAction={primaryAction}
-    >
+    <SkeletonPage title={title} primaryAction={primaryAction}>
       {showTabs && <SkeletonTabs count={4} />}
       <BlockStack gap="400">
         {Array.from({ length: cards }).map((_, i) => (
@@ -49,17 +41,11 @@ export interface CardSkeletonProps {
   showImage?: boolean;
 }
 
-export function CardSkeleton({
-  lines = 3,
-  showTitle = true,
-  showImage = false,
-}: CardSkeletonProps) {
+export function CardSkeleton({ lines = 3, showTitle = true, showImage = false }: CardSkeletonProps) {
   return (
     <Card>
       <BlockStack gap="400">
-        {showImage && (
-          <SkeletonThumbnail size="large" />
-        )}
+        {showImage && <SkeletonThumbnail size="large" />}
         {showTitle && <SkeletonDisplayText size="small" />}
         <SkeletonBodyText lines={lines} />
       </BlockStack>
@@ -73,11 +59,7 @@ export interface TableSkeletonProps {
   showHeader?: boolean;
 }
 
-export function TableSkeleton({
-  rows = 5,
-  columns = 4,
-  showHeader = true,
-}: TableSkeletonProps) {
+export function TableSkeleton({ rows = 5, columns = 4, showHeader = true }: TableSkeletonProps) {
   return (
     <Card>
       <BlockStack gap="300">
@@ -143,9 +125,7 @@ export function ListSkeleton({ items = 5, showAvatar = false }: ListSkeletonProp
       <BlockStack gap="300">
         {Array.from({ length: items }).map((_, i) => (
           <InlineStack key={i} gap="300" blockAlign="center">
-            {showAvatar && (
-              <SkeletonThumbnail size="small" />
-            )}
+            {showAvatar && <SkeletonThumbnail size="small" />}
             <Box>
               <SkeletonBodyText lines={2} />
             </Box>
@@ -168,12 +148,7 @@ export function FormSkeleton({ fields = 4, showActions = true }: FormSkeletonPro
         {Array.from({ length: fields }).map((_, i) => (
           <BlockStack key={i} gap="200">
             <SkeletonBodyText lines={1} />
-            <Box
-              background="bg-surface-secondary"
-              padding="300"
-              borderRadius="200"
-              minHeight="44px"
-            >
+            <Box background="bg-surface-secondary" padding="300" borderRadius="200" minHeight="44px">
               <SkeletonBodyText lines={1} />
             </Box>
           </BlockStack>

@@ -19,10 +19,7 @@ export interface TikTokCredentials {
   accessToken: string;
 }
 
-export type PlatformCredentials =
-  | MetaCredentials
-  | GoogleCredentials
-  | TikTokCredentials;
+export type PlatformCredentials = MetaCredentials | GoogleCredentials | TikTokCredentials;
 
 export interface PlatformCredentialsFormProps {
   platform: PlatformType;
@@ -158,31 +155,14 @@ export function PlatformCredentialsForm({
 }: PlatformCredentialsFormProps) {
   switch (platform) {
     case "meta":
-      return (
-        <MetaForm
-          values={values as MetaCredentials}
-          onChange={onChange}
-          errors={errors}
-          disabled={disabled}
-        />
-      );
+      return <MetaForm values={values as MetaCredentials} onChange={onChange} errors={errors} disabled={disabled} />;
     case "google":
       return (
-        <GoogleForm
-          values={values as GoogleCredentials}
-          onChange={onChange}
-          errors={errors}
-          disabled={disabled}
-        />
+        <GoogleForm values={values as GoogleCredentials} onChange={onChange} errors={errors} disabled={disabled} />
       );
     case "tiktok":
       return (
-        <TikTokForm
-          values={values as TikTokCredentials}
-          onChange={onChange}
-          errors={errors}
-          disabled={disabled}
-        />
+        <TikTokForm values={values as TikTokCredentials} onChange={onChange} errors={errors} disabled={disabled} />
       );
     default:
       return null;
@@ -200,10 +180,7 @@ export function getEmptyCredentials(platform: PlatformType): PlatformCredentials
   }
 }
 
-export function areCredentialsComplete(
-  platform: PlatformType,
-  credentials: PlatformCredentials
-): boolean {
+export function areCredentialsComplete(platform: PlatformType, credentials: PlatformCredentials): boolean {
   switch (platform) {
     case "meta": {
       const meta = credentials as MetaCredentials;

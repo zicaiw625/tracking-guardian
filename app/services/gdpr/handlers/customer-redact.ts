@@ -26,19 +26,13 @@ export async function processCustomerRedact(
     prisma.pixelEventReceipt.deleteMany({
       where: {
         shopId: shop.id,
-        OR: [
-          { orderKey: { in: allOrderIdPatterns } },
-          { altOrderKey: { in: allOrderIdPatterns } },
-        ],
+        OR: [{ orderKey: { in: allOrderIdPatterns } }, { altOrderKey: { in: allOrderIdPatterns } }],
       },
     }),
     prisma.internalEvent.deleteMany({
       where: {
         shopId: shop.id,
-        OR: [
-          { transaction_id: { in: orderIdStrings } },
-          { event_id: { in: orderIdStrings } },
-        ],
+        OR: [{ transaction_id: { in: orderIdStrings } }, { event_id: { in: orderIdStrings } }],
       },
     }),
     prisma.orderSummary.deleteMany({

@@ -133,11 +133,7 @@ describe("visitorConsentCollected 事件解析", () => {
 });
 
 describe("hasFullConsent 严格模式验证（对应 P0-5）", () => {
-  function hasFullConsent(
-    marketingAllowed: boolean,
-    analyticsAllowed: boolean,
-    saleOfDataAllowed: boolean
-  ): boolean {
+  function hasFullConsent(marketingAllowed: boolean, analyticsAllowed: boolean, saleOfDataAllowed: boolean): boolean {
     return analyticsAllowed === true && marketingAllowed === true && saleOfDataAllowed;
   }
   it("只有完全同意才返回 true", () => {

@@ -105,18 +105,9 @@ describe("Consent Filter - checkInitialConsent", () => {
 });
 
 describe("Consent Filter - filterPlatformsByConsent", () => {
-  const marketingPlatforms = [
-    { platform: "meta" },
-    { platform: "tiktok" },
-  ];
-  const analyticsPlatforms = [
-    { platform: "google" },
-  ];
-  const mixedPlatforms = [
-    { platform: "meta" },
-    { platform: "google" },
-    { platform: "tiktok" },
-  ];
+  const marketingPlatforms = [{ platform: "meta" }, { platform: "tiktok" }];
+  const analyticsPlatforms = [{ platform: "google" }];
+  const mixedPlatforms = [{ platform: "meta" }, { platform: "google" }, { platform: "tiktok" }];
   describe("Marketing Platforms", () => {
     it("should allow all marketing platforms when marketing consent granted", () => {
       const consent: ConsentCheckResult = {
@@ -126,10 +117,7 @@ describe("Consent Filter - filterPlatformsByConsent", () => {
         saleOfDataAllowed: true,
       };
       const result = filterPlatformsByConsent(marketingPlatforms, consent);
-      expect(result.platformsToRecord).toEqual([
-        { platform: "meta" },
-        { platform: "tiktok" }
-      ]);
+      expect(result.platformsToRecord).toEqual([{ platform: "meta" }, { platform: "tiktok" }]);
       expect(result.skippedPlatforms).toEqual([]);
     });
     it("should skip all marketing platforms when marketing consent denied", () => {
@@ -153,9 +141,7 @@ describe("Consent Filter - filterPlatformsByConsent", () => {
         saleOfDataAllowed: false,
       };
       const result = filterPlatformsByConsent(analyticsPlatforms, consent);
-      expect(result.platformsToRecord).toEqual([
-        { platform: "google" }
-      ]);
+      expect(result.platformsToRecord).toEqual([{ platform: "google" }]);
       expect(result.skippedPlatforms).toEqual([]);
     });
     it("should skip analytics platforms when analytics consent denied", () => {
@@ -179,11 +165,7 @@ describe("Consent Filter - filterPlatformsByConsent", () => {
         saleOfDataAllowed: true,
       };
       const result = filterPlatformsByConsent(mixedPlatforms, consent);
-      expect(result.platformsToRecord).toEqual([
-        { platform: "meta" },
-        { platform: "google" },
-        { platform: "tiktok" }
-      ]);
+      expect(result.platformsToRecord).toEqual([{ platform: "meta" }, { platform: "google" }, { platform: "tiktok" }]);
       expect(result.skippedPlatforms).toEqual([]);
     });
     it("should only allow marketing when only marketing consent", () => {
@@ -194,10 +176,7 @@ describe("Consent Filter - filterPlatformsByConsent", () => {
         saleOfDataAllowed: true,
       };
       const result = filterPlatformsByConsent(mixedPlatforms, consent);
-      expect(result.platformsToRecord).toEqual([
-        { platform: "meta" },
-        { platform: "tiktok" }
-      ]);
+      expect(result.platformsToRecord).toEqual([{ platform: "meta" }, { platform: "tiktok" }]);
       expect(result.skippedPlatforms).toEqual(["google"]);
     });
     it("should only allow analytics when only analytics consent", () => {
@@ -208,9 +187,7 @@ describe("Consent Filter - filterPlatformsByConsent", () => {
         saleOfDataAllowed: false,
       };
       const result = filterPlatformsByConsent(mixedPlatforms, consent);
-      expect(result.platformsToRecord).toEqual([
-        { platform: "google" }
-      ]);
+      expect(result.platformsToRecord).toEqual([{ platform: "google" }]);
       expect(result.skippedPlatforms).toEqual(["meta", "tiktok"]);
     });
     it("should skip all when no consents", () => {
@@ -232,11 +209,7 @@ describe("Consent Filter - filterPlatformsByConsent", () => {
         saleOfDataAllowed: undefined,
       };
       const result = filterPlatformsByConsent(mixedPlatforms, consent);
-      expect(result.platformsToRecord).toEqual([
-        { platform: "meta" },
-        { platform: "google" },
-        { platform: "tiktok" }
-      ]);
+      expect(result.platformsToRecord).toEqual([{ platform: "meta" }, { platform: "google" }, { platform: "tiktok" }]);
       expect(result.skippedPlatforms).toEqual([]);
     });
   });
@@ -369,12 +342,7 @@ describe("Platform Consent - evaluatePlatformConsentWithStrategy", () => {
         marketing: true,
         saleOfDataAllowed: true,
       };
-      const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        "strict",
-        consent,
-        false
-      );
+      const result = evaluatePlatformConsentWithStrategy("meta", "strict", consent, false);
       expect(result.allowed).toBe(false);
       expect(result.reason).toBe("no_receipt_strict_mode");
     });
@@ -383,12 +351,7 @@ describe("Platform Consent - evaluatePlatformConsentWithStrategy", () => {
         marketing: true,
         saleOfDataAllowed: true,
       };
-      const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        "strict",
-        consent,
-        true
-      );
+      const result = evaluatePlatformConsentWithStrategy("meta", "strict", consent, true);
       expect(result.allowed).toBe(true);
     });
   });
@@ -398,12 +361,7 @@ describe("Platform Consent - evaluatePlatformConsentWithStrategy", () => {
         marketing: true,
         saleOfDataAllowed: true,
       };
-      const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        "balanced",
-        consent,
-        false
-      );
+      const result = evaluatePlatformConsentWithStrategy("meta", "balanced", consent, false);
       expect(result.allowed).toBe(false);
       expect(result.reason).toBe("no_receipt_balanced_mode");
     });
@@ -412,12 +370,7 @@ describe("Platform Consent - evaluatePlatformConsentWithStrategy", () => {
         marketing: true,
         saleOfDataAllowed: true,
       };
-      const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        "balanced",
-        consent,
-        true
-      );
+      const result = evaluatePlatformConsentWithStrategy("meta", "balanced", consent, true);
       expect(result.allowed).toBe(true);
     });
   });
@@ -427,12 +380,7 @@ describe("Platform Consent - evaluatePlatformConsentWithStrategy", () => {
         marketing: true,
         saleOfDataAllowed: true,
       };
-      const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        "default",
-        consent,
-        false
-      );
+      const result = evaluatePlatformConsentWithStrategy("meta", "default", consent, false);
       expect(result.allowed).toBe(false);
       expect(result.reason).toBe("no_receipt_default_mode");
     });
@@ -443,12 +391,7 @@ describe("Platform Consent - evaluatePlatformConsentWithStrategy", () => {
         marketing: true,
         saleOfDataAllowed: undefined,
       };
-      const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        "strict",
-        consent,
-        true
-      );
+      const result = evaluatePlatformConsentWithStrategy("meta", "strict", consent, true);
       expect(result.allowed).toBe(true);
       expect(result.usedConsent).toBe("marketing");
     });
@@ -457,12 +400,7 @@ describe("Platform Consent - evaluatePlatformConsentWithStrategy", () => {
         marketing: true,
         saleOfDataAllowed: undefined,
       };
-      const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        "balanced",
-        consent,
-        true
-      );
+      const result = evaluatePlatformConsentWithStrategy("meta", "balanced", consent, true);
       expect(result.allowed).toBe(true);
       expect(result.usedConsent).toBe("marketing");
     });
@@ -471,12 +409,7 @@ describe("Platform Consent - evaluatePlatformConsentWithStrategy", () => {
         marketing: true,
         saleOfDataAllowed: false,
       };
-      const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        "strict",
-        consent,
-        true
-      );
+      const result = evaluatePlatformConsentWithStrategy("meta", "strict", consent, true);
       expect(result.allowed).toBe(false);
       expect(result.reason).toContain("sale_of_data_not_allowed");
       expect(result.reason).toContain("P0-04");

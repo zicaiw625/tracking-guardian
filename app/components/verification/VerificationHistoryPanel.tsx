@@ -3,9 +3,7 @@ import { Box, BlockStack, Card, DataTable, Text } from "@shopify/polaris";
 import { StatusBadge } from "./VerificationBadges";
 import { EnhancedEmptyState, CardSkeleton } from "~/components/ui";
 
-const ReportComparison = lazy(() =>
-  import("./ReportComparison").then((m) => ({ default: m.ReportComparison }))
-);
+const ReportComparison = lazy(() => import("./ReportComparison").then((m) => ({ default: m.ReportComparison })));
 
 export interface VerificationHistoryRun {
   runId: string;
@@ -24,11 +22,7 @@ export interface VerificationHistoryPanelProps {
   shop: { id: string } | null;
 }
 
-export function VerificationHistoryPanel({
-  history,
-  onRunVerification,
-  shop,
-}: VerificationHistoryPanelProps) {
+export function VerificationHistoryPanel({ history, onRunVerification, shop }: VerificationHistoryPanelProps) {
   return (
     <Box padding="400">
       <BlockStack gap="500">
@@ -42,9 +36,7 @@ export function VerificationHistoryPanel({
                 columnContentTypes={["text", "text", "text", "numeric", "numeric", "numeric"]}
                 headings={["时间", "类型", "状态", "通过", "失败", "参数缺失"]}
                 rows={history.map((run) => [
-                  run.completedAt
-                    ? new Date(run.completedAt).toLocaleString("zh-CN")
-                    : "-",
+                  run.completedAt ? new Date(run.completedAt).toLocaleString("zh-CN") : "-",
                   run.runType === "full" ? "完整" : "快速",
                   <StatusBadge key={run.runId} status={run.status} />,
                   run.passedTests,

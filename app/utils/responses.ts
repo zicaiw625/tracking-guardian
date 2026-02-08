@@ -14,11 +14,7 @@ export function createJsonResponse<T extends Record<string, unknown>>(
   });
 }
 
-export function createErrorResponse(
-  error: string,
-  status: number = 400,
-  headers?: HeadersInit
-): Response {
+export function createErrorResponse(error: string, status: number = 400, headers?: HeadersInit): Response {
   return createJsonResponse({ error }, { status, headers });
 }
 
@@ -27,10 +23,7 @@ export function createSuccessResponse<T extends Record<string, unknown>>(
   status: number = 200,
   headers?: HeadersInit
 ): Response {
-  return createJsonResponse(
-    { success: true, ...data },
-    { status, headers }
-  );
+  return createJsonResponse({ success: true, ...data }, { status, headers });
 }
 
 export function badRequestResponse(error: string): Response {
@@ -67,11 +60,7 @@ export function cronSuccessResponse<T extends Record<string, unknown>>(
   });
 }
 
-export function cronSkippedResponse(
-  requestId: string,
-  durationMs: number,
-  reason?: string
-): Response {
+export function cronSkippedResponse(requestId: string, durationMs: number, reason?: string): Response {
   return createJsonResponse({
     success: true,
     skipped: true,
@@ -99,11 +88,7 @@ export function cronErrorResponse(
   );
 }
 
-export function pixelEventSuccessResponse(data: {
-  eventId?: string;
-  received?: boolean;
-  message?: string;
-}): Response {
+export function pixelEventSuccessResponse(data: { eventId?: string; received?: boolean; message?: string }): Response {
   return createJsonResponse({
     success: true,
     ...data,
@@ -114,10 +99,7 @@ export function sanitizeFilename(filename: string): string {
   return filename.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
-export function createExportResponse(
-  data: unknown,
-  filename: string
-): Response {
+export function createExportResponse(data: unknown, filename: string): Response {
   const headers = new Headers();
   headers.set("Content-Type", "application/json");
   headers.set("Content-Disposition", `attachment; filename="${sanitizeFilename(filename)}"`);
@@ -127,10 +109,7 @@ export function createExportResponse(
   });
 }
 
-export function createCsvExportResponse(
-  csv: string,
-  filename: string
-): Response {
+export function createCsvExportResponse(csv: string, filename: string): Response {
   const headers = new Headers();
   headers.set("Content-Type", "text/csv");
   headers.set("Content-Disposition", `attachment; filename="${sanitizeFilename(filename)}"`);

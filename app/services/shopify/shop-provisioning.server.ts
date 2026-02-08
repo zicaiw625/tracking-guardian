@@ -1,15 +1,17 @@
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../../db.server";
-import {
-  encryptAccessToken,
-  generateEncryptedIngestionSecret,
-} from "../../utils/token-encryption.server";
+import { encryptAccessToken, generateEncryptedIngestionSecret } from "../../utils/token-encryption.server";
 import { logger } from "../../utils/logger.server";
 import { safeFireAndForget } from "../../utils/helpers.server";
 import type { ShopQueryResponse, ShopTierValue } from "../../types/shopify";
 import { cleanupDeprecatedWebhookSubscriptions } from "./webhook-cleanup.server";
 import { scanShopTracking } from "../scanner.server";
-import { batchCreateAuditAssets, type AuditAssetInput, type RiskLevel, type SuggestedMigration } from "../audit-asset.server";
+import {
+  batchCreateAuditAssets,
+  type AuditAssetInput,
+  type RiskLevel,
+  type SuggestedMigration,
+} from "../audit-asset.server";
 import { generateMigrationActions } from "../scanner/migration-actions";
 import { refreshTypOspStatus } from "../checkout-profile.server";
 import { generateMigrationTimeline, calculateAllAssetPriorities } from "../migration-priority.server";
@@ -28,10 +30,7 @@ interface ShopInfo {
   storefrontDomains: string[];
 }
 
-async function fetchShopInfo(
-  admin: AdminApiContext,
-  shopDomain: string
-): Promise<ShopInfo> {
+async function fetchShopInfo(admin: AdminApiContext, shopDomain: string): Promise<ShopInfo> {
   let primaryDomainHost: string | null = null;
   let shopTier: ShopTierValue = "unknown";
   let storefrontDomains: string[] = [];
@@ -56,9 +55,9 @@ async function fetchShopInfo(
     `);
     const shopData = (await shopQuery.json()) as ShopQueryResponse;
     primaryDomainHost = shopData?.data?.shop?.primaryDomain?.host || null;
-    
+
     if (shopData?.data?.shop?.domains) {
-      storefrontDomains = shopData.data.shop.domains.map(d => d.host).filter(Boolean);
+      storefrontDomains = shopData.data.shop.domains.map((d) => d.host).filter(Boolean);
     }
 
     const plan = shopData?.data?.shop?.plan;
@@ -73,7 +72,7 @@ async function fetchShopInfo(
       });
     }
     logger.info(`[Shop] Fetched ${storefrontDomains.length} domains for ${shopDomain}`, {
-      domains: storefrontDomains.slice(0, 5)
+      domains: storefrontDomains.slice(0, 5),
     });
     logger.info(`[Shop] Determined shopTier for ${shopDomain}`, {
       shopTier,
@@ -97,9 +96,7 @@ async function upsertShopRecord(
     where: { shopDomain },
     select: { ingestionSecret: true },
   });
-  const encryptedAccessToken = accessToken
-    ? encryptAccessToken(accessToken)
-    : null;
+  const encryptedAccessToken = accessToken ? encryptAccessToken(accessToken) : null;
   const newIngestionSecret = generateEncryptedIngestionSecret();
   await prisma.shop.upsert({
     where: { shopDomain },
@@ -132,11 +129,7 @@ async function upsertShopRecord(
   }
 }
 
-async function runPostInstallScan(
-  shopDomain: string,
-  shopId: string,
-  admin: AdminApiContext
-): Promise<void> {
+async function runPostInstallScan(shopDomain: string, shopId: string, admin: AdminApiContext): Promise<void> {
   const startTime = Date.now();
   const MAX_SCAN_TIME_MS = 10000;
   const FAST_TRACK_MS = 8000;
@@ -149,10 +142,7 @@ async function runPostInstallScan(
       force: false,
       cacheTtlMs: 0,
     });
-    const scanPromise = Promise.allSettled([
-      typOspPromise,
-      scanTrackingPromise,
-    ]);
+    const scanPromise = Promise.allSettled([typOspPromise, scanTrackingPromise]);
     let timeoutId: NodeJS.Timeout | null = null;
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(() => {
@@ -226,7 +216,11 @@ async function runPostInstallScan(
           category: action.type === "configure_pixel" ? "pixel" : "other",
           platform: action.platform || undefined,
           sourceType: "api_scan" as const,
-          riskLevel: (action.priority === "high" ? "high" : action.priority === "medium" ? "medium" : "low") as RiskLevel,
+          riskLevel: (action.priority === "high"
+            ? "high"
+            : action.priority === "medium"
+              ? "medium"
+              : "low") as RiskLevel,
           suggestedMigration: (action.type === "configure_pixel" ? "web_pixel" : "none") as SuggestedMigration,
           details: {
             scriptTagId: action.scriptTagId,
@@ -242,9 +236,12 @@ async function runPostInstallScan(
             select: { id: true },
           });
           const result = await batchCreateAuditAssets(shopId, auditAssets, latestScan?.id);
-          logger.info(`[PostInstall] Created ${result.created} audit assets, updated ${result.updated} for ${shopDomain}`, {
-            elapsedMs: Date.now() - startTime,
-          });
+          logger.info(
+            `[PostInstall] Created ${result.created} audit assets, updated ${result.updated} for ${shopDomain}`,
+            {
+              elapsedMs: Date.now() - startTime,
+            }
+          );
           if (result.created > 0 || result.updated > 0) {
             (async () => {
               try {
@@ -308,7 +305,11 @@ async function runPostInstallScan(
             category: action.type === "configure_pixel" ? "pixel" : "other",
             platform: action.platform || undefined,
             sourceType: "api_scan" as const,
-            riskLevel: (action.priority === "high" ? "high" : action.priority === "medium" ? "medium" : "low") as RiskLevel,
+            riskLevel: (action.priority === "high"
+              ? "high"
+              : action.priority === "medium"
+                ? "medium"
+                : "low") as RiskLevel,
             suggestedMigration: (action.type === "configure_pixel" ? "web_pixel" : "none") as SuggestedMigration,
             details: {
               scriptTagId: action.scriptTagId,
@@ -355,20 +356,15 @@ async function runPostInstallScan(
   }
 }
 
-export async function handleAfterAuth(
-  params: AfterAuthParams
-): Promise<void> {
+export async function handleAfterAuth(params: AfterAuthParams): Promise<void> {
   const { session, admin } = params;
   if (admin) {
-    safeFireAndForget(
-      cleanupDeprecatedWebhookSubscriptions(admin, session.shop),
-      {
-        operation: "cleanupDeprecatedWebhookSubscriptions",
-        metadata: {
-          shopDomain: session.shop,
-        },
-      }
-    );
+    safeFireAndForget(cleanupDeprecatedWebhookSubscriptions(admin, session.shop), {
+      operation: "cleanupDeprecatedWebhookSubscriptions",
+      metadata: {
+        shopDomain: session.shop,
+      },
+    });
   }
   const shopInfo = admin
     ? await fetchShopInfo(admin, session.shop)
@@ -385,7 +381,7 @@ export async function handleAfterAuth(
       select: { id: true, plan: true },
     });
     if (shop) {
-            safeFireAndForget(
+      safeFireAndForget(
         (async () => {
           const { trackEvent } = await import("../../services/analytics.server");
           const { isPlanAtLeast } = await import("../../utils/plans");
@@ -400,7 +396,7 @@ export async function handleAfterAuth(
               plan: shop.plan || "free",
               shopTier: shopInfo.shopTier || "unknown",
               role: isAgency ? "agency" : "merchant",
-                          },
+            },
           });
         })(),
         {
@@ -411,16 +407,13 @@ export async function handleAfterAuth(
           },
         }
       );
-      safeFireAndForget(
-        runPostInstallScan(session.shop, shop.id, admin),
-        {
-          operation: "runPostInstallScan",
-          metadata: {
-            shopDomain: session.shop,
-            shopId: shop.id,
-          },
-        }
-      );
+      safeFireAndForget(runPostInstallScan(session.shop, shop.id, admin), {
+        operation: "runPostInstallScan",
+        metadata: {
+          shopDomain: session.shop,
+          shopId: shop.id,
+        },
+      });
     }
   }
 }

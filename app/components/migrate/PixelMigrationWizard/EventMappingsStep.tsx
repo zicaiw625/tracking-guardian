@@ -6,11 +6,7 @@ import { EventMappingEditor } from "../EventMappingEditor";
 interface EventMappingsStepProps {
   selectedPlatforms: Set<PlatformType>;
   platformConfigs: Partial<Record<PlatformType, PlatformConfig>>;
-  onEventMappingUpdate: (
-    platform: PlatformType,
-    shopifyEvent: string,
-    platformEvent: string
-  ) => void;
+  onEventMappingUpdate: (platform: PlatformType, shopifyEvent: string, platformEvent: string) => void;
 }
 
 export function EventMappingsStep({

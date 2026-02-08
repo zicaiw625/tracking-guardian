@@ -26,10 +26,7 @@ export interface RedirectValidationResult {
   error?: string;
 }
 
-export function assertSafeRedirect(
-  url: string,
-  allowedDomains: string[]
-): RedirectValidationResult {
+export function assertSafeRedirect(url: string, allowedDomains: string[]): RedirectValidationResult {
   try {
     const urlObj = new URL(url);
     if (urlObj.protocol !== "https:") {
@@ -39,12 +36,12 @@ export function assertSafeRedirect(
       };
     }
     const hostname = urlObj.hostname.toLowerCase();
-    
-    const isAllowed = allowedDomains.some(domain => {
+
+    const isAllowed = allowedDomains.some((domain) => {
       const normalizedDomain = domain.toLowerCase();
       return hostname === normalizedDomain || hostname.endsWith(`.${normalizedDomain}`);
     });
-    
+
     if (!isAllowed) {
       logger.error(`Invalid redirect domain: ${hostname}`, {
         url,
@@ -55,7 +52,7 @@ export function assertSafeRedirect(
         error: `Domain ${hostname} is not in allowed list`,
       };
     }
-    
+
     return { valid: true };
   } catch (error) {
     logger.error(`Invalid redirect URL format: ${url}`, {

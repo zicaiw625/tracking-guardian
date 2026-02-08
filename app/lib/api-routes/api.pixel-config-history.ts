@@ -1,9 +1,6 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../../shopify.server";
-import {
-  getConfigComparison,
-  getConfigVersionHistory,
-} from "../../services/pixel-rollback.server";
+import { getConfigComparison, getConfigVersionHistory } from "../../services/pixel-rollback.server";
 import { logger } from "../../utils/logger.server";
 import prisma from "../../db.server";
 import { jsonApi } from "../../utils/security-headers";
@@ -37,9 +34,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
   } catch (error) {
     logger.error("Failed to fetch config history", { error });
-    return jsonApi(
-      { error: "获取配置历史失败" },
-      { status: 500 }
-    );
+    return jsonApi({ error: "获取配置历史失败" }, { status: 500 });
   }
 };

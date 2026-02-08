@@ -15,16 +15,15 @@ export function CheckoutExtensibilityWarning() {
           <List type="bullet">
             <List.Item>
               <Text as="span" variant="bodyMd">
-                <strong>旧脚本弃用时间线：</strong> Thank you / Order status 页面的旧方式
-                （script tags / additional scripts / checkout.liquid）已被 Checkout Extensibility
+                <strong>旧脚本弃用时间线：</strong> Thank you / Order status 页面的旧方式 （script tags / additional
+                scripts / checkout.liquid）已被 Checkout Extensibility
                 替换，且有明确的关停日期。请确保在关停前完成迁移。
               </Text>
             </List.Item>
             <List.Item>
               <Text as="span" variant="bodyMd">
-                <strong>checkout_completed 触发位置：</strong> 该事件不一定在 Thank you 页触发。
-                当存在 upsell / post-purchase 时，可能在第一个 upsell 页触发，且 Thank you 页不再触发。
-                若触发页加载失败则完全不触发。
+                <strong>checkout_completed 触发位置：</strong> 该事件不一定在 Thank you 页触发。 当存在 upsell /
+                post-purchase 时，可能在第一个 upsell 页触发，且 Thank you 页不再触发。 若触发页加载失败则完全不触发。
                 <br />
                 <strong>v1.0 版本说明：</strong>v1.0 版本仅依赖 Web Pixels 标准事件，不处理订单 webhooks。
               </Text>

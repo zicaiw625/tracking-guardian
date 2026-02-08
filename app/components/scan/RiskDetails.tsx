@@ -20,24 +20,13 @@ export function RiskDetails({ riskItems }: RiskDetailsProps) {
         </Text>
         <BlockStack gap="300">
           {riskItems.map((item, index) => (
-            <Box
-              key={index}
-              background="bg-surface-secondary"
-              padding="400"
-              borderRadius="200"
-            >
+            <Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack align="space-between">
                   <InlineStack gap="200">
                     <Icon
                       source={AlertCircleIcon}
-                      tone={
-                        item.severity === "high"
-                          ? "critical"
-                          : item.severity === "medium"
-                          ? "warning"
-                          : "info"
-                      }
+                      tone={item.severity === "high" ? "critical" : item.severity === "medium" ? "warning" : "info"}
                     />
                     <Text as="span" fontWeight="semibold">
                       {item.name}
@@ -55,9 +44,7 @@ export function RiskDetails({ riskItems }: RiskDetailsProps) {
                 )}
                 <InlineStack align="space-between" blockAlign="center">
                   <InlineStack gap="200">
-                    {item.platform && (
-                      <Badge>{getPlatformName(item.platform, t)}</Badge>
-                    )}
+                    {item.platform && <Badge>{getPlatformName(item.platform, t)}</Badge>}
                     {item.impact && (
                       <Text as="span" variant="bodySm" tone="critical">
                         {t("scan.riskDetails.impact", { impact: item.impact })}

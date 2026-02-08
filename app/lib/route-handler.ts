@@ -50,10 +50,9 @@ export function createActionHandler<TInput = unknown, TOutput = unknown>(
       };
     } catch (error) {
       requestLogger.error("Authentication failed", error);
-      return addSecurityHeaders(json(
-        { success: false, error: "Authentication required", code: ErrorCode.AUTH_INVALID_TOKEN },
-        { status: 401 }
-      ));
+      return addSecurityHeaders(
+        json({ success: false, error: "Authentication required", code: ErrorCode.AUTH_INVALID_TOKEN }, { status: 401 })
+      );
     }
     try {
       let input: TInput;
@@ -71,10 +70,7 @@ export function createActionHandler<TInput = unknown, TOutput = unknown>(
       if (!result.ok) {
         return addSecurityHeaders(handleError(result.error, ctx, config.onError));
       }
-      return addSecurityHeaders(json(
-        { success: true, data: result.value },
-        { status: config.successStatus || 200 }
-      ));
+      return addSecurityHeaders(json({ success: true, data: result.value }, { status: config.successStatus || 200 }));
     } catch (error) {
       const appError = ensureAppError(error);
       return addSecurityHeaders(handleError(appError, ctx, config.onError));
@@ -98,10 +94,9 @@ export function createLoaderHandler<TOutput>(
       };
     } catch (error) {
       requestLogger.error("Authentication failed", error);
-      return addSecurityHeaders(json(
-        { success: false, error: "Authentication required", code: ErrorCode.AUTH_INVALID_TOKEN },
-        { status: 401 }
-      ));
+      return addSecurityHeaders(
+        json({ success: false, error: "Authentication required", code: ErrorCode.AUTH_INVALID_TOKEN }, { status: 401 })
+      );
     }
     try {
       const result = await config.execute(ctx);
@@ -170,7 +165,12 @@ export function createWebhookHandler<TPayload = unknown, TOutput = unknown>(
         return new Response("OK", { status: 200 });
       }
       const webhookId = (() => {
-        if (authResult && typeof authResult === "object" && "webhookId" in authResult && typeof authResult.webhookId === "string") {
+        if (
+          authResult &&
+          typeof authResult === "object" &&
+          "webhookId" in authResult &&
+          typeof authResult.webhookId === "string"
+        ) {
           return authResult.webhookId;
         }
         return request.headers.get("X-Shopify-Event-Id") ?? request.headers.get("X-Shopify-Webhook-Id") ?? null;
@@ -191,13 +191,10 @@ export function createWebhookHandler<TPayload = unknown, TOutput = unknown>(
         validatedPayload = payload as TPayload;
       }
       if (config.async) {
-        safeFireAndForget(
-          config.execute(validatedPayload, { shop, webhookId, topic, admin }),
-          {
-            operation: "asyncWebhookProcessing",
-            metadata: { shop, topic },
-          }
-        );
+        safeFireAndForget(config.execute(validatedPayload, { shop, webhookId, topic, admin }), {
+          operation: "asyncWebhookProcessing",
+          metadata: { shop, topic },
+        });
         return new Response("OK", { status: 200 });
       }
       const result = await config.execute(validatedPayload, { shop, webhookId, topic, admin });
@@ -257,10 +254,7 @@ function handleError(
   return json({ success: false, error: message, code }, { status });
 }
 
-function handlePublicError(
-  error: AppError,
-  customHandler?: (error: AppError) => Response
-): Response {
+function handlePublicError(error: AppError, customHandler?: (error: AppError) => Response): Response {
   logger.error("Public request failed", error, { code: error.code });
   if (customHandler) {
     return customHandler(error);
@@ -270,24 +264,23 @@ function handlePublicError(
   return json({ success: false, error: message, code }, { status });
 }
 
-export function createValidator<T>(
-  schema: { safeParse: (data: unknown) => { success: true; data: T } | { success: false; error: { issues: Array<{ path: (string | number)[]; message: string }> } } }
-): (data: unknown) => Result<T, AppError> {
+export function createValidator<T>(schema: {
+  safeParse: (
+    data: unknown
+  ) =>
+    | { success: true; data: T }
+    | { success: false; error: { issues: Array<{ path: (string | number)[]; message: string }> } };
+}): (data: unknown) => Result<T, AppError> {
   return (data: unknown): Result<T, AppError> => {
     const result = schema.safeParse(data);
     if (result.success) {
       return ok(result.data);
     }
-    const errors = result.error.issues
-      .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
-      .join("; ");
+    const errors = result.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; ");
     return err(
-      new AppError(
-        ErrorCode.VALIDATION_ERROR,
-        `Validation failed: ${errors}`,
-        false,
-        { validationErrors: result.error.issues }
-      )
+      new AppError(ErrorCode.VALIDATION_ERROR, `Validation failed: ${errors}`, false, {
+        validationErrors: result.error.issues,
+      })
     );
   };
 }

@@ -3,10 +3,7 @@ import { logger } from "../../../utils/logger.server";
 import type { ShopRedactPayload, ShopRedactResult } from "../types";
 import { createEmptyShopRedactDeletionCounts } from "../types";
 
-export async function processShopRedact(
-  shopDomain: string,
-  _payload: ShopRedactPayload
-): Promise<ShopRedactResult> {
+export async function processShopRedact(shopDomain: string, _payload: ShopRedactPayload): Promise<ShopRedactResult> {
   logger.info(`[GDPR] Processing shop redact for ${shopDomain} - DELETING ALL DATA`);
   const deletedCounts = createEmptyShopRedactDeletionCounts();
   await prisma.$transaction(async (tx) => {

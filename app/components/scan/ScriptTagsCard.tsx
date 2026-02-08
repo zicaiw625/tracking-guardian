@@ -21,9 +21,7 @@ export function ScriptTagsCard({ scriptTags, deprecationStatus }: ScriptTagsCard
             ScriptTags
           </Text>
           {deprecationStatus && (
-            <Badge tone={deprecationStatus.isExpired ? "critical" : "warning"}>
-              {deprecationStatus.badge.text}
-            </Badge>
+            <Badge tone={deprecationStatus.isExpired ? "critical" : "warning"}>{deprecationStatus.badge.text}</Badge>
           )}
         </InlineStack>
         <BlockStack gap="200">

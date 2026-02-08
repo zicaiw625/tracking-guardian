@@ -4,10 +4,7 @@
  * All functions in this file can be safely used in client-side code.
  */
 
-export function safeParseFloat(
-  value: string | number | undefined | null,
-  fallback: number = 0
-): number {
+export function safeParseFloat(value: string | number | undefined | null, fallback: number = 0): number {
   if (value === undefined || value === null || value === "") {
     return fallback;
   }
@@ -18,10 +15,7 @@ export function safeParseFloat(
   return isNaN(parsed) ? fallback : parsed;
 }
 
-export function safeParseInt(
-  value: string | number | undefined | null,
-  fallback: number = 0
-): number {
+export function safeParseInt(value: string | number | undefined | null, fallback: number = 0): number {
   if (value === undefined || value === null || value === "") {
     return fallback;
   }
@@ -32,10 +26,7 @@ export function safeParseInt(
   return isNaN(parsed) ? fallback : parsed;
 }
 
-export function safeParseBool(
-  value: string | boolean | undefined | null,
-  fallback: boolean = false
-): boolean {
+export function safeParseBool(value: string | boolean | undefined | null, fallback: boolean = false): boolean {
   if (value === undefined || value === null) {
     return fallback;
   }
@@ -52,11 +43,7 @@ export function safeParseBool(
   return fallback;
 }
 
-export function truncate(
-  str: string | undefined | null,
-  maxLength: number = 50,
-  suffix: string = "..."
-): string {
+export function truncate(str: string | undefined | null, maxLength: number = 50, suffix: string = "..."): string {
   if (!str) return "";
   if (maxLength <= 0) return suffix;
   if (str.length <= maxLength) return str;
@@ -78,35 +65,20 @@ export function getErrorMessage(error: unknown): string {
   return "An unknown error occurred";
 }
 
-export function maskSensitive(
-  value: string | undefined | null,
-  visibleChars: number = 4
-): string {
+export function maskSensitive(value: string | undefined | null, visibleChars: number = 4): string {
   if (!value) return "***";
   if (visibleChars <= 0) return "***";
   if (value.length <= 3) return "***";
   const minRequiredLength = visibleChars * 2 + 3;
   if (value.length < minRequiredLength) {
     const safeVisibleChars = Math.max(1, Math.floor((value.length - 3) / 2));
-    return (
-      value.substring(0, safeVisibleChars) +
-      "***" +
-      value.substring(value.length - safeVisibleChars)
-    );
+    return value.substring(0, safeVisibleChars) + "***" + value.substring(value.length - safeVisibleChars);
   }
   const safeVisibleChars = Math.min(visibleChars, Math.floor((value.length - 3) / 2));
-  return (
-    value.substring(0, safeVisibleChars) +
-    "***" +
-    value.substring(value.length - safeVisibleChars)
-  );
+  return value.substring(0, safeVisibleChars) + "***" + value.substring(value.length - safeVisibleChars);
 }
 
-export function getNestedValue<T>(
-  obj: unknown,
-  path: string,
-  fallback?: T
-): T | undefined {
+export function getNestedValue<T>(obj: unknown, path: string, fallback?: T): T | undefined {
   const keys = path.split(".");
   let current: unknown = obj;
   for (const key of keys) {
@@ -128,12 +100,8 @@ export function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function removeNullish<T extends Record<string, unknown>>(
-  obj: T
-): Partial<T> {
-  const filtered = Object.fromEntries(
-    Object.entries(obj).filter(([, v]) => v !== undefined && v !== null)
-  );
+export function removeNullish<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  const filtered = Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined && v !== null));
   return filtered as Partial<T>;
 }
 
@@ -198,10 +166,7 @@ export function unique<T>(array: T[]): T[] {
   return [...new Set(array)];
 }
 
-export function groupBy<T, K extends string | number>(
-  array: T[],
-  keyFn: (item: T) => K
-): Record<K, T[]> {
+export function groupBy<T, K extends string | number>(array: T[], keyFn: (item: T) => K): Record<K, T[]> {
   const groups: Partial<Record<K, T[]>> = {};
   for (const item of array) {
     const key = keyFn(item);
@@ -252,12 +217,7 @@ export async function retry<T>(
     shouldRetry?: (error: unknown) => boolean;
   } = {}
 ): Promise<T> {
-  const {
-    maxAttempts = 3,
-    initialDelayMs = 1000,
-    maxDelayMs = 30000,
-    shouldRetry = () => true,
-  } = options;
+  const { maxAttempts = 3, initialDelayMs = 1000, maxDelayMs = 30000, shouldRetry = () => true } = options;
   const safeMaxAttempts = Math.max(1, maxAttempts);
   let lastError: unknown;
   for (let attempt = 1; attempt <= safeMaxAttempts; attempt++) {
@@ -268,10 +228,7 @@ export async function retry<T>(
       if (attempt === safeMaxAttempts || !shouldRetry(error)) {
         throw error;
       }
-      const delayMs = Math.min(
-        initialDelayMs * Math.pow(2, attempt - 1),
-        maxDelayMs
-      );
+      const delayMs = Math.min(initialDelayMs * Math.pow(2, attempt - 1), maxDelayMs);
       await delay(delayMs);
     }
   }
@@ -280,7 +237,6 @@ export async function retry<T>(
   }
   throw new Error("Retry function failed without capturing an error");
 }
-
 
 export async function parallelLimit<T, R>(
   items: T[],
@@ -309,9 +265,7 @@ export async function parallelLimit<T, R>(
     executing.set(index, promise);
   }
   while (executing.size > 0) {
-    const settled = await Promise.race(
-      Array.from(executing.values())
-    );
+    const settled = await Promise.race(Array.from(executing.values()));
     if (settled.error !== undefined) {
       errors.push({ index: settled.index, error: settled.error });
       results[settled.index] = undefined;
@@ -332,9 +286,7 @@ export async function parallelLimit<T, R>(
     const errorMessages = errors.map(
       (e) => `Item ${e.index}: ${e.error instanceof Error ? e.error.message : String(e.error)}`
     );
-    throw new Error(
-      `parallelLimit failed for ${errors.length} item(s):\n${errorMessages.join("\n")}`
-    );
+    throw new Error(`parallelLimit failed for ${errors.length} item(s):\n${errorMessages.join("\n")}`);
   }
   const validResults = results.filter((r): r is R => r !== undefined);
   if (validResults.length !== items.length) {

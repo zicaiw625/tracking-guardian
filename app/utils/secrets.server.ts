@@ -240,7 +240,10 @@ export function checkSecurityViolations(): SecurityViolation[] {
       });
     }
   }
-  const suspiciousPatterns = [/^(test|demo|example|placeholder|changeme|secret|password|xxx+|000+)$/i, /^INSECURE.*DEV/i];
+  const suspiciousPatterns = [
+    /^(test|demo|example|placeholder|changeme|secret|password|xxx+|000+)$/i,
+    /^INSECURE.*DEV/i,
+  ];
   const secretsToCheck = ["ENCRYPTION_SECRET", "CRON_SECRET", "SHOPIFY_API_SECRET"];
   for (const secretName of secretsToCheck) {
     const value = process.env[secretName];
@@ -320,8 +323,8 @@ export async function enforceSecurityChecks(): Promise<void> {
   const violations = checkSecurityViolations();
   const legacyCredentialViolations = await checkLegacyPlaintextCredentials();
   const allViolations = [...violations, ...legacyCredentialViolations];
-  const fatalViolations = allViolations.filter(v => v.type === "fatal");
-  const warnings = allViolations.filter(v => v.type === "warning");
+  const fatalViolations = allViolations.filter((v) => v.type === "fatal");
+  const warnings = allViolations.filter((v) => v.type === "warning");
   for (const warning of warnings) {
     logger.warn(warning.message, { code: warning.code });
   }
@@ -338,9 +341,9 @@ export async function enforceSecurityChecks(): Promise<void> {
     logger.info(summary);
   }
   if (fatalViolations.length > 0) {
-    const errorMessage = fatalViolations.map(v => `[${v.code}] ${v.message}`).join("\n\n");
+    const errorMessage = fatalViolations.map((v) => `[${v.code}] ${v.message}`).join("\n\n");
     logger.error("FATAL SECURITY VIOLATION - Application startup aborted", undefined, {
-      violations: fatalViolations.map(v => ({ code: v.code, message: v.message })),
+      violations: fatalViolations.map((v) => ({ code: v.code, message: v.message })),
     });
     throw new Error(
       `\n\n${"=".repeat(80)}\n` +
@@ -400,7 +403,9 @@ export function validateSecrets(): ValidationResult {
     if (!value) {
       missingRecommended.push(secret.envVar);
       if (productionEnv) {
-        warnings.push(`${secret.name} (${secret.envVar}) is not set - ${secret.description || "recommended for production"}`);
+        warnings.push(
+          `${secret.name} (${secret.envVar}) is not set - ${secret.description || "recommended for production"}`
+        );
       }
     } else if (secret.pattern && !secret.pattern.test(value)) {
       warnings.push(`${secret.name} (${secret.envVar}) does not match expected format`);
@@ -483,4 +488,3 @@ export function getRequiredSecret(envVar: string): string {
 export function getOptionalSecret(envVar: string, defaultValue: string): string {
   return process.env[envVar] || defaultValue;
 }
-

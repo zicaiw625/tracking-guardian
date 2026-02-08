@@ -67,7 +67,7 @@ export async function saveConfigSnapshot(
     logger.info("Config snapshot saved", {
       shopId,
       platform,
-      version: config.configVersion + 1
+      version: config.configVersion + 1,
     });
     return true;
   } catch (error) {
@@ -246,7 +246,7 @@ export async function switchEnvironment(
       shopId,
       platform,
       from: previousEnvironment,
-      to: newEnvironment
+      to: newEnvironment,
     });
     return {
       success: true,
@@ -296,15 +296,15 @@ export async function getConfigVersionInfo(
   };
 }
 
-export async function getAllConfigVersions(
-  shopId: string
-): Promise<Array<{
-  platform: string;
-  currentVersion: number;
-  hasRollback: boolean;
-  environment: PixelEnvironment;
-  isActive: boolean;
-}>> {
+export async function getAllConfigVersions(shopId: string): Promise<
+  Array<{
+    platform: string;
+    currentVersion: number;
+    hasRollback: boolean;
+    environment: PixelEnvironment;
+    isActive: boolean;
+  }>
+> {
   const configs = await prisma.pixelConfig.findMany({
     where: { shopId },
     select: {
@@ -316,7 +316,7 @@ export async function getAllConfigVersions(
       isActive: true,
     },
   });
-  return configs.map(c => ({
+  return configs.map((c) => ({
     platform: c.platform,
     currentVersion: c.configVersion,
     hasRollback: c.rollbackAllowed && c.previousConfig !== null,
@@ -423,12 +423,14 @@ export async function getConfigVersionHistory(
   shopId: string,
   platform: string,
   limit: number = 10
-): Promise<Array<{
-  version: number;
-  timestamp: Date;
-  operation: string;
-  changes: Record<string, unknown>;
-}>> {
+): Promise<
+  Array<{
+    version: number;
+    timestamp: Date;
+    operation: string;
+    changes: Record<string, unknown>;
+  }>
+> {
   const configs = await prisma.pixelConfig.findMany({
     where: {
       shopId,

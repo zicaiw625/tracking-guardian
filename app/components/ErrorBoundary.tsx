@@ -1,15 +1,6 @@
 import { useRouteError, isRouteErrorResponse, Link } from "@remix-run/react";
 import { useTranslation } from "react-i18next";
-import {
-  Page,
-  Card,
-  Text,
-  BlockStack,
-  Button,
-  Banner,
-  InlineStack,
-  Box,
-} from "@shopify/polaris";
+import { Page, Card, Text, BlockStack, Button, Banner, InlineStack, Box } from "@shopify/polaris";
 
 interface ErrorDisplayProps {
   title: string;
@@ -49,9 +40,7 @@ export function ErrorCard({
                 <Button variant="primary">{t("errorPage.backToHome")}</Button>
               </Link>
             )}
-            {showRetryButton && onRetry && (
-              <Button onClick={onRetry}>{t("errorPage.retry")}</Button>
-            )}
+            {showRetryButton && onRetry && <Button onClick={onRetry}>{t("errorPage.retry")}</Button>}
           </InlineStack>
         </BlockStack>
       </Card>
@@ -62,13 +51,13 @@ export function ErrorCard({
 // Helper to get error info using t function
 function getHttpErrorInfo(status: number, t: (key: string) => string): { title: string; message: string } {
   const errorKey = `errorPage.http.${status}`;
-  
+
   const knownStatuses = [400, 401, 403, 404, 429, 500, 502, 503, 504];
   if (knownStatuses.includes(status)) {
-     return {
-         title: t(`${errorKey}.title`),
-         message: t(`${errorKey}.message`)
-     };
+    return {
+      title: t(`${errorKey}.title`),
+      message: t(`${errorKey}.message`),
+    };
   }
 
   return {
@@ -80,7 +69,7 @@ function getHttpErrorInfo(status: number, t: (key: string) => string): { title: 
 export function RouteErrorBoundary() {
   const error = useRouteError();
   const { t } = useTranslation();
-  
+
   if (isRouteErrorResponse(error)) {
     const { title, message } = getHttpErrorInfo(error.status, t);
     return (
@@ -99,11 +88,7 @@ export function RouteErrorBoundary() {
     return (
       <ErrorCard
         title={t("errorPage.defaultMessage")}
-        message={
-          isDev
-            ? error.message
-            : t("errorPage.unexpectedError")
-        }
+        message={isDev ? error.message : t("errorPage.unexpectedError")}
         showHomeButton={true}
         showRetryButton={true}
         onRetry={() => window.location.reload()}
@@ -121,15 +106,7 @@ export function RouteErrorBoundary() {
   );
 }
 
-export function InlineError({
-  title,
-  message,
-  onRetry,
-}: {
-  title: string;
-  message: string;
-  onRetry?: () => void;
-}) {
+export function InlineError({ title, message, onRetry }: { title: string; message: string; onRetry?: () => void }) {
   const { t } = useTranslation();
   return (
     <Box padding="400">
@@ -174,18 +151,9 @@ export function ErrorEmptyState({
   );
 }
 
-export function LoadingError({
-  error,
-  onRetry,
-}: {
-  error: Error | string | null;
-  onRetry?: () => void;
-}) {
+export function LoadingError({ error, onRetry }: { error: Error | string | null; onRetry?: () => void }) {
   const { t } = useTranslation();
-  const message =
-    typeof error === "string"
-      ? error
-      : error?.message || t("errorPage.loadDataError");
+  const message = typeof error === "string" ? error : error?.message || t("errorPage.loadDataError");
   return (
     <Banner title={t("errorPage.loadFailed")} tone="critical">
       <BlockStack gap="200">

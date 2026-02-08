@@ -424,7 +424,7 @@ export const CACHE_NAMESPACES = {
   USAGE: "usage",
 } as const;
 
-type CacheNamespace = typeof CACHE_NAMESPACES[keyof typeof CACHE_NAMESPACES];
+type CacheNamespace = (typeof CACHE_NAMESPACES)[keyof typeof CACHE_NAMESPACES];
 
 export class CacheKeyBuilder {
   private namespace: CacheNamespace;

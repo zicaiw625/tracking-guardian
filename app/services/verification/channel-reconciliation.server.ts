@@ -120,7 +120,7 @@ export async function performEnhancedChannelReconciliation(
   const platformValueMaps: Record<string, Map<string, number>> = {};
   for (const config of shop.pixelConfigs) {
     const platform = config.platform;
-    const platformReceipts = receipts.filter(r => {
+    const platformReceipts = receipts.filter((r) => {
       const payload = r.payloadJson as Record<string, unknown> | null;
       const receiptPlatform = extractPlatformFromPayload(payload);
       return receiptPlatform === platform;
@@ -167,11 +167,12 @@ export async function performEnhancedChannelReconciliation(
     const platformOrderIds = new Set(platformLogs.map((l: { orderId: string }) => l.orderId));
     const platformTotalValue = platformLogs.reduce(
       (sum: number, l: { orderValue: { toNumber: () => number } | number }) => {
-        const value = typeof l.orderValue === 'object' && 'toNumber' in l.orderValue
-          ? l.orderValue.toNumber()
-          : typeof l.orderValue === 'number'
-          ? l.orderValue
-          : 0;
+        const value =
+          typeof l.orderValue === "object" && "toNumber" in l.orderValue
+            ? l.orderValue.toNumber()
+            : typeof l.orderValue === "number"
+              ? l.orderValue
+              : 0;
         return sum + value;
       },
       0
@@ -179,11 +180,12 @@ export async function performEnhancedChannelReconciliation(
     platformOrderMaps[platform] = platformOrderIds;
     platformValueMaps[platform] = new Map(
       platformLogs.map((l: { orderId: string; orderValue: { toNumber: () => number } | number }) => {
-        const value = typeof l.orderValue === 'object' && 'toNumber' in l.orderValue
-          ? l.orderValue.toNumber()
-          : typeof l.orderValue === 'number'
-          ? l.orderValue
-          : 0;
+        const value =
+          typeof l.orderValue === "object" && "toNumber" in l.orderValue
+            ? l.orderValue.toNumber()
+            : typeof l.orderValue === "number"
+              ? l.orderValue
+              : 0;
         return [l.orderId, value];
       })
     );
@@ -195,26 +197,16 @@ export async function performEnhancedChannelReconciliation(
     }
     const orderIdCounts = new Map<string, number>();
     platformLogs.forEach((log: { orderId: string }) => {
-      orderIdCounts.set(
-        log.orderId,
-        (orderIdCounts.get(log.orderId) || 0) + 1
-      );
+      orderIdCounts.set(log.orderId, (orderIdCounts.get(log.orderId) || 0) + 1);
     });
     const duplicateOrders = Array.from(orderIdCounts.entries())
       .filter(([, count]) => count > 1)
       .map(([orderId]) => orderId);
-    const matchRate =
-      shopifyOrderIds.size > 0
-        ? (platformOrderIds.size / shopifyOrderIds.size) * 100
-        : 0;
+    const matchRate = shopifyOrderIds.size > 0 ? (platformOrderIds.size / shopifyOrderIds.size) * 100 : 0;
     const discrepancy = Math.max(0, shopifyOrderIds.size - platformOrderIds.size);
-    const discrepancyRate =
-      shopifyOrderIds.size > 0
-        ? (discrepancy / shopifyOrderIds.size) * 100
-        : 0;
+    const discrepancyRate = shopifyOrderIds.size > 0 ? (discrepancy / shopifyOrderIds.size) * 100 : 0;
     const valueDiscrepancy = Math.abs(shopifyTotalValue - platformTotalValue);
-    const valueDiscrepancyRate =
-      shopifyTotalValue > 0 ? (valueDiscrepancy / shopifyTotalValue) * 100 : 0;
+    const valueDiscrepancyRate = shopifyTotalValue > 0 ? (valueDiscrepancy / shopifyTotalValue) * 100 : 0;
     const issues: ReconciliationIssue[] = [];
     if (missingOrders.length > 0 && shopifyOrderIds.size > 0) {
       const missingRate = (missingOrders.length / shopifyOrderIds.size) * 100;
@@ -278,9 +270,7 @@ export async function performEnhancedChannelReconciliation(
   const valueVarianceByPlatform: Record<string, number> = {};
   if (allPlatforms.length > 1) {
     for (const orderId of shopifyOrderIds) {
-      const missingInAllPlatforms = allPlatforms.every(
-        (platform) => !platformOrderMaps[platform].has(orderId)
-      );
+      const missingInAllPlatforms = allPlatforms.every((platform) => !platformOrderMaps[platform].has(orderId));
       if (missingInAllPlatforms) {
         commonMissingOrders.push(orderId);
       }
@@ -295,24 +285,18 @@ export async function performEnhancedChannelReconciliation(
     const platformValues = Array.from(platformValueMaps[comparison.platform].values());
     if (platformValues.length > 0) {
       const mean = platformValues.reduce((sum, v) => sum + v, 0) / platformValues.length;
-      const variance =
-        platformValues.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) /
-        platformValues.length;
+      const variance = platformValues.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / platformValues.length;
       valueVarianceByPlatform[comparison.platform] = Math.sqrt(variance);
     }
   });
   const overallMatchRate =
     platformComparisons.length > 0
-      ? platformComparisons.reduce((sum, p) => sum + p.stats.matchRate, 0) /
-        platformComparisons.length
+      ? platformComparisons.reduce((sum, p) => sum + p.stats.matchRate, 0) / platformComparisons.length
       : 0;
   return {
     summary: {
       totalShopifyOrders: shopifyOrderIds.size,
-      totalPlatformEvents: platformComparisons.reduce(
-        (sum, p) => sum + p.stats.platformEvents,
-        0
-      ),
+      totalPlatformEvents: platformComparisons.reduce((sum, p) => sum + p.stats.platformEvents, 0),
       overallMatchRate: Math.round(overallMatchRate * 100) / 100,
       platformsCompared: platformComparisons.length,
       periodStart: since,
@@ -433,8 +417,7 @@ export async function getOrderCrossPlatformComparison(
       },
     },
   });
-  const configuredPlatforms =
-    shop?.pixelConfigs.map((c: { platform: string }) => c.platform) || [];
+  const configuredPlatforms = shop?.pixelConfigs.map((c: { platform: string }) => c.platform) || [];
   const discrepancies: Array<{
     platform: string;
     type: "missing" | "value_mismatch" | "timing_delay";

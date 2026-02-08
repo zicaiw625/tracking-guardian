@@ -71,7 +71,8 @@ export const LatestScanCard = memo(function LatestScanCard({ latestScan }: { lat
         </Box>
         <BlockStack gap="200">
           <Text as="p" variant="bodySm" tone="subdued">
-            {t("dashboard.latestScan.scannedAt")} {new Date(latestScan.createdAt).toLocaleDateString(i18n.language === "zh" ? "zh-CN" : "en-US")}
+            {t("dashboard.latestScan.scannedAt")}{" "}
+            {new Date(latestScan.createdAt).toLocaleDateString(i18n.language === "zh" ? "zh-CN" : "en-US")}
           </Text>
           {latestScan.identifiedPlatforms.length > 0 ? (
             <BlockStack gap="100">

@@ -2,23 +2,18 @@ import { Banner, List, Text, BlockStack, Button } from "@shopify/polaris";
 import { useTranslation } from "react-i18next";
 import { ConnectionIssue } from "~/types/connection-issues";
 
-export function DataConnectionBanner({
-  issues,
-  onFixPixel,
-}: {
-  issues: ConnectionIssue[];
-  onFixPixel?: () => void;
-}) {
+export function DataConnectionBanner({ issues, onFixPixel }: { issues: ConnectionIssue[]; onFixPixel?: () => void }) {
   const { t } = useTranslation();
   if (!issues || issues.length === 0) {
     return null;
   }
-  
+
   // Helper to translate specific issue strings if they match known patterns
   const translateIssue = (issue: ConnectionIssue) => {
     if (issue === ConnectionIssue.INGESTION_SECRET_MISSING) return t("dashboard.dataConnection.issueIngestionSecret");
     if (issue === ConnectionIssue.WEB_PIXEL_NOT_INSTALLED) return t("dashboard.dataConnection.issueWebPixel");
-    if (issue === ConnectionIssue.WEB_PIXEL_MISSING_INGESTION_KEY) return t("dashboard.dataConnection.issueIngestionKey");
+    if (issue === ConnectionIssue.WEB_PIXEL_MISSING_INGESTION_KEY)
+      return t("dashboard.dataConnection.issueIngestionKey");
     return issue;
   };
 
@@ -30,9 +25,7 @@ export function DataConnectionBanner({
     return (
       <Banner tone="warning" title={t("dashboard.dataConnection.title")}>
         <BlockStack gap="200">
-          <Text as="p">
-            {t("dashboard.dataConnection.msgBoth")}
-          </Text>
+          <Text as="p">{t("dashboard.dataConnection.msgBoth")}</Text>
           <Button url="/app/settings" variant="primary">
             {t("dashboard.dataConnection.actionSettings")}
           </Button>
@@ -44,9 +37,7 @@ export function DataConnectionBanner({
     return (
       <Banner tone="warning" title={t("dashboard.dataConnection.title")}>
         <BlockStack gap="200">
-          <Text as="p">
-            {t("dashboard.dataConnection.msgSecret")}
-          </Text>
+          <Text as="p">{t("dashboard.dataConnection.msgSecret")}</Text>
           <Button url="/app/settings" variant="primary">
             {t("dashboard.dataConnection.actionSettings")}
           </Button>
@@ -58,14 +49,12 @@ export function DataConnectionBanner({
     return (
       <Banner tone="warning" title={t("dashboard.dataConnection.title")}>
         <BlockStack gap="200">
-          <Text as="p">
-            {t("dashboard.dataConnection.msgPixel")}
-          </Text>
+          <Text as="p">{t("dashboard.dataConnection.msgPixel")}</Text>
           <Button url="/app/pixels/new" variant="primary">
             {t("dashboard.dataConnection.actionInstall")}
           </Button>
           <Text as="p" variant="bodySm" tone="subdued">
-             {t("dashboard.dataConnection.scanHint")}
+            {t("dashboard.dataConnection.scanHint")}
           </Text>
         </BlockStack>
       </Banner>
@@ -75,9 +64,7 @@ export function DataConnectionBanner({
     return (
       <Banner tone="warning" title={t("dashboard.dataConnection.title")}>
         <BlockStack gap="200">
-          <Text as="p">
-            {t("dashboard.dataConnection.msgIncomplete")}
-          </Text>
+          <Text as="p">{t("dashboard.dataConnection.msgIncomplete")}</Text>
           {onFixPixel ? (
             <Button onClick={onFixPixel} variant="primary">
               {t("dashboard.dataConnection.actionFix")}

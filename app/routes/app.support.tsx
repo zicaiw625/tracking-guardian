@@ -26,10 +26,7 @@ export default function SupportPage() {
         <PageIntroCard
           title={t("support.intro.title")}
           description={t("support.intro.description")}
-          items={[
-            t("support.intro.items.0"),
-            t("support.intro.items.1"),
-          ]}
+          items={[t("support.intro.items.0"), t("support.intro.items.1")]}
           primaryAction={faqUrl ? { content: t("support.intro.action.faq"), url: faqUrl } : undefined}
           secondaryAction={{ content: t("support.intro.action.reports"), url: "/app/reports" }}
         />
@@ -43,22 +40,33 @@ export default function SupportPage() {
                   </Text>
                   <List type="bullet">
                     <List.Item>
-                      {t("support.contact.email")}<Link url={`mailto:${contactEmail}`}>{contactEmail}</Link>
+                      {t("support.contact.email")}
+                      <Link url={`mailto:${contactEmail}`}>{contactEmail}</Link>
                     </List.Item>
                     {faqUrl && (
                       <List.Item>
-                        {t("support.contact.helpCenter")}<Link url={faqUrl} external>{faqUrl}</Link>
+                        {t("support.contact.helpCenter")}
+                        <Link url={faqUrl} external>
+                          {faqUrl}
+                        </Link>
                       </List.Item>
                     )}
                     {statusPageUrl && (
                       <List.Item>
-                        {t("support.contact.statusPage")}<Link url={statusPageUrl} external>{statusPageUrl.replace(/^https?:\/\//, "")}</Link>
+                        {t("support.contact.statusPage")}
+                        <Link url={statusPageUrl} external>
+                          {statusPageUrl.replace(/^https?:\/\//, "")}
+                        </Link>
                       </List.Item>
                     )}
                     <List.Item>
-                      <Link url="/privacy" external>{t("support.links.privacy")}</Link>
+                      <Link url="/privacy" external>
+                        {t("support.links.privacy")}
+                      </Link>
                       {" · "}
-                      <Link url="/terms" external>{t("support.links.terms")}</Link>
+                      <Link url="/terms" external>
+                        {t("support.links.terms")}
+                      </Link>
                     </List.Item>
                   </List>
                 </BlockStack>

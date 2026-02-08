@@ -33,14 +33,14 @@ function buildShopifyConfig() {
   loadEnv();
   let appUrl = process.env.SHOPIFY_APP_URL || process.env.APPLICATION_URL;
   const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.RENDER === "true";
-  
+
   if (!appUrl) {
     if (isCI) {
       console.error("❌ CI/Production environment detected: SHOPIFY_APP_URL is required.");
       console.error("   Automatic fallback is disabled to prevent data leakage.");
       process.exit(1);
     }
-    
+
     // Local dev fallback only
     console.warn("⚠️  SHOPIFY_APP_URL not found. Using localhost for development.");
     appUrl = "http://localhost:3000"; // Safe default for local dev
@@ -56,7 +56,11 @@ function buildShopifyConfig() {
     if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
       console.log("⚠️  WARNING: Using localhost URL. This may not work in production!");
     }
-    const isDev = url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname.includes(".myshopify.dev") || /-(dev|staging|test)\./i.test(url.hostname);
+    const isDev =
+      url.hostname === "localhost" ||
+      url.hostname === "127.0.0.1" ||
+      url.hostname.includes(".myshopify.dev") ||
+      /-(dev|staging|test)\./i.test(url.hostname);
     if (!isDev && url.protocol !== "https:") {
       console.error(`❌ Production SHOPIFY_APP_URL must use HTTPS protocol: ${appUrl}`);
       console.error("   Please provide a valid HTTPS URL (e.g., https://your-app.onrender.com)");
@@ -80,7 +84,7 @@ function buildShopifyConfig() {
   try {
     const templateContent = fs.readFileSync(TEMPLATE_FILE, "utf-8");
     const outputContent = templateContent.replace(new RegExp(PLACEHOLDER, "g"), appUrl);
-    
+
     fs.writeFileSync(OUTPUT_FILE, outputContent, "utf-8");
     console.log(`✅ Successfully generated shopify.app.toml from template`);
     console.log(`   Application URL: ${appUrl}`);
@@ -100,12 +104,12 @@ function restoreTemplate() {
     const currentContent = fs.readFileSync(OUTPUT_FILE, "utf-8");
     const defaultUrl = "https://tracking-guardian.onrender.com";
     const restoredContent = currentContent.replace(new RegExp(defaultUrl, "g"), PLACEHOLDER);
-    
+
     if (restoredContent === currentContent) {
       console.log("ℹ️  shopify.app.toml does not contain default URL, skipping restore.");
       return;
     }
-    
+
     fs.writeFileSync(OUTPUT_FILE, restoredContent, "utf-8");
     console.log(`✅ Restored placeholder in shopify.app.toml`);
   } catch (error) {

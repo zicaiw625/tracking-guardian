@@ -7,10 +7,7 @@ import {
   type IScopedContext,
 } from "../container";
 
-export type ContextHandler<T> = (
-  args: LoaderFunctionArgs | ActionFunctionArgs,
-  ctx: IScopedContext
-) => Promise<T>;
+export type ContextHandler<T> = (args: LoaderFunctionArgs | ActionFunctionArgs, ctx: IScopedContext) => Promise<T>;
 
 export type RequestHandler<T> = (request: Request) => Promise<T>;
 

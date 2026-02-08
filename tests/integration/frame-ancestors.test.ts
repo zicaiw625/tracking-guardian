@@ -28,9 +28,9 @@ describe("Frame Ancestors CSP Header Integration", () => {
       },
     });
     const headers = new Headers();
-    
+
     addDocumentResponseHeaders(request, headers);
-    
+
     const csp = headers.get("Content-Security-Policy");
     expect(csp).toBeTruthy();
     expect(csp).toContain("frame-ancestors");
@@ -45,9 +45,9 @@ describe("Frame Ancestors CSP Header Integration", () => {
       },
     });
     const headers = new Headers();
-    
+
     addDocumentResponseHeaders(request, headers);
-    
+
     const csp = headers.get("Content-Security-Policy");
     expect(csp).toBeTruthy();
     expect(csp).toContain("frame-ancestors");
@@ -62,9 +62,9 @@ describe("Frame Ancestors CSP Header Integration", () => {
       },
     });
     const headers = new Headers();
-    
+
     addDocumentResponseHeaders(request, headers);
-    
+
     const csp = headers.get("Content-Security-Policy");
     expect(csp).toBeTruthy();
     expect(csp).toContain("https://admin.shopify.com");
@@ -74,9 +74,9 @@ describe("Frame Ancestors CSP Header Integration", () => {
   it("should handle requests without shop domain header gracefully", () => {
     const request = new Request("https://example.com/app");
     const headers = new Headers();
-    
+
     addDocumentResponseHeaders(request, headers);
-    
+
     const csp = headers.get("Content-Security-Policy");
     expect(csp).toBeTruthy();
     expect(csp).toContain("frame-ancestors");

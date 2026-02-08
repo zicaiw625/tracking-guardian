@@ -7,17 +7,11 @@ export interface MiddlewareContext {
   meta: Record<string, unknown>;
 }
 
-export type MiddlewareResult =
-  | { continue: true; context: MiddlewareContext }
-  | { continue: false; response: Response };
+export type MiddlewareResult = { continue: true; context: MiddlewareContext } | { continue: false; response: Response };
 
-export type Middleware = (
-  context: MiddlewareContext
-) => Promise<MiddlewareResult>;
+export type Middleware = (context: MiddlewareContext) => Promise<MiddlewareResult>;
 
-export type Handler<T = unknown> = (
-  context: MiddlewareContext
-) => Promise<T | Response>;
+export type Handler<T = unknown> = (context: MiddlewareContext) => Promise<T | Response>;
 
 export interface ApiHandlerConfig<T = unknown> {
   middleware?: Middleware[];

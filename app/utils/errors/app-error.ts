@@ -87,18 +87,10 @@ export class AppError extends Error {
       Error.captureStackTrace(this, AppError);
     }
   }
-  static retryable(
-    code: ErrorCodeType,
-    message: string,
-    metadata: ErrorMetadata = {}
-  ): AppError {
+  static retryable(code: ErrorCodeType, message: string, metadata: ErrorMetadata = {}): AppError {
     return new AppError(code, message, true, metadata);
   }
-  static fatal(
-    code: ErrorCodeType,
-    message: string,
-    metadata: ErrorMetadata = {}
-  ): AppError {
+  static fatal(code: ErrorCodeType, message: string, metadata: ErrorMetadata = {}): AppError {
     return new AppError(code, message, false, metadata);
   }
   static wrap(
@@ -121,28 +113,16 @@ export class AppError extends Error {
     return new AppError(code, errorMessage, false, metadata, originalError);
   }
   static validation(field: string, message: string): AppError {
-    return new AppError(
-      ErrorCode.VALIDATION_ERROR,
-      `Validation error for ${field}: ${message}`,
-      false,
-      { field }
-    );
+    return new AppError(ErrorCode.VALIDATION_ERROR, `Validation error for ${field}: ${message}`, false, { field });
   }
   static notFound(resource: string, id?: string): AppError {
-    const message = id
-      ? `${resource} with id '${id}' not found`
-      : `${resource} not found`;
+    const message = id ? `${resource} with id '${id}' not found` : `${resource} not found`;
     return new AppError(ErrorCode.NOT_FOUND_RESOURCE, message, false, {
       resource,
       resourceId: id,
     });
   }
-  static platform(
-    platform: string,
-    code: ErrorCodeType,
-    message: string,
-    metadata: ErrorMetadata = {}
-  ): AppError {
+  static platform(platform: string, code: ErrorCodeType, message: string, metadata: ErrorMetadata = {}): AppError {
     const retryableCodes: ErrorCodeType[] = [
       ErrorCode.PLATFORM_RATE_LIMITED,
       ErrorCode.PLATFORM_SERVER_ERROR,
@@ -162,13 +142,7 @@ export class AppError extends Error {
     );
   }
   withRetryable(isRetryable: boolean): AppError {
-    return new AppError(
-      this.code,
-      this.message,
-      isRetryable,
-      this.metadata,
-      this.cause
-    );
+    return new AppError(this.code, this.message, isRetryable, this.metadata, this.cause);
   }
   toJSON(): Record<string, unknown> {
     return {
@@ -203,9 +177,7 @@ export class AppError extends Error {
       .join("\n");
   }
   toClientResponse(): { code: string; message: string } {
-    const safeMessage = this.isInternalError()
-      ? "An internal error occurred"
-      : this.message;
+    const safeMessage = this.isInternalError() ? "An internal error occurred" : this.message;
     return {
       code: this.code,
       message: safeMessage,
@@ -257,10 +229,7 @@ export function getErrorMessage(error: unknown): string {
   return "An unknown error occurred";
 }
 
-export function ensureAppError(
-  error: unknown,
-  defaultCode: ErrorCodeType = ErrorCode.INTERNAL_UNEXPECTED
-): AppError {
+export function ensureAppError(error: unknown, defaultCode: ErrorCodeType = ErrorCode.INTERNAL_UNEXPECTED): AppError {
   if (error instanceof AppError) {
     return error;
   }
@@ -269,95 +238,60 @@ export function ensureAppError(
 
 export const Errors = {
   invalidToken: (details?: string) =>
-    new AppError(
-      ErrorCode.AUTH_INVALID_TOKEN,
-      details || "Invalid authentication token"
-    ),
-  tokenExpired: () =>
-    new AppError(ErrorCode.AUTH_TOKEN_EXPIRED, "Authentication token has expired"),
+    new AppError(ErrorCode.AUTH_INVALID_TOKEN, details || "Invalid authentication token"),
+  tokenExpired: () => new AppError(ErrorCode.AUTH_TOKEN_EXPIRED, "Authentication token has expired"),
   shopNotFound: (shopDomain: string) =>
     new AppError(ErrorCode.AUTH_SHOP_NOT_FOUND, `Shop ${shopDomain} not found`, false, {
       shopDomain,
     }),
-  signatureInvalid: () =>
-    new AppError(ErrorCode.AUTH_SIGNATURE_INVALID, "Request signature is invalid"),
+  signatureInvalid: () => new AppError(ErrorCode.AUTH_SIGNATURE_INVALID, "Request signature is invalid"),
   missingField: (field: string) =>
-    new AppError(
-      ErrorCode.VALIDATION_MISSING_FIELD,
-      `Missing required field: ${field}`,
-      false,
-      { field }
-    ),
+    new AppError(ErrorCode.VALIDATION_MISSING_FIELD, `Missing required field: ${field}`, false, { field }),
   invalidFormat: (field: string, expected: string) =>
-    new AppError(
-      ErrorCode.VALIDATION_INVALID_FORMAT,
-      `Invalid format for ${field}: expected ${expected}`,
-      false,
-      { field, expected }
-    ),
+    new AppError(ErrorCode.VALIDATION_INVALID_FORMAT, `Invalid format for ${field}: expected ${expected}`, false, {
+      field,
+      expected,
+    }),
   payloadTooLarge: (size: number, maxSize: number) =>
-    new AppError(
-      ErrorCode.VALIDATION_PAYLOAD_TOO_LARGE,
-      `Payload size ${size} exceeds maximum ${maxSize}`,
-      false,
-      { size, maxSize }
-    ),
+    new AppError(ErrorCode.VALIDATION_PAYLOAD_TOO_LARGE, `Payload size ${size} exceeds maximum ${maxSize}`, false, {
+      size,
+      maxSize,
+    }),
   orderNotFound: (orderId: string) =>
     new AppError(ErrorCode.NOT_FOUND_ORDER, `Order ${orderId} not found`, false, {
       orderId,
     }),
   configNotFound: (platform: string) =>
-    new AppError(
-      ErrorCode.NOT_FOUND_PIXEL_CONFIG,
-      `Pixel config for ${platform} not found`,
-      false,
-      { platform }
-    ),
+    new AppError(ErrorCode.NOT_FOUND_PIXEL_CONFIG, `Pixel config for ${platform} not found`, false, { platform }),
   limitExceeded: (current: number, limit: number) =>
-    new AppError(
-      ErrorCode.BILLING_LIMIT_EXCEEDED,
-      `Monthly limit exceeded: ${current}/${limit}`,
-      false,
-      { current, limit }
-    ),
+    new AppError(ErrorCode.BILLING_LIMIT_EXCEEDED, `Monthly limit exceeded: ${current}/${limit}`, false, {
+      current,
+      limit,
+    }),
   platformTimeout: (platform: string, timeout: number) =>
-    AppError.retryable(
-      ErrorCode.PLATFORM_TIMEOUT,
-      `${platform} API request timed out after ${timeout}ms`,
-      { platform, timeout }
-    ),
+    AppError.retryable(ErrorCode.PLATFORM_TIMEOUT, `${platform} API request timed out after ${timeout}ms`, {
+      platform,
+      timeout,
+    }),
   platformRateLimited: (platform: string, retryAfter?: number) =>
     AppError.retryable(ErrorCode.PLATFORM_RATE_LIMITED, `${platform} rate limit exceeded`, {
       platform,
       retryAfter,
     }),
   webhookDuplicate: (webhookId: string) =>
-    new AppError(
-      ErrorCode.WEBHOOK_DUPLICATE,
-      `Webhook ${webhookId} already processed`,
-      false,
-      { webhookId }
-    ),
+    new AppError(ErrorCode.WEBHOOK_DUPLICATE, `Webhook ${webhookId} already processed`, false, { webhookId }),
   webhookInvalidPayload: (reason: string) =>
-    new AppError(
-      ErrorCode.WEBHOOK_INVALID_PAYLOAD,
-      `Invalid webhook payload: ${reason}`,
-      false
-    ),
-  consentNotGranted: (reason: string) =>
-    new AppError(ErrorCode.CONSENT_NOT_GRANTED, `Consent not granted: ${reason}`),
-  internal: (message: string, cause?: Error) =>
-    new AppError(ErrorCode.INTERNAL_ERROR, message, false, {}, cause),
-  unexpected: (cause?: unknown) =>
-    AppError.wrap(cause, ErrorCode.INTERNAL_UNEXPECTED, "An unexpected error occurred"),
+    new AppError(ErrorCode.WEBHOOK_INVALID_PAYLOAD, `Invalid webhook payload: ${reason}`, false),
+  consentNotGranted: (reason: string) => new AppError(ErrorCode.CONSENT_NOT_GRANTED, `Consent not granted: ${reason}`),
+  internal: (message: string, cause?: Error) => new AppError(ErrorCode.INTERNAL_ERROR, message, false, {}, cause),
+  unexpected: (cause?: unknown) => AppError.wrap(cause, ErrorCode.INTERNAL_UNEXPECTED, "An unexpected error occurred"),
   encryptionFailed: (operation: string, cause?: Error) =>
     new AppError(ErrorCode.ENCRYPTION_FAILED, `Encryption failed: ${operation}`, false, {}, cause),
   decryptionFailed: (operation: string, cause?: Error) =>
     new AppError(ErrorCode.DECRYPTION_FAILED, `Decryption failed: ${operation}`, false, {}, cause),
   dbConnection: (message: string) =>
     new AppError(ErrorCode.DB_CONNECTION_ERROR, `Database connection error: ${message}`, true),
-  dbQuery: (message: string, cause?: Error) =>
-    new AppError(ErrorCode.DB_QUERY_ERROR, message, false, {}, cause),
+  dbQuery: (message: string, cause?: Error) => new AppError(ErrorCode.DB_QUERY_ERROR, message, false, {}, cause),
   dbTransaction: (message: string, cause?: Error) =>
     new AppError(ErrorCode.DB_TRANSACTION_FAILED, message, true, {}, cause),
   trustVerificationFailed: (reason: string) =>

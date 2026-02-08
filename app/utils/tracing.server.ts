@@ -96,8 +96,7 @@ export function removeSpanProcessor(processor: SpanProcessor): void {
 }
 
 const loggingProcessor: SpanProcessor = {
-  onStart: () => {
-  },
+  onStart: () => {},
   onEnd: (span) => {
     const isSlowSpan = span.duration && span.duration > 1000;
     const isError = span.status === SpanStatus.ERROR;
@@ -119,11 +118,7 @@ const loggingProcessor: SpanProcessor = {
 
 spanProcessors.push(loggingProcessor);
 
-function createActiveSpan(
-  name: string,
-  kind: SpanKind,
-  parentContext?: TracingContext
-): ActiveSpan {
+function createActiveSpan(name: string, kind: SpanKind, parentContext?: TracingContext): ActiveSpan {
   const traceId = parentContext?.traceId || generateTraceId();
   const spanId = generateSpanId();
   const parentSpanId = parentContext?.currentSpan?.spanId;
@@ -208,11 +203,7 @@ function createActiveSpan(
   return activeSpan;
 }
 
-export function startSpan(
-  name: string,
-  kind: SpanKind = SpanKind.INTERNAL,
-  attributes?: SpanAttributes
-): ActiveSpan {
+export function startSpan(name: string, kind: SpanKind = SpanKind.INTERNAL, attributes?: SpanAttributes): ActiveSpan {
   const parentContext = tracingStorage.getStore();
   const span = createActiveSpan(name, kind, parentContext);
   if (attributes) {
@@ -337,17 +328,13 @@ export function injectTraceContext(headers: Headers, context: SpanContext): void
 export function startServerSpan(request: Request): ActiveSpan {
   const url = new URL(request.url);
   const parentContext = extractTraceContext(request.headers);
-  const span = startSpan(
-    `HTTP ${request.method} ${url.pathname}`,
-    SpanKind.SERVER,
-    {
-      "http.method": request.method,
-      "http.url": request.url,
-      "http.target": url.pathname + url.search,
-      "http.host": url.host,
-      "http.scheme": url.protocol.replace(":", ""),
-    }
-  );
+  const span = startSpan(`HTTP ${request.method} ${url.pathname}`, SpanKind.SERVER, {
+    "http.method": request.method,
+    "http.url": request.url,
+    "http.target": url.pathname + url.search,
+    "http.host": url.host,
+    "http.scheme": url.protocol.replace(":", ""),
+  });
   if (parentContext) {
     span.links.push({
       traceId: parentContext.traceId,
@@ -357,10 +344,7 @@ export function startServerSpan(request: Request): ActiveSpan {
   return span;
 }
 
-export function endServerSpan(
-  span: ActiveSpan,
-  response: Response | { status: number }
-): void {
+export function endServerSpan(span: ActiveSpan, response: Response | { status: number }): void {
   span.setAttribute("http.status_code", response.status);
   if (response.status >= 400) {
     span.setStatus(SpanStatus.ERROR, `HTTP ${response.status}`);
@@ -370,10 +354,7 @@ export function endServerSpan(
   span.end();
 }
 
-export function startDbSpan(
-  operation: string,
-  table?: string
-): ActiveSpan {
+export function startDbSpan(operation: string, table?: string): ActiveSpan {
   const name = table ? `DB ${operation} ${table}` : `DB ${operation}`;
   return startSpan(name, SpanKind.CLIENT, {
     "db.system": "postgresql",
@@ -400,22 +381,14 @@ export async function traceDbOperation<T>(
   }
 }
 
-export function startExternalHttpSpan(
-  method: string,
-  url: string,
-  serviceName: string
-): ActiveSpan {
+export function startExternalHttpSpan(method: string, url: string, serviceName: string): ActiveSpan {
   const parsedUrl = new URL(url);
-  return startSpan(
-    `HTTP ${method} ${serviceName}`,
-    SpanKind.CLIENT,
-    {
-      "http.method": method,
-      "http.url": url,
-      "http.host": parsedUrl.host,
-      "peer.service": serviceName,
-    }
-  );
+  return startSpan(`HTTP ${method} ${serviceName}`, SpanKind.CLIENT, {
+    "http.method": method,
+    "http.url": url,
+    "http.host": parsedUrl.host,
+    "peer.service": serviceName,
+  });
 }
 
 export async function traceExternalHttp<T>(

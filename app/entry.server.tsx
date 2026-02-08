@@ -1,14 +1,21 @@
 import { PassThrough } from "stream";
 import { renderToPipeableStream } from "react-dom/server";
 import { RemixServer } from "@remix-run/react";
-import { createReadableStreamFromReadable, type EntryContext, } from "@remix-run/node";
+import { createReadableStreamFromReadable, type EntryContext } from "@remix-run/node";
 import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server";
 import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets.server";
 import { validateEncryptionConfig } from "./utils/crypto.server";
 import { validateConfig, logConfigStatus, API_CONFIG } from "./utils/config.server";
 import { logger } from "./utils/logger.server";
-import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, getProductionSecurityHeaders, validateSecurityHeaders, buildCspHeader, APP_PAGE_CSP_DIRECTIVES } from "./utils/security-headers";
+import {
+  EMBEDDED_APP_HEADERS,
+  addSecurityHeadersToHeaders,
+  getProductionSecurityHeaders,
+  validateSecurityHeaders,
+  buildCspHeader,
+  APP_PAGE_CSP_DIRECTIVES,
+} from "./utils/security-headers";
 import { RedisClientFactory } from "./utils/redis-client.server";
 import prisma from "./db.server";
 import { getCorsHeadersPreBody } from "./lib/pixel-events/cors";
@@ -92,96 +99,92 @@ const startupGate = (async () => {
   }
 })();
 
-export default async function handleRequest(request: Request, responseStatusCode: number, responseHeaders: Headers, remixContext: EntryContext) {
-    await startupGate;
-    const url = new URL(request.url);
-    if (url.pathname === "/ingest" && request.method === "POST") {
-        const contentLength = request.headers.get("Content-Length");
-        if (contentLength) {
-            const size = parseInt(contentLength, 10);
-            if (!isNaN(size) && size > API_CONFIG.MAX_BODY_SIZE) {
-                logger.warn(`Request body too large at entry layer: ${size} bytes (max ${API_CONFIG.MAX_BODY_SIZE})`, {
-                    path: url.pathname,
-                    method: request.method,
-                });
-                const headers = new Headers(getCorsHeadersPreBody(request));
-                headers.set("Content-Type", "application/json");
-                return new Response(
-                    JSON.stringify({ error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE }),
-                    {
-                        status: 413,
-                        headers,
-                    }
-                );
-            }
-        }
-    }
-    addDocumentResponseHeaders(request, responseHeaders);
-    const shopCandidate =
-      request.headers.get("x-shopify-shop-domain") ||
-      url.searchParams.get("shop") ||
-      null;
-    const shopDomain =
-      shopCandidate && SecureShopDomainSchema.safeParse(shopCandidate).success
-        ? shopCandidate
-        : null;
-
-    // P0-1: Strict CSP frame-ancestors
-    // If shop is known, we only allow that specific shop and admin.shopify.com
-    // If not known, we fallback to wildcard but this should be rare for embedded app
-    let frameAncestors = ["https://admin.shopify.com", "https://*.myshopify.com", "https://*.shopify.com"];
-    if (shopDomain) {
-        frameAncestors = [
-            "https://admin.shopify.com",
-            `https://${shopDomain}`
-        ];
-    }
-
-    responseHeaders.delete("X-Frame-Options");
-    const cspDirectives = {
-      ...APP_PAGE_CSP_DIRECTIVES,
-      "frame-ancestors": frameAncestors,
-    };
-    responseHeaders.set("Content-Security-Policy", buildCspHeader(cspDirectives));
-    const documentSecurityHeaders =
-      process.env.NODE_ENV === "production"
-        ? getProductionSecurityHeaders(EMBEDDED_APP_HEADERS)
-        : EMBEDDED_APP_HEADERS;
-    addSecurityHeadersToHeaders(responseHeaders, documentSecurityHeaders);
-    const userAgent = request.headers.get("user-agent");
-    const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";
-    return new Promise((resolve, reject) => {
-        let abortTimeoutId: NodeJS.Timeout | null = null;
-        const { pipe, abort } = renderToPipeableStream(<RemixServer context={remixContext} url={request.url} abortDelay={ABORT_DELAY}/>, {
-            [callbackName]: () => {
-                const body = new PassThrough();
-                const stream = createReadableStreamFromReadable(body);
-                responseHeaders.set("Content-Type", "text/html");
-                if (abortTimeoutId !== null) {
-                    clearTimeout(abortTimeoutId);
-                    abortTimeoutId = null;
-                }
-                resolve(new Response(stream, {
-                    headers: responseHeaders,
-                    status: responseStatusCode,
-                }));
-                pipe(body);
-            },
-            onShellError(error) {
-                if (abortTimeoutId !== null) {
-                    clearTimeout(abortTimeoutId);
-                    abortTimeoutId = null;
-                }
-                reject(error);
-            },
-            onError(error) {
-                responseStatusCode = 500;
-                logger.error("React render error", error);
-            },
+export default async function handleRequest(
+  request: Request,
+  responseStatusCode: number,
+  responseHeaders: Headers,
+  remixContext: EntryContext
+) {
+  await startupGate;
+  const url = new URL(request.url);
+  if (url.pathname === "/ingest" && request.method === "POST") {
+    const contentLength = request.headers.get("Content-Length");
+    if (contentLength) {
+      const size = parseInt(contentLength, 10);
+      if (!isNaN(size) && size > API_CONFIG.MAX_BODY_SIZE) {
+        logger.warn(`Request body too large at entry layer: ${size} bytes (max ${API_CONFIG.MAX_BODY_SIZE})`, {
+          path: url.pathname,
+          method: request.method,
         });
-        abortTimeoutId = setTimeout(() => {
+        const headers = new Headers(getCorsHeadersPreBody(request));
+        headers.set("Content-Type", "application/json");
+        return new Response(JSON.stringify({ error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE }), {
+          status: 413,
+          headers,
+        });
+      }
+    }
+  }
+  addDocumentResponseHeaders(request, responseHeaders);
+  const shopCandidate = request.headers.get("x-shopify-shop-domain") || url.searchParams.get("shop") || null;
+  const shopDomain = shopCandidate && SecureShopDomainSchema.safeParse(shopCandidate).success ? shopCandidate : null;
+
+  // P0-1: Strict CSP frame-ancestors
+  // If shop is known, we only allow that specific shop and admin.shopify.com
+  // If not known, we fallback to wildcard but this should be rare for embedded app
+  let frameAncestors = ["https://admin.shopify.com", "https://*.myshopify.com", "https://*.shopify.com"];
+  if (shopDomain) {
+    frameAncestors = ["https://admin.shopify.com", `https://${shopDomain}`];
+  }
+
+  responseHeaders.delete("X-Frame-Options");
+  const cspDirectives = {
+    ...APP_PAGE_CSP_DIRECTIVES,
+    "frame-ancestors": frameAncestors,
+  };
+  responseHeaders.set("Content-Security-Policy", buildCspHeader(cspDirectives));
+  const documentSecurityHeaders =
+    process.env.NODE_ENV === "production" ? getProductionSecurityHeaders(EMBEDDED_APP_HEADERS) : EMBEDDED_APP_HEADERS;
+  addSecurityHeadersToHeaders(responseHeaders, documentSecurityHeaders);
+  const userAgent = request.headers.get("user-agent");
+  const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";
+  return new Promise((resolve, reject) => {
+    let abortTimeoutId: NodeJS.Timeout | null = null;
+    const { pipe, abort } = renderToPipeableStream(
+      <RemixServer context={remixContext} url={request.url} abortDelay={ABORT_DELAY} />,
+      {
+        [callbackName]: () => {
+          const body = new PassThrough();
+          const stream = createReadableStreamFromReadable(body);
+          responseHeaders.set("Content-Type", "text/html");
+          if (abortTimeoutId !== null) {
+            clearTimeout(abortTimeoutId);
             abortTimeoutId = null;
-            abort();
-        }, ABORT_DELAY);
-    });
+          }
+          resolve(
+            new Response(stream, {
+              headers: responseHeaders,
+              status: responseStatusCode,
+            })
+          );
+          pipe(body);
+        },
+        onShellError(error) {
+          if (abortTimeoutId !== null) {
+            clearTimeout(abortTimeoutId);
+            abortTimeoutId = null;
+          }
+          reject(error);
+        },
+        onError(error) {
+          responseStatusCode = 500;
+          logger.error("React render error", error);
+        },
+      }
+    );
+    abortTimeoutId = setTimeout(() => {
+      abortTimeoutId = null;
+      abort();
+    }, ABORT_DELAY);
+  });
 }

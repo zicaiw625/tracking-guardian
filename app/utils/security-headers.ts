@@ -25,11 +25,7 @@ export const APP_PAGE_CSP_DIRECTIVES: Record<string, string[]> = {
   "style-src": ["'self'", "'unsafe-inline'", "https://cdn.shopify.com"],
   "img-src": ["'self'", "data:", "https:", "blob:"],
   "font-src": ["'self'", "https://cdn.shopify.com"],
-  "connect-src": [
-    "'self'",
-    "https://cdn.shopify.com",
-    "https://monorail-edge.shopifysvc.com",
-  ],
+  "connect-src": ["'self'", "https://cdn.shopify.com", "https://monorail-edge.shopifysvc.com"],
   "frame-ancestors": ["https://admin.shopify.com", "https://*.shopify.com", "https://*.myshopify.com"],
   "base-uri": ["'self'"],
   "form-action": ["'self'", "https://*.shopify.com", "https://*.myshopify.com"],
@@ -37,9 +33,7 @@ export const APP_PAGE_CSP_DIRECTIVES: Record<string, string[]> = {
   "upgrade-insecure-requests": [],
 };
 
-export function buildCspHeader(
-  directives: Record<string, string[]> = APP_PAGE_CSP_DIRECTIVES
-): string {
+export function buildCspHeader(directives: Record<string, string[]> = APP_PAGE_CSP_DIRECTIVES): string {
   return Object.entries(directives)
     .map(([directive, sources]) => {
       if (sources.length === 0) {
@@ -99,8 +93,8 @@ export const PUBLIC_PAGE_HEADERS: Record<string, string> = {
   "X-Frame-Options": "DENY",
   "Referrer-Policy": "no-referrer",
   "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-  "Pragma": "no-cache",
-  "Expires": "0",
+  Pragma: "no-cache",
+  Expires: "0",
   "X-Robots-Tag": "noindex",
   "Content-Security-Policy": buildCspHeader({
     "default-src": ["'self'"],
@@ -116,32 +110,40 @@ export const PUBLIC_PAGE_HEADERS: Record<string, string> = {
   }),
 };
 export function addSecurityHeadersToHeaders(headers: Headers, securityHeaders: Record<string, string>): void {
-    for (const [key, value] of Object.entries(securityHeaders)) {
-        if (!headers.has(key)) {
-            headers.set(key, value);
-        }
+  for (const [key, value] of Object.entries(securityHeaders)) {
+    if (!headers.has(key)) {
+      headers.set(key, value);
     }
+  }
 }
-export function addSecurityHeaders(response: Response, securityHeaders: Record<string, string> = API_SECURITY_HEADERS): Response {
-    const headers = new Headers(response.headers);
-    addSecurityHeadersToHeaders(headers, securityHeaders);
-    return new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers,
-    });
+export function addSecurityHeaders(
+  response: Response,
+  securityHeaders: Record<string, string> = API_SECURITY_HEADERS
+): Response {
+  const headers = new Headers(response.headers);
+  addSecurityHeadersToHeaders(headers, securityHeaders);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }
-export function withSecurityHeaders(existingHeaders?: HeadersInit, securityHeaders: Record<string, string> = API_SECURITY_HEADERS): Headers {
-    const headers = new Headers(existingHeaders);
-    addSecurityHeadersToHeaders(headers, securityHeaders);
-    return headers;
+export function withSecurityHeaders(
+  existingHeaders?: HeadersInit,
+  securityHeaders: Record<string, string> = API_SECURITY_HEADERS
+): Headers {
+  const headers = new Headers(existingHeaders);
+  addSecurityHeadersToHeaders(headers, securityHeaders);
+  return headers;
 }
 export const HSTS_HEADER = "max-age=31536000; includeSubDomains";
-export function getProductionSecurityHeaders(baseHeaders: Record<string, string> = API_SECURITY_HEADERS): Record<string, string> {
-    return {
-        ...baseHeaders,
-        "Strict-Transport-Security": HSTS_HEADER,
-    };
+export function getProductionSecurityHeaders(
+  baseHeaders: Record<string, string> = API_SECURITY_HEADERS
+): Record<string, string> {
+  return {
+    ...baseHeaders,
+    "Strict-Transport-Security": HSTS_HEADER,
+  };
 }
 
 export function validateSecurityHeaders(): {
@@ -150,18 +152,12 @@ export function validateSecurityHeaders(): {
 } {
   const issues: string[] = [];
   if (EMBEDDED_APP_HEADERS["Content-Security-Policy"]) {
-    issues.push(
-      "EMBEDDED_APP_HEADERS should NOT include Content-Security-Policy - Shopify handles this"
-    );
+    issues.push("EMBEDDED_APP_HEADERS should NOT include Content-Security-Policy - Shopify handles this");
   }
   if (API_SECURITY_HEADERS["X-Frame-Options"] !== "DENY") {
     issues.push("API headers should set X-Frame-Options: DENY");
   }
-  const allHeaders = [
-    EMBEDDED_APP_HEADERS,
-    API_SECURITY_HEADERS,
-    WEBHOOK_SECURITY_HEADERS,
-  ];
+  const allHeaders = [EMBEDDED_APP_HEADERS, API_SECURITY_HEADERS, WEBHOOK_SECURITY_HEADERS];
   for (const headers of allHeaders) {
     if (headers["X-Content-Type-Options"] !== "nosniff") {
       issues.push("Missing X-Content-Type-Options: nosniff");
@@ -189,7 +185,9 @@ export function validateSecurityHeaders(): {
   } else {
     const hasAdminShopify = frameAncestors.includes("https://admin.shopify.com");
     if (!hasAdminShopify) {
-      issues.push("APP_PAGE_CSP_DIRECTIVES.frame-ancestors must include https://admin.shopify.com for embedded app compatibility");
+      issues.push(
+        "APP_PAGE_CSP_DIRECTIVES.frame-ancestors must include https://admin.shopify.com for embedded app compatibility"
+      );
     }
   }
   return {
@@ -198,12 +196,7 @@ export function validateSecurityHeaders(): {
   };
 }
 
-
-export function getRateLimitHeaders(
-  limit: number,
-  remaining: number,
-  resetAt: Date
-): Record<string, string> {
+export function getRateLimitHeaders(limit: number, remaining: number, resetAt: Date): Record<string, string> {
   return {
     "X-RateLimit-Limit": String(limit),
     "X-RateLimit-Remaining": String(Math.max(0, remaining)),
@@ -211,23 +204,17 @@ export function getRateLimitHeaders(
   };
 }
 
-export function getRateLimitExceededHeaders(
-  retryAfterSeconds: number
-): Record<string, string> {
+export function getRateLimitExceededHeaders(retryAfterSeconds: number): Record<string, string> {
   return {
     "Retry-After": String(retryAfterSeconds),
     "X-RateLimit-Remaining": "0",
   };
 }
 
-export function jsonApi<T>(
-  data: T,
-  init?: ResponseInit
-): Response {
+export function jsonApi<T>(data: T, init?: ResponseInit): Response {
   const headers = new Headers(init?.headers);
-  const securityHeaders = process.env.NODE_ENV === "production"
-    ? getProductionSecurityHeaders(API_SECURITY_HEADERS)
-    : API_SECURITY_HEADERS;
+  const securityHeaders =
+    process.env.NODE_ENV === "production" ? getProductionSecurityHeaders(API_SECURITY_HEADERS) : API_SECURITY_HEADERS;
   addSecurityHeadersToHeaders(headers, securityHeaders);
   return json(data, {
     ...init,

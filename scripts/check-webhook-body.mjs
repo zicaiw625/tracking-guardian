@@ -54,8 +54,8 @@ function findWebhookAuthPosition(content) {
 
 function findBodyReadBeforePosition(content, beforeLine) {
   const lines = content.split("\n");
-  const bodyReadPatterns = BODY_READ_PATTERNS.map(pattern => new RegExp(pattern));
-  
+  const bodyReadPatterns = BODY_READ_PATTERNS.map((pattern) => new RegExp(pattern));
+
   for (let i = 0; i < beforeLine && i < lines.length; i++) {
     for (const pattern of bodyReadPatterns) {
       if (pattern.test(lines[i])) {
@@ -69,16 +69,16 @@ function findBodyReadBeforePosition(content, beforeLine) {
 function checkWebhookFile(filePath) {
   const content = readFileSync(filePath, "utf-8");
   const fileName = filePath.split("/").pop() || "";
-  
+
   if (!content.includes("authenticate.webhook")) {
     return;
   }
-  
+
   const authLine = findWebhookAuthPosition(content);
   if (authLine === -1) {
     return;
   }
-  
+
   const bodyRead = findBodyReadBeforePosition(content, authLine);
   if (bodyRead) {
     checks.push({
@@ -89,7 +89,7 @@ function checkWebhookFile(filePath) {
     hasErrors = true;
     return;
   }
-  
+
   checks.push({
     name: `Webhook Route: ${fileName}`,
     status: "pass",
@@ -100,7 +100,7 @@ function checkWebhookFile(filePath) {
 function checkWebhookRoutes() {
   const routesDir = join(process.cwd(), "app/routes");
   const routeFiles = getAllRouteFiles(routesDir);
-  
+
   if (routeFiles.length === 0) {
     checks.push({
       name: "Webhook Body Check",
@@ -109,7 +109,7 @@ function checkWebhookRoutes() {
     });
     return;
   }
-  
+
   for (const file of routeFiles) {
     try {
       checkWebhookFile(file);
@@ -127,13 +127,15 @@ function checkWebhookRoutes() {
 checkWebhookRoutes();
 
 console.log("\n=== Webhook Body Protection Check ===\n");
-checks.forEach(check => {
+checks.forEach((check) => {
   const icon = check.status === "pass" ? "✅" : check.status === "warn" ? "⚠️" : "❌";
   console.log(`${icon} ${check.name}: ${check.message}`);
 });
 
 if (hasErrors) {
-  console.log("\n❌ Webhook body protection check failed. Do not read the request body before authenticate.webhook(request).");
+  console.log(
+    "\n❌ Webhook body protection check failed. Do not read the request body before authenticate.webhook(request)."
+  );
   process.exit(1);
 } else {
   console.log("\n✅ All webhook routes properly protect the request body.");

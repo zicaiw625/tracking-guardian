@@ -4,13 +4,9 @@ import { logger } from "./logger.server";
 import { AppError, ErrorCode, ensureAppError } from "./errors/index";
 import { readJsonWithSizeLimit } from "./body-size-guard";
 
-export type ActionHandler<T = unknown> = (
-  args: ActionFunctionArgs
-) => Promise<T>;
+export type ActionHandler<T = unknown> = (args: ActionFunctionArgs) => Promise<T>;
 
-export type LoaderHandler<T = unknown> = (
-  args: LoaderFunctionArgs
-) => Promise<T>;
+export type LoaderHandler<T = unknown> = (args: LoaderFunctionArgs) => Promise<T>;
 
 export interface ApiHandlerOptions {
   logStack?: boolean;
@@ -22,10 +18,7 @@ export interface ApiHandlerOptions {
   includeDetails?: boolean;
 }
 
-function handleApiError(
-  error: unknown,
-  options: ApiHandlerOptions = {}
-): Response {
+function handleApiError(error: unknown, options: ApiHandlerOptions = {}): Response {
   const { logStack = false, transformError, includeDetails = false } = options;
   const appError = ensureAppError(error);
   if (appError.isInternalError()) {
@@ -58,9 +51,10 @@ function handleApiError(
     success: false,
     error: clientResponse.message,
     code: clientResponse.code,
-    ...(process.env.NODE_ENV !== "production" && includeDetails && {
-      stack: error instanceof Error ? error.stack : undefined,
-    }),
+    ...(process.env.NODE_ENV !== "production" &&
+      includeDetails && {
+        stack: error instanceof Error ? error.stack : undefined,
+      }),
   };
   return json(response, { status: statusCode });
 }
@@ -110,53 +104,34 @@ export async function parseFormData(request: Request): Promise<FormData> {
   }
 }
 
-export function getRequiredQueryParam(
-  url: URL,
-  param: string
-): string {
+export function getRequiredQueryParam(url: URL, param: string): string {
   const value = url.searchParams.get(param);
   if (!value) {
-    throw new AppError(
-      ErrorCode.VALIDATION_MISSING_FIELD,
-      `Missing required parameter: ${param}`,
-      false,
-      { field: param }
-    );
+    throw new AppError(ErrorCode.VALIDATION_MISSING_FIELD, `Missing required parameter: ${param}`, false, {
+      field: param,
+    });
   }
   return value;
 }
 
-export function getQueryParam(
-  url: URL,
-  param: string,
-  defaultValue: string = ""
-): string {
+export function getQueryParam(url: URL, param: string, defaultValue: string = ""): string {
   return url.searchParams.get(param) ?? defaultValue;
 }
 
-export function getNumericQueryParam(
-  url: URL,
-  param: string,
-  defaultValue: number
-): number {
+export function getNumericQueryParam(url: URL, param: string, defaultValue: number): number {
   const value = url.searchParams.get(param);
   if (!value) return defaultValue;
   const parsed = parseInt(value, 10);
   if (isNaN(parsed)) {
-    throw new AppError(
-      ErrorCode.VALIDATION_INVALID_FORMAT,
-      `Invalid numeric parameter: ${param}`,
-      false,
-      { field: param, expected: "number" }
-    );
+    throw new AppError(ErrorCode.VALIDATION_INVALID_FORMAT, `Invalid numeric parameter: ${param}`, false, {
+      field: param,
+      expected: "number",
+    });
   }
   return parsed;
 }
 
-export function apiResponse<T>(
-  data: T,
-  init?: ResponseInit
-): Response {
+export function apiResponse<T>(data: T, init?: ResponseInit): Response {
   return json(data, {
     ...init,
     headers: {

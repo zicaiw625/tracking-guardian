@@ -16,17 +16,10 @@ export interface CredentialsValidationResult {
 export interface IPlatformService {
   readonly platform: Platform;
   readonly displayName: string;
-  sendConversion(
-    credentials: PlatformCredentials,
-    data: ConversionData,
-    eventId: string
-  ): Promise<PlatformSendResult>;
+  sendConversion(credentials: PlatformCredentials, data: ConversionData, eventId: string): Promise<PlatformSendResult>;
   validateCredentials(credentials: unknown): CredentialsValidationResult;
   parseError(error: unknown): PlatformError;
-  buildPayload(
-    data: ConversionData,
-    eventId: string
-  ): Promise<Record<string, unknown>>;
+  buildPayload(data: ConversionData, eventId: string): Promise<Record<string, unknown>>;
 }
 
 export interface IPlatformRegistry {
@@ -86,7 +79,4 @@ export interface RateLimitEvent extends PlatformEvent {
   readonly retryAfter?: number;
 }
 
-export type PlatformDomainEvent =
-  | ConversionSentEvent
-  | ConversionFailedEvent
-  | RateLimitEvent;
+export type PlatformDomainEvent = ConversionSentEvent | ConversionFailedEvent | RateLimitEvent;

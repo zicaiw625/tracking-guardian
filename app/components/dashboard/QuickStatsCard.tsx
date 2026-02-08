@@ -43,9 +43,7 @@ export const QuickStatsCard = memo(function QuickStatsCard({
           <Divider />
           <InlineStack align="space-between">
             <Text as="span">{t("dashboard.quickStats.currentPlan")}</Text>
-            <Badge>
-              {planLabel ? t(planLabel) : (plan === "free" ? t("dashboard.quickStats.freePlan") : plan)}
-            </Badge>
+            <Badge>{planLabel ? t(planLabel) : plan === "free" ? t("dashboard.quickStats.freePlan") : plan}</Badge>
           </InlineStack>
           {planTagline && (
             <Text as="p" variant="bodySm" tone="subdued">
@@ -56,7 +54,9 @@ export const QuickStatsCard = memo(function QuickStatsCard({
             <List>
               {displayFeatures.map((f, i) => (
                 <List.Item key={i}>
-                  <Text as="span" variant="bodySm">{t(f)}</Text>
+                  <Text as="span" variant="bodySm">
+                    {t(f)}
+                  </Text>
                 </List.Item>
               ))}
               {hasMoreFeatures && (
@@ -68,10 +68,7 @@ export const QuickStatsCard = memo(function QuickStatsCard({
               )}
             </List>
           )}
-          <Button
-            url="/app/settings?tab=subscription"
-            size="slim"
-          >
+          <Button url="/app/settings?tab=subscription" size="slim">
             {t("dashboard.quickStats.viewPlan")}
           </Button>
         </BlockStack>

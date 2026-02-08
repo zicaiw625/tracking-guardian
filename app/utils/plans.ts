@@ -45,14 +45,10 @@ export function normalizePlan(plan: string | null | undefined): PlanId {
   return "free";
 }
 
-export function isPlanAtLeast(
-  current: string | null | undefined,
-  target: PlanId
-): boolean {
+export function isPlanAtLeast(current: string | null | undefined, target: PlanId): boolean {
   const currentNormalized = normalizePlan(current);
   const targetNormalized = normalizePlan(target);
   const currentActual = currentNormalized === "pro" ? "growth" : currentNormalized;
   const targetActual = targetNormalized === "pro" ? "growth" : targetNormalized;
-  return isHigherTier(currentActual as BillingPlanId, targetActual as BillingPlanId) ||
-         currentActual === targetActual;
+  return isHigherTier(currentActual as BillingPlanId, targetActual as BillingPlanId) || currentActual === targetActual;
 }

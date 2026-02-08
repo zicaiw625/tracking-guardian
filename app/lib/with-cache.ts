@@ -175,11 +175,7 @@ export function cachedJson<T>(
     staleWhileRevalidate?: number;
   } = {}
 ): Response {
-  const {
-    maxAge = 0,
-    sMaxAge = 60,
-    staleWhileRevalidate = 300,
-  } = options;
+  const { maxAge = 0, sMaxAge = 60, staleWhileRevalidate = 300 } = options;
   const cacheControl = [
     maxAge > 0 ? `max-age=${maxAge}` : "no-cache",
     sMaxAge > 0 ? `s-maxage=${sMaxAge}` : null,

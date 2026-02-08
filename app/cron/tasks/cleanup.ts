@@ -374,7 +374,9 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
       try {
         await processShopRedact(shop.shopDomain, {});
         result.uninstalledShopsDeleted++;
-        logger.info(`Deleted all data for uninstalled shop ${shop.shopDomain} (uninstalled > ${UNINSTALL_DELETION_HOURS}h ago)`);
+        logger.info(
+          `Deleted all data for uninstalled shop ${shop.shopDomain} (uninstalled > ${UNINSTALL_DELETION_HOURS}h ago)`
+        );
       } catch (error) {
         logger.error(`Failed to delete data for uninstalled shop ${shop.shopDomain}`, { error });
       }

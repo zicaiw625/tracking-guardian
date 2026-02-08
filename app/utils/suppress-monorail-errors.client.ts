@@ -1,7 +1,7 @@
 export function suppressMonorailErrors() {
   if (typeof window === "undefined") return;
-  const isDev = 
-    process.env.NODE_ENV === "development" || 
+  const isDev =
+    process.env.NODE_ENV === "development" ||
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1" ||
     window.location.hostname.includes(".local");
@@ -9,11 +9,9 @@ export function suppressMonorailErrors() {
   const originalConsoleError = console.error;
   const originalConsoleWarn = console.warn;
   const isTelemetryError = (args: unknown[]): boolean => {
-    const errorMessage = args.map(arg => 
-      typeof arg === "string" ? arg : 
-      arg instanceof Error ? arg.message : 
-      String(arg)
-    ).join(" ");
+    const errorMessage = args
+      .map((arg) => (typeof arg === "string" ? arg : arg instanceof Error ? arg.message : String(arg)))
+      .join(" ");
     return (
       errorMessage.includes("monorail-edge.shopifysvc.com") ||
       errorMessage.includes("monorail") ||
@@ -27,13 +25,13 @@ export function suppressMonorailErrors() {
   };
   console.error = (...args: unknown[]) => {
     if (isTelemetryError(args)) {
-      return; 
+      return;
     }
     originalConsoleError.apply(console, args);
   };
   console.warn = (...args: unknown[]) => {
     if (isTelemetryError(args)) {
-      return; 
+      return;
     }
     originalConsoleWarn.apply(console, args);
   };
@@ -57,10 +55,7 @@ export function suppressMonorailErrors() {
   window.addEventListener("error", errorHandler, true);
   const rejectionHandler = (event: PromiseRejectionEvent) => {
     const reason = event.reason;
-    const errorMessage = 
-      reason?.message || 
-      reason?.toString() || 
-      String(reason || "");
+    const errorMessage = reason?.message || reason?.toString() || String(reason || "");
     if (
       errorMessage.includes("monorail") ||
       errorMessage.includes("produce") ||
@@ -83,18 +78,27 @@ export function suppressMonorailErrors() {
       url.includes("monorail") ||
       url.includes("opentelemetry") ||
       url.includes("otlp") ||
-      url.includes("/events") && url.includes("monorail")
+      (url.includes("/events") && url.includes("monorail"))
     );
   };
   const originalFetch = window.fetch;
   window.fetch = async (...args) => {
-    const url = typeof args[0] === "string" ? args[0] : args[0] instanceof URL ? args[0].href : (args[0] && typeof args[0] === "object" && "url" in args[0] ? (args[0] as Request).url : "");
+    const url =
+      typeof args[0] === "string"
+        ? args[0]
+        : args[0] instanceof URL
+          ? args[0].href
+          : args[0] && typeof args[0] === "object" && "url" in args[0]
+            ? (args[0] as Request).url
+            : "";
     if (isTelemetryUrl(url)) {
-      return Promise.resolve(new Response(null, { 
-        status: 200, 
-        statusText: "OK",
-        headers: new Headers({ "Content-Type": "application/json" }),
-      }));
+      return Promise.resolve(
+        new Response(null, {
+          status: 200,
+          statusText: "OK",
+          headers: new Headers({ "Content-Type": "application/json" }),
+        })
+      );
     }
     try {
       const response = await originalFetch(...args);
@@ -109,11 +113,13 @@ export function suppressMonorailErrors() {
         const requestInfo = args[0];
         if (requestInfo && typeof requestInfo === "object" && "url" in requestInfo) {
           if (isTelemetryUrl((requestInfo as { url: string }).url)) {
-            return Promise.resolve(new Response(null, { 
-              status: 200, 
-              statusText: "OK",
-              headers: new Headers({ "Content-Type": "application/json" }),
-            }));
+            return Promise.resolve(
+              new Response(null, {
+                status: 200,
+                statusText: "OK",
+                headers: new Headers({ "Content-Type": "application/json" }),
+              })
+            );
           }
         }
       }
@@ -140,25 +146,25 @@ export function suppressMonorailErrors() {
     send(body?: Document | XMLHttpRequestBodyInit | null): void {
       if (this._isTelemetryRequest) {
         try {
-          Object.defineProperty(this, "readyState", { 
-            value: 4, 
-            writable: false, 
-            configurable: true 
+          Object.defineProperty(this, "readyState", {
+            value: 4,
+            writable: false,
+            configurable: true,
           });
-          Object.defineProperty(this, "status", { 
-            value: 200, 
-            writable: false, 
-            configurable: true 
+          Object.defineProperty(this, "status", {
+            value: 200,
+            writable: false,
+            configurable: true,
           });
-          Object.defineProperty(this, "statusText", { 
-            value: "OK", 
-            writable: false, 
-            configurable: true 
+          Object.defineProperty(this, "statusText", {
+            value: "OK",
+            writable: false,
+            configurable: true,
           });
-          Object.defineProperty(this, "responseText", { 
-            value: "{}", 
-            writable: false, 
-            configurable: true 
+          Object.defineProperty(this, "responseText", {
+            value: "{}",
+            writable: false,
+            configurable: true,
           });
           setTimeout(() => {
             try {

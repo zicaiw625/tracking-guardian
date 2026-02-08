@@ -1,8 +1,12 @@
 import type { Middleware, MiddlewareContext, CorsOptions } from "./types";
 import { getPixelEventsCorsHeaders } from "../utils/cors";
 import { API_SECURITY_HEADERS } from "../utils/security-headers";
-import { isValidShopifyOrigin, isValidDevOrigin, isDevMode, extractOriginHost } from "../utils/origin-validation.server";
-
+import {
+  isValidShopifyOrigin,
+  isValidDevOrigin,
+  isDevMode,
+  extractOriginHost,
+} from "../utils/origin-validation.server";
 
 const DEFAULT_CORS_OPTIONS: Required<CorsOptions> = {
   origin: (origin: string | null) => {
@@ -25,10 +29,7 @@ const DEFAULT_CORS_OPTIONS: Required<CorsOptions> = {
   customHeaders: [],
 };
 
-export function buildCorsHeaders(
-  request: Request,
-  options: CorsOptions = {}
-): Record<string, string> {
+export function buildCorsHeaders(request: Request, options: CorsOptions = {}): Record<string, string> {
   const opts = { ...DEFAULT_CORS_OPTIONS, ...options };
   const origin = request.headers.get("Origin");
   const headers: Record<string, string> = {};
@@ -74,10 +75,7 @@ export function buildCorsHeaders(
   return headers;
 }
 
-export function applyCorsHeaders(
-  response: Response,
-  headers: Record<string, string>
-): Response {
+export function applyCorsHeaders(response: Response, headers: Record<string, string>): Response {
   const newHeaders = new Headers(response.headers);
   for (const [key, value] of Object.entries(headers)) {
     newHeaders.set(key, value);
@@ -127,10 +125,7 @@ export function withPixelCors(customHeaders: string[] = []): Middleware {
   };
 }
 
-export function withShopCors(
-  allowedDomains: string[],
-  customHeaders: string[] = []
-): Middleware {
+export function withShopCors(allowedDomains: string[], customHeaders: string[] = []): Middleware {
   return async (context: MiddlewareContext) => {
     const { request } = context;
     const origin = request.headers.get("Origin");
@@ -139,12 +134,12 @@ export function withShopCors(
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": ["Content-Type", "X-Shopify-Shop-Domain", ...customHeaders].join(", "),
       "Access-Control-Max-Age": "3600",
-      "Vary": "Origin",
+      Vary: "Origin",
     };
     if (origin && origin !== "null") {
       const originHost = extractOriginHost(origin);
       if (originHost) {
-        const isAllowed = allowedDomains.some(domain => {
+        const isAllowed = allowedDomains.some((domain) => {
           const normalizedDomain = domain.toLowerCase();
           return originHost === normalizedDomain || originHost.endsWith(`.${normalizedDomain}`);
         });
@@ -171,11 +166,7 @@ export function withShopCors(
   };
 }
 
-export function jsonWithCors<T>(
-  data: T,
-  context: MiddlewareContext,
-  init?: ResponseInit
-): Response {
+export function jsonWithCors<T>(data: T, context: MiddlewareContext, init?: ResponseInit): Response {
   const corsHeaders = (context.meta.corsHeaders as Record<string, string>) || {};
   const headers = new Headers(init?.headers);
   headers.set("Content-Type", "application/json");

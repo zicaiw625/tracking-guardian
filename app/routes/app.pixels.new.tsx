@@ -2,13 +2,7 @@ import type { loader } from "./app.pixels.new/loader.server";
 import type { action } from "./app.pixels.new/action.server";
 export { loader } from "./app.pixels.new/loader.server";
 export { action } from "./app.pixels.new/action.server";
-import {
-  useActionData,
-  useLoaderData,
-  useNavigation,
-  useSubmit,
-  useNavigate,
-} from "@remix-run/react";
+import { useActionData, useLoaderData, useNavigation, useSubmit, useNavigate } from "@remix-run/react";
 import { useEffect } from "react";
 import { Page, BlockStack, Text, Banner, List } from "@shopify/polaris";
 import { useToastContext } from "~/components/ui";
@@ -70,7 +64,7 @@ export default function PixelsNewPage() {
                 {t("pixels.new.banners.placeholder.title")}
               </Text>
               <Text as="p" variant="bodySm">
-                 <Trans i18nKey="pixels.new.banners.placeholder.desc" />
+                <Trans i18nKey="pixels.new.banners.placeholder.desc" />
               </Text>
               <Text as="p" variant="bodySm" fontWeight="semibold">
                 {t("pixels.new.banners.placeholder.stepsTitle")}
@@ -79,7 +73,14 @@ export default function PixelsNewPage() {
                 {(t("pixels.new.banners.placeholder.steps", { returnObjects: true }) as string[]).map((step, i) => (
                   <List.Item key={i}>
                     <Text as="span" variant="bodySm">
-                       <Trans defaults={step} components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" />, code: <code /> }} />
+                      <Trans
+                        defaults={step}
+                        components={{
+                          strong: <strong />,
+                          a: <a target="_blank" rel="noopener noreferrer" />,
+                          code: <code />,
+                        }}
+                      />
                     </Text>
                   </List.Item>
                 ))}
@@ -97,13 +98,19 @@ export default function PixelsNewPage() {
                 {t("pixels.new.banners.configured.title")}
               </Text>
               <Text as="p" variant="bodySm">
-                 <Trans i18nKey="pixels.new.banners.configured.desc" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
+                <Trans
+                  i18nKey="pixels.new.banners.configured.desc"
+                  components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }}
+                />
               </Text>
               <Text as="p" variant="bodySm" fontWeight="semibold">
                 {t("pixels.new.banners.configured.important")}
               </Text>
               <Text as="p" variant="bodySm">
-                 <Trans i18nKey="pixels.new.banners.configured.importantDesc" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
+                <Trans
+                  i18nKey="pixels.new.banners.configured.importantDesc"
+                  components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }}
+                />
               </Text>
             </BlockStack>
           </Banner>
@@ -118,9 +125,11 @@ export default function PixelsNewPage() {
             </Text>
             <List type="bullet">
               {(t("pixels.new.banners.sandbox.limitations", { returnObjects: true }) as string[]).map((item, i) => (
-                 <List.Item key={i}>
-                    <Text as="span" variant="bodySm">{item}</Text>
-                 </List.Item>
+                <List.Item key={i}>
+                  <Text as="span" variant="bodySm">
+                    {item}
+                  </Text>
+                </List.Item>
               ))}
               <List.Item>
                 <BlockStack gap="200">
@@ -131,11 +140,15 @@ export default function PixelsNewPage() {
                     {t("pixels.new.banners.sandbox.unsupported.desc")}
                   </Text>
                   <List type="bullet">
-                    {(t("pixels.new.banners.sandbox.unsupported.items", { returnObjects: true }) as string[]).map((item, i) => (
-                      <List.Item key={i}>
-                        <Text as="span" variant="bodySm" tone="subdued">{item}</Text>
-                      </List.Item>
-                    ))}
+                    {(t("pixels.new.banners.sandbox.unsupported.items", { returnObjects: true }) as string[]).map(
+                      (item, i) => (
+                        <List.Item key={i}>
+                          <Text as="span" variant="bodySm" tone="subdued">
+                            {item}
+                          </Text>
+                        </List.Item>
+                      )
+                    )}
                   </List>
                   <Text as="span" variant="bodySm" fontWeight="semibold">
                     {t("pixels.new.banners.sandbox.unsupported.note")}
@@ -153,11 +166,15 @@ export default function PixelsNewPage() {
               {t("pixels.new.banners.sandbox.reviewPoints.desc")}
             </Text>
             <List type="bullet">
-               {(t("pixels.new.banners.sandbox.reviewPoints.items", { returnObjects: true }) as string[]).map((item, i) => (
+              {(t("pixels.new.banners.sandbox.reviewPoints.items", { returnObjects: true }) as string[]).map(
+                (item, i) => (
                   <List.Item key={i}>
-                    <Text as="span" variant="bodySm">{item}</Text>
+                    <Text as="span" variant="bodySm">
+                      {item}
+                    </Text>
                   </List.Item>
-               ))}
+                )
+              )}
             </List>
           </BlockStack>
         </Banner>
@@ -169,13 +186,20 @@ export default function PixelsNewPage() {
         />
         {!isStarterOrAbove && (
           <Banner tone="warning" title={t("pixels.new.banners.upgrade.title")}>
-            <Text as="p">
-              {t("pixels.new.banners.upgrade.desc")}
-            </Text>
+            <Text as="p">{t("pixels.new.banners.upgrade.desc")}</Text>
           </Banner>
         )}
         <NewPixelWizard
-          templates={templates ? { presets: templates.presets ?? [], custom: Array.isArray(templates.custom) ? templates.custom.filter((t): t is NonNullable<typeof t> => t != null) : [] } : null}
+          templates={
+            templates
+              ? {
+                  presets: templates.presets ?? [],
+                  custom: Array.isArray(templates.custom)
+                    ? templates.custom.filter((t): t is NonNullable<typeof t> => t != null)
+                    : [],
+                }
+              : null
+          }
           isStarterOrAbove={isStarterOrAbove}
           backendUrlInfo={backendUrlInfo}
           submit={submit}

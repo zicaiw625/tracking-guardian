@@ -6,12 +6,7 @@ import { Page, BlockStack, Banner, Text } from "@shopify/polaris";
 import { DashboardOverview } from "~/components/dashboard/DashboardOverview";
 import { DashboardMetrics } from "~/components/dashboard/DashboardMetrics";
 import { useToastContext } from "~/components/ui";
-import {
-  getSetupSteps,
-  getNextSetupStep,
-  getSetupProgress,
-  type DashboardData,
-} from "../types/dashboard";
+import { getSetupSteps, getNextSetupStep, getSetupProgress, type DashboardData } from "../types/dashboard";
 import { DEPRECATION_DATES, formatDeadlineDate } from "../utils/migration-deadlines";
 import { ScriptTagMigrationBanner } from "~/components/dashboard/ScriptTagMigrationBanner";
 import { MigrationDeadlineBanner } from "~/components/dashboard/MigrationDeadlineBanner";
@@ -26,7 +21,7 @@ export default function Index() {
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(true);
   const [showScanProgress, setShowScanProgress] = useState(false);
   const [scanStartedAt] = useState(() => new Date());
-  
+
   const upgradeFetcher = useFetcher();
   const scanFetcher = useFetcher();
   const { showSuccess, showError } = useToastContext();
@@ -44,27 +39,27 @@ export default function Index() {
   useEffect(() => {
     const upgradeResult = upgradeFetcher.data as any;
     if (!upgradeResult || upgradeFetcher.state !== "idle") return;
-    
+
     if (upgradeResult.success) {
       showSuccess(upgradeResult.message || t("scan.success.upgraded"));
       // Revalidate to reflect changes
       revalidator.revalidate();
     } else if (upgradeResult.error) {
-       let errorMessage = upgradeResult.error;
-       if (upgradeResult.details && upgradeResult.details.message) {
-           errorMessage = upgradeResult.details.message;
-       }
-       showError(errorMessage || t("scan.errors.upgradeFailed"));
+      let errorMessage = upgradeResult.error;
+      if (upgradeResult.details && upgradeResult.details.message) {
+        errorMessage = upgradeResult.details.message;
+      }
+      showError(errorMessage || t("scan.errors.upgradeFailed"));
     }
   }, [upgradeFetcher.data, upgradeFetcher.state, showSuccess, showError, t, revalidator]);
 
   // Handle auto-scan for new installs
   useEffect(() => {
     if (scanFetcher.state === "idle" && scanFetcher.data) {
-       // Scan completed
-       setShowScanProgress(false);
-       // Refresh page data
-       revalidator.revalidate();
+      // Scan completed
+      setShowScanProgress(false);
+      // Refresh page data
+      revalidator.revalidate();
     }
   }, [scanFetcher.state, scanFetcher.data, revalidator]);
 
@@ -133,11 +128,7 @@ export default function Index() {
         date2: formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month"),
         date3: formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact"),
       })}
-      primaryAction={
-        !progress.allComplete && nextStep
-          ? { content: nextStep.cta, url: nextStep.url }
-          : undefined
-      }
+      primaryAction={!progress.allComplete && nextStep ? { content: nextStep.cta, url: nextStep.url } : undefined}
     >
       <BlockStack gap="500">
         <DashboardOverview
@@ -150,10 +141,7 @@ export default function Index() {
           backendUrlInfo={loaderData.backendUrlInfo}
           onFixPixel={handleFixPixel}
         />
-        <DashboardMetrics
-          data={data}
-          latestScan={loaderData.latestScan}
-        />
+        <DashboardMetrics data={data} latestScan={loaderData.latestScan} />
         <ScriptTagMigrationBanner
           scriptTagsCount={data.scriptTagsCount}
           hasOrderStatusScripts={data.hasOrderStatusScripts}
@@ -169,7 +157,7 @@ export default function Index() {
               <Trans
                 i18nKey="dashboard.scriptTagBanner.content"
                 values={{
-                  date: formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")
+                  date: formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact"),
                 }}
                 components={{ strong: <strong /> }}
               />

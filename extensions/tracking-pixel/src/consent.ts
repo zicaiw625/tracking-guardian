@@ -15,10 +15,7 @@ export function createConsentManager(_logger?: (...args: unknown[]) => void): Co
   let marketingAllowed = false;
   let analyticsAllowed = false;
   let saleOfDataAllowed: boolean | undefined;
-  function updateFromStatus(
-    status: CustomerPrivacyState | null | undefined,
-    _source: "init" | "event"
-  ): void {
+  function updateFromStatus(status: CustomerPrivacyState | null | undefined, _source: "init" | "event"): void {
     if (!status || typeof status !== "object") {
       marketingAllowed = false;
       analyticsAllowed = false;
@@ -28,9 +25,8 @@ export function createConsentManager(_logger?: (...args: unknown[]) => void): Co
     customerPrivacyStatus = status;
     marketingAllowed = customerPrivacyStatus.marketingAllowed === true;
     analyticsAllowed = customerPrivacyStatus.analyticsProcessingAllowed === true;
-    saleOfDataAllowed = "saleOfDataAllowed" in customerPrivacyStatus
-      ? customerPrivacyStatus.saleOfDataAllowed === true
-      : undefined;
+    saleOfDataAllowed =
+      "saleOfDataAllowed" in customerPrivacyStatus ? customerPrivacyStatus.saleOfDataAllowed === true : undefined;
   }
   function hasAnalyticsConsent(): boolean {
     return analyticsAllowed === true;
@@ -42,9 +38,15 @@ export function createConsentManager(_logger?: (...args: unknown[]) => void): Co
     return analyticsAllowed === true && marketingAllowed === true && saleOfDataAllowed === true;
   }
   return {
-    get marketingAllowed() { return marketingAllowed; },
-    get analyticsAllowed() { return analyticsAllowed; },
-    get saleOfDataAllowed() { return saleOfDataAllowed; },
+    get marketingAllowed() {
+      return marketingAllowed;
+    },
+    get analyticsAllowed() {
+      return analyticsAllowed;
+    },
+    get saleOfDataAllowed() {
+      return saleOfDataAllowed;
+    },
     hasAnalyticsConsent,
     hasMarketingConsent,
     hasFullConsent,

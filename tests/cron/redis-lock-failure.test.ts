@@ -47,4 +47,3 @@ describe("/api/cron Redis strict unavailable", () => {
     expect(response.status).toBe(503);
   });
 });
-

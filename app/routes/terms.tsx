@@ -37,7 +37,9 @@ function TermsContent() {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>{t("PublicTerms.Title")} - {appName}</title>
+        <title>
+          {t("PublicTerms.Title")} - {appName}
+        </title>
         <style>{`
           * {
             margin: 0;
@@ -120,9 +122,18 @@ function TermsContent() {
         <div className="container">
           <h1>{t("PublicTerms.Title")}</h1>
           <div className="meta">
-            <p><strong>{t("PublicTerms.Meta.AppName")}：</strong>{appName}</p>
-            <p><strong>{t("PublicTerms.Meta.LastUpdated")}：</strong>{lastUpdated}</p>
-            <p><strong>{t("PublicTerms.Meta.AppDomain")}：</strong><a href={appDomain}>{appDomain}</a></p>
+            <p>
+              <strong>{t("PublicTerms.Meta.AppName")}：</strong>
+              {appName}
+            </p>
+            <p>
+              <strong>{t("PublicTerms.Meta.LastUpdated")}：</strong>
+              {lastUpdated}
+            </p>
+            <p>
+              <strong>{t("PublicTerms.Meta.AppDomain")}：</strong>
+              <a href={appDomain}>{appDomain}</a>
+            </p>
           </div>
 
           <div className="section">
@@ -141,23 +152,17 @@ function TermsContent() {
 
           <div className="section">
             <h2>{t("PublicTerms.Section3.Title")}</h2>
-            <p>
-              {t("PublicTerms.Section3.Content")}
-            </p>
+            <p>{t("PublicTerms.Section3.Content")}</p>
           </div>
 
           <div className="section">
             <h2>{t("PublicTerms.Section4.Title")}</h2>
-            <p>
-              {t("PublicTerms.Section4.Content")}
-            </p>
+            <p>{t("PublicTerms.Section4.Content")}</p>
           </div>
 
           <div className="section">
             <h2>{t("PublicTerms.Section5.Title")}</h2>
-            <p>
-              {t("PublicTerms.Section5.Content")}
-            </p>
+            <p>{t("PublicTerms.Section5.Content")}</p>
           </div>
 
           <div className="section">

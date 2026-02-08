@@ -13,7 +13,7 @@ function checkGraphQLOnly() {
     ...getFilesInDir(servicesDir, ".ts"),
   ];
   let hasRestApi = false;
-  files.forEach(file => {
+  files.forEach((file) => {
     const content = readFileSync(file, "utf-8");
     if (content.includes("admin.rest")) {
       hasRestApi = true;
@@ -49,8 +49,7 @@ function checkDataEncryption() {
           foundEncryption = true;
           break;
         }
-      } catch {
-      }
+      } catch {}
     }
   }
   if (foundEncryption) {
@@ -74,39 +73,44 @@ function checkHMACValidation() {
   const ingestFile = join(process.cwd(), "app/routes/ingest.tsx");
   const routesDir = join(process.cwd(), "app/routes");
   const servicesDir = join(process.cwd(), "app/services");
-  
+
   let foundHMAC = false;
-  
+
   // Helper to check for HMAC related terms
-  const hasHMAC = (text) => /\bhmac\b/i.test(text) || text.includes("validatePixelEventHMAC") || text.includes("verifyHMACSignature");
+  const hasHMAC = (text) =>
+    /\bhmac\b/i.test(text) || text.includes("validatePixelEventHMAC") || text.includes("verifyHMACSignature");
   const hasWebhookAuth = (text) => text.includes("authenticate.webhook") || hasHMAC(text);
 
   if (existsSync(hmacValidationFile)) {
     const content = readFileSync(hmacValidationFile, "utf-8");
     if (hasHMAC(content)) foundHMAC = true;
   }
-  
+
   if (existsSync(webhooksFile)) {
     const content = readFileSync(webhooksFile, "utf-8");
     if (hasWebhookAuth(content)) foundHMAC = true;
   }
-  
+
   if (existsSync(ingestFile)) {
     const content = readFileSync(ingestFile, "utf-8");
     if (hasHMAC(content) || content.includes("authenticate.public.checkout")) foundHMAC = true;
   }
-  
+
   const routeFiles = getFilesInDir(routesDir, ".tsx").concat(getFilesInDir(routesDir, ".ts"));
   for (const file of routeFiles) {
     try {
       const content = readFileSync(file, "utf-8");
-      if (hasHMAC(content) || content.includes("authenticate.public.checkout") || content.includes("authenticate.webhook")) {
+      if (
+        hasHMAC(content) ||
+        content.includes("authenticate.public.checkout") ||
+        content.includes("authenticate.webhook")
+      ) {
         foundHMAC = true;
         break;
       }
     } catch {}
   }
-  
+
   if (!foundHMAC) {
     const serviceFiles = getFilesInDir(servicesDir, ".ts");
     for (const file of serviceFiles) {
@@ -119,7 +123,7 @@ function checkHMACValidation() {
       } catch {}
     }
   }
-  
+
   if (foundHMAC) {
     checks.push({
       name: "HMAC Validation Check",
@@ -141,50 +145,74 @@ function checkGDPRWebhooks() {
   const gdprHandlerAltFile = join(process.cwd(), "app/services/gdpr/handlers/customer-redact.ts");
   const servicesGdprDir = join(process.cwd(), "app/services/gdpr");
   const webhooksDir = join(process.cwd(), "app/webhooks");
-  
+
   let foundGDPR = false;
-  
+
   if (existsSync(webhookFile)) {
     const content = readFileSync(webhookFile, "utf-8");
-    if (content.includes("customers/data_request") || content.includes("customers/redact") || content.includes("shop/redact") || content.includes("GDPR") || content.includes("handleCustomersDataRequest") || content.includes("handleCustomersRedact") || content.includes("handleShopRedact") || content.includes("dispatchWebhook")) {
+    if (
+      content.includes("customers/data_request") ||
+      content.includes("customers/redact") ||
+      content.includes("shop/redact") ||
+      content.includes("GDPR") ||
+      content.includes("handleCustomersDataRequest") ||
+      content.includes("handleCustomersRedact") ||
+      content.includes("handleShopRedact") ||
+      content.includes("dispatchWebhook")
+    ) {
       foundGDPR = true;
     }
   }
-  
+
   if (existsSync(gdprHandlerFile)) {
     const content = readFileSync(gdprHandlerFile, "utf-8");
-    if (content.includes("handleCustomersDataRequest") || content.includes("handleCustomersRedact") || content.includes("handleShopRedact") || content.includes("customers/data_request") || content.includes("customers/redact") || content.includes("shop/redact")) {
+    if (
+      content.includes("handleCustomersDataRequest") ||
+      content.includes("handleCustomersRedact") ||
+      content.includes("handleShopRedact") ||
+      content.includes("customers/data_request") ||
+      content.includes("customers/redact") ||
+      content.includes("shop/redact")
+    ) {
       foundGDPR = true;
     }
   }
-  
+
   if (existsSync(gdprHandlerAltFile)) {
     foundGDPR = true;
   }
-  
+
   try {
     const gdprFiles = getFilesInDir(servicesGdprDir, ".ts");
     for (const file of gdprFiles) {
-      if (file.includes("data-request") || file.includes("customer-redact") || file.includes("shop-redact") || file.includes("gdpr")) {
+      if (
+        file.includes("data-request") ||
+        file.includes("customer-redact") ||
+        file.includes("shop-redact") ||
+        file.includes("gdpr")
+      ) {
         foundGDPR = true;
         break;
       }
     }
-  } catch {
-  }
-  
+  } catch {}
+
   try {
     const webhookFiles = getFilesInDir(webhooksDir, ".ts");
     for (const file of webhookFiles) {
       const content = readFileSync(file, "utf-8");
-      if (content.includes("customers/data_request") || content.includes("customers/redact") || content.includes("shop/redact") || content.includes("GDPR")) {
+      if (
+        content.includes("customers/data_request") ||
+        content.includes("customers/redact") ||
+        content.includes("shop/redact") ||
+        content.includes("GDPR")
+      ) {
         foundGDPR = true;
         break;
       }
     }
-  } catch {
-  }
-  
+  } catch {}
+
   if (foundGDPR) {
     checks.push({
       name: "GDPR Webhook Check",
@@ -259,7 +287,7 @@ function checkPrivacyPolicy() {
   const privacyPolicyRoot = join(process.cwd(), "PRIVACY_POLICY.md");
   const privacyRoute = join(process.cwd(), "app/routes/privacy.tsx");
   const privacyAppRoute = join(process.cwd(), "app/routes/app.privacy.tsx");
-  
+
   if (existsSync(privacyPolicyMd) || existsSync(privacyPolicyRoot)) {
     checks.push({
       name: "Privacy Policy Check",
@@ -270,13 +298,23 @@ function checkPrivacyPolicy() {
     let foundPrivacyContent = false;
     if (existsSync(privacyRoute)) {
       const content = readFileSync(privacyRoute, "utf-8");
-      if (content.includes("Privacy Policy") || content.includes("隐私政策") || content.includes("privacy") || content.includes("Tracking Guardian")) {
+      if (
+        content.includes("Privacy Policy") ||
+        content.includes("隐私政策") ||
+        content.includes("privacy") ||
+        content.includes("Tracking Guardian")
+      ) {
         foundPrivacyContent = true;
       }
     }
     if (existsSync(privacyAppRoute)) {
       const content = readFileSync(privacyAppRoute, "utf-8");
-      if (content.includes("Privacy Policy") || content.includes("隐私政策") || content.includes("privacy") || content.includes("Tracking Guardian")) {
+      if (
+        content.includes("Privacy Policy") ||
+        content.includes("隐私政策") ||
+        content.includes("privacy") ||
+        content.includes("Tracking Guardian")
+      ) {
         foundPrivacyContent = true;
       }
     }
@@ -314,8 +352,7 @@ function getFilesInDir(dir, ext) {
         files.push(fullPath);
       }
     });
-  } catch (error) {
-  }
+  } catch (error) {}
   return files;
 }
 
@@ -332,7 +369,7 @@ function runAudit() {
   let passCount = 0;
   let failCount = 0;
   let warningCount = 0;
-  checks.forEach(check => {
+  checks.forEach((check) => {
     const icon = check.status === "pass" ? "✅" : check.status === "fail" ? "❌" : "⚠️";
     console.log(`${icon} ${check.name}: ${check.message}`);
     if (check.status === "pass") passCount++;

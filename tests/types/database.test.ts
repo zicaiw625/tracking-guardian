@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  parseCapiInput,
-  parseConsentState,
-  parsePixelClientConfig,
-} from "../../app/types/database";
+import { parseCapiInput, parseConsentState, parsePixelClientConfig } from "../../app/types/database";
 
 describe("parseCapiInput", () => {
   it("should parse valid CAPI input", () => {
@@ -12,11 +8,9 @@ describe("parseCapiInput", () => {
       value: 99.99,
       currency: "USD",
       checkoutToken: "token123",
-      items: [
-        { productId: "p1", variantId: "v1", name: "Product", quantity: 2, price: 29.99 },
-      ],
-      tax: 5.00,
-      shipping: 10.00,
+      items: [{ productId: "p1", variantId: "v1", name: "Product", quantity: 2, price: 29.99 }],
+      tax: 5.0,
+      shipping: 10.0,
     };
     const result = parseCapiInput(input);
     expect(result).not.toBeNull();
@@ -25,8 +19,8 @@ describe("parseCapiInput", () => {
     expect(result?.checkoutToken).toBe("token123");
     expect(result?.items).toHaveLength(1);
     expect(result?.items?.[0].productId).toBe("p1");
-    expect(result?.tax).toBe(5.00);
-    expect(result?.shipping).toBe(10.00);
+    expect(result?.tax).toBe(5.0);
+    expect(result?.shipping).toBe(10.0);
   });
   it("should handle null checkoutToken", () => {
     const input = {

@@ -49,10 +49,7 @@ export function withValidationMiddleware<TInput, TOutput>(
   };
 }
 
-export function createValidationErrorResponse(
-  error: AppError,
-  prefix?: string
-): Response {
+export function createValidationErrorResponse(error: AppError, prefix?: string): Response {
   const message = prefix ? `${prefix}: ${error.message}` : error.message;
   const errorDetail: ApiErrorResponse["error"] = {
     code: error.code,
@@ -81,10 +78,7 @@ export function withValidationHandler<T, R>(
   };
 }
 
-export function createSimpleValidationErrorResponse(
-  error: string,
-  details?: Record<string, string>
-): Response {
+export function createSimpleValidationErrorResponse(error: string, details?: Record<string, string>): Response {
   return json(
     {
       success: false,

@@ -52,9 +52,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       error: error instanceof Error ? error.message : String(error),
       shopDomain,
     });
-    return jsonApi(
-      { error: error instanceof Error ? error.message : "Failed to track event" },
-      { status: 500 }
-    );
+    return jsonApi({ error: error instanceof Error ? error.message : "Failed to track event" }, { status: 500 });
   }
 };

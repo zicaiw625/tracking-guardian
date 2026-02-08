@@ -37,19 +37,8 @@ export {
   createEmptyShopRedactDeletionCounts,
 } from "./types";
 
-export {
-  processDataRequest,
-  processCustomerRedact,
-  processShopRedact,
-} from "./handlers";
+export { processDataRequest, processCustomerRedact, processShopRedact } from "./handlers";
 
-export {
-  processGDPRJob,
-  processGDPRJobs,
-  getGDPRJobStatus,
-} from "./job-processor";
+export { processGDPRJob, processGDPRJobs, getGDPRJobStatus } from "./job-processor";
 
-export {
-  checkGDPRCompliance,
-  getGDPRDeletionSummary,
-} from "./compliance";
+export { checkGDPRCompliance, getGDPRDeletionSummary } from "./compliance";

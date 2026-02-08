@@ -12,9 +12,7 @@ function isAcceptableContentType(contentType: string | null): boolean {
   return lower.includes("text/plain") || lower.includes("application/json");
 }
 
-export const bodyReaderMiddleware: IngestMiddleware = async (
-  context: IngestContext
-): Promise<MiddlewareResult> => {
+export const bodyReaderMiddleware: IngestMiddleware = async (context: IngestContext): Promise<MiddlewareResult> => {
   const contentType = context.request.headers.get("Content-Type");
   if (!isAcceptableContentType(contentType)) {
     if (shouldRecordRejection(context.isProduction, false, "content_type_invalid")) {

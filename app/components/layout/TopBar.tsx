@@ -1,12 +1,4 @@
-import {
-  InlineStack,
-  Text,
-  Badge,
-  Button,
-  Popover,
-  ActionList,
-  Box,
-} from "@shopify/polaris";
+import { InlineStack, Text, Badge, Button, Popover, ActionList, Box } from "@shopify/polaris";
 import { useState } from "react";
 import { QuestionCircleIcon } from "~/components/icons";
 import { SHOPIFY_HELP_LINKS } from "~/utils/migration-deadlines";
@@ -31,21 +23,9 @@ export function TopBar({
   const [popoverActive, setPopoverActive] = useState(false);
   const planConfig = getPlanConfig(planId);
   const planBadgeTone =
-    planId === "free"
-      ? "info"
-      : planId === "starter"
-        ? "attention"
-        : planId === "growth"
-          ? "success"
-          : "new";
+    planId === "free" ? "info" : planId === "starter" ? "attention" : planId === "growth" ? "success" : "new";
   return (
-    <Box
-      background="bg-surface"
-      paddingBlock="300"
-      paddingInline="400"
-      borderBlockEndWidth="025"
-      borderColor="border"
-    >
+    <Box background="bg-surface" paddingBlock="300" paddingInline="400" borderBlockEndWidth="025" borderColor="border">
       <InlineStack align="space-between" blockAlign="center" gap="400">
         <Text as="span" variant="bodyMd" fontWeight="semibold">
           {shopDomain}
@@ -58,7 +38,12 @@ export function TopBar({
           <Popover
             active={popoverActive}
             activator={
-              <Button size="slim" variant="plain" icon={QuestionCircleIcon} onClick={() => setPopoverActive(!popoverActive)}>
+              <Button
+                size="slim"
+                variant="plain"
+                icon={QuestionCircleIcon}
+                onClick={() => setPopoverActive(!popoverActive)}
+              >
                 {t("topbar.help")}
               </Button>
             }

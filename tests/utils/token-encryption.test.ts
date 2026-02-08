@@ -159,7 +159,7 @@ describe("Token Encryption Utils", () => {
       process.env.ENCRYPTION_SECRET = "short";
       const result = validateTokenEncryptionConfig();
       expect(result.valid).toBe(true);
-      expect(result.warnings.some(w => w.includes("shorter"))).toBe(true);
+      expect(result.warnings.some((w) => w.includes("shorter"))).toBe(true);
     });
   });
   describe("TokenDecryptionError", () => {

@@ -36,11 +36,7 @@ export interface MigrationChecklist {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function calculatePriority(
-  asset: AuditAsset,
-  category: string,
-  allAssets: AuditAsset[] = []
-): number {
+function calculatePriority(asset: AuditAsset, category: string, allAssets: AuditAsset[] = []): number {
   if (asset.priority !== null && asset.priority !== undefined) {
     return asset.priority;
   }
@@ -82,15 +78,15 @@ function calculatePriority(
   }
   const dependencies = (asset.dependencies as string[] | null) || [];
   if (dependencies.length > 0) {
-    const incompleteDeps = dependencies.filter(depId => {
-      const depAsset = allAssets.find(a => a.id === depId);
+    const incompleteDeps = dependencies.filter((depId) => {
+      const depAsset = allAssets.find((a) => a.id === depId);
       return depAsset && depAsset.migrationStatus !== "completed";
     });
     if (incompleteDeps.length > 0) {
       priority += 1.0;
     }
   }
-  const isDependencyOf = allAssets.some(a => {
+  const isDependencyOf = allAssets.some((a) => {
     const deps = (a.dependencies as string[] | null) || [];
     return deps.includes(asset.id) && a.migrationStatus !== "completed";
   });
@@ -131,9 +127,7 @@ function calculatePriority(
     none: -1.0,
   };
   const baseMigrationWeight = migrationDifficultyWeights[asset.suggestedMigration] || 0;
-  const migrationWeight = asset.riskLevel === "high"
-    ? Math.max(0, baseMigrationWeight)
-    : baseMigrationWeight;
+  const migrationWeight = asset.riskLevel === "high" ? Math.max(0, baseMigrationWeight) : baseMigrationWeight;
   priority += migrationWeight;
   if (asset.details && typeof asset.details === "object") {
     const details = asset.details as Record<string, unknown>;
@@ -208,9 +202,7 @@ function estimateMigrationTime(
   return Math.max(5, Math.min(120, migrationTime));
 }
 
-export async function generateMigrationChecklist(
-  shopId: string
-): Promise<MigrationChecklist> {
+export async function generateMigrationChecklist(shopId: string): Promise<MigrationChecklist> {
   const assets = await prisma.auditAsset.findMany({
     where: {
       shopId,
@@ -236,81 +228,81 @@ export async function generateMigrationChecklist(
       createdAt: "desc",
     },
   });
-  const items: MigrationChecklistItem[] = await Promise.all(assets.map(async (asset) => {
-    const dependencies = (asset.dependencies as string[] | null) || [];
-    const hasDependencies = dependencies.length > 0;
-    let complexity = 5;
-    if (asset.details && typeof asset.details === "object") {
-      const details = asset.details as Record<string, unknown>;
-      const matchedPatterns = details.matchedPatterns as string[] | undefined;
-      if (matchedPatterns && matchedPatterns.length > 3) {
-        complexity = 8;
+  const items: MigrationChecklistItem[] = await Promise.all(
+    assets.map(async (asset) => {
+      const dependencies = (asset.dependencies as string[] | null) || [];
+      const hasDependencies = dependencies.length > 0;
+      let complexity = 5;
+      if (asset.details && typeof asset.details === "object") {
+        const details = asset.details as Record<string, unknown>;
+        const matchedPatterns = details.matchedPatterns as string[] | undefined;
+        if (matchedPatterns && matchedPatterns.length > 3) {
+          complexity = 8;
+        }
       }
-    }
-    const priority = asset.priority ?? (
-      asset.riskLevel === "high" ? 9 :
-      asset.riskLevel === "medium" ? 6 :
-      asset.category === "pixel" ? 8 :
-      asset.category === "script" ? 7 :
-      5
-    );
-    const estimatedTime = asset.estimatedTimeMinutes ?? estimateMigrationTime(
-      asset.category,
-      asset.suggestedMigration,
-      asset.platform || undefined,
-      asset.riskLevel,
-      hasDependencies,
-      complexity
-    );
-    const riskReasonResult = getRiskReason({
-      category: asset.category,
-      platform: asset.platform,
-      riskLevel: asset.riskLevel,
-      details: asset.details as Record<string, unknown> | null,
-    });
-    const requiredInfoResult = extractRequiredInfo({
-      category: asset.category,
-      platform: asset.platform,
-      suggestedMigration: asset.suggestedMigration,
-      details: asset.details as Record<string, unknown> | null,
-    });
-    const descriptionResult = getMigrationDescription(asset as AuditAsset);
-    return {
-      id: `checklist-${asset.id}`,
-      assetId: asset.id,
-      title: asset.displayName || `${asset.category} - ${asset.platform || "未知"}`,
-      description: descriptionResult.text,
-      descriptionKey: descriptionResult.key,
-      descriptionParams: descriptionResult.params,
-      category: asset.category,
-      platform: asset.platform || undefined,
-      riskLevel: asset.riskLevel as "high" | "medium" | "low",
-      riskReason: riskReasonResult.text,
-      riskReasonKey: riskReasonResult.key,
-      riskReasonParams: riskReasonResult.params,
-      suggestedMigration: asset.suggestedMigration as
-        | "web_pixel"
-        | "ui_extension"
-        | "server_side"
-        | "none",
-      priority,
-      estimatedTime,
-      requiredInfo: requiredInfoResult.text,
-      requiredInfoKeys: requiredInfoResult.keys,
-      status: asset.migrationStatus as
-        | "pending"
-        | "in_progress"
-        | "completed"
-        | "skipped",
-      fingerprint: asset.fingerprint || null,
-    };
-  }));
+      const priority =
+        asset.priority ??
+        (asset.riskLevel === "high"
+          ? 9
+          : asset.riskLevel === "medium"
+            ? 6
+            : asset.category === "pixel"
+              ? 8
+              : asset.category === "script"
+                ? 7
+                : 5);
+      const estimatedTime =
+        asset.estimatedTimeMinutes ??
+        estimateMigrationTime(
+          asset.category,
+          asset.suggestedMigration,
+          asset.platform || undefined,
+          asset.riskLevel,
+          hasDependencies,
+          complexity
+        );
+      const riskReasonResult = getRiskReason({
+        category: asset.category,
+        platform: asset.platform,
+        riskLevel: asset.riskLevel,
+        details: asset.details as Record<string, unknown> | null,
+      });
+      const requiredInfoResult = extractRequiredInfo({
+        category: asset.category,
+        platform: asset.platform,
+        suggestedMigration: asset.suggestedMigration,
+        details: asset.details as Record<string, unknown> | null,
+      });
+      const descriptionResult = getMigrationDescription(asset as AuditAsset);
+      return {
+        id: `checklist-${asset.id}`,
+        assetId: asset.id,
+        title: asset.displayName || `${asset.category} - ${asset.platform || "未知"}`,
+        description: descriptionResult.text,
+        descriptionKey: descriptionResult.key,
+        descriptionParams: descriptionResult.params,
+        category: asset.category,
+        platform: asset.platform || undefined,
+        riskLevel: asset.riskLevel as "high" | "medium" | "low",
+        riskReason: riskReasonResult.text,
+        riskReasonKey: riskReasonResult.key,
+        riskReasonParams: riskReasonResult.params,
+        suggestedMigration: asset.suggestedMigration as "web_pixel" | "ui_extension" | "server_side" | "none",
+        priority,
+        estimatedTime,
+        requiredInfo: requiredInfoResult.text,
+        requiredInfoKeys: requiredInfoResult.keys,
+        status: asset.migrationStatus as "pending" | "in_progress" | "completed" | "skipped",
+        fingerprint: asset.fingerprint || null,
+      };
+    })
+  );
   const dependencyMap = new Map<string, string[]>();
   const dependentsMap = new Map<string, string[]>();
-  assets.forEach(asset => {
+  assets.forEach((asset) => {
     const deps = (asset.dependencies as string[] | null) || [];
     dependencyMap.set(asset.id, deps);
-    deps.forEach(depId => {
+    deps.forEach((depId) => {
       if (!dependentsMap.has(depId)) {
         dependentsMap.set(depId, []);
       }
@@ -318,11 +310,9 @@ export async function generateMigrationChecklist(
     });
   });
   const inDegree = new Map<string, number>();
-  items.forEach(item => {
+  items.forEach((item) => {
     const deps = dependencyMap.get(item.assetId) || [];
-    inDegree.set(item.assetId, deps.filter(depId =>
-      items.some(i => i.assetId === depId)
-    ).length);
+    inDegree.set(item.assetId, deps.filter((depId) => items.some((i) => i.assetId === depId)).length);
   });
   const topologicalOrder: string[] = [];
   const queue: string[] = [];
@@ -338,7 +328,7 @@ export async function generateMigrationChecklist(
     }
     topologicalOrder.push(assetId);
     const dependents = dependentsMap.get(assetId) || [];
-    dependents.forEach(depId => {
+    dependents.forEach((depId) => {
       const current = inDegree.get(depId) ?? 0;
       inDegree.set(depId, Math.max(0, current - 1));
       if (inDegree.get(depId) === 0) {
@@ -360,8 +350,8 @@ export async function generateMigrationChecklist(
     if (aTopoIndex !== bTopoIndex) {
       return aTopoIndex - bTopoIndex;
     }
-    const aAsset = assets.find(asset => asset.id === a.assetId);
-    const bAsset = assets.find(asset => asset.id === b.assetId);
+    const aAsset = assets.find((asset) => asset.id === a.assetId);
+    const bAsset = assets.find((asset) => asset.id === b.assetId);
     if (aAsset && bAsset) {
       const aIsDependencyOf = (dependentsMap.get(aAsset.id) || []).length > 0;
       const bIsDependencyOf = (dependentsMap.get(bAsset.id) || []).length > 0;
@@ -387,7 +377,7 @@ export async function generateMigrationChecklist(
   };
 }
 
-function getMigrationDescription(asset: AuditAsset): { text: string, key: string, params: Record<string, any> } {
+function getMigrationDescription(asset: AuditAsset): { text: string; key: string; params: Record<string, any> } {
   const categoryNames: Record<string, string> = {
     pixel: "追踪像素",
     affiliate: "联盟追踪",
@@ -404,7 +394,7 @@ function getMigrationDescription(asset: AuditAsset): { text: string, key: string
   };
   const categoryName = categoryNames[asset.category] || "其他";
   const migrationName = migrationNames[asset.suggestedMigration] || "未知";
-  
+
   let text = `${categoryName} - ${migrationName}`;
   if (asset.platform) {
     const platformNames: Record<string, string> = {
@@ -419,18 +409,15 @@ function getMigrationDescription(asset: AuditAsset): { text: string, key: string
 
   const key = asset.platform ? "scan.checklist.description.withPlatform" : "scan.checklist.description.basic";
   const params = {
-      category: asset.category,
-      platform: asset.platform,
-      migration: asset.suggestedMigration
+    category: asset.category,
+    platform: asset.platform,
+    migration: asset.suggestedMigration,
   };
 
   return { text, key, params };
 }
 
-export async function getMigrationChecklist(
-  shopId: string,
-  forceRefresh = false
-): Promise<MigrationChecklist> {
+export async function getMigrationChecklist(shopId: string, forceRefresh = false): Promise<MigrationChecklist> {
   if (forceRefresh) {
     return generateMigrationChecklist(shopId);
   }

@@ -1,6 +1,4 @@
-import type {
-  PlatformError,
-} from "../types";
+import type { PlatformError } from "../types";
 
 export { decryptCredentials } from "./credentials.server";
 
@@ -72,11 +70,7 @@ export function classifyFailureReason(errorMessage: string | null): FailureReaso
   ) {
     return "token_expired";
   }
-  if (
-    lowerError.includes("429") ||
-    lowerError.includes("rate limit") ||
-    lowerError.includes("too many requests")
-  ) {
+  if (lowerError.includes("429") || lowerError.includes("rate limit") || lowerError.includes("too many requests")) {
     return "rate_limited";
   }
   if (
@@ -120,7 +114,6 @@ export function classifyFailureReason(errorMessage: string | null): FailureReaso
 export function shouldNotifyImmediately(reason: FailureReason): boolean {
   return reason === "token_expired" || reason === "config_error";
 }
-
 
 export async function checkTokenExpirationIssues(_shopId: string): Promise<{
   hasIssues: boolean;

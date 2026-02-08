@@ -19,7 +19,7 @@ function getDatabaseUrl(): string {
     if (isProduction) {
       throw new Error(
         "DATABASE_URL environment variable is required in production. " +
-        "Please set DATABASE_URL to a valid PostgreSQL connection string."
+          "Please set DATABASE_URL to a valid PostgreSQL connection string."
       );
     }
     return baseUrl;
@@ -38,8 +38,7 @@ function getDatabaseUrl(): string {
     logger.error("[DB] Invalid DATABASE_URL format", { error: errorMessage });
     if (isProduction) {
       throw new Error(
-        `Invalid DATABASE_URL format: ${errorMessage}. ` +
-        "Please provide a valid PostgreSQL connection string."
+        `Invalid DATABASE_URL format: ${errorMessage}. ` + "Please provide a valid PostgreSQL connection string."
       );
     }
     return baseUrl;

@@ -11,11 +11,7 @@ import {
   List,
   Collapsible,
 } from "@shopify/polaris";
-import {
-  CheckCircleIcon,
-  ClipboardIcon,
-  RefreshIcon,
-} from "../icons";
+import { CheckCircleIcon, ClipboardIcon, RefreshIcon } from "../icons";
 import { useState, useCallback, useEffect } from "react";
 import { useFetcher } from "@remix-run/react";
 import { CheckoutCompletedBehaviorHint } from "./CheckoutCompletedBehaviorHint";
@@ -35,22 +31,22 @@ export interface TestOrderGuideProps {
   onTestComplete?: (itemId: string, verified: boolean) => void;
 }
 
-export function TestOrderGuide({
-  shopDomain,
-  shopId: _shopId,
-  testItems,
-  onTestComplete,
-}: TestOrderGuideProps) {
+export function TestOrderGuide({ shopDomain, shopId: _shopId, testItems, onTestComplete }: TestOrderGuideProps) {
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [testStatuses, setTestStatuses] = useState<Record<string, "pending" | "verifying" | "verified" | "failed">>({});
-  const [verificationResults, setVerificationResults] = useState<Record<string, {
-    verified: boolean;
-    eventsFound: number;
-    expectedEvents: number;
-    missingEvents: string[];
-    errors?: string[];
-  }>>({});
+  const [verificationResults, setVerificationResults] = useState<
+    Record<
+      string,
+      {
+        verified: boolean;
+        eventsFound: number;
+        expectedEvents: number;
+        missingEvents: string[];
+        errors?: string[];
+      }
+    >
+  >({});
   const fetcher = useFetcher();
   const handleCopy = useCallback(async (text: string, itemId: string) => {
     try {
@@ -73,17 +69,20 @@ export function TestOrderGuide({
       return next;
     });
   }, []);
-  const handleVerifyTest = useCallback((itemId: string) => {
-    const item = testItems.find((i) => i.id === itemId);
-    if (!item) return;
-    setTestStatuses((prev) => ({ ...prev, [itemId]: "verifying" }));
-    const formData = new FormData();
-    formData.append("_action", "verifyTestItem");
-    formData.append("itemId", itemId);
-    formData.append("eventType", item.eventType || "purchase");
-    formData.append("expectedEvents", JSON.stringify(item.expectedEvents));
-    fetcher.submit(formData, { method: "post" });
-  }, [testItems, fetcher]);
+  const handleVerifyTest = useCallback(
+    (itemId: string) => {
+      const item = testItems.find((i) => i.id === itemId);
+      if (!item) return;
+      setTestStatuses((prev) => ({ ...prev, [itemId]: "verifying" }));
+      const formData = new FormData();
+      formData.append("_action", "verifyTestItem");
+      formData.append("itemId", itemId);
+      formData.append("eventType", item.eventType || "purchase");
+      formData.append("expectedEvents", JSON.stringify(item.expectedEvents));
+      fetcher.submit(formData, { method: "post" });
+    },
+    [testItems, fetcher]
+  );
   useEffect(() => {
     if (fetcher.data && (fetcher.data as { success?: boolean; itemId?: string }).success) {
       const data = fetcher.data as {
@@ -131,22 +130,28 @@ export function TestOrderGuide({
               快速开始（PRD 2.5: 对齐 Shopify 官方测试路径）
             </Text>
             <List type="bullet">
-              <List.Item>
-                在 Shopify 后台启用测试模式（Settings → Checkout → Test mode）
-              </List.Item>
-              <List.Item>
-                使用测试支付方式（Bogus Gateway）完成订单
-              </List.Item>
-              <List.Item>
-                在实时监控中查看事件触发情况
-              </List.Item>
+              <List.Item>在 Shopify 后台启用测试模式（Settings → Checkout → Test mode）</List.Item>
+              <List.Item>使用测试支付方式（Bogus Gateway）完成订单</List.Item>
+              <List.Item>在实时监控中查看事件触发情况</List.Item>
             </List>
             <Text as="p" variant="bodySm" tone="subdued">
               <strong>参考 Shopify 官方文档：</strong>
-              <br />
-              • <a href="https://help.shopify.com/en/manual/checkout-settings/test-checkout" target="_blank" rel="noopener noreferrer">测试结账流程</a>
-              <br />
-              • <a href="https://help.shopify.com/en/manual/online-store/themes/customizing-themes/checkout-extensibility/web-pixels-api/test-custom-pixels" target="_blank" rel="noopener noreferrer">测试自定义像素</a>
+              <br />•{" "}
+              <a
+                href="https://help.shopify.com/en/manual/checkout-settings/test-checkout"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                测试结账流程
+              </a>
+              <br />•{" "}
+              <a
+                href="https://help.shopify.com/en/manual/online-store/themes/customizing-themes/checkout-extensibility/web-pixels-api/test-custom-pixels"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                测试自定义像素
+              </a>
             </Text>
           </BlockStack>
         </Banner>
@@ -170,11 +175,7 @@ export function TestOrderGuide({
                         {item.description}
                       </Text>
                     </BlockStack>
-                    <Button
-                      size="slim"
-                      variant="plain"
-                      onClick={() => toggleExpanded(item.id)}
-                    >
+                    <Button size="slim" variant="plain" onClick={() => toggleExpanded(item.id)}>
                       {isExpanded ? "收起" : "展开"}
                     </Button>
                   </InlineStack>
@@ -245,19 +246,11 @@ export function TestOrderGuide({
                         <InlineStack gap="100" wrap>
                           {item.expectedEvents.map((event) => {
                             const result = verificationResults[item.id];
-                            const isFound = result?.missingEvents
-                              ? !result.missingEvents.includes(event)
-                              : undefined;
+                            const isFound = result?.missingEvents ? !result.missingEvents.includes(event) : undefined;
                             return (
                               <Badge
                                 key={event}
-                                tone={
-                                  isFound === true
-                                    ? "success"
-                                    : isFound === false
-                                      ? "critical"
-                                      : "info"
-                                }
+                                tone={isFound === true ? "success" : isFound === false ? "critical" : "info"}
                               >
                                 {`${event}${isFound === true ? " ✓" : isFound === false ? " ✗" : ""}`}
                               </Badge>
@@ -267,9 +260,7 @@ export function TestOrderGuide({
                         {verificationResults[item.id] && (
                           <Box
                             background={
-                              verificationResults[item.id].verified
-                                ? "bg-surface-success"
-                                : "bg-surface-critical"
+                              verificationResults[item.id].verified ? "bg-surface-success" : "bg-surface-critical"
                             }
                             padding="300"
                             borderRadius="200"
@@ -279,16 +270,8 @@ export function TestOrderGuide({
                                 <Text as="span" variant="bodySm" fontWeight="semibold">
                                   验证结果
                                 </Text>
-                                <Badge
-                                  tone={
-                                    verificationResults[item.id].verified
-                                      ? "success"
-                                      : "critical"
-                                  }
-                                >
-                                  {verificationResults[item.id].verified
-                                    ? "通过"
-                                    : "未通过"}
+                                <Badge tone={verificationResults[item.id].verified ? "success" : "critical"}>
+                                  {verificationResults[item.id].verified ? "通过" : "未通过"}
                                 </Badge>
                               </InlineStack>
                               <Text as="span" variant="bodySm">
@@ -301,17 +284,15 @@ export function TestOrderGuide({
                                     缺失事件：
                                   </Text>
                                   <List type="bullet">
-                                    {verificationResults[item.id].missingEvents.map(
-                                      (event, idx) => (
-                                        <List.Item key={idx}>{event}</List.Item>
-                                      )
-                                    )}
+                                    {verificationResults[item.id].missingEvents.map((event, idx) => (
+                                      <List.Item key={idx}>{event}</List.Item>
+                                    ))}
                                   </List>
                                   {verificationResults[item.id].missingEvents.some(
-                                    (e) => e.toLowerCase().includes("checkout_completed") || e.toLowerCase().includes("purchase")
-                                  ) && (
-                                    <CheckoutCompletedBehaviorHint mode="missing" collapsible={true} />
-                                  )}
+                                    (e) =>
+                                      e.toLowerCase().includes("checkout_completed") ||
+                                      e.toLowerCase().includes("purchase")
+                                  ) && <CheckoutCompletedBehaviorHint mode="missing" collapsible={true} />}
                                 </BlockStack>
                               )}
                               {verificationResults[item.id].errors &&
@@ -325,21 +306,17 @@ export function TestOrderGuide({
                                       </List>
                                     </Banner>
                                     {verificationResults[item.id].missingEvents.some(
-                                      (e) => e.toLowerCase().includes("checkout_completed") || e.toLowerCase().includes("purchase")
-                                    ) && (
-                                      <CheckoutCompletedBehaviorHint mode="missing" collapsible={true} />
-                                    )}
+                                      (e) =>
+                                        e.toLowerCase().includes("checkout_completed") ||
+                                        e.toLowerCase().includes("purchase")
+                                    ) && <CheckoutCompletedBehaviorHint mode="missing" collapsible={true} />}
                                   </BlockStack>
                                 )}
                             </BlockStack>
                           </Box>
                         )}
                       </BlockStack>
-                      <Box
-                        background="bg-surface-secondary"
-                        padding="300"
-                        borderRadius="200"
-                      >
+                      <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                         <BlockStack gap="200">
                           <InlineStack align="space-between" blockAlign="center">
                             <Text as="span" variant="bodySm" fontWeight="semibold">
@@ -373,15 +350,9 @@ export function TestOrderGuide({
               ⚠️ 注意事项
             </Text>
             <List type="bullet">
-              <List.Item>
-                测试订单不会产生实际费用，但会触发真实的像素事件
-              </List.Item>
-              <List.Item>
-                建议在测试环境中完成所有验证，再切换到生产模式
-              </List.Item>
-              <List.Item>
-                如果事件未触发，请检查像素配置和网络连接
-              </List.Item>
+              <List.Item>测试订单不会产生实际费用，但会触发真实的像素事件</List.Item>
+              <List.Item>建议在测试环境中完成所有验证，再切换到生产模式</List.Item>
+              <List.Item>如果事件未触发，请检查像素配置和网络连接</List.Item>
             </List>
           </BlockStack>
         </Banner>

@@ -24,14 +24,8 @@ import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getVerificationRun } from "../services/verification.server";
-import {
-  generateVerificationReportData,
-  generateVerificationReportCSV,
-} from "../services/verification-report.server";
-import {
-  checkFeatureAccess,
-  type FeatureGateResult,
-} from "../services/billing/feature-gates.server";
+import { generateVerificationReportData, generateVerificationReportCSV } from "../services/verification-report.server";
+import { checkFeatureAccess, type FeatureGateResult } from "../services/billing/feature-gates.server";
 import { normalizePlanId, type PlanId, planSupportsReportExport } from "../services/billing/plans";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 import { trackEvent } from "../services/analytics.server";
@@ -101,9 +95,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       })
     );
   }
-  const pixelStrictOrigin = ["true", "1", "yes"].includes(
-    (process.env.PIXEL_STRICT_ORIGIN ?? "").toLowerCase().trim()
-  );
+  const pixelStrictOrigin = ["true", "1", "yes"].includes((process.env.PIXEL_STRICT_ORIGIN ?? "").toLowerCase().trim());
   return json({
     shop: { id: shop.id, domain: shopDomain },
     run,
@@ -155,7 +147,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 };
 
 export default function VerificationReportPage() {
-  const { shop, run, reportData, canExportReports, gateResult, currentPlan, pixelStrictOrigin } = useLoaderData<typeof loader>();
+  const { shop, run, reportData, canExportReports, gateResult, currentPlan, pixelStrictOrigin } =
+    useLoaderData<typeof loader>();
   const submit = useSubmit();
   useActionData<typeof action>();
   useToastContext();
@@ -246,11 +239,7 @@ export default function VerificationReportPage() {
           secondaryAction={{ content: t("verification.report.actions.reportCenter"), url: "/app/reports" }}
         />
         {!canExportReports && (
-          <UpgradePrompt
-            feature="verification"
-            currentPlan={currentPlan}
-            gateResult={gateResult ?? undefined}
-          />
+          <UpgradePrompt feature="verification" currentPlan={currentPlan} gateResult={gateResult ?? undefined} />
         )}
         <Card>
           <BlockStack gap="400">
@@ -278,10 +267,10 @@ export default function VerificationReportPage() {
                     {t("verification.report.info.type")}
                   </Text>
                   <Text as="span" variant="bodyMd">
-                    {reportData.runType === "quick" 
-                      ? t("verification.report.info.types.quick") 
-                      : reportData.runType === "full" 
-                        ? t("verification.report.info.types.full") 
+                    {reportData.runType === "quick"
+                      ? t("verification.report.info.types.quick")
+                      : reportData.runType === "full"
+                        ? t("verification.report.info.types.full")
                         : t("verification.report.info.types.custom")}
                   </Text>
                 </BlockStack>
@@ -349,13 +338,29 @@ export default function VerificationReportPage() {
                   <Text as="span" variant="bodyMd" fontWeight="semibold">
                     {t("verification.report.summary.completeness")}
                   </Text>
-                  <Text as="span" variant="headingMd" tone={reportData.summary.parameterCompleteness >= 90 ? "success" : reportData.summary.parameterCompleteness >= 70 ? "caution" : "critical"}>
+                  <Text
+                    as="span"
+                    variant="headingMd"
+                    tone={
+                      reportData.summary.parameterCompleteness >= 90
+                        ? "success"
+                        : reportData.summary.parameterCompleteness >= 70
+                          ? "caution"
+                          : "critical"
+                    }
+                  >
                     {reportData.summary.parameterCompleteness.toFixed(1)}%
                   </Text>
                 </InlineStack>
                 <ProgressBar
                   progress={reportData.summary.parameterCompleteness}
-                  tone={reportData.summary.parameterCompleteness >= 90 ? "success" : reportData.summary.parameterCompleteness >= 70 ? "highlight" : "critical"}
+                  tone={
+                    reportData.summary.parameterCompleteness >= 90
+                      ? "success"
+                      : reportData.summary.parameterCompleteness >= 70
+                        ? "highlight"
+                        : "critical"
+                  }
                 />
               </BlockStack>
               <BlockStack gap="200">
@@ -363,13 +368,29 @@ export default function VerificationReportPage() {
                   <Text as="span" variant="bodyMd" fontWeight="semibold">
                     {t("verification.report.summary.accuracy")}
                   </Text>
-                  <Text as="span" variant="headingMd" tone={reportData.summary.valueAccuracy >= 95 ? "success" : reportData.summary.valueAccuracy >= 80 ? "caution" : "critical"}>
+                  <Text
+                    as="span"
+                    variant="headingMd"
+                    tone={
+                      reportData.summary.valueAccuracy >= 95
+                        ? "success"
+                        : reportData.summary.valueAccuracy >= 80
+                          ? "caution"
+                          : "critical"
+                    }
+                  >
                     {reportData.summary.valueAccuracy.toFixed(1)}%
                   </Text>
                 </InlineStack>
                 <ProgressBar
                   progress={reportData.summary.valueAccuracy}
-                  tone={reportData.summary.valueAccuracy >= 95 ? "success" : reportData.summary.valueAccuracy >= 80 ? "highlight" : "critical"}
+                  tone={
+                    reportData.summary.valueAccuracy >= 95
+                      ? "success"
+                      : reportData.summary.valueAccuracy >= 80
+                        ? "highlight"
+                        : "critical"
+                  }
                 />
               </BlockStack>
             </BlockStack>
@@ -384,20 +405,15 @@ export default function VerificationReportPage() {
               <DataTable
                 columnContentTypes={["text", "numeric", "numeric", "numeric"]}
                 headings={[
-                    t("verification.report.platformStats.platform"),
-                    t("verification.report.platformStats.sent"),
-                    t("verification.report.platformStats.failed"),
-                    t("verification.report.platformStats.successRate")
+                  t("verification.report.platformStats.platform"),
+                  t("verification.report.platformStats.sent"),
+                  t("verification.report.platformStats.failed"),
+                  t("verification.report.platformStats.successRate"),
                 ]}
                 rows={Object.entries(reportData.platformResults).map(([platform, stats]) => {
                   const total = stats.sent + stats.failed;
                   const successRate = total > 0 ? Math.round((stats.sent / total) * 100) : 0;
-                  return [
-                    platform,
-                    String(stats.sent),
-                    String(stats.failed),
-                    `${successRate}%`,
-                  ];
+                  return [platform, String(stats.sent), String(stats.failed), `${successRate}%`];
                 })}
               />
             </BlockStack>
@@ -409,33 +425,35 @@ export default function VerificationReportPage() {
               <Text as="h2" variant="headingMd">
                 {t("verification.report.events.title")}
               </Text>
-              
+
               <SandboxLimitationsInfo />
 
               <DataTable
                 columnContentTypes={["text", "text", "text", "text", "text", "numeric", "text", "text", "text"]}
                 headings={[
-                    t("verification.report.events.table.testItem"),
-                    t("verification.report.events.table.eventType"),
-                    t("verification.report.events.table.platform"),
-                    t("verification.report.events.table.orderId"),
-                    t("verification.report.events.table.status"),
-                    t("verification.report.events.table.amount"),
-                    t("verification.report.events.table.currency"),
-                    t("verification.report.events.table.issues"),
-                    t("verification.report.events.table.limitations")
+                  t("verification.report.events.table.testItem"),
+                  t("verification.report.events.table.eventType"),
+                  t("verification.report.events.table.platform"),
+                  t("verification.report.events.table.orderId"),
+                  t("verification.report.events.table.status"),
+                  t("verification.report.events.table.amount"),
+                  t("verification.report.events.table.currency"),
+                  t("verification.report.events.table.issues"),
+                  t("verification.report.events.table.limitations"),
                 ]}
-                rows={reportData.events.slice(0, 50).map((event) => [
-                  event.testItemId,
-                  event.eventType,
-                  event.platform,
-                  event.orderId || "",
-                  event.status,
-                  formatValue(event.params?.value),
-                  event.params?.currency || "",
-                  event.discrepancies?.join("; ") || event.errors?.join("; ") || "",
-                  event.sandboxLimitations?.join("; ") || "",
-                ])}
+                rows={reportData.events
+                  .slice(0, 50)
+                  .map((event) => [
+                    event.testItemId,
+                    event.eventType,
+                    event.platform,
+                    event.orderId || "",
+                    event.status,
+                    formatValue(event.params?.value),
+                    event.params?.currency || "",
+                    event.discrepancies?.join("; ") || event.errors?.join("; ") || "",
+                    event.sandboxLimitations?.join("; ") || "",
+                  ])}
               />
               {reportData.events.length > 50 && (
                 <Text as="p" variant="bodySm" tone="subdued">
@@ -452,10 +470,7 @@ export default function VerificationReportPage() {
                 {t("verification.report.originWarning.title")}
               </Text>
               <Text as="p" variant="bodySm">
-                <Trans
-                  i18nKey="verification.report.originWarning.desc"
-                  components={[<code key="0" />]}
-                />
+                <Trans i18nKey="verification.report.originWarning.desc" components={[<code key="0" />]} />
               </Text>
             </BlockStack>
           </Banner>
@@ -475,9 +490,15 @@ export default function VerificationReportPage() {
                     {t("verification.report.sandbox.banner.desc")}
                   </Text>
                   <List type="bullet">
-                    {(t("verification.report.sandbox.limitations", { returnObjects: true }) as string[]).map((limit, idx) => (
-                        <List.Item key={idx}><Text as="span" variant="bodySm">{limit}</Text></List.Item>
-                    ))}
+                    {(t("verification.report.sandbox.limitations", { returnObjects: true }) as string[]).map(
+                      (limit, idx) => (
+                        <List.Item key={idx}>
+                          <Text as="span" variant="bodySm">
+                            {limit}
+                          </Text>
+                        </List.Item>
+                      )
+                    )}
                   </List>
                 </BlockStack>
               </Banner>
@@ -616,61 +637,48 @@ export default function VerificationReportPage() {
 }
 
 function SandboxLimitationsInfo() {
-    const { t } = useTranslation();
-    // This component renders the detailed sandbox limitations info 
-    // Uses translations to avoid hardcoded text
-    return (
-        <Banner tone="info">
-            <BlockStack gap="200">
-                <Text as="p" variant="bodySm">
-                    <Trans
-                      i18nKey="verification.report.sandbox.infoBanner.p1"
-                      components={[<strong key="0" />]}
-                    />
+  const { t } = useTranslation();
+  // This component renders the detailed sandbox limitations info
+  // Uses translations to avoid hardcoded text
+  return (
+    <Banner tone="info">
+      <BlockStack gap="200">
+        <Text as="p" variant="bodySm">
+          <Trans i18nKey="verification.report.sandbox.infoBanner.p1" components={[<strong key="0" />]} />
+        </Text>
+        <Text as="p" variant="bodySm" fontWeight="semibold">
+          <Trans i18nKey="verification.report.sandbox.infoBanner.p2" components={[<strong key="0" />]} />
+        </Text>
+        <Text as="p" variant="bodySm">
+          <Trans i18nKey="verification.report.sandbox.infoBanner.p3" components={[<strong key="0" />]} />
+        </Text>
+        <Text as="p" variant="bodySm">
+          <Trans i18nKey="verification.report.sandbox.infoBanner.p4" components={[<strong key="0" />]} />
+        </Text>
+        <Text as="p" variant="bodySm" fontWeight="semibold">
+          {t("verification.report.sandbox.infoBanner.knownLimits")}
+        </Text>
+        <List type="bullet">
+          {(t("verification.report.sandbox.infoBanner.limitsList", { returnObjects: true }) as string[]).map(
+            (item, i) => (
+              <List.Item key={i}>
+                <Text as="span" variant="bodySm">
+                  <Trans defaults={item} components={[<strong key="0" />]} />
                 </Text>
-                <Text as="p" variant="bodySm" fontWeight="semibold">
-                    <Trans
-                      i18nKey="verification.report.sandbox.infoBanner.p2"
-                      components={[<strong key="0" />]}
-                    />
-                </Text>
-                <Text as="p" variant="bodySm">
-                    <Trans
-                      i18nKey="verification.report.sandbox.infoBanner.p3"
-                      components={[<strong key="0" />]}
-                    />
-                </Text>
-                <Text as="p" variant="bodySm">
-                    <Trans
-                      i18nKey="verification.report.sandbox.infoBanner.p4"
-                      components={[<strong key="0" />]}
-                    />
-                </Text>
-                <Text as="p" variant="bodySm" fontWeight="semibold">
-                    {t("verification.report.sandbox.infoBanner.knownLimits")}
-                </Text>
-                <List type="bullet">
-                    {(t("verification.report.sandbox.infoBanner.limitsList", { returnObjects: true }) as string[]).map((item, i) => (
-                        <List.Item key={i}>
-                             <Text as="span" variant="bodySm">
-                                <Trans defaults={item} components={[<strong key="0" />]} />
-                             </Text>
-                        </List.Item>
-                    ))}
-                </List>
-                 <Text as="p" variant="bodySm" fontWeight="semibold">
-                    {t("verification.report.sandbox.infoBanner.unavailableEventsTitle")}
-                </Text>
-                 <Text as="p" variant="bodySm">
-                    {t("verification.report.sandbox.infoBanner.unavailableEventsDesc")}
-                </Text>
-                 <Text as="p" variant="bodySm" tone="subdued">
-                    <Trans
-                      i18nKey="verification.report.sandbox.infoBanner.autoLabelDesc"
-                      components={[<strong key="0" />]}
-                    />
-                 </Text>
-            </BlockStack>
-        </Banner>
-    );
+              </List.Item>
+            )
+          )}
+        </List>
+        <Text as="p" variant="bodySm" fontWeight="semibold">
+          {t("verification.report.sandbox.infoBanner.unavailableEventsTitle")}
+        </Text>
+        <Text as="p" variant="bodySm">
+          {t("verification.report.sandbox.infoBanner.unavailableEventsDesc")}
+        </Text>
+        <Text as="p" variant="bodySm" tone="subdued">
+          <Trans i18nKey="verification.report.sandbox.infoBanner.autoLabelDesc" components={[<strong key="0" />]} />
+        </Text>
+      </BlockStack>
+    </Banner>
+  );
 }

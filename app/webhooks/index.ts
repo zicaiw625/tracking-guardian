@@ -9,15 +9,6 @@ export type {
 
 export { dispatchWebhook } from "./dispatcher";
 
-export {
-  handleAppUninstalled,
-  handleCustomersDataRequest,
-  handleCustomersRedact,
-  handleShopRedact,
-} from "./handlers";
+export { handleAppUninstalled, handleCustomersDataRequest, handleCustomersRedact, handleShopRedact } from "./handlers";
 
-export {
-  tryAcquireWebhookLock,
-  updateWebhookStatus,
-  withIdempotency,
-} from "./middleware";
+export { tryAcquireWebhookLock, updateWebhookStatus, withIdempotency } from "./middleware";

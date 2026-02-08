@@ -5,10 +5,7 @@ import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from 
 import { getExistingWebPixels, isOurWebPixel } from "../../services/migration.server";
 import { deleteWebPixel } from "../../services/admin-mutations.server";
 
-async function tryCleanupWebPixel(
-  admin: NonNullable<WebhookContext["admin"]>,
-  shop: string
-): Promise<void> {
+async function tryCleanupWebPixel(admin: NonNullable<WebhookContext["admin"]>, shop: string): Promise<void> {
   try {
     const typedAdmin = admin as {
       graphql: (
@@ -16,18 +13,13 @@ async function tryCleanupWebPixel(
         options?: { variables?: Record<string, unknown> }
       ) => Promise<{ json: () => Promise<unknown> }>;
     };
-    const webPixels = await getExistingWebPixels(
-      typedAdmin as Parameters<typeof getExistingWebPixels>[0]
-    );
+    const webPixels = await getExistingWebPixels(typedAdmin as Parameters<typeof getExistingWebPixels>[0]);
     for (const pixel of webPixels) {
       if (pixel.settings) {
         try {
           const settings = JSON.parse(pixel.settings);
           if (isOurWebPixel(settings, shop)) {
-            const deleteResult = await deleteWebPixel(
-              typedAdmin as Parameters<typeof deleteWebPixel>[0],
-              pixel.id
-            );
+            const deleteResult = await deleteWebPixel(typedAdmin as Parameters<typeof deleteWebPixel>[0], pixel.id);
             if (deleteResult.success) {
               logger.info(`Cleaned up WebPixel on uninstall`, {
                 shop,

@@ -32,7 +32,6 @@ export {
   type PixelConfigInput,
 } from "./pixel-config-repository.server";
 
-
 export {
   batchCompleteJobs,
   batchInsertReceipts,

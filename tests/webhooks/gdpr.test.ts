@@ -294,17 +294,13 @@ describe("GDPR Compliance Webhooks", () => {
         id: "shop-id-123",
         shopDomain: "test-shop.myshopify.com",
       } as any);
-      vi.mocked(prisma.conversionLog.deleteMany).mockRejectedValue(
-        new Error("Database connection failed")
-      );
+      vi.mocked(prisma.conversionLog.deleteMany).mockRejectedValue(new Error("Database connection failed"));
       expect(true).toBe(true);
     });
   });
   describe("P0-03: Signature Verification", () => {
     it("should reject requests with invalid HMAC signature", async () => {
-      vi.mocked(authenticate.webhook).mockRejectedValue(
-        new Response("Unauthorized", { status: 401 })
-      );
+      vi.mocked(authenticate.webhook).mockRejectedValue(new Response("Unauthorized", { status: 401 }));
       expect(authenticate.webhook).toBeDefined();
     });
     it("should accept requests with valid HMAC signature", async () => {

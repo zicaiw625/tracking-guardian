@@ -29,10 +29,7 @@ export interface UsageHistory {
   };
 }
 
-export async function getUsageHistory(
-  shopId: string,
-  days: number = 30
-): Promise<UsageHistory> {
+export async function getUsageHistory(shopId: string, days: number = 30): Promise<UsageHistory> {
   const endDate = new Date();
   endDate.setUTCHours(23, 59, 59, 999);
   const startDate = new Date(endDate);
@@ -54,11 +51,14 @@ export async function getUsageHistory(
     },
   });
   const matchedReceipts = pixelReceipts.filter((r) => isReceiptHmacMatched(r.payloadJson));
-  const dailyData = new Map<string, {
-    orderIds: Set<string>;
-    eventCount: number;
-    platformCounts: Record<string, number>;
-  }>();
+  const dailyData = new Map<
+    string,
+    {
+      orderIds: Set<string>;
+      eventCount: number;
+      platformCounts: Record<string, number>;
+    }
+  >();
   for (let d = new Date(startDate); d <= endDate; d.setUTCDate(d.getUTCDate() + 1)) {
     const dateStr = d.toISOString().split("T")[0];
     dailyData.set(dateStr, {
@@ -87,16 +87,16 @@ export async function getUsageHistory(
       platforms: { ...dayData.platformCounts },
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
-  const totalOrders = new Set(
-    matchedReceipts.map((receipt) => receipt.orderKey).filter(Boolean)
-  ).size;
+  const totalOrders = new Set(matchedReceipts.map((receipt) => receipt.orderKey).filter(Boolean)).size;
   const totalEvents = matchedReceipts.length;
   const averageDailyOrders = data.length > 0 ? totalOrders / data.length : 0;
   const averageDailyEvents = data.length > 0 ? totalEvents / data.length : 0;
-  const peakDay = data.reduce(
-    (max, day) => (day.orders > max.orders ? day : max),
-    { date: data[0]?.date || "", orders: 0, events: 0, platforms: {} }
-  );
+  const peakDay = data.reduce((max, day) => (day.orders > max.orders ? day : max), {
+    date: data[0]?.date || "",
+    orders: 0,
+    events: 0,
+    platforms: {},
+  });
   const platformTotals: Record<string, number> = {};
   matchedReceipts.forEach((receipt) => {
     const platform = extractPlatformFromPayload(receipt.payloadJson as Record<string, unknown> | null) || "unknown";

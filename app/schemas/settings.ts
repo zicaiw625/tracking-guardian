@@ -6,10 +6,7 @@ export const AlertEmailSchema = z.object({
 });
 
 export const AlertSlackSchema = z.object({
-  webhookUrl: z
-    .string()
-    .url("请输入有效的 URL")
-    .startsWith("https://"),
+  webhookUrl: z.string().url("请输入有效的 URL").startsWith("https://"),
 });
 
 export const AlertTelegramSchema = z.object({
@@ -17,9 +14,7 @@ export const AlertTelegramSchema = z.object({
     .string()
     .min(30, "Bot Token 格式不正确")
     .regex(/^\d+:[A-Za-z0-9_-]+$/, "Bot Token 格式不正确"),
-  chatId: z
-    .string()
-    .regex(/^-?\d+$/, "Chat ID 应为数字"),
+  chatId: z.string().regex(/^-?\d+$/, "Chat ID 应为数字"),
 });
 
 export const AlertChannelSchema = z.enum(["email", "slack", "telegram"]);
@@ -38,10 +33,7 @@ export const AlertConfigSchema = z.object({
 
 export type AlertConfig = z.infer<typeof AlertConfigSchema>;
 
-export function validateAlertSettings(
-  channel: AlertChannel,
-  data: Record<string, unknown>
-) {
+export function validateAlertSettings(channel: AlertChannel, data: Record<string, unknown>) {
   switch (channel) {
     case "email":
       return AlertEmailSchema.safeParse(data);
@@ -53,8 +45,8 @@ export function validateAlertSettings(
       return {
         success: false as const,
         error: {
-          issues: [{ code: "custom", message: "Invalid channel", path: ["channel"] }]
-        }
+          issues: [{ code: "custom", message: "Invalid channel", path: ["channel"] }],
+        },
       };
   }
 }
@@ -65,36 +57,22 @@ export const MetaCredentialsSchema = z.object({
     .min(15, "Pixel ID 至少 15 位")
     .max(20, "Pixel ID 最多 20 位")
     .regex(/^\d+$/, "Pixel ID 应为纯数字"),
-  accessToken: z
-    .string()
-    .min(100, "Access Token 长度不正确")
-    .max(500, "Access Token 长度不正确"),
+  accessToken: z.string().min(100, "Access Token 长度不正确").max(500, "Access Token 长度不正确"),
   testEventCode: z.string().max(20).optional(),
 });
 
 export type MetaCredentialsInput = z.infer<typeof MetaCredentialsSchema>;
 
 export const GoogleCredentialsSchema = z.object({
-  measurementId: z
-    .string()
-    .regex(/^G-[A-Z0-9]+$/i, "格式应为 G-XXXXXXXXXX"),
-  apiSecret: z
-    .string()
-    .min(20, "API Secret 长度不正确")
-    .max(50, "API Secret 长度不正确"),
+  measurementId: z.string().regex(/^G-[A-Z0-9]+$/i, "格式应为 G-XXXXXXXXXX"),
+  apiSecret: z.string().min(20, "API Secret 长度不正确").max(50, "API Secret 长度不正确"),
 });
 
 export type GoogleCredentialsInput = z.infer<typeof GoogleCredentialsSchema>;
 
 export const TikTokCredentialsSchema = z.object({
-  pixelId: z
-    .string()
-    .min(10, "Pixel ID 长度不正确")
-    .max(30, "Pixel ID 长度不正确"),
-  accessToken: z
-    .string()
-    .min(50, "Access Token 长度不正确")
-    .max(200, "Access Token 长度不正确"),
+  pixelId: z.string().min(10, "Pixel ID 长度不正确").max(30, "Pixel ID 长度不正确"),
+  accessToken: z.string().min(50, "Access Token 长度不正确").max(200, "Access Token 长度不正确"),
 });
 
 export type TikTokCredentialsInput = z.infer<typeof TikTokCredentialsSchema>;
@@ -107,10 +85,7 @@ export const ServerSideConfigSchema = z.object({
   enabled: z.boolean(),
 });
 
-export function validatePlatformCredentials(
-  platform: Platform,
-  data: Record<string, unknown>
-) {
+export function validatePlatformCredentials(platform: Platform, data: Record<string, unknown>) {
   switch (platform) {
     case "meta":
       return MetaCredentialsSchema.safeParse(data);
@@ -122,8 +97,8 @@ export function validatePlatformCredentials(
       return {
         success: false as const,
         error: {
-          issues: [{ code: "custom", message: "Invalid platform", path: ["platform"] }]
-        }
+          issues: [{ code: "custom", message: "Invalid platform", path: ["platform"] }],
+        },
       };
   }
 }
@@ -136,10 +111,7 @@ export const DataRetentionDaysSchema = z
   .int()
   .min(30)
   .max(365)
-  .refine(
-    (val) => [30, 60, 90, 180, 365].includes(val),
-    "数据保留天数必须是 30、60、90、180 或 365"
-  );
+  .refine((val) => [30, 60, 90, 180, 365].includes(val), "数据保留天数必须是 30、60、90、180 或 365");
 
 export const PrivacySettingsSchema = z.object({
   consentStrategy: ConsentStrategySchema,
@@ -202,9 +174,9 @@ export function buildPixelConfigString(config: Partial<PixelConfigV1>): string {
   return JSON.stringify(fullConfig);
 }
 
-export function validateWebPixelSettings(settings: unknown):
-  | { ok: true; data: WebPixelSettings }
-  | { ok: false; errors: Record<string, string> } {
+export function validateWebPixelSettings(
+  settings: unknown
+): { ok: true; data: WebPixelSettings } | { ok: false; errors: Record<string, string> } {
   const result = WebPixelSettingsSchema.safeParse(settings);
   if (result.success) {
     return { ok: true, data: result.data };
@@ -228,9 +200,7 @@ export function parseFormDataToObject(formData: FormData): Record<string, unknow
   return result;
 }
 
-export function extractZodErrors(
-  error: z.ZodError<unknown>
-): Record<string, string> {
+export function extractZodErrors(error: z.ZodError<unknown>): Record<string, string> {
   const errors: Record<string, string> = {};
   const issues = error.issues;
   for (const issue of issues) {

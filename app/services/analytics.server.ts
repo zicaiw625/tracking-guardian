@@ -56,10 +56,7 @@ function normalizeMetadataValue(value: unknown): unknown {
   }
   const record = value as Record<string, unknown>;
   return Object.fromEntries(
-    Object.entries(record).map(([key, entryValue]) => [
-      toSnakeCaseKey(key),
-      normalizeMetadataValue(entryValue),
-    ])
+    Object.entries(record).map(([key, entryValue]) => [toSnakeCaseKey(key), normalizeMetadataValue(entryValue)])
   );
 }
 
@@ -127,8 +124,7 @@ export async function getActivationStatus(shopId: string): Promise<ActivationSta
       },
     },
   });
-  const hasCompletedAudit =
-    shop?.ScanReports?.[0]?.status === "completed";
+  const hasCompletedAudit = shop?.ScanReports?.[0]?.status === "completed";
   const hasTestDestination = (shop?.pixelConfigs?.length || 0) > 0;
   const hasLiveDestination = (shop?._count?.pixelConfigs || 0) > 0;
   const hasCompletedVerification = (shop?._count?.VerificationRun || 0) > 0;

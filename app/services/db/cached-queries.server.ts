@@ -17,20 +17,12 @@ const STALE_THRESHOLD_MS = 10_000;
 class QueryCache<T> {
   private cache = new Map<string, CacheEntry<T>>();
   private pendingRefresh = new Set<string>();
-  async getOrFetch(
-    key: string,
-    fetcher: () => Promise<T>,
-    options: CacheOptions = {}
-  ): Promise<T> {
+  async getOrFetch(key: string, fetcher: () => Promise<T>, options: CacheOptions = {}): Promise<T> {
     const { ttlMs = DEFAULT_TTL_MS, staleWhileRevalidate = true } = options;
     const now = Date.now();
     const cached = this.cache.get(key);
     if (cached && cached.expiry > now) {
-      if (
-        staleWhileRevalidate &&
-        cached.expiry - now < STALE_THRESHOLD_MS &&
-        !this.pendingRefresh.has(key)
-      ) {
+      if (staleWhileRevalidate && cached.expiry - now < STALE_THRESHOLD_MS && !this.pendingRefresh.has(key)) {
         this.refreshInBackground(key, fetcher, ttlMs);
       }
       return cached.data;
@@ -42,11 +34,7 @@ class QueryCache<T> {
     });
     return data;
   }
-  private async refreshInBackground(
-    key: string,
-    fetcher: () => Promise<T>,
-    ttlMs: number
-  ): Promise<void> {
+  private async refreshInBackground(key: string, fetcher: () => Promise<T>, ttlMs: number): Promise<void> {
     this.pendingRefresh.add(key);
     try {
       const data = await fetcher();
@@ -105,24 +93,15 @@ async function fetchShop(shopDomain: string) {
   });
 }
 
-export async function getCachedShop(
-  shopDomain: string,
-  options?: CacheOptions
-) {
-  return shopCache.getOrFetch(
-    `shop:${shopDomain}`,
-    () => fetchShop(shopDomain),
-    options
-  );
+export async function getCachedShop(shopDomain: string, options?: CacheOptions) {
+  return shopCache.getOrFetch(`shop:${shopDomain}`, () => fetchShop(shopDomain), options);
 }
 
 export function invalidateShopCache(shopDomain: string): void {
   shopCache.invalidate(`shop:${shopDomain}`);
 }
 
-const shopWithConfigsCache = new QueryCache<
-  Awaited<ReturnType<typeof fetchShopWithConfigs>>
->();
+const shopWithConfigsCache = new QueryCache<Awaited<ReturnType<typeof fetchShopWithConfigs>>>();
 
 async function fetchShopWithConfigs(shopDomain: string) {
   return prisma.shop.findUnique({
@@ -144,10 +123,7 @@ async function fetchShopWithConfigs(shopDomain: string) {
   });
 }
 
-export async function getCachedShopWithConfigs(
-  shopDomain: string,
-  options?: CacheOptions
-) {
+export async function getCachedShopWithConfigs(shopDomain: string, options?: CacheOptions) {
   return shopWithConfigsCache.getOrFetch(
     `shopWithConfigs:${shopDomain}`,
     () => fetchShopWithConfigs(shopDomain),
@@ -159,37 +135,26 @@ export function invalidateShopWithConfigsCache(shopDomain: string): void {
   shopWithConfigsCache.invalidate(`shopWithConfigs:${shopDomain}`);
 }
 
-const alertConfigsCache = new QueryCache<
-  Awaited<ReturnType<typeof fetchAlertConfigs>>
->();
+const alertConfigsCache = new QueryCache<Awaited<ReturnType<typeof fetchAlertConfigs>>>();
 
 async function fetchAlertConfigs(_shopId: string) {
   return [];
 }
 
-export async function getCachedAlertConfigs(
-  shopId: string,
-  options?: CacheOptions
-) {
-  return alertConfigsCache.getOrFetch(
-    `alertConfigs:${shopId}`,
-    () => fetchAlertConfigs(shopId),
-    options
-  );
+export async function getCachedAlertConfigs(shopId: string, options?: CacheOptions) {
+  return alertConfigsCache.getOrFetch(`alertConfigs:${shopId}`, () => fetchAlertConfigs(shopId), options);
 }
 
 export function invalidateAlertConfigsCache(shopId: string): void {
   alertConfigsCache.invalidate(`alertConfigs:${shopId}`);
 }
 
-const monthlyUsageCache = new QueryCache<
-  Awaited<ReturnType<typeof fetchMonthlyUsage>>
->();
+const monthlyUsageCache = new QueryCache<Awaited<ReturnType<typeof fetchMonthlyUsage>>>();
 
 async function fetchMonthlyUsage(shopId: string) {
   const now = new Date();
   const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const month = String(now.getMonth() + 1).padStart(2, "0");
   const yearMonth = `${year}-${month}`;
   return prisma.monthlyUsage.findUnique({
     where: {
@@ -201,17 +166,10 @@ async function fetchMonthlyUsage(shopId: string) {
   });
 }
 
-export async function getCachedMonthlyUsage(
-  shopId: string,
-  options?: CacheOptions
-) {
+export async function getCachedMonthlyUsage(shopId: string, options?: CacheOptions) {
   const now = new Date();
   const key = `monthlyUsage:${shopId}:${now.getFullYear()}-${now.getMonth() + 1}`;
-  return monthlyUsageCache.getOrFetch(
-    key,
-    () => fetchMonthlyUsage(shopId),
-    { ttlMs: 300_000, ...options }
-  );
+  return monthlyUsageCache.getOrFetch(key, () => fetchMonthlyUsage(shopId), { ttlMs: 300_000, ...options });
 }
 
 export function invalidateMonthlyUsageCache(shopId: string): void {

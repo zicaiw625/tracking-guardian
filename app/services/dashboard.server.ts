@@ -11,19 +11,9 @@ import { getTierDisplayInfo } from "./shop-tier.server";
 import { isValidShopTier } from "../domain/shop/shop.entity";
 import { rejectionTracker } from "../lib/pixel-events/rejection-tracker.server";
 
-export type {
-  DashboardData,
-  SetupStep,
-  HealthStatus,
-  UpgradeStatus,
-  MigrationProgress,
-} from "../types/dashboard";
+export type { DashboardData, SetupStep, HealthStatus, UpgradeStatus, MigrationProgress } from "../types/dashboard";
 
-export {
-  getSetupSteps,
-  getNextSetupStep,
-  getSetupProgress,
-} from "../types/dashboard";
+export { getSetupSteps, getNextSetupStep, getSetupProgress } from "../types/dashboard";
 
 import type { DashboardData, HealthStatus, UpgradeStatus } from "../types/dashboard";
 
@@ -34,16 +24,18 @@ async function calculateHealthScore(
   shopId: string,
   recentReports: Array<{ orderDiscrepancy: number }>,
   configuredPlatforms: number
-): Promise<{ score: number | null; status: HealthStatus; factors: { label: string; value: number; weight: number }[] }> {
+): Promise<{
+  score: number | null;
+  status: HealthStatus;
+  factors: { label: string; value: number; weight: number }[];
+}> {
   if (recentReports.length === 0 || configuredPlatforms === 0) {
     return { score: null, status: "uninitialized", factors: [] };
   }
   const factors: { label: string; value: number; weight: number }[] = [];
   const avgDiscrepancy =
-    recentReports.length > 0
-      ? recentReports.reduce((sum, r) => sum + r.orderDiscrepancy, 0) / recentReports.length
-      : 0;
-  const discrepancyScore = Math.max(0, 100 - (avgDiscrepancy * 500));
+    recentReports.length > 0 ? recentReports.reduce((sum, r) => sum + r.orderDiscrepancy, 0) / recentReports.length : 0;
+  const discrepancyScore = Math.max(0, 100 - avgDiscrepancy * 500);
   factors.push({ label: "对账一致性", value: discrepancyScore, weight: 0.45 });
   try {
     const stats = await getEventMonitoringStats(shopId, 24 * 7);
@@ -67,7 +59,7 @@ async function calculateHealthScore(
     logger.warn("Failed to get event volume stats for health score", { shopId, error });
     factors.push({ label: "事件量稳定性", value: 100, weight: 0.2 });
   }
-  const totalScore = factors.reduce((sum, factor) => sum + (factor.value * factor.weight), 0);
+  const totalScore = factors.reduce((sum, factor) => sum + factor.value * factor.weight, 0);
   const roundedScore = Math.round(totalScore);
   let status: HealthStatus;
   if (roundedScore >= 90) {
@@ -82,9 +74,7 @@ async function calculateHealthScore(
   return { score: roundedScore, status, factors };
 }
 
-function analyzeScriptTags(
-  scriptTags: unknown
-): { count: number; hasOrderStatusScripts: boolean } {
+function analyzeScriptTags(scriptTags: unknown): { count: number; hasOrderStatusScripts: boolean } {
   if (!scriptTags || !Array.isArray(scriptTags)) {
     return { count: 0, hasOrderStatusScripts: false };
   }
@@ -126,8 +116,15 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       },
     });
   } catch (error) {
-    if (error instanceof Error && (error.message.includes("settings") && (error.message.includes("does not exist") || error.message.includes("P2022")))) {
-      logger.error("Shop.settings column does not exist. Database migration required. Please run: ALTER TABLE \"Shop\" ADD COLUMN IF NOT EXISTS \"settings\" JSONB;", { shopDomain, error: error.message });
+    if (
+      error instanceof Error &&
+      error.message.includes("settings") &&
+      (error.message.includes("does not exist") || error.message.includes("P2022"))
+    ) {
+      logger.error(
+        'Shop.settings column does not exist. Database migration required. Please run: ALTER TABLE "Shop" ADD COLUMN IF NOT EXISTS "settings" JSONB;',
+        { shopDomain, error: error.message }
+      );
       shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: {
@@ -196,13 +193,18 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   }
   const enabledPixelConfigsCount = shop.pixelConfigs?.length || 0;
   const hasEnabledPixelConfig = enabledPixelConfigsCount > 0;
-  const settings = (shop as { settings?: unknown }).settings && typeof (shop as { settings?: unknown }).settings === 'object' ? (shop as { settings?: unknown }).settings as Record<string, unknown> : null;
+  const settings =
+    (shop as { settings?: unknown }).settings && typeof (shop as { settings?: unknown }).settings === "object"
+      ? ((shop as { settings?: unknown }).settings as Record<string, unknown>)
+      : null;
   const alertConfigs = settings?.alertConfigs && Array.isArray(settings.alertConfigs) ? settings.alertConfigs : [];
   const hasAlertConfig = alertConfigs.length > 0;
   const planId = normalizePlan(shop.plan);
   const planDef = getPlanDefinition(planId);
   const latestScan = shop.ScanReports?.[0];
-  const scriptTagAnalysis = latestScan ? analyzeScriptTags(latestScan.scriptTags) : { count: 0, hasOrderStatusScripts: false };
+  const scriptTagAnalysis = latestScan
+    ? analyzeScriptTags(latestScan.scriptTags)
+    : { count: 0, hasOrderStatusScripts: false };
 
   // Parallelize independent data fetching
   const [
@@ -214,11 +216,11 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     healthMetrics24h,
     activeAlerts,
     rejectionStats,
-    migrationProgress
+    migrationProgress,
   ] = await Promise.all([
     // 1. Health Score
     calculateHealthScore(shop.id, [], enabledPixelConfigsCount),
-    
+
     // 2. Migration Timeline
     (async () => {
       try {
@@ -318,14 +320,13 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
         logger.error("Failed to calculate migration progress", { shopId: shop.id, error });
         return undefined;
       }
-    })()
+    })(),
   ]);
 
   const { score, status, factors } = healthScoreResult;
 
-  const shopTier = (shop.shopTier !== null && shop.shopTier !== undefined && isValidShopTier(shop.shopTier))
-    ? shop.shopTier
-    : "unknown";
+  const shopTier =
+    shop.shopTier !== null && shop.shopTier !== undefined && isValidShopTier(shop.shopTier) ? shop.shopTier : "unknown";
   const tierInfo = getTierDisplayInfo(shopTier);
   const deadlineDate = new Date(tierInfo.deadlineDate);
   const now = new Date();
@@ -368,18 +369,13 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   } else if (latestScan) {
     estimatedMigrationTimeMinutes = Math.max(
       30,
-      scriptTagAnalysis.count * 15 +
-        ((latestScan.identifiedPlatforms as string[]) || []).length * 10
+      scriptTagAnalysis.count * 15 + ((latestScan.identifiedPlatforms as string[]) || []).length * 10
     );
   }
 
-  const isNewInstall = shop.installedAt &&
-    (Date.now() - shop.installedAt.getTime()) < 24 * 60 * 60 * 1000;
-  const showOnboarding = isNewInstall && (
-    !latestScan ||
-    latestScan.status === "pending" ||
-    latestScan.status === "scanning"
-  );
+  const isNewInstall = shop.installedAt && Date.now() - shop.installedAt.getTime() < 24 * 60 * 60 * 1000;
+  const showOnboarding =
+    isNewInstall && (!latestScan || latestScan.status === "pending" || latestScan.status === "scanning");
 
   let riskDistribution = null;
   let topRiskSources: Array<{ source: string; count: number; category: string }> = [];
@@ -396,58 +392,56 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     };
 
     try {
-        const categoryLabels: Record<string, string> = {
-          pixel: "像素追踪",
-          affiliate: "联盟营销",
-          survey: "问卷调研",
-          support: "客服支持",
-          analytics: "分析工具",
-          other: "其他",
-        };
-        
-        // Note: We need to query Prisma for breakdown details as getAuditAssetSummary aggregates them
-        // To avoid another query, we can rely on what we have or do a lightweight query if absolutely needed.
-        // For now, let's keep the original logic but optimized.
-        // Actually, the original code did separate queries for topRiskSources. 
-        // Let's bring that logic inside the parallel block or keep it separate if it's complex.
-        // The original code did: group by category and group by platform.
-        // We can move this to a parallel block too, but let's keep it simple for now and do it here if assetSummary exists.
-        
-        const [highRiskByCategory, highRiskByPlatform] = await Promise.all([
-           prisma.auditAsset.groupBy({
-            by: ["category"],
-            where: { shopId: shop.id, riskLevel: "high" },
-            _count: true,
-          }),
-           prisma.auditAsset.groupBy({
-            by: ["platform"],
-            where: { shopId: shop.id, riskLevel: "high", platform: { not: null } },
-            _count: true,
-          })
-        ]);
+      const categoryLabels: Record<string, string> = {
+        pixel: "像素追踪",
+        affiliate: "联盟营销",
+        survey: "问卷调研",
+        support: "客服支持",
+        analytics: "分析工具",
+        other: "其他",
+      };
 
-        const allSources: Array<{ source: string; count: number; category: string }> = [];
-        highRiskByCategory.forEach((item) => {
+      // Note: We need to query Prisma for breakdown details as getAuditAssetSummary aggregates them
+      // To avoid another query, we can rely on what we have or do a lightweight query if absolutely needed.
+      // For now, let's keep the original logic but optimized.
+      // Actually, the original code did separate queries for topRiskSources.
+      // Let's bring that logic inside the parallel block or keep it separate if it's complex.
+      // The original code did: group by category and group by platform.
+      // We can move this to a parallel block too, but let's keep it simple for now and do it here if assetSummary exists.
+
+      const [highRiskByCategory, highRiskByPlatform] = await Promise.all([
+        prisma.auditAsset.groupBy({
+          by: ["category"],
+          where: { shopId: shop.id, riskLevel: "high" },
+          _count: true,
+        }),
+        prisma.auditAsset.groupBy({
+          by: ["platform"],
+          where: { shopId: shop.id, riskLevel: "high", platform: { not: null } },
+          _count: true,
+        }),
+      ]);
+
+      const allSources: Array<{ source: string; count: number; category: string }> = [];
+      highRiskByCategory.forEach((item) => {
+        allSources.push({
+          source: categoryLabels[item.category] || item.category,
+          count: item._count,
+          category: item.category,
+        });
+      });
+      highRiskByPlatform.forEach((item) => {
+        if (item.platform) {
           allSources.push({
-            source: categoryLabels[item.category] || item.category,
+            source: item.platform,
             count: item._count,
-            category: item.category,
+            category: "platform",
           });
-        });
-        highRiskByPlatform.forEach((item) => {
-          if (item.platform) {
-            allSources.push({
-              source: item.platform,
-              count: item._count,
-              category: "platform",
-            });
-          }
-        });
-        topRiskSources = allSources
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 3);
+        }
+      });
+      topRiskSources = allSources.sort((a, b) => b.count - a.count).slice(0, 3);
     } catch (error) {
-       logger.warn("Failed to get top risk sources", { shopId: shop.id, error });
+      logger.warn("Failed to get top risk sources", { shopId: shop.id, error });
     }
   }
 

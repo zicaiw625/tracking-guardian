@@ -1,4 +1,4 @@
-import { Text, InlineStack , Icon } from "@shopify/polaris";
+import { Text, InlineStack, Icon } from "@shopify/polaris";
 import { ClockIcon } from "../icons";
 
 export interface TimeEstimateProps {
@@ -7,11 +7,7 @@ export interface TimeEstimateProps {
   showIcon?: boolean;
 }
 
-export function TimeEstimate({
-  minutes,
-  variant = "bodySm",
-  showIcon = true,
-}: TimeEstimateProps) {
+export function TimeEstimate({ minutes, variant = "bodySm", showIcon = true }: TimeEstimateProps) {
   const formatTime = (): string => {
     if (minutes < 60) {
       return `${minutes} 分钟`;

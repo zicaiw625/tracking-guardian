@@ -1,16 +1,22 @@
-import { Card, BlockStack, InlineStack, Text, Box, Badge, Banner, Button, SkeletonBodyText, List, Icon } from "@shopify/polaris";
+import {
+  Card,
+  BlockStack,
+  InlineStack,
+  Text,
+  Box,
+  Badge,
+  Banner,
+  Button,
+  SkeletonBodyText,
+  List,
+  Icon,
+} from "@shopify/polaris";
 import { AlertCircleIcon, ClockIcon, CheckCircleIcon } from "~/components/icons";
 import { useTranslation } from "react-i18next";
 
-export function UpgradeStatusCard({
-  status,
-  loading,
-}: {
-  status: any;
-  loading: boolean;
-}) {
+export function UpgradeStatusCard({ status, loading }: { status: any; loading: boolean }) {
   const { t } = useTranslation();
-  
+
   if (loading) {
     return (
       <Card>
@@ -46,7 +52,7 @@ export function UpgradeStatusCard({
   const today = new Date();
   const daysRemaining = Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   const isCritical = daysRemaining < 30;
-  
+
   return (
     <Card>
       <BlockStack gap="400">
@@ -58,14 +64,13 @@ export function UpgradeStatusCard({
             {isUpgraded ? t("dashboard.upgradeStatus.upgradedLabel") : t("dashboard.upgradeStatus.notUpgradedLabel")}
           </Badge>
         </InlineStack>
-        <Box
-          background={isUpgraded ? "bg-surface-success" : "bg-surface-critical"}
-          padding="400"
-          borderRadius="200"
-        >
+        <Box background={isUpgraded ? "bg-surface-success" : "bg-surface-critical"} padding="400" borderRadius="200">
           <BlockStack gap="200">
             <InlineStack gap="200" align="start">
-              <Icon source={isUpgraded ? CheckCircleIcon : AlertCircleIcon} tone={isUpgraded ? "success" : "critical"} />
+              <Icon
+                source={isUpgraded ? CheckCircleIcon : AlertCircleIcon}
+                tone={isUpgraded ? "success" : "critical"}
+              />
               <BlockStack gap="100">
                 <Text as="h3" variant="headingSm" fontWeight="semibold">
                   {t("dashboard.upgradeStatus.extensibilityStatus")}
@@ -111,7 +116,8 @@ export function UpgradeStatusCard({
                 </InlineStack>
                 {daysRemaining > 0 ? (
                   <Text as="p" variant="bodySm" alignment="center">
-                    {t("dashboard.upgradeStatus.remainingDays", { days: daysRemaining })} - {t("dashboard.upgradeStatus.remainingDesc")}
+                    {t("dashboard.upgradeStatus.remainingDays", { days: daysRemaining })} -{" "}
+                    {t("dashboard.upgradeStatus.remainingDesc")}
                   </Text>
                 ) : (
                   <Text as="p" variant="bodySm" alignment="center" tone="critical" fontWeight="bold">

@@ -20,11 +20,13 @@ describe("P0-04: sale_of_data Strict Mode Consistency", () => {
     });
   });
   describe("ConsentState Mapping Consistency", () => {
-    function mapToConsentState(rawConsentState: {
-      marketing?: boolean;
-      analytics?: boolean;
-      saleOfData?: boolean;
-    } | null): { saleOfDataAllowed: boolean } | null {
+    function mapToConsentState(
+      rawConsentState: {
+        marketing?: boolean;
+        analytics?: boolean;
+        saleOfData?: boolean;
+      } | null
+    ): { saleOfDataAllowed: boolean } | null {
       if (!rawConsentState) return null;
       return {
         saleOfDataAllowed: rawConsentState.saleOfData === true,
@@ -49,13 +51,15 @@ describe("P0-04: sale_of_data Strict Mode Consistency", () => {
   });
   describe("Module-Specific Test Cases", () => {
     describe("ConversionJob Processing", () => {
-      function processConversionJobConsentMapping(receipt: {
-        consentState: {
-          marketing?: boolean;
-          analytics?: boolean;
-          saleOfData?: boolean;
-        } | null;
-      } | null) {
+      function processConversionJobConsentMapping(
+        receipt: {
+          consentState: {
+            marketing?: boolean;
+            analytics?: boolean;
+            saleOfData?: boolean;
+          } | null;
+        } | null
+      ) {
         const rawConsentState = receipt?.consentState;
         if (!rawConsentState) return null;
         return {
@@ -129,11 +133,15 @@ describe("P0-04: sale_of_data Strict Mode Consistency", () => {
       });
     });
     describe("Pixel Events Entry Point", () => {
-      function checkPixelEventSaleOfData(consent: {
-        marketing?: boolean;
-        analytics?: boolean;
-        saleOfData?: boolean;
-      } | undefined) {
+      function checkPixelEventSaleOfData(
+        consent:
+          | {
+              marketing?: boolean;
+              analytics?: boolean;
+              saleOfData?: boolean;
+            }
+          | undefined
+      ) {
         return consent?.saleOfData === true;
       }
       it("should block when saleOfData is undefined", () => {
@@ -188,10 +196,7 @@ describe("P0-04: sale_of_data Strict Mode Consistency", () => {
 });
 
 describe("Web Pixel Settings Schema Validation", () => {
-  const EXPECTED_FIELDS = [
-    "ingestion_key",
-    "shop_domain",
-  ];
+  const EXPECTED_FIELDS = ["ingestion_key", "shop_domain"];
   it("should have all required settings fields defined", () => {
     expect(EXPECTED_FIELDS).toHaveLength(2);
     expect(EXPECTED_FIELDS).toContain("ingestion_key");

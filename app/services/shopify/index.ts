@@ -11,13 +11,8 @@ export {
 
 export { default as shopifyApp } from "./app-config.server";
 
-export {
-  createAdminClientForShop,
-  hasValidAdminClient,
-} from "./admin-client.server";
+export { createAdminClientForShop, hasValidAdminClient } from "./admin-client.server";
 
-export {
-  handleAfterAuth,
-} from "./shop-provisioning.server";
+export { handleAfterAuth } from "./shop-provisioning.server";
 
 export { cleanupDeprecatedWebhookSubscriptions } from "./webhook-cleanup.server";

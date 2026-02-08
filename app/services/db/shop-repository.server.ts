@@ -160,7 +160,7 @@ export async function batchGetShops(shopIds: string[]): Promise<Map<string, Shop
     for (let i = 0; i < uncachedIds.length; i += BATCH_QUERY_CHUNK_SIZE) {
       chunks.push(uncachedIds.slice(i, i + BATCH_QUERY_CHUNK_SIZE));
     }
-    const shopPromises = chunks.map(chunk =>
+    const shopPromises = chunks.map((chunk) =>
       getDb().shop.findMany({
         where: { id: { in: chunk } },
         select: SHOP_BASIC_SELECT,
@@ -176,9 +176,7 @@ export async function batchGetShops(shopIds: string[]): Promise<Map<string, Shop
   return result;
 }
 
-export async function batchGetShopsWithPixels(
-  shopIds: string[]
-): Promise<Map<string, ShopWithPixels>> {
+export async function batchGetShopsWithPixels(shopIds: string[]): Promise<Map<string, ShopWithPixels>> {
   if (shopIds.length === 0) return new Map();
   const uniqueIds = [...new Set(shopIds)];
   const result = new Map<string, ShopWithPixels>();
@@ -197,7 +195,7 @@ export async function batchGetShopsWithPixels(
     for (let i = 0; i < uncachedIds.length; i += BATCH_QUERY_CHUNK_SIZE) {
       chunks.push(uncachedIds.slice(i, i + BATCH_QUERY_CHUNK_SIZE));
     }
-    const shopPromises = chunks.map(chunk =>
+    const shopPromises = chunks.map((chunk) =>
       getDb().shop.findMany({
         where: { id: { in: chunk } },
         select: SHOP_WITH_PIXELS_SELECT,
@@ -306,8 +304,7 @@ export function getShopCacheStats(): {
   const shopStats = shopConfigCache.getStats();
   const pixelStats = shopWithPixelsCache.getStats();
   const domainStats = shopByDomainCache.getStats();
-  const calcHitRate = (hits: number, misses: number) =>
-    hits + misses > 0 ? hits / (hits + misses) : 0;
+  const calcHitRate = (hits: number, misses: number) => (hits + misses > 0 ? hits / (hits + misses) : 0);
   return {
     shopConfig: {
       hits: shopStats.hits,

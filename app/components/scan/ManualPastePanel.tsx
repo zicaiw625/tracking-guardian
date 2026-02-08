@@ -38,7 +38,11 @@ interface AnalysisResult {
   };
 }
 
-export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCreated, scriptCodeEditor }: ManualPastePanelProps) {
+export function ManualPastePanel({
+  shopId: _shopId,
+  onAssetsCreated: _onAssetsCreated,
+  scriptCodeEditor,
+}: ManualPastePanelProps) {
   const Editor = scriptCodeEditor;
   const [scriptContent, setScriptContent] = useState("");
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -47,7 +51,9 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
   const [realtimeAnalysisResult, setRealtimeAnalysisResult] = useState<ScriptAnalysisResult | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [piiWarnings, setPiiWarnings] = useState<string[]>([]);
-  const [detectedSnippets, setDetectedSnippets] = useState<Array<{ platform: string; content: string; startIndex: number; endIndex: number }>>([]);
+  const [detectedSnippets, setDetectedSnippets] = useState<
+    Array<{ platform: string; content: string; startIndex: number; endIndex: number }>
+  >([]);
   const detectPII = useCallback((content: string): string[] => {
     const warnings: string[] = [];
     if (!content.trim()) {
@@ -75,7 +81,8 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
         type: "token",
       },
       {
-        pattern: /(?:api[_-]?key|access[_-]?token|bearer[_-]?token|secret[_-]?key|private[_-]?key)\s*[:=]\s*['"]?([A-Za-z0-9_.-]{20,})['"]?/gi,
+        pattern:
+          /(?:api[_-]?key|access[_-]?token|bearer[_-]?token|secret[_-]?key|private[_-]?key)\s*[:=]\s*['"]?([A-Za-z0-9_.-]{20,})['"]?/gi,
         message: "检测到 API 密钥或访问令牌，请替换为 [TOKEN_REDACTED]",
         type: "api_key",
       },
@@ -142,87 +149,84 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
     }
     return errors;
   }, []);
-  const detectScriptSnippets = useCallback((content: string): Array<{ platform: string; content: string; startIndex: number; endIndex: number }> => {
-    const snippets: Array<{ platform: string; content: string; startIndex: number; endIndex: number }> = [];
-    if (!content.trim()) {
-      return snippets;
-    }
-    const platformPatterns: Array<{ platform: string; patterns: RegExp[] }> = [
-      {
-        platform: "Meta Pixel",
-        patterns: [
-          /<script[^>]*>[\s\S]*?fbq\s*\([^)]*\)[\s\S]*?<\/script>/gi,
-          /fbq\s*\(['"]init['"]\s*,[^)]+\)/gi,
-        ],
-      },
-      {
-        platform: "Google Analytics",
-        patterns: [
-          /<script[^>]*>[\s\S]*?gtag\s*\([^)]*\)[\s\S]*?<\/script>/gi,
-          /gtag\s*\(['"]config['"]\s*,\s*['"]G-[A-Z0-9]+['"]/gi,
-        ],
-      },
-      {
-        platform: "TikTok Pixel",
-        patterns: [
-          /<script[^>]*>[\s\S]*?ttq\s*[.(][^)]*\)[\s\S]*?<\/script>/gi,
-          /ttq\s*\.\s*load\s*\([^)]+\)/gi,
-        ],
-      },
-      {
-        platform: "Pinterest Tag",
-        patterns: [
-          /<script[^>]*>[\s\S]*?pintrk\s*\([^)]*\)[\s\S]*?<\/script>/gi,
-          /pintrk\s*\(['"]load['"]\s*,[^)]+\)/gi,
-        ],
-      },
-      {
-        platform: "Snapchat Pixel",
-        patterns: [
-          /<script[^>]*>[\s\S]*?snaptr\s*\([^)]*\)[\s\S]*?<\/script>/gi,
-          /snaptr\s*\(['"]init['"]\s*,[^)]+\)/gi,
-        ],
-      },
-    ];
-    platformPatterns.forEach(({ platform, patterns }) => {
-      patterns.forEach((pattern) => {
-        let match;
-        while ((match = pattern.exec(content)) !== null) {
+  const detectScriptSnippets = useCallback(
+    (content: string): Array<{ platform: string; content: string; startIndex: number; endIndex: number }> => {
+      const snippets: Array<{ platform: string; content: string; startIndex: number; endIndex: number }> = [];
+      if (!content.trim()) {
+        return snippets;
+      }
+      const platformPatterns: Array<{ platform: string; patterns: RegExp[] }> = [
+        {
+          platform: "Meta Pixel",
+          patterns: [/<script[^>]*>[\s\S]*?fbq\s*\([^)]*\)[\s\S]*?<\/script>/gi, /fbq\s*\(['"]init['"]\s*,[^)]+\)/gi],
+        },
+        {
+          platform: "Google Analytics",
+          patterns: [
+            /<script[^>]*>[\s\S]*?gtag\s*\([^)]*\)[\s\S]*?<\/script>/gi,
+            /gtag\s*\(['"]config['"]\s*,\s*['"]G-[A-Z0-9]+['"]/gi,
+          ],
+        },
+        {
+          platform: "TikTok Pixel",
+          patterns: [/<script[^>]*>[\s\S]*?ttq\s*[.(][^)]*\)[\s\S]*?<\/script>/gi, /ttq\s*\.\s*load\s*\([^)]+\)/gi],
+        },
+        {
+          platform: "Pinterest Tag",
+          patterns: [
+            /<script[^>]*>[\s\S]*?pintrk\s*\([^)]*\)[\s\S]*?<\/script>/gi,
+            /pintrk\s*\(['"]load['"]\s*,[^)]+\)/gi,
+          ],
+        },
+        {
+          platform: "Snapchat Pixel",
+          patterns: [
+            /<script[^>]*>[\s\S]*?snaptr\s*\([^)]*\)[\s\S]*?<\/script>/gi,
+            /snaptr\s*\(['"]init['"]\s*,[^)]+\)/gi,
+          ],
+        },
+      ];
+      platformPatterns.forEach(({ platform, patterns }) => {
+        patterns.forEach((pattern) => {
+          let match;
+          while ((match = pattern.exec(content)) !== null) {
+            snippets.push({
+              platform,
+              content: match[0],
+              startIndex: match.index,
+              endIndex: match.index + match[0].length,
+            });
+          }
+        });
+      });
+      const scriptTagMatches = content.matchAll(/<script[^>]*>[\s\S]*?<\/script>/gi);
+      for (const match of scriptTagMatches) {
+        const scriptContent = match[0];
+        if (scriptContent.length > 50) {
+          let detectedPlatform = "未知脚本";
+          if (/fbq|facebook/i.test(scriptContent)) {
+            detectedPlatform = "Meta Pixel";
+          } else if (/gtag|google-analytics|G-[A-Z0-9]+/i.test(scriptContent)) {
+            detectedPlatform = "Google Analytics";
+          } else if (/ttq|tiktok/i.test(scriptContent)) {
+            detectedPlatform = "TikTok Pixel";
+          } else if (/pintrk|pinterest/i.test(scriptContent)) {
+            detectedPlatform = "Pinterest Tag";
+          } else if (/snaptr|snapchat/i.test(scriptContent)) {
+            detectedPlatform = "Snapchat Pixel";
+          }
           snippets.push({
-            platform,
-            content: match[0],
+            platform: detectedPlatform,
+            content: scriptContent,
             startIndex: match.index,
-            endIndex: match.index + match[0].length,
+            endIndex: match.index + scriptContent.length,
           });
         }
-      });
-    });
-    const scriptTagMatches = content.matchAll(/<script[^>]*>[\s\S]*?<\/script>/gi);
-    for (const match of scriptTagMatches) {
-      const scriptContent = match[0];
-      if (scriptContent.length > 50) {
-        let detectedPlatform = "未知脚本";
-        if (/fbq|facebook/i.test(scriptContent)) {
-          detectedPlatform = "Meta Pixel";
-        } else if (/gtag|google-analytics|G-[A-Z0-9]+/i.test(scriptContent)) {
-          detectedPlatform = "Google Analytics";
-        } else if (/ttq|tiktok/i.test(scriptContent)) {
-          detectedPlatform = "TikTok Pixel";
-        } else if (/pintrk|pinterest/i.test(scriptContent)) {
-          detectedPlatform = "Pinterest Tag";
-        } else if (/snaptr|snapchat/i.test(scriptContent)) {
-          detectedPlatform = "Snapchat Pixel";
-        }
-        snippets.push({
-          platform: detectedPlatform,
-          content: scriptContent,
-          startIndex: match.index,
-          endIndex: match.index + scriptContent.length,
-        });
       }
-    }
-    return snippets.sort((a, b) => a.startIndex - b.startIndex);
-  }, []);
+      return snippets.sort((a, b) => a.startIndex - b.startIndex);
+    },
+    []
+  );
   useEffect(() => {
     if (scriptContent.trim()) {
       const errors = validateScript(scriptContent);
@@ -237,56 +241,59 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
       setDetectedSnippets([]);
     }
   }, [scriptContent, validateScript, detectPII, detectScriptSnippets]);
-  const performLocalAnalysis = useCallback((content: string): AnalysisResult | null => {
-    if (!content.trim()) {
-      return null;
-    }
-    const snippets = detectScriptSnippets(content);
-    const assets: AnalysisResult["assets"] = [];
-    const identifiedCategories: Record<string, number> = {
-      pixel: 0,
-      affiliate: 0,
-      survey: 0,
-      support: 0,
-      analytics: 0,
-      other: 0,
-    };
-    const identifiedPlatforms = new Set<string>();
-    for (const snippet of snippets) {
-      const platform = snippet.platform;
-      if (platform && platform !== "未知脚本") {
-        identifiedPlatforms.add(platform);
+  const performLocalAnalysis = useCallback(
+    (content: string): AnalysisResult | null => {
+      if (!content.trim()) {
+        return null;
       }
-      let category: string = "other";
-      if (platform.includes("Pixel") || platform.includes("Analytics") || platform.includes("Tag")) {
-        category = "pixel";
-        identifiedCategories.pixel++;
-      } else if (platform.includes("Survey") || platform.includes("问卷")) {
-        category = "survey";
-        identifiedCategories.survey++;
-      } else {
-        identifiedCategories.other++;
+      const snippets = detectScriptSnippets(content);
+      const assets: AnalysisResult["assets"] = [];
+      const identifiedCategories: Record<string, number> = {
+        pixel: 0,
+        affiliate: 0,
+        survey: 0,
+        support: 0,
+        analytics: 0,
+        other: 0,
+      };
+      const identifiedPlatforms = new Set<string>();
+      for (const snippet of snippets) {
+        const platform = snippet.platform;
+        if (platform && platform !== "未知脚本") {
+          identifiedPlatforms.add(platform);
+        }
+        let category: string = "other";
+        if (platform.includes("Pixel") || platform.includes("Analytics") || platform.includes("Tag")) {
+          category = "pixel";
+          identifiedCategories.pixel++;
+        } else if (platform.includes("Survey") || platform.includes("问卷")) {
+          category = "survey";
+          identifiedCategories.survey++;
+        } else {
+          identifiedCategories.other++;
+        }
+        assets.push({
+          category,
+          platform: platform !== "未知脚本" ? platform : undefined,
+          displayName: platform,
+          riskLevel: "medium" as const,
+          suggestedMigration: category === "pixel" ? "web_pixel" : "none",
+          confidence: "medium" as const,
+        });
       }
-      assets.push({
-        category,
-        platform: platform !== "未知脚本" ? platform : undefined,
-        displayName: platform,
-        riskLevel: "medium" as const,
-        suggestedMigration: category === "pixel" ? "web_pixel" : "none",
-        confidence: "medium" as const,
-      });
-    }
-    const overallRiskLevel = assets.length > 0 ? "medium" as const : "low" as const;
-    return {
-      assets,
-      summary: {
-        totalSnippets: snippets.length,
-        identifiedCategories,
-        identifiedPlatforms: Array.from(identifiedPlatforms),
-        overallRiskLevel,
-      },
-    };
-  }, [detectScriptSnippets]);
+      const overallRiskLevel = assets.length > 0 ? ("medium" as const) : ("low" as const);
+      return {
+        assets,
+        summary: {
+          totalSnippets: snippets.length,
+          identifiedCategories,
+          identifiedPlatforms: Array.from(identifiedPlatforms),
+          overallRiskLevel,
+        },
+      };
+    },
+    [detectScriptSnippets]
+  );
   const handleAnalyze = useCallback(() => {
     if (!scriptContent.trim()) {
       return;
@@ -302,24 +309,28 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
     }
     setIsAnalyzing(false);
   }, [scriptContent, validateScript, performLocalAnalysis]);
-  const handleRealtimeAnalysis = useCallback((content: string) => {
-    if (!content.trim()) return;
-    const result = performLocalAnalysis(content);
-    if (result) {
-      setRealtimeAnalysisResult({
-        identifiedPlatforms: result.summary.identifiedPlatforms,
-        platformDetails: result.assets.map(a => ({
-          platform: a.platform || "unknown",
-          type: a.category,
-          confidence: a.confidence,
-          matchedPattern: a.displayName,
-        })),
-        risks: [],
-        riskScore: result.summary.overallRiskLevel === "high" ? 70 : result.summary.overallRiskLevel === "medium" ? 40 : 20,
-        recommendations: [],
-      });
-    }
-  }, [performLocalAnalysis]);
+  const handleRealtimeAnalysis = useCallback(
+    (content: string) => {
+      if (!content.trim()) return;
+      const result = performLocalAnalysis(content);
+      if (result) {
+        setRealtimeAnalysisResult({
+          identifiedPlatforms: result.summary.identifiedPlatforms,
+          platformDetails: result.assets.map((a) => ({
+            platform: a.platform || "unknown",
+            type: a.category,
+            confidence: a.confidence,
+            matchedPattern: a.displayName,
+          })),
+          risks: [],
+          riskScore:
+            result.summary.overallRiskLevel === "high" ? 70 : result.summary.overallRiskLevel === "medium" ? 40 : 20,
+          recommendations: [],
+        });
+      }
+    },
+    [performLocalAnalysis]
+  );
   const riskLevelBadge = analysisResult
     ? {
         high: { tone: "critical" as const, label: "高风险" },
@@ -391,7 +402,8 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
                       截图 2：Additional Scripts 文本框区域（包含文本框标题和完整内容）
                     </Text>
                     <Text as="span" variant="bodySm" tone="subdued">
-                      📸 建议：在结账设置页面中，向下滚动到"订单状态页面"部分，找到"Additional Scripts"文本框，确保截图中包含文本框标题和完整的多行输入框
+                      📸 建议：在结账设置页面中，向下滚动到"订单状态页面"部分，找到"Additional
+                      Scripts"文本框，确保截图中包含文本框标题和完整的多行输入框
                     </Text>
                   </List.Item>
                   <List.Item>
@@ -399,7 +411,8 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
                       截图 3：如果文本框中有脚本内容，建议单独截图脚本内容区域（便于后续参考）
                     </Text>
                     <Text as="span" variant="bodySm" tone="subdued">
-                      📸 建议：如果 Additional Scripts 文本框中有现有脚本，建议放大文本框区域并单独截图，确保脚本内容清晰可见，便于后续分析和迁移
+                      📸 建议：如果 Additional Scripts
+                      文本框中有现有脚本，建议放大文本框区域并单独截图，确保脚本内容清晰可见，便于后续分析和迁移
                     </Text>
                   </List.Item>
                   <List.Item>
@@ -407,7 +420,8 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
                       截图 4：Review customizations 页面（如果 Shopify 升级向导显示）
                     </Text>
                     <Text as="span" variant="bodySm" tone="subdued">
-                      📸 建议：如果 Shopify 升级向导显示了"Review customizations"页面，建议截图保存，该页面会列出所有需要迁移的脚本和功能清单
+                      📸 建议：如果 Shopify 升级向导显示了"Review
+                      customizations"页面，建议截图保存，该页面会列出所有需要迁移的脚本和功能清单
                     </Text>
                   </List.Item>
                 </List>
@@ -437,7 +451,9 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
                       </List.Item>
                     </List>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      💡 提示：如果您的店铺尚未看到升级向导，说明 Shopify 可能尚未为您的店铺启用升级流程。此时，您可以直接在 Settings → Checkout 中找到 Additional Scripts 区域。
+                      💡 提示：如果您的店铺尚未看到升级向导，说明 Shopify
+                      可能尚未为您的店铺启用升级流程。此时，您可以直接在 Settings → Checkout 中找到 Additional Scripts
+                      区域。
                     </Text>
                   </BlockStack>
                 </Banner>
@@ -472,7 +488,8 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
                     💡 提示：如果找不到此选项，请确认您的 Shopify 计划是否支持自定义结账设置
                   </Text>
                   <Text as="span" variant="bodySm" tone="subdued">
-                    📸 界面位置：在设置页面的主列表中，查找"结账和订单处理"或"Checkout and order processing"选项，通常位于"客户"和"配送"设置之间
+                    📸 界面位置：在设置页面的主列表中，查找"结账和订单处理"或"Checkout and order
+                    processing"选项，通常位于"客户"和"配送"设置之间
                   </Text>
                 </BlockStack>
               </List.Item>
@@ -482,19 +499,23 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
                     步骤 3：找到 Additional Scripts 区域
                   </Text>
                   <Text as="span" variant="bodySm" tone="subdued">
-                    在结账设置页面中，向下滚动找到「订单状态页面」（Order status page）部分，或直接查找「Additional Scripts」文本框区域
+                    在结账设置页面中，向下滚动找到「订单状态页面」（Order status page）部分，或直接查找「Additional
+                    Scripts」文本框区域
                   </Text>
                   <Text as="span" variant="bodySm" tone="subdued">
-                    💡 提示：如果看不到 Additional Scripts 区域，可能您的店铺已经升级到新版 Thank you / Order status 页面，此时该区域可能已隐藏或移至其他位置。请参考 Shopify 官方文档确认当前页面版本。
+                    💡 提示：如果看不到 Additional Scripts 区域，可能您的店铺已经升级到新版 Thank you / Order status
+                    页面，此时该区域可能已隐藏或移至其他位置。请参考 Shopify 官方文档确认当前页面版本。
                   </Text>
                   <Text as="span" variant="bodySm" tone="subdued">
                     📍 位置说明：Additional Scripts 通常位于"订单状态页面"设置区域的下方，是一个多行文本输入框
                   </Text>
                   <Text as="span" variant="bodySm" tone="subdued">
-                    📸 界面位置：在结账设置页面中，向下滚动到"订单状态页面"部分，您会看到一个标题为"Additional Scripts"或"额外脚本"的文本框区域。该文本框通常显示为灰色边框的多行输入框，可能包含现有的脚本代码
+                    📸 界面位置：在结账设置页面中，向下滚动到"订单状态页面"部分，您会看到一个标题为"Additional
+                    Scripts"或"额外脚本"的文本框区域。该文本框通常显示为灰色边框的多行输入框，可能包含现有的脚本代码
                   </Text>
                   <Text as="span" variant="bodySm" tone="subdued">
-                    📷 截图建议：找到 Additional Scripts 文本框后，建议先截图保存，确保您找到了正确的位置。如果文本框中有内容，也建议截图保存，以便后续参考。
+                    📷 截图建议：找到 Additional Scripts
+                    文本框后，建议先截图保存，确保您找到了正确的位置。如果文本框中有内容，也建议截图保存，以便后续参考。
                   </Text>
                 </BlockStack>
               </List.Item>
@@ -504,16 +525,19 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
                     步骤 4：复制脚本内容
                   </Text>
                   <Text as="span" variant="bodySm" tone="subdued">
-                    选中 Additional Scripts 文本框中的所有内容（包括所有 &lt;script&gt; 标签和代码），使用 Ctrl+C（Windows）或 Cmd+C（Mac）复制
+                    选中 Additional Scripts 文本框中的所有内容（包括所有 &lt;script&gt; 标签和代码），使用
+                    Ctrl+C（Windows）或 Cmd+C（Mac）复制
                   </Text>
                   <Text as="span" variant="bodySm" tone="subdued">
-                    ⚠️ 重要：请确保复制完整的脚本内容，包括所有 &lt;script&gt; 标签的开头和结尾。如果脚本内容很长，请使用 Ctrl+A（Windows）或 Cmd+A（Mac）全选后再复制。
+                    ⚠️ 重要：请确保复制完整的脚本内容，包括所有 &lt;script&gt;
+                    标签的开头和结尾。如果脚本内容很长，请使用 Ctrl+A（Windows）或 Cmd+A（Mac）全选后再复制。
                   </Text>
                   <Text as="span" variant="bodySm" tone="subdued">
                     💡 提示：如果脚本内容包含多段代码，请确保全部选中并复制。系统会自动识别和分类多段脚本
                   </Text>
                   <Text as="span" variant="bodySm" tone="subdued">
-                    📸 操作提示：点击 Additional Scripts 文本框，使用鼠标拖拽选中所有内容，或使用键盘快捷键 Ctrl+A（Windows）/ Cmd+A（Mac）全选，然后使用 Ctrl+C（Windows）/ Cmd+C（Mac）复制
+                    📸 操作提示：点击 Additional Scripts 文本框，使用鼠标拖拽选中所有内容，或使用键盘快捷键
+                    Ctrl+A（Windows）/ Cmd+A（Mac）全选，然后使用 Ctrl+C（Windows）/ Cmd+C（Mac）复制
                   </Text>
                 </BlockStack>
               </List.Item>
@@ -526,10 +550,12 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
                     将复制的内容粘贴到下方文本框中，系统会自动识别和分析所有追踪脚本
                   </Text>
                   <Text as="span" variant="bodySm" tone="subdued">
-                    💡 提示：系统支持多段脚本自动识别和分类。如果粘贴后没有识别出任何脚本，请检查是否复制了完整内容，或尝试重新复制。
+                    💡
+                    提示：系统支持多段脚本自动识别和分类。如果粘贴后没有识别出任何脚本，请检查是否复制了完整内容，或尝试重新复制。
                   </Text>
                   <Text as="span" variant="bodySm" tone="subdued">
-                    📸 操作提示：点击下方"粘贴脚本内容"文本框，使用 Ctrl+V（Windows）/ Cmd+V（Mac）粘贴，然后点击"分析脚本"按钮
+                    📸 操作提示：点击下方"粘贴脚本内容"文本框，使用 Ctrl+V（Windows）/
+                    Cmd+V（Mac）粘贴，然后点击"分析脚本"按钮
                   </Text>
                 </BlockStack>
               </List.Item>
@@ -549,7 +575,9 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
                       API 密钥和访问令牌:
                     </Text>
                     <Text as="span" variant="bodySm">
-                      {" "}如 <code>api_key</code>、<code>access_token</code>、<code>bearer token</code> 等,请替换为 <code>[API_KEY_REDACTED]</code> 或删除
+                      {" "}
+                      如 <code>api_key</code>、<code>access_token</code>、<code>bearer token</code> 等,请替换为{" "}
+                      <code>[API_KEY_REDACTED]</code> 或删除
                     </Text>
                   </List.Item>
                   <List.Item>
@@ -557,7 +585,8 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
                       客户个人信息 (PII):
                     </Text>
                     <Text as="span" variant="bodySm">
-                      {" "}如邮箱地址、电话号码、信用卡号等,请替换为占位符或删除
+                      {" "}
+                      如邮箱地址、电话号码、信用卡号等,请替换为占位符或删除
                     </Text>
                   </List.Item>
                   <List.Item>
@@ -565,7 +594,9 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
                       私钥和密码:
                     </Text>
                     <Text as="span" variant="bodySm">
-                      {" "}如 <code>secret</code>、<code>password</code>、<code>private key</code> 等,请替换为 <code>[SECRET_REDACTED]</code> 或删除
+                      {" "}
+                      如 <code>secret</code>、<code>password</code>、<code>private key</code> 等,请替换为{" "}
+                      <code>[SECRET_REDACTED]</code> 或删除
                     </Text>
                   </List.Item>
                 </List>
@@ -575,10 +606,14 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
                       💡 脱敏示例（仅用于演示，非真实凭证）:
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      原代码（示例）: <code>fbq('init', 'EXAMPLE_PIXEL_ID_12345', &#123;access_token: 'EXAMPLE_TOKEN_EAABsbCS1iHg...'&#125;)</code>
+                      原代码（示例）:{" "}
+                      <code>
+                        fbq('init', 'EXAMPLE_PIXEL_ID_12345', &#123;access_token: 'EXAMPLE_TOKEN_EAABsbCS1iHg...'&#125;)
+                      </code>
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      脱敏后: <code>fbq('init', '[PIXEL_ID_REDACTED]', &#123;access_token: '[TOKEN_REDACTED]'&#125;)</code>
+                      脱敏后:{" "}
+                      <code>fbq('init', '[PIXEL_ID_REDACTED]', &#123;access_token: '[TOKEN_REDACTED]'&#125;)</code>
                     </Text>
                   </BlockStack>
                 </Banner>
@@ -592,7 +627,8 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
                 <List type="bullet">
                   <List.Item>
                     <Text as="span" variant="bodySm">
-                      Shopify API 无法自动读取 Additional Scripts 内容,因此需要手动复制粘贴。这是 Shopify 平台的安全限制。
+                      Shopify API 无法自动读取 Additional Scripts 内容,因此需要手动复制粘贴。这是 Shopify
+                      平台的安全限制。
                     </Text>
                   </List.Item>
                   <List.Item>
@@ -627,7 +663,11 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
                   如需更多帮助，请参考 Shopify 官方升级向导：
                 </Text>
                 <Text as="p" variant="bodySm">
-                  <a href="https://shopify.dev/docs/apps/checkout/upgrade-guide" target="_blank" rel="noopener noreferrer">
+                  <a
+                    href="https://shopify.dev/docs/apps/checkout/upgrade-guide"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     Shopify Checkout Upgrade Guide
                   </a>
                 </Text>
@@ -705,18 +745,20 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
             </BlockStack>
           </Banner>
         )}
-        <Suspense fallback={
-          <TextField
-            label="脚本内容"
-            value={scriptContent}
-            onChange={setScriptContent}
-            multiline={10}
-            placeholder="请粘贴您的脚本内容..."
-            helpText={`已输入 ${scriptContent.length} 个字符`}
-            disabled={isAnalyzing || isProcessing}
-            autoComplete="off"
-          />
-        }>
+        <Suspense
+          fallback={
+            <TextField
+              label="脚本内容"
+              value={scriptContent}
+              onChange={setScriptContent}
+              multiline={10}
+              placeholder="请粘贴您的脚本内容..."
+              helpText={`已输入 ${scriptContent.length} 个字符`}
+              disabled={isAnalyzing || isProcessing}
+              autoComplete="off"
+            />
+          }
+        >
           <Editor
             value={scriptContent}
             onChange={setScriptContent}
@@ -780,9 +822,7 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
                   <Text as="span" variant="bodySm" fontWeight="semibold">
                     总体风险等级：
                   </Text>
-                  {riskLevelBadge && (
-                    <Badge tone={riskLevelBadge.tone}>{riskLevelBadge.label}</Badge>
-                  )}
+                  {riskLevelBadge && <Badge tone={riskLevelBadge.tone}>{riskLevelBadge.label}</Badge>}
                 </InlineStack>
               </BlockStack>
             </Box>
@@ -795,25 +835,26 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
                     </Text>
                     <BlockStack gap="200">
                       {analysisResult.assets.map((asset, index) => {
-                        const riskBadgeMap: Record<string, { tone: "critical" | "success" | undefined; label: string }> = {
+                        const riskBadgeMap: Record<
+                          string,
+                          { tone: "critical" | "success" | undefined; label: string }
+                        > = {
                           high: { tone: "critical", label: "高" },
                           medium: { tone: undefined, label: "中" },
                           low: { tone: "success", label: "低" },
                         };
                         const riskBadge = riskBadgeMap[asset.riskLevel] || riskBadgeMap.medium;
-                        const confidenceBadgeMap: Record<string, { tone: "success" | "info" | undefined; label: string }> = {
+                        const confidenceBadgeMap: Record<
+                          string,
+                          { tone: "success" | "info" | undefined; label: string }
+                        > = {
                           high: { tone: "success", label: "高置信度" },
                           medium: { tone: "info", label: "中置信度" },
                           low: { tone: undefined, label: "低置信度" },
                         };
                         const confidenceBadge = confidenceBadgeMap[asset.confidence] || confidenceBadgeMap.medium;
                         return (
-                          <Box
-                            key={index}
-                            background="bg-surface-secondary"
-                            padding="300"
-                            borderRadius="200"
-                          >
+                          <Box key={index} background="bg-surface-secondary" padding="300" borderRadius="200">
                             <BlockStack gap="200">
                               <InlineStack align="space-between" blockAlign="start">
                                 <BlockStack gap="100">
@@ -823,9 +864,7 @@ export function ManualPastePanel({ shopId: _shopId, onAssetsCreated: _onAssetsCr
                                     </Text>
                                     {asset.platform && <Badge>{asset.platform}</Badge>}
                                     <Badge tone={riskBadge.tone}>{`${riskBadge.label}风险`}</Badge>
-                                    <Badge tone={confidenceBadge.tone}>
-                                      {confidenceBadge.label}
-                                    </Badge>
+                                    <Badge tone={confidenceBadge.tone}>{confidenceBadge.label}</Badge>
                                   </InlineStack>
                                   <Text as="span" variant="bodySm">
                                     类别: {asset.category} | 建议迁移方式: {asset.suggestedMigration}

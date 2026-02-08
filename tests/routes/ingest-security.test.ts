@@ -84,7 +84,7 @@ vi.mock("../../app/lib/pixel-events/ingest-pipeline.server", () => ({
 }));
 
 vi.mock("../../app/lib/pixel-events/ingest-queue.server", () => ({
-  enqueueIngestBatch: vi.fn().mockResolvedValue(true),
+  enqueueIngestBatch: vi.fn().mockResolvedValue({ ok: true }),
   processIngestQueue: vi.fn(),
 }));
 
@@ -143,7 +143,7 @@ describe("/ingest Security Policy Tests", () => {
     vi.clearAllMocks();
     process.env = { ...originalEnv };
     process.env.NODE_ENV = "test";
-    
+
     vi.mocked(getShopForPixelVerificationWithConfigs).mockResolvedValue({
       id: "shop-123",
       shopDomain: "test-shop.myshopify.com",
@@ -154,12 +154,12 @@ describe("/ingest Security Policy Tests", () => {
       previousIngestionSecret: null,
       pixelConfigs: [],
     } as any);
-    
+
     vi.mocked(validatePixelEventHMAC).mockResolvedValue({
       valid: true,
       trustLevel: "trusted",
     } as any);
-    
+
     vi.mocked(verifyWithGraceWindowAsync).mockResolvedValue({
       matched: true,
       usedPreviousSecret: false,
@@ -305,7 +305,7 @@ describe("/ingest Security Policy Tests", () => {
         valid: false,
         trustLevel: "untrusted",
       } as any);
-      
+
       const payload = createValidEventPayload("test-shop.myshopify.com");
       const request = createRequest(payload, {
         Origin: "https://test-shop.myshopify.com",

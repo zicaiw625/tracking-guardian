@@ -14,14 +14,7 @@ const AUTH_PATTERNS = [
   "validateDetailedHealthAuth",
 ];
 
-const WHITELIST = [
-  "api.health",
-  "api.cron",
-  "api.ready",
-  "api.extension-errors",
-  "api.tracking",
-  "ingest",
-];
+const WHITELIST = ["api.health", "api.cron", "api.ready", "api.extension-errors", "api.tracking", "ingest"];
 
 function escapeRegex(input) {
   return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -29,13 +22,7 @@ function escapeRegex(input) {
 
 function resolveForwardedRoutePath(apiRoutesDir, forwardedRoute) {
   const base = join(apiRoutesDir, forwardedRoute);
-  const candidates = [
-    `${base}.ts`,
-    `${base}.tsx`,
-    join(base, "index.ts"),
-    join(base, "index.tsx"),
-    base,
-  ];
+  const candidates = [`${base}.ts`, `${base}.tsx`, join(base, "index.ts"), join(base, "index.tsx"), base];
   for (const candidate of candidates) {
     try {
       if (statSync(candidate).isFile()) {
@@ -105,8 +92,8 @@ function checkRouteAuth(filePath, isApiRouteFile = false) {
   const content = readFileSync(filePath, "utf-8");
   const fileName = filePath.split("/").pop() || "";
   const routeName = fileName.replace(/\.(tsx|ts)$/, "");
-  
-  if (!isApiRouteFile && WHITELIST.some(w => routeName.includes(w))) {
+
+  if (!isApiRouteFile && WHITELIST.some((w) => routeName.includes(w))) {
     checks.push({
       name: `API Route: ${routeName}`,
       status: "pass",
@@ -114,7 +101,7 @@ function checkRouteAuth(filePath, isApiRouteFile = false) {
     });
     return;
   }
-  
+
   const forwardedRoute = !isApiRouteFile ? extractForwardedRoute(content) : null;
   if (forwardedRoute) {
     const apiRoutesDir = join(process.cwd(), "app/lib/api-routes");
@@ -130,7 +117,7 @@ function checkRouteAuth(filePath, isApiRouteFile = false) {
       return;
     }
   }
-  
+
   const hasLoaderExport = content.includes("export const loader") || content.includes("export async function loader");
   const hasActionExport = content.includes("export const action") || content.includes("export async function action");
   const hasAnyHandler = hasLoaderExport || hasActionExport;
@@ -142,7 +129,7 @@ function checkRouteAuth(filePath, isApiRouteFile = false) {
     });
     return;
   }
-  
+
   const hasAuth = hasAuthSomewhere(content);
   if (!hasAuth) {
     checks.push({
@@ -163,10 +150,10 @@ function checkRouteAuth(filePath, isApiRouteFile = false) {
 function checkApiRoutes() {
   const routesDir = join(process.cwd(), "app/routes");
   const routeFiles = getAllRouteFiles(routesDir);
-  
+
   const apiRoutesDir = join(process.cwd(), "app/lib/api-routes");
   const apiRouteFiles = getAllApiRouteFiles(apiRoutesDir);
-  
+
   if (routeFiles.length === 0 && apiRouteFiles.length === 0) {
     checks.push({
       name: "API Routes Check",
@@ -175,9 +162,9 @@ function checkApiRoutes() {
     });
     return;
   }
-  
+
   const checkedApiRouteFiles = new Set();
-  
+
   for (const file of routeFiles) {
     try {
       const content = readFileSync(file, "utf-8");
@@ -198,7 +185,7 @@ function checkApiRoutes() {
       hasErrors = true;
     }
   }
-  
+
   for (const file of apiRouteFiles) {
     if (!checkedApiRouteFiles.has(file)) {
       try {
@@ -218,7 +205,7 @@ function checkApiRoutes() {
 checkApiRoutes();
 
 console.log("\n=== API Route Authentication Check ===\n");
-checks.forEach(check => {
+checks.forEach((check) => {
   const icon = check.status === "pass" ? "✅" : check.status === "warn" ? "⚠️" : "❌";
   console.log(`${icon} ${check.name}: ${check.message}`);
 });

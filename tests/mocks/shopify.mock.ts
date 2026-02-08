@@ -47,7 +47,10 @@ export function createMockSession(overrides: Partial<MockSession> = {}): MockSes
   };
 }
 
-export function createMockGraphQLResponse<T>(data: T, errors?: Array<{ message: string }>): {
+export function createMockGraphQLResponse<T>(
+  data: T,
+  errors?: Array<{ message: string }>
+): {
   json: () => Promise<{ data: T; errors?: Array<{ message: string }> }>;
 } {
   return {
@@ -286,10 +289,12 @@ export function createMockGDPRShopRedactPayload(): {
   };
 }
 
-export function createMockShopQueryResponse(options: {
-  shopifyPlus?: boolean;
-  primaryDomain?: string;
-} = {}): ReturnType<typeof createMockGraphQLResponse> {
+export function createMockShopQueryResponse(
+  options: {
+    shopifyPlus?: boolean;
+    primaryDomain?: string;
+  } = {}
+): ReturnType<typeof createMockGraphQLResponse> {
   return createMockGraphQLResponse({
     shop: {
       primaryDomain: { host: options.primaryDomain || "test-shop.com" },

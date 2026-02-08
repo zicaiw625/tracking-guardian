@@ -27,18 +27,23 @@ export const DEFAULT_EVENT_MAPPINGS: Partial<Record<PlatformType, Record<string,
   },
 };
 
-export const PLATFORM_INFO: Partial<Record<PlatformType, {
-  name: string;
-  icon: string;
-  description: string;
-  credentialFields: Array<{
-    key: string;
-    label: string;
-    placeholder: string;
-    type: "text" | "password";
-    helpText?: string;
-  }>;
-}>> = {
+export const PLATFORM_INFO: Partial<
+  Record<
+    PlatformType,
+    {
+      name: string;
+      icon: string;
+      description: string;
+      credentialFields: Array<{
+        key: string;
+        label: string;
+        placeholder: string;
+        type: "text" | "password";
+        helpText?: string;
+      }>;
+    }
+  >
+> = {
   google: {
     name: "Google Analytics 4",
     icon: "🔵",

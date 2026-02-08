@@ -1,9 +1,9 @@
-const isDev = typeof window !== "undefined" && (
-  process.env.NODE_ENV === "development" ||
-  window.location.hostname === "localhost" ||
-  window.location.hostname === "127.0.0.1" ||
-  window.location.hostname.includes(".local")
-);
+const isDev =
+  typeof window !== "undefined" &&
+  (process.env.NODE_ENV === "development" ||
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1" ||
+    window.location.hostname.includes(".local"));
 
 export function debugLog(...args: unknown[]): void {
   if (isDev) {

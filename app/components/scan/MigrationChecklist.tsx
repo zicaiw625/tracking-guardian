@@ -17,12 +17,7 @@ import {
   Collapsible,
   ProgressBar,
 } from "@shopify/polaris";
-import {
-  CheckCircleIcon,
-  ClipboardIcon,
-  InfoIcon,
-  ExternalIcon,
-} from "../icons";
+import { CheckCircleIcon, ClipboardIcon, InfoIcon, ExternalIcon } from "../icons";
 
 export interface MigrationItem {
   id: string;
@@ -107,9 +102,7 @@ export function MigrationChecklist({
     .filter((i) => i.confirmed && i.estimatedTimeMinutes)
     .reduce((sum, i) => sum + (i.estimatedTimeMinutes || 0), 0);
   const totalEstimatedHours = Math.ceil(totalEstimatedMinutes / 60);
-  const progressPercent = items.length > 0
-    ? Math.round((confirmedCount / items.length) * 100)
-    : 100;
+  const progressPercent = items.length > 0 ? Math.round((confirmedCount / items.length) * 100) : 100;
   const handleAddItem = useCallback(() => {
     if (!newItemName.trim()) return;
     onAddManualItem({
@@ -124,9 +117,7 @@ export function MigrationChecklist({
     setNewItemNotes("");
     setShowAddModal(false);
   }, [newItemName, newItemType, newItemNotes, onAddManualItem]);
-  const shopifyUpgradeUrl = shopTier === "plus"
-    ? "https://www.shopify.com/pricing"
-    : "https://www.shopify.com/pricing"
+  const shopifyUpgradeUrl = shopTier === "plus" ? "https://www.shopify.com/pricing" : "https://www.shopify.com/pricing";
   return (
     <>
       <Card>
@@ -145,9 +136,7 @@ export function MigrationChecklist({
                 <Badge tone={confirmedCount === items.length ? "success" : "attention"}>
                   {`${confirmedCount}/${items.length} 已确认`}
                 </Badge>
-                {highRiskCount > 0 && (
-                  <Badge tone="critical">{`${highRiskCount} 高风险`}</Badge>
-                )}
+                {highRiskCount > 0 && <Badge tone="critical">{`${highRiskCount} 高风险`}</Badge>}
               </InlineStack>
             </InlineStack>
             {items.length > 0 && (
@@ -159,7 +148,8 @@ export function MigrationChecklist({
                   </Text>
                   {totalEstimatedMinutes > 0 && (
                     <Text as="span" variant="bodySm" tone="subdued">
-                      预计总时间: {totalEstimatedHours > 0
+                      预计总时间:{" "}
+                      {totalEstimatedHours > 0
                         ? `${totalEstimatedHours} 小时 ${totalEstimatedMinutes % 60} 分钟`
                         : `${totalEstimatedMinutes} 分钟`}
                     </Text>
@@ -178,8 +168,8 @@ export function MigrationChecklist({
             }}
           >
             <Text as="p" variant="bodySm">
-              Shopify 后台的升级向导可能包含我们无法自动检测的脚本。
-              点击「查看指南」了解如何从 Shopify 获取完整的迁移清单。
+              Shopify 后台的升级向导可能包含我们无法自动检测的脚本。 点击「查看指南」了解如何从 Shopify
+              获取完整的迁移清单。
             </Text>
           </Banner>
           <BlockStack gap="300">
@@ -253,11 +243,7 @@ export function MigrationChecklist({
                     </InlineStack>
                     <Badge
                       tone={
-                        item.source === "api_scan"
-                          ? "info"
-                          : item.source === "manual_paste"
-                            ? "attention"
-                            : "success"
+                        item.source === "api_scan" ? "info" : item.source === "manual_paste" ? "attention" : "success"
                       }
                     >
                       {item.source === "api_scan"
@@ -300,9 +286,7 @@ export function MigrationChecklist({
                     <List.Item>查看「附加脚本」或升级提示中列出的项目</List.Item>
                     <List.Item>对照本清单，添加缺失的项目</List.Item>
                   </List>
-                  <Button onClick={() => setShowAddModal(true)}>
-                    + 添加项目
-                  </Button>
+                  <Button onClick={() => setShowAddModal(true)}>+ 添加项目</Button>
                 </BlockStack>
               </Box>
             </Collapsible>
@@ -313,10 +297,7 @@ export function MigrationChecklist({
               导出清单
             </Button>
             {pendingCount > 0 && (
-              <Button
-                variant="primary"
-                onClick={() => items.forEach((i) => onItemConfirm(i.id, true))}
-              >
+              <Button variant="primary" onClick={() => items.forEach((i) => onItemConfirm(i.id, true))}>
                 {`全部确认 (${pendingCount})`}
               </Button>
             )}
@@ -349,20 +330,15 @@ export function MigrationChecklist({
               autoComplete="off"
             />
             <BlockStack gap="200">
-              <Text as="span" variant="bodySm">类型</Text>
+              <Text as="span" variant="bodySm">
+                类型
+              </Text>
               <InlineStack gap="200" wrap>
-                {(["additional_script", "script_tag", "checkout_liquid", "other"] as const).map(
-                  (type) => (
-                    <Button
-                      key={type}
-                      pressed={newItemType === type}
-                      onClick={() => setNewItemType(type)}
-                      size="slim"
-                    >
-                      {getTypeLabel(type)}
-                    </Button>
-                  )
-                )}
+                {(["additional_script", "script_tag", "checkout_liquid", "other"] as const).map((type) => (
+                  <Button key={type} pressed={newItemType === type} onClick={() => setNewItemType(type)} size="slim">
+                    {getTypeLabel(type)}
+                  </Button>
+                ))}
               </InlineStack>
             </BlockStack>
             <TextField
@@ -396,8 +372,7 @@ export function MigrationChecklist({
           <BlockStack gap="400">
             <Banner tone="info">
               <Text as="p" variant="bodySm">
-                Shopify API 无法直接读取 Additional Scripts 的内容。
-                以下步骤帮助您手动获取完整的迁移清单。
+                Shopify API 无法直接读取 Additional Scripts 的内容。 以下步骤帮助您手动获取完整的迁移清单。
               </Text>
             </Banner>
             <BlockStack gap="300">
@@ -418,8 +393,7 @@ export function MigrationChecklist({
                 步骤 2: 查看升级提示
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
-                如果您的店铺有升级提示，Shopify 会列出受影响的脚本。
-                记录下这些项目名称。
+                如果您的店铺有升级提示，Shopify 会列出受影响的脚本。 记录下这些项目名称。
               </Text>
             </BlockStack>
             <BlockStack gap="300">
@@ -427,8 +401,7 @@ export function MigrationChecklist({
                 步骤 3: 复制脚本内容（可选）
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
-                如需详细分析，可以复制 Additional Scripts 中的代码，
-                粘贴到扫描页面的「手动分析」标签页中。
+                如需详细分析，可以复制 Additional Scripts 中的代码， 粘贴到扫描页面的「手动分析」标签页中。
               </Text>
             </BlockStack>
             <BlockStack gap="300">
@@ -436,16 +409,14 @@ export function MigrationChecklist({
                 步骤 4: 添加到迁移清单
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
-                对照 Shopify 列出的项目，在本页面点击「添加项目」
-                将缺失的脚本添加到迁移清单中。
+                对照 Shopify 列出的项目，在本页面点击「添加项目」 将缺失的脚本添加到迁移清单中。
               </Text>
             </BlockStack>
             <Divider />
             {shopTier === "plus" && (
               <Banner tone="warning">
                 <Text as="p" variant="bodySm">
-                  <strong>Plus 商家提醒：</strong>您还可以检查 checkout.liquid
-                  文件中的自定义代码。
+                  <strong>Plus 商家提醒：</strong>您还可以检查 checkout.liquid 文件中的自定义代码。
                 </Text>
               </Banner>
             )}

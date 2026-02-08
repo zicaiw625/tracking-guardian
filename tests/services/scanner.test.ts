@@ -29,20 +29,9 @@ describe("Scanner Service", () => {
         /fb-pixel/i,
         /pixel[_-]?id['":\s]+\d{15,16}/i,
       ],
-      tiktok: [
-        /ttq\s*[.(]/i,
-        /tiktok.*pixel/i,
-        /analytics\.tiktok\.com/i,
-      ],
-      bing: [
-        /uetq/i,
-        /bing.*uet/i,
-        /bat\.bing\.com/i,
-      ],
-      clarity: [
-        /clarity\s*\(/i,
-        /clarity\.ms/i,
-      ],
+      tiktok: [/ttq\s*[.(]/i, /tiktok.*pixel/i, /analytics\.tiktok\.com/i],
+      bing: [/uetq/i, /bing.*uet/i, /bat\.bing\.com/i],
+      clarity: [/clarity\s*\(/i, /clarity\.ms/i],
     };
     function detectPlatforms(content: string): string[] {
       const detected: string[] = [];

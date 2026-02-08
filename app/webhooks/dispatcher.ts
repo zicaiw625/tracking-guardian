@@ -22,10 +22,7 @@ function normalizeTopic(topic: string): string {
 
 const WEBHOOK_HANDLERS: Record<
   string,
-  (
-    context: WebhookContext,
-    shopRecord: ShopWithPixelConfigs | null
-  ) => Promise<WebhookHandlerResult>
+  (context: WebhookContext, shopRecord: ShopWithPixelConfigs | null) => Promise<WebhookHandlerResult>
 > = {
   APP_UNINSTALLED: handleAppUninstalled,
   CUSTOMERS_DATA_REQUEST: (ctx) => handleCustomersDataRequest(ctx),
@@ -36,11 +33,7 @@ const WEBHOOK_HANDLERS: Record<
   ORDERS_PAID: (ctx, shop) => handleOrdersPaid(ctx, shop),
 };
 
-const GDPR_TOPICS = new Set([
-  "CUSTOMERS_DATA_REQUEST",
-  "CUSTOMERS_REDACT",
-  "SHOP_REDACT",
-]);
+const GDPR_TOPICS = new Set(["CUSTOMERS_DATA_REQUEST", "CUSTOMERS_REDACT", "SHOP_REDACT"]);
 
 export async function dispatchWebhook(
   context: WebhookContext,
@@ -76,10 +69,7 @@ export async function dispatchWebhook(
     }
     return new Response("OK", { status: 200 });
   }
-  if (
-    (normalizedTopic === "ORDERS_CREATE" || normalizedTopic === "ORDERS_PAID") &&
-    !ORDER_WEBHOOK_ENABLED
-  ) {
+  if ((normalizedTopic === "ORDERS_CREATE" || normalizedTopic === "ORDERS_PAID") && !ORDER_WEBHOOK_ENABLED) {
     if (webhookId) {
       await updateWebhookStatus(shop, webhookId, topic, WebhookStatus.PROCESSED);
     }
@@ -89,9 +79,7 @@ export async function dispatchWebhook(
     const result = await handler(context, shopRecord);
     const isGDPR = GDPR_TOPICS.has(normalizedTopic);
     if (webhookId) {
-      const status = result.success
-        ? WebhookStatus.PROCESSED
-        : WebhookStatus.FAILED;
+      const status = result.success ? WebhookStatus.PROCESSED : WebhookStatus.FAILED;
       await updateWebhookStatus(shop, webhookId, topic, status, result.orderId);
     }
     if (isGDPR) {

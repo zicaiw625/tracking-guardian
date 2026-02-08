@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Card,
   BlockStack,
@@ -7,6 +7,7 @@ import {
   Button,
   Badge,
   DataTable,
+  Pagination,
   Select,
   TextField,
   Icon,
@@ -46,6 +47,8 @@ export function MigrationChecklistEnhanced({
   const [sortBy, setSortBy] = useState<SortType>("priority");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
   const submit = useSubmit();
   const handleExportCSV = () => {
     const formData = new FormData();
@@ -95,6 +98,18 @@ export function MigrationChecklistEnhanced({
     });
     return sorted;
   }, [items, searchQuery, filterRisk, filterCategory, filterStatus, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAndSortedItems.length / pageSize));
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const pageItems = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredAndSortedItems.slice(start, start + pageSize);
+  }, [filteredAndSortedItems, currentPage]);
   const stats = useMemo(() => {
     const total = items.length;
     const high = items.filter((i) => i.riskLevel === "high").length;
@@ -167,23 +182,23 @@ export function MigrationChecklistEnhanced({
     if (!dependencyGraph) return { dependencies: [], dependents: [] };
     const nodeId = `asset-${assetId}`;
     const dependencies = dependencyGraph.edges
-      .filter(e => e.to === nodeId && e.type === "depends_on")
-      .map(e => {
-        const depNode = dependencyGraph.nodes.find(n => n.id === e.from);
+      .filter((e) => e.to === nodeId && e.type === "depends_on")
+      .map((e) => {
+        const depNode = dependencyGraph.nodes.find((n) => n.id === e.from);
         return depNode ? { assetId: depNode.assetId, name: depNode.assetId.substring(0, 8) + "..." } : null;
       })
       .filter((d): d is NonNullable<typeof d> => d !== null);
     const dependents = dependencyGraph.edges
-      .filter(e => e.from === nodeId && e.type === "depends_on")
-      .map(e => {
-        const depNode = dependencyGraph.nodes.find(n => n.id === e.to);
+      .filter((e) => e.from === nodeId && e.type === "depends_on")
+      .map((e) => {
+        const depNode = dependencyGraph.nodes.find((n) => n.id === e.to);
         return depNode ? { assetId: depNode.assetId, name: depNode.assetId.substring(0, 8) + "..." } : null;
       })
       .filter((d): d is NonNullable<typeof d> => d !== null);
     return { dependencies, dependents };
   };
   const toggleExpanded = (itemId: string) => {
-    setExpandedItems(prev => {
+    setExpandedItems((prev) => {
       const next = new Set(prev);
       if (next.has(itemId)) {
         next.delete(itemId);
@@ -201,11 +216,7 @@ export function MigrationChecklistEnhanced({
             {t("checklist.title")}
           </Text>
           <InlineStack gap="200">
-            <Button
-              size="slim"
-              icon={ExportIcon}
-              onClick={handleExportCSV}
-            >
+            <Button size="slim" icon={ExportIcon} onClick={handleExportCSV}>
               {t("checklist.exportCSV")}
             </Button>
             <Badge tone="info">{`${filteredAndSortedItems.length} / ${stats.total} ${t("checklist.countSuffix")}`}</Badge>
@@ -347,207 +358,235 @@ export function MigrationChecklistEnhanced({
             <DataTable
               columnContentTypes={["text", "text", "text", "text"]}
               headings={t("checklist.tableHeadings", { returnObjects: true }) as string[]}
-              rows={filteredAndSortedItems.map((item) => {
-                const migrationPathLabel = item.suggestedMigration === "web_pixel"
-                  ? t("checklist.migrationPath.webPixel")
-                  : item.suggestedMigration === "ui_extension"
-                    ? t("checklist.migrationPath.manual")
-                    : item.suggestedMigration === "server_side"
-                      ? t("checklist.migrationPath.notProvided")
-                      : t("checklist.migrationPath.notSupported");
-                
+              rows={pageItems.map((item) => {
+                const migrationPathLabel =
+                  item.suggestedMigration === "web_pixel"
+                    ? t("checklist.migrationPath.webPixel")
+                    : item.suggestedMigration === "ui_extension"
+                      ? t("checklist.migrationPath.manual")
+                      : item.suggestedMigration === "server_side"
+                        ? t("checklist.migrationPath.notProvided")
+                        : t("checklist.migrationPath.notSupported");
+
                 let needsInfoText = "";
                 if (item.requiredInfoKeys && item.requiredInfoKeys.length > 0) {
-                    needsInfoText = item.requiredInfoKeys.map(k => t(k.key, k.params)).join(", ");
+                  needsInfoText = item.requiredInfoKeys.map((k) => t(k.key, k.params)).join(", ");
                 } else {
-                    const needsInfo: string[] = [];
-                    if (item.platform) needsInfo.push(t("checklist.needsInfo.platform", { platform: item.platform }));
-                    if (item.category === "pixel") needsInfo.push(t("checklist.needsInfo.pixelId"));
-                    if (item.category === "survey") needsInfo.push(t("checklist.needsInfo.surveyQuestions"));
-                    needsInfoText = needsInfo.length > 0 ? needsInfo.join(", ") : t("checklist.needsInfo.none");
+                  const needsInfo: string[] = [];
+                  if (item.platform) needsInfo.push(t("checklist.needsInfo.platform", { platform: item.platform }));
+                  if (item.category === "pixel") needsInfo.push(t("checklist.needsInfo.pixelId"));
+                  if (item.category === "survey") needsInfo.push(t("checklist.needsInfo.surveyQuestions"));
+                  needsInfoText = needsInfo.length > 0 ? needsInfo.join(", ") : t("checklist.needsInfo.none");
                 }
 
                 const assetNameWithFingerprint = item.fingerprint
                   ? `${item.title || item.assetId || t("checklist.unnamedAsset")} (${item.fingerprint.slice(0, 8)}...)`
                   : item.title || item.assetId || t("checklist.unnamedAsset");
-                const riskLevelText = item.riskLevel === "high" 
-                  ? t("checklist.riskLevelText.high") 
-                  : item.riskLevel === "medium" 
-                    ? t("checklist.riskLevelText.medium") 
-                    : t("checklist.riskLevelText.low");
-                const riskReason = item.riskReasonKey 
-                    ? t(item.riskReasonKey, item.riskReasonParams) 
-                    : (item.riskReason || item.description || t("common.noDescription"));
+                const riskLevelText =
+                  item.riskLevel === "high"
+                    ? t("checklist.riskLevelText.high")
+                    : item.riskLevel === "medium"
+                      ? t("checklist.riskLevelText.medium")
+                      : t("checklist.riskLevelText.low");
+                const riskReason = item.riskReasonKey
+                  ? t(item.riskReasonKey, item.riskReasonParams)
+                  : item.riskReason || item.description || t("common.noDescription");
                 return [
                   assetNameWithFingerprint,
                   t("checklist.riskReason", { level: riskLevelText, reason: riskReason }),
                   migrationPathLabel,
-                  `${formatTime(item.estimatedTime)} | ${needsInfoText}`
+                  `${formatTime(item.estimatedTime)} | ${needsInfoText}`,
                 ];
               })}
             />
+            {totalPages > 1 && (
+              <Box padding="300">
+                <InlineStack align="center" gap="300" blockAlign="center">
+                  <Pagination
+                    hasPrevious={currentPage > 1}
+                    onPrevious={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    hasNext={currentPage < totalPages}
+                    onNext={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  />
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    {currentPage}/{totalPages}
+                  </Text>
+                </InlineStack>
+              </Box>
+            )}
             <Divider />
             {}
             <BlockStack gap="300">
-              {filteredAndSortedItems.map((item) => (
-              <Box
-                key={item.id}
-                background={
-                  item.status === "completed"
-                    ? "bg-surface-success"
-                    : item.status === "in_progress"
-                      ? "bg-surface-info"
-                      : "bg-surface-secondary"
-                }
-                padding="400"
-                borderRadius="200"
-              >
-                <BlockStack gap="300">
-                  <InlineStack align="space-between" blockAlign="start">
-                    <BlockStack gap="200">
-                      <InlineStack gap="200" blockAlign="center" wrap>
-                        <Text as="span" fontWeight="semibold">
-                          {item.title}
+              {pageItems.map((item) => (
+                <Box
+                  key={item.id}
+                  background={
+                    item.status === "completed"
+                      ? "bg-surface-success"
+                      : item.status === "in_progress"
+                        ? "bg-surface-info"
+                        : "bg-surface-secondary"
+                  }
+                  padding="400"
+                  borderRadius="200"
+                >
+                  <BlockStack gap="300">
+                    <InlineStack align="space-between" blockAlign="start">
+                      <BlockStack gap="200">
+                        <InlineStack gap="200" blockAlign="center" wrap>
+                          <Text as="span" fontWeight="semibold">
+                            {item.title}
+                          </Text>
+                          <Badge tone={getRiskBadgeTone(item.riskLevel)}>
+                            {item.riskLevel === "high"
+                              ? t("checklist.riskLevelText.high")
+                              : item.riskLevel === "medium"
+                                ? t("checklist.riskLevelText.medium")
+                                : t("checklist.riskLevelText.low")}
+                          </Badge>
+                          <Badge tone={item.priority >= 8 ? "critical" : item.priority >= 5 ? undefined : "info"}>
+                            {`${t("checklist.sortOptions.priority")} ${item.priority}/10`}
+                          </Badge>
+                          {getStatusBadge(item.status)}
+                          {getMigrationBadge(item.suggestedMigration)}
+                          {item.platform && <Badge>{item.platform}</Badge>}
+                        </InlineStack>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          {item.descriptionKey
+                            ? t(item.descriptionKey, {
+                                ...item.descriptionParams,
+                                category: item.descriptionParams?.category
+                                  ? t(`checklist.category.${item.descriptionParams.category}`, {
+                                      defaultValue: item.descriptionParams.category,
+                                    })
+                                  : "",
+                                migration: item.descriptionParams?.migration
+                                  ? t(`checklist.migrationPath.${item.descriptionParams.migration}`, {
+                                      defaultValue: item.descriptionParams.migration,
+                                    })
+                                  : "",
+                                platform: item.descriptionParams?.platform
+                                  ? t(`checklist.platform.${item.descriptionParams.platform}`, {
+                                      defaultValue: item.descriptionParams.platform,
+                                    })
+                                  : "",
+                              })
+                            : item.description}
                         </Text>
-                        <Badge tone={getRiskBadgeTone(item.riskLevel)}>
-                          {item.riskLevel === "high" ? t("checklist.riskLevelText.high") : item.riskLevel === "medium" ? t("checklist.riskLevelText.medium") : t("checklist.riskLevelText.low")}
-                        </Badge>
-                        <Badge tone={item.priority >= 8 ? "critical" : item.priority >= 5 ? undefined : "info"}>
-                          {`${t("checklist.sortOptions.priority")} ${item.priority}/10`}
-                        </Badge>
-                        {getStatusBadge(item.status)}
-                        {getMigrationBadge(item.suggestedMigration)}
-                        {item.platform && <Badge>{item.platform}</Badge>}
-                      </InlineStack>
-                      <Text as="p" variant="bodySm" tone="subdued">
-                        {item.descriptionKey ? t(item.descriptionKey, {
-                            ...item.descriptionParams,
-                            category: item.descriptionParams?.category ? t(`checklist.category.${item.descriptionParams.category}`, { defaultValue: item.descriptionParams.category }) : "",
-                            migration: item.descriptionParams?.migration ? t(`checklist.migrationPath.${item.descriptionParams.migration}`, { defaultValue: item.descriptionParams.migration }) : "",
-                            platform: item.descriptionParams?.platform ? t(`checklist.platform.${item.descriptionParams.platform}`, { defaultValue: item.descriptionParams.platform }) : ""
-                        }) : item.description}
-                      </Text>
-                      <InlineStack gap="300" blockAlign="center">
-                        <InlineStack gap="100" blockAlign="center">
-                          <Icon source={ClockIcon} tone="subdued" />
+                        <InlineStack gap="300" blockAlign="center">
+                          <InlineStack gap="100" blockAlign="center">
+                            <Icon source={ClockIcon} tone="subdued" />
+                            <Text as="span" variant="bodySm" tone="subdued">
+                              {t("common.estimated")} {formatTime(item.estimatedTime)}
+                            </Text>
+                          </InlineStack>
                           <Text as="span" variant="bodySm" tone="subdued">
-                            {t("common.estimated")} {formatTime(item.estimatedTime)}
+                            • {item.category}
                           </Text>
                         </InlineStack>
-                        <Text as="span" variant="bodySm" tone="subdued">
-                          • {item.category}
-                        </Text>
-                      </InlineStack>
-                      {dependencyGraph && (() => {
-                        const { dependencies, dependents } = getItemDependencies(item.assetId);
-                        if (dependencies.length === 0 && dependents.length === 0) return null;
-                        return (
+                        {dependencyGraph &&
+                          (() => {
+                            const { dependencies, dependents } = getItemDependencies(item.assetId);
+                            if (dependencies.length === 0 && dependents.length === 0) return null;
+                            return (
+                              <Button size="micro" variant="plain" onClick={() => toggleExpanded(item.id)}>
+                                {`${expandedItems.has(item.id) ? t("checklist.dependencies.hide") : t("checklist.dependencies.show")}${dependencies.length > 0 ? t("checklist.dependencies.depsCount", { count: dependencies.length }) : ""}${dependents.length > 0 ? t("checklist.dependencies.dependentsCount", { count: dependents.length }) : ""}`}
+                              </Button>
+                            );
+                          })()}
+                      </BlockStack>
+                      {expandedItems.has(item.id) &&
+                        dependencyGraph &&
+                        (() => {
+                          const { dependencies, dependents } = getItemDependencies(item.assetId);
+                          if (dependencies.length === 0 && dependents.length === 0) return null;
+                          return (
+                            <Box paddingBlockStart="300">
+                              <Collapsible
+                                open={expandedItems.has(item.id)}
+                                id={`deps-${item.id}`}
+                                transition={{ duration: "200ms", timingFunction: "ease-in-out" }}
+                              >
+                                <BlockStack gap="200">
+                                  {dependencies.length > 0 && (
+                                    <Box background="bg-surface-secondary" padding="300" borderRadius="200">
+                                      <BlockStack gap="200">
+                                        <InlineStack gap="200" blockAlign="center">
+                                          <Icon source={AlertCircleIcon} tone="warning" />
+                                          <Text as="span" variant="bodySm" fontWeight="semibold">
+                                            {t("checklist.dependencies.title")} ({dependencies.length})
+                                          </Text>
+                                        </InlineStack>
+                                        <Text as="p" variant="bodySm" tone="subdued">
+                                          {t("checklist.dependencies.desc")}
+                                        </Text>
+                                        <List type="bullet">
+                                          {dependencies.map((dep) => (
+                                            <List.Item key={dep.assetId}>
+                                              <Link url={`/app/migrate?assetId=${dep.assetId}`} removeUnderline>
+                                                {dep.name}
+                                              </Link>
+                                            </List.Item>
+                                          ))}
+                                        </List>
+                                      </BlockStack>
+                                    </Box>
+                                  )}
+                                  {dependents.length > 0 && (
+                                    <Box background="bg-surface-secondary" padding="300" borderRadius="200">
+                                      <BlockStack gap="200">
+                                        <InlineStack gap="200" blockAlign="center">
+                                          <Icon source={CheckCircleIcon} tone="info" />
+                                          <Text as="span" variant="bodySm" fontWeight="semibold">
+                                            {t("checklist.dependencies.dependentsTitle")} ({dependents.length})
+                                          </Text>
+                                        </InlineStack>
+                                        <Text as="p" variant="bodySm" tone="subdued">
+                                          {t("checklist.dependencies.dependentsDesc")}
+                                        </Text>
+                                        <List type="bullet">
+                                          {dependents.map((dep) => (
+                                            <List.Item key={dep.assetId}>
+                                              <Link url={`/app/migrate?assetId=${dep.assetId}`} removeUnderline>
+                                                {dep.name}
+                                              </Link>
+                                            </List.Item>
+                                          ))}
+                                        </List>
+                                      </BlockStack>
+                                    </Box>
+                                  )}
+                                </BlockStack>
+                              </Collapsible>
+                            </Box>
+                          );
+                        })()}
+                      <InlineStack gap="200">
+                        {item.status === "pending" && onItemClick && (
                           <Button
-                            size="micro"
-                            variant="plain"
-                            onClick={() => toggleExpanded(item.id)}
+                            size="slim"
+                            onClick={() => onItemClick(item.assetId)}
+                            url={`/app/migrate?assetId=${item.assetId}`}
                           >
-                            {`${expandedItems.has(item.id) ? t("checklist.dependencies.hide") : t("checklist.dependencies.show")}${dependencies.length > 0 ? t("checklist.dependencies.depsCount", { count: dependencies.length }) : ""}${dependents.length > 0 ? t("checklist.dependencies.dependentsCount", { count: dependents.length }) : ""}`}
+                            {t("checklist.startMigration")}
                           </Button>
-                        );
-                      })()}
-                    </BlockStack>
-                    {expandedItems.has(item.id) && dependencyGraph && (() => {
-                      const { dependencies, dependents } = getItemDependencies(item.assetId);
-                      if (dependencies.length === 0 && dependents.length === 0) return null;
-                      return (
-                        <Box paddingBlockStart="300">
-                          <Collapsible
-                            open={expandedItems.has(item.id)}
-                            id={`deps-${item.id}`}
-                            transition={{ duration: "200ms", timingFunction: "ease-in-out" }}
+                        )}
+                        {item.status !== "completed" && onItemComplete && (
+                          <Button
+                            size="slim"
+                            variant="plain"
+                            onClick={() => onItemComplete(item.assetId)}
+                            icon={CheckCircleIcon}
                           >
-                            <BlockStack gap="200">
-                              {dependencies.length > 0 && (
-                                <Box background="bg-surface-secondary" padding="300" borderRadius="200">
-                                  <BlockStack gap="200">
-                                    <InlineStack gap="200" blockAlign="center">
-                                      <Icon source={AlertCircleIcon} tone="warning" />
-                                      <Text as="span" variant="bodySm" fontWeight="semibold">
-                                        {t("checklist.dependencies.title")} ({dependencies.length})
-                                      </Text>
-                                    </InlineStack>
-                                    <Text as="p" variant="bodySm" tone="subdued">
-                                      {t("checklist.dependencies.desc")}
-                                    </Text>
-                                    <List type="bullet">
-                                      {dependencies.map((dep) => (
-                                        <List.Item key={dep.assetId}>
-                                          <Link
-                                            url={`/app/migrate?assetId=${dep.assetId}`}
-                                            removeUnderline
-                                          >
-                                            {dep.name}
-                                          </Link>
-                                        </List.Item>
-                                      ))}
-                                    </List>
-                                  </BlockStack>
-                                </Box>
-                              )}
-                              {dependents.length > 0 && (
-                                <Box background="bg-surface-secondary" padding="300" borderRadius="200">
-                                  <BlockStack gap="200">
-                                    <InlineStack gap="200" blockAlign="center">
-                                      <Icon source={CheckCircleIcon} tone="info" />
-                                      <Text as="span" variant="bodySm" fontWeight="semibold">
-                                        {t("checklist.dependencies.dependentsTitle")} ({dependents.length})
-                                      </Text>
-                                    </InlineStack>
-                                    <Text as="p" variant="bodySm" tone="subdued">
-                                      {t("checklist.dependencies.dependentsDesc")}
-                                    </Text>
-                                    <List type="bullet">
-                                      {dependents.map((dep) => (
-                                        <List.Item key={dep.assetId}>
-                                          <Link
-                                            url={`/app/migrate?assetId=${dep.assetId}`}
-                                            removeUnderline
-                                          >
-                                            {dep.name}
-                                          </Link>
-                                        </List.Item>
-                                      ))}
-                                    </List>
-                                  </BlockStack>
-                                </Box>
-                              )}
-                            </BlockStack>
-                          </Collapsible>
-                        </Box>
-                      );
-                    })()}
-                    <InlineStack gap="200">
-                      {item.status === "pending" && onItemClick && (
-                        <Button
-                          size="slim"
-                          onClick={() => onItemClick(item.assetId)}
-                          url={`/app/migrate?assetId=${item.assetId}`}
-                        >
-                          {t("checklist.startMigration")}
-                        </Button>
-                      )}
-                      {item.status !== "completed" && onItemComplete && (
-                        <Button
-                          size="slim"
-                          variant="plain"
-                          onClick={() => onItemComplete(item.assetId)}
-                          icon={CheckCircleIcon}
-                        >
-                          {t("checklist.markComplete")}
-                        </Button>
-                      )}
+                            {t("checklist.markComplete")}
+                          </Button>
+                        )}
+                      </InlineStack>
                     </InlineStack>
-                  </InlineStack>
-                </BlockStack>
-              </Box>
-            ))}
-          </BlockStack>
+                  </BlockStack>
+                </Box>
+              ))}
+            </BlockStack>
           </>
         )}
       </BlockStack>

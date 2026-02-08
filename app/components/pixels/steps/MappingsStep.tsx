@@ -5,18 +5,10 @@ import type { SupportedPlatform, PlatformConfig } from "../constants";
 interface MappingsStepProps {
   selectedPlatforms: Set<SupportedPlatform>;
   platformConfigs: Partial<Record<SupportedPlatform, PlatformConfig>>;
-  onEventMappingUpdate: (
-    platform: SupportedPlatform,
-    shopifyEvent: string,
-    platformEvent: string
-  ) => void;
+  onEventMappingUpdate: (platform: SupportedPlatform, shopifyEvent: string, platformEvent: string) => void;
 }
 
-export function MappingsStep({
-  selectedPlatforms,
-  platformConfigs,
-  onEventMappingUpdate,
-}: MappingsStepProps) {
+export function MappingsStep({ selectedPlatforms, platformConfigs, onEventMappingUpdate }: MappingsStepProps) {
   return (
     <Card>
       <BlockStack gap="400">
@@ -134,7 +126,9 @@ export function MappingsStep({
               </List.Item>
             </List>
             <Text as="p" variant="bodySm" tone="subdued">
-              💡 原因：Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件。退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取，将在 v1.1+ 版本中通过订单 webhooks 实现（严格做 PII 最小化）。
+              💡 原因：Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout
+              漏斗事件。退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取，将在 v1.1+
+              版本中通过订单 webhooks 实现（严格做 PII 最小化）。
             </Text>
           </BlockStack>
         </Banner>

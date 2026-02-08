@@ -4,21 +4,11 @@ import { logger } from "../utils/logger.server";
 
 export type AssetSourceType = "api_scan" | "manual_paste" | "merchant_confirmed";
 
-export type AssetCategory =
-  | "pixel"
-  | "affiliate"
-  | "survey"
-  | "support"
-  | "analytics"
-  | "other";
+export type AssetCategory = "pixel" | "affiliate" | "survey" | "support" | "analytics" | "other";
 
 export type RiskLevel = "high" | "medium" | "low";
 
-export type SuggestedMigration =
-  | "web_pixel"
-  | "ui_extension"
-  | "server_side"
-  | "none";
+export type SuggestedMigration = "web_pixel" | "ui_extension" | "server_side" | "none";
 
 export type MigrationStatus = "pending" | "in_progress" | "completed" | "skipped";
 
@@ -70,14 +60,14 @@ export function generateFingerprint(
   details?: Record<string, unknown>
 ): string {
   // If fullContentHash is available (from analysis), use it as the primary source of truth for uniqueness
-  if (details?.fullContentHash && typeof details.fullContentHash === 'string') {
+  if (details?.fullContentHash && typeof details.fullContentHash === "string") {
     return details.fullContentHash;
   }
 
-  const detectedPatterns = Array.isArray(details?.detectedPatterns) 
-    ? [...(details.detectedPatterns as string[])].sort() 
+  const detectedPatterns = Array.isArray(details?.detectedPatterns)
+    ? [...(details.detectedPatterns as string[])].sort()
     : [];
-    
+
   // For api_scan, we want to distinguish between different script tags or web pixels
   // We use scriptTagId, id, or src as a unique identifier if available
   const uniqueId = details?.scriptTagId || details?.id || details?.src || "";
@@ -85,22 +75,19 @@ export function generateFingerprint(
   // Create a deterministic string representation to avoid JSON.stringify key order issues
   const fingerprintParts = [
     `category:${category}`,
-    `detectedPatterns:${detectedPatterns.join(',')}`,
+    `detectedPatterns:${detectedPatterns.join(",")}`,
     `platform:${platform || ""}`,
     `scriptSrc:${details?.scriptSrc || ""}`,
     `sourceType:${sourceType}`,
-    `uniqueId:${String(uniqueId)}`
+    `uniqueId:${String(uniqueId)}`,
   ];
 
   // Sort parts to ensure determinism even if construction order changes
-  const content = fingerprintParts.sort().join('|');
+  const content = fingerprintParts.sort().join("|");
   return crypto.createHash("sha256").update(content).digest("hex").slice(0, 32);
 }
 
-function inferSuggestedMigration(
-  category: AssetCategory,
-  _platform?: string
-): SuggestedMigration {
+function inferSuggestedMigration(category: AssetCategory, _platform?: string): SuggestedMigration {
   switch (category) {
     case "pixel":
       return "web_pixel";
@@ -116,10 +103,7 @@ function inferSuggestedMigration(
   }
 }
 
-async function calculatePriorityAndTimeEstimate(
-  assetId: string,
-  shopId: string
-): Promise<void> {
+async function calculatePriorityAndTimeEstimate(assetId: string, shopId: string): Promise<void> {
   try {
     const { calculatePriority, updateAssetPriority } = await import("./scanner/priority-calculator");
     const asset = await prisma.auditAsset.findUnique({
@@ -154,26 +138,14 @@ const RISK_RULES: Array<{
   { condition: (c) => ["survey", "support"].includes(c), level: "medium" },
 ];
 
-function inferRiskLevel(
-  category: AssetCategory,
-  sourceType: AssetSourceType,
-  platform?: string
-): RiskLevel {
+function inferRiskLevel(category: AssetCategory, sourceType: AssetSourceType, platform?: string): RiskLevel {
   const match = RISK_RULES.find((r) => r.condition(category, sourceType, platform));
   return match ? match.level : "medium";
 }
 
-export async function createAuditAsset(
-  shopId: string,
-  input: AuditAssetInput
-): Promise<AuditAssetRecord | null> {
+export async function createAuditAsset(shopId: string, input: AuditAssetInput): Promise<AuditAssetRecord | null> {
   try {
-    const fingerprint = generateFingerprint(
-      input.sourceType,
-      input.category,
-      input.platform,
-      input.details
-    );
+    const fingerprint = generateFingerprint(input.sourceType, input.category, input.platform, input.details);
 
     const detailsForStorage: Record<string, unknown> = { ...input.details };
     delete detailsForStorage.content;
@@ -230,11 +202,15 @@ export async function createAuditAsset(
       await calculatePriorityAndTimeEstimate(asset.id, shopId);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error("Failed to calculate priority/time estimate", error instanceof Error ? error : new Error(String(error)), {
-        assetId: asset.id,
-        shopId,
-        errorMessage,
-      });
+      logger.error(
+        "Failed to calculate priority/time estimate",
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          assetId: asset.id,
+          shopId,
+          errorMessage,
+        }
+      );
     }
 
     logger.info("AuditAsset upserted", { id: asset.id, shopId, fingerprint, category: input.category });
@@ -265,7 +241,7 @@ export async function createAuditAsset(
         updatedAt: true,
         priority: true,
         estimatedTimeMinutes: true,
-      }
+      },
     });
 
     return updatedAsset ? mapToRecord(updatedAsset) : mapToRecord(asset);
@@ -291,12 +267,7 @@ export async function batchCreateAuditAssets(
     // Use transaction with upsert for all assets
     const results = await prisma.$transaction(
       assets.map((input) => {
-        const fingerprint = generateFingerprint(
-          input.sourceType,
-          input.category,
-          input.platform,
-          input.details
-        );
+        const fingerprint = generateFingerprint(input.sourceType, input.category, input.platform, input.details);
         const detailsForStorage: Record<string, unknown> = { ...input.details };
         delete detailsForStorage.content;
 
@@ -334,7 +305,8 @@ export async function batchCreateAuditAssets(
     // Count created vs updated based on createdAt
     const now = Date.now();
     for (const res of results) {
-      if (now - res.createdAt.getTime() < 2000) { // Allow slight clock skew/processing time
+      if (now - res.createdAt.getTime() < 2000) {
+        // Allow slight clock skew/processing time
         created++;
       } else {
         updated++;
@@ -356,9 +328,12 @@ export async function batchCreateAuditAssets(
         logger.error("Failed to recalculate priorities after batch", { shopId, error: err });
       }
     });
-
   } catch (error) {
-    logger.error("Batch AuditAssets transaction failed, falling back to sequential", { shopId, error, count: assets.length });
+    logger.error("Batch AuditAssets transaction failed, falling back to sequential", {
+      shopId,
+      error,
+      count: assets.length,
+    });
     // Fallback to sequential
     for (const input of assets) {
       const result = await createAuditAsset(shopId, {
@@ -382,15 +357,12 @@ export async function batchCreateAuditAssets(
   return { created, updated, failed, duplicates: 0 };
 }
 
-
 export async function getAllAuditAssetFingerprints(shopId: string): Promise<string[]> {
   const assets = await prisma.auditAsset.findMany({
     where: { shopId },
     select: { fingerprint: true },
   });
-  return assets
-    .map(a => a.fingerprint)
-    .filter((f): f is string => f !== null);
+  return assets.map((a) => a.fingerprint).filter((f): f is string => f !== null);
 }
 
 export async function getAuditAssets(
@@ -428,10 +400,7 @@ export async function getAuditAssets(
       priority: true,
       estimatedTimeMinutes: true,
     },
-    orderBy: [
-      { riskLevel: "desc" },
-      { createdAt: "desc" },
-    ],
+    orderBy: [{ riskLevel: "desc" }, { createdAt: "desc" }],
     take: options.limit || 100,
   });
   return assets.map(mapToRecord);
@@ -471,7 +440,7 @@ export async function getAuditAssetSummary(shopId: string): Promise<AuditAssetSu
     analytics: 0,
     other: 0,
   };
-  categoryStats.forEach(s => {
+  categoryStats.forEach((s) => {
     byCategory[s.category as AssetCategory] = s._count;
   });
   const byRiskLevel: Record<RiskLevel, number> = {
@@ -479,7 +448,7 @@ export async function getAuditAssetSummary(shopId: string): Promise<AuditAssetSu
     medium: 0,
     low: 0,
   };
-  riskStats.forEach(s => {
+  riskStats.forEach((s) => {
     byRiskLevel[s.riskLevel as RiskLevel] = s._count;
   });
   const byMigrationStatus: Record<MigrationStatus, number> = {
@@ -488,11 +457,11 @@ export async function getAuditAssetSummary(shopId: string): Promise<AuditAssetSu
     completed: 0,
     skipped: 0,
   };
-  migrationStats.forEach(s => {
+  migrationStats.forEach((s) => {
     byMigrationStatus[s.migrationStatus as MigrationStatus] = s._count;
   });
   const byPlatform: Record<string, number> = {};
-  platformStats.forEach(s => {
+  platformStats.forEach((s) => {
     if (s.platform) {
       byPlatform[s.platform] = s._count;
     }
@@ -528,7 +497,11 @@ export async function updateMigrationStatus(
     if (success) {
       logger.info("AuditAsset migration status updated", { shopId, assetId, status });
     } else {
-      logger.warn("AuditAsset migration status update failed - asset not found or shop mismatch", { shopId, assetId, status });
+      logger.warn("AuditAsset migration status update failed - asset not found or shop mismatch", {
+        shopId,
+        assetId,
+        status,
+      });
     }
     return success;
   } catch (error) {
@@ -571,10 +544,7 @@ export async function deleteAuditAsset(shopId: string, assetId: string): Promise
   }
 }
 
-export async function clearAssetsForScan(
-  shopId: string,
-  scanReportId: string
-): Promise<number> {
+export async function clearAssetsForScan(shopId: string, scanReportId: string): Promise<number> {
   const result = await prisma.auditAsset.deleteMany({
     where: {
       shopId,

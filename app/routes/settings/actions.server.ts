@@ -2,21 +2,13 @@ import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "../../shopify.server";
 import prisma from "../../db.server";
-import {
-  getExistingWebPixels,
-  updateWebPixel,
-  isOurWebPixel,
-} from "../../services/migration.server";
+import { getExistingWebPixels, updateWebPixel, isOurWebPixel } from "../../services/migration.server";
 import { generateEncryptedIngestionSecret } from "../../utils/token-encryption.server";
 import { logger } from "../../utils/logger.server";
 import { invalidateAllShopCaches } from "../../services/shop-cache.server";
 import { invalidateAlertConfigsCache } from "../../services/db/cached-queries.server";
 
-import {
-  switchEnvironment,
-  rollbackConfig,
-  type PixelEnvironment,
-} from "../../services/pixel-rollback.server";
+import { switchEnvironment, rollbackConfig, type PixelEnvironment } from "../../services/pixel-rollback.server";
 
 export async function handleRotateIngestionSecret(
   shopId: string,
@@ -27,12 +19,9 @@ export async function handleRotateIngestionSecret(
     where: { id: shopId },
     select: { ingestionSecret: true },
   });
-  const { plain: newPlainSecret, encrypted: newEncryptedSecret } =
-    generateEncryptedIngestionSecret();
+  const { plain: newPlainSecret, encrypted: newEncryptedSecret } = generateEncryptedIngestionSecret();
   const graceWindowMinutes = 30;
-  const graceWindowExpiry = new Date(
-    Date.now() + graceWindowMinutes * 60 * 1000
-  );
+  const graceWindowExpiry = new Date(Date.now() + graceWindowMinutes * 60 * 1000);
   await prisma.shop.update({
     where: { id: shopId },
     data: {
@@ -81,9 +70,7 @@ export async function handleRotateIngestionSecret(
   }
   const baseMessage = "关联令牌已更新。";
   const graceMessage = ` 旧令牌将在 ${graceWindowMinutes} 分钟内继续有效。`;
-  const syncMessage = pixelSyncResult.success
-    ? pixelSyncResult.message
-    : `⚠️ ${pixelSyncResult.message}`;
+  const syncMessage = pixelSyncResult.success ? pixelSyncResult.message : `⚠️ ${pixelSyncResult.message}`;
   return json({
     success: true,
     message: `${baseMessage}${graceMessage}${syncMessage}`,
@@ -92,15 +79,9 @@ export async function handleRotateIngestionSecret(
   });
 }
 
-export async function handleUpdatePrivacySettings(
-  formData: FormData,
-  shopId: string,
-  _sessionShop: string
-) {
-  const consentStrategy =
-    (formData.get("consentStrategy") as string) || "strict";
-  const dataRetentionDays =
-    parseInt(formData.get("dataRetentionDays") as string) || 90;
+export async function handleUpdatePrivacySettings(formData: FormData, shopId: string, _sessionShop: string) {
+  const consentStrategy = (formData.get("consentStrategy") as string) || "strict";
+  const dataRetentionDays = parseInt(formData.get("dataRetentionDays") as string) || 90;
   await prisma.shop.update({
     where: { id: shopId },
     data: {
@@ -114,10 +95,7 @@ export async function handleUpdatePrivacySettings(
   });
 }
 
-export async function handleSaveAlertConfigs(
-  formData: FormData,
-  shopId: string
-) {
+export async function handleSaveAlertConfigs(formData: FormData, shopId: string) {
   const configsJson = formData.get("alertConfigs");
   let alertConfigs: Array<{
     id: string;
@@ -132,11 +110,12 @@ export async function handleSaveAlertConfigs(
       const parsed = JSON.parse(configsJson) as unknown;
       if (Array.isArray(parsed)) {
         alertConfigs = parsed.map((c: unknown, i: number) => {
-          const item = c && typeof c === "object" ? c as Record<string, unknown> : {};
+          const item = c && typeof c === "object" ? (c as Record<string, unknown>) : {};
           return {
             id: typeof item.id === "string" ? item.id : `alert-${i}-${Date.now()}`,
             channel: typeof item.channel === "string" ? item.channel : "email",
-            settings: item.settings && typeof item.settings === "object" ? item.settings as Record<string, unknown> : null,
+            settings:
+              item.settings && typeof item.settings === "object" ? (item.settings as Record<string, unknown>) : null,
             frequency: typeof item.frequency === "string" ? item.frequency : undefined,
             discrepancyThreshold: typeof item.discrepancyThreshold === "number" ? item.discrepancyThreshold : 10,
             isEnabled: typeof item.isEnabled === "boolean" ? item.isEnabled : true,
@@ -151,7 +130,8 @@ export async function handleSaveAlertConfigs(
     where: { id: shopId },
     select: { settings: true },
   });
-  const currentSettings = shop?.settings && typeof shop.settings === "object" ? shop.settings as Record<string, unknown> : {};
+  const currentSettings =
+    shop?.settings && typeof shop.settings === "object" ? (shop.settings as Record<string, unknown>) : {};
   const newSettings = JSON.parse(JSON.stringify({ ...currentSettings, alertConfigs }));
   await prisma.shop.update({
     where: { id: shopId },
@@ -191,16 +171,22 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
       const platform = formData.get("platform") as string;
       const newEnvironment = formData.get("environment") as PixelEnvironment;
       if (!platform || !newEnvironment) {
-        return json({
-          success: false,
-          error: "缺少 platform 或 environment 参数"
-        }, { status: 400 });
+        return json(
+          {
+            success: false,
+            error: "缺少 platform 或 environment 参数",
+          },
+          { status: 400 }
+        );
       }
       if (!["test", "live"].includes(newEnvironment)) {
-        return json({
-          success: false,
-          error: "无效的环境参数"
-        }, { status: 400 });
+        return json(
+          {
+            success: false,
+            error: "无效的环境参数",
+          },
+          { status: 400 }
+        );
       }
       const result = await switchEnvironment(shop.id, platform, newEnvironment);
       if (result.success) {
@@ -247,10 +233,13 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
       }
       const platform = formData.get("platform") as string;
       if (!platform) {
-        return json({
-          success: false,
-          error: "缺少 platform 参数"
-        }, { status: 400 });
+        return json(
+          {
+            success: false,
+            error: "缺少 platform 参数",
+          },
+          { status: 400 }
+        );
       }
       const result = await rollbackConfig(shop.id, platform);
       if (result.success) {

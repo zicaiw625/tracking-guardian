@@ -13,13 +13,7 @@ export function RiskScoreCard({ riskScore, createdAt }: RiskScoreCardProps) {
           风险评分
         </Text>
         <Box
-          background={
-            riskScore > 60
-              ? "bg-fill-critical"
-              : riskScore > 30
-              ? "bg-fill-warning"
-              : "bg-fill-success"
-          }
+          background={riskScore > 60 ? "bg-fill-critical" : riskScore > 30 ? "bg-fill-warning" : "bg-fill-success"}
           padding="600"
           borderRadius="200"
         >

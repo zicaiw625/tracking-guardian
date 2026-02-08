@@ -234,10 +234,7 @@ export const CronResponseSchema = z.object({
 export type CronTaskResult = z.infer<typeof CronTaskResultSchema>;
 export type CronResponse = z.infer<typeof CronResponseSchema>;
 
-export function createSuccessResponse<T>(
-  data: T,
-  message?: string
-): { success: true; data: T; message?: string } {
+export function createSuccessResponse<T>(data: T, message?: string): { success: true; data: T; message?: string } {
   return {
     success: true,
     data,

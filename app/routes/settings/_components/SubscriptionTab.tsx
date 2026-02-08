@@ -59,9 +59,7 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
               <Text as="h2" variant="headingMd">
                 {t("settings.subscription.currentPlan")}
               </Text>
-              <Badge tone={currentPlan === "free" ? "info" : "success"}>
-                {t(currentPlanConfig.name)}
-              </Badge>
+              <Badge tone={currentPlan === "free" ? "info" : "success"}>{t(currentPlanConfig.name)}</Badge>
             </InlineStack>
             {subscriptionStatus?.isTrialing && (
               <Banner tone="info">
@@ -97,7 +95,9 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
                 <List type="bullet">
                   {currentPlanConfig.features.map((feature, idx) => (
                     <List.Item key={idx}>
-                      <Text as="span" variant="bodySm">{renderFeature(feature)}</Text>
+                      <Text as="span" variant="bodySm">
+                        {renderFeature(feature)}
+                      </Text>
                     </List.Item>
                   ))}
                 </List>
@@ -145,7 +145,9 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
                           <List type="bullet">
                             {planConfig.features.slice(0, 5).map((feature, idx) => (
                               <List.Item key={idx}>
-                                <Text as="span" variant="bodySm">{renderFeature(feature)}</Text>
+                                <Text as="span" variant="bodySm">
+                                  {renderFeature(feature)}
+                                </Text>
                               </List.Item>
                             ))}
                           </List>

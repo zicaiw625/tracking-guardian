@@ -132,7 +132,8 @@ export function ManualAnalysis({ deprecationStatus, scriptAnalysisMaxContentLeng
                   {t("scan.manualAnalysis.deprecation.desc")}
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  <strong>{t("scan.manualAnalysis.deprecation.important")}</strong>{t("scan.manualAnalysis.deprecation.disclaimer")}
+                  <strong>{t("scan.manualAnalysis.deprecation.important")}</strong>
+                  {t("scan.manualAnalysis.deprecation.disclaimer")}
                 </Text>
                 {deprecationStatus && (
                   <Text as="p" variant="bodySm" tone="subdued">
@@ -141,20 +142,10 @@ export function ManualAnalysis({ deprecationStatus, scriptAnalysisMaxContentLeng
                   </Text>
                 )}
                 <InlineStack gap="200">
-                  <Button
-                    url="/app/migrate"
-                    icon={ArrowRightIcon}
-                    size="slim"
-                    variant="primary"
-                  >
+                  <Button url="/app/migrate" icon={ArrowRightIcon} size="slim" variant="primary">
                     {t("scan.manualAnalysis.actions.migrate")}
                   </Button>
-                  <Button
-                    url="/app/migrate#pixel"
-                    icon={SettingsIcon}
-                    size="slim"
-                    variant="secondary"
-                  >
+                  <Button url="/app/migrate#pixel" icon={SettingsIcon} size="slim" variant="secondary">
                     {t("scan.manualAnalysis.actions.enablePixel")}
                   </Button>
                 </InlineStack>
@@ -167,7 +158,14 @@ export function ManualAnalysis({ deprecationStatus, scriptAnalysisMaxContentLeng
                   {t("scan.manualAnalysis.guide.title")}
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  📖 {t("scan.manualAnalysis.guide.docsRef")}<a href="https://help.shopify.com/en/manual/checkout-settings/order-status-page/additional-scripts" target="_blank" rel="noopener noreferrer">{t("scan.manualAnalysis.guide.shopifyDocs")}</a>
+                  📖 {t("scan.manualAnalysis.guide.docsRef")}
+                  <a
+                    href="https://help.shopify.com/en/manual/checkout-settings/order-status-page/additional-scripts"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {t("scan.manualAnalysis.guide.shopifyDocs")}
+                  </a>
                 </Text>
                 <Divider />
                 <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -181,11 +179,17 @@ export function ManualAnalysis({ deprecationStatus, scriptAnalysisMaxContentLeng
                         {t("scan.manualAnalysis.guide.steps.step1.title")}
                       </Text>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        <Trans i18nKey="scan.manualAnalysis.guide.steps.step1.desc" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
+                        <Trans
+                          i18nKey="scan.manualAnalysis.guide.steps.step1.desc"
+                          components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }}
+                        />
                       </Text>
                       <Banner tone="info">
                         <Text as="p" variant="bodySm">
-                          <Trans i18nKey="scan.manualAnalysis.guide.steps.step1.tip" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
+                          <Trans
+                            i18nKey="scan.manualAnalysis.guide.steps.step1.tip"
+                            components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }}
+                          />
                         </Text>
                       </Banner>
                     </BlockStack>
@@ -200,11 +204,17 @@ export function ManualAnalysis({ deprecationStatus, scriptAnalysisMaxContentLeng
                       </Text>
                       <Banner tone="info">
                         <Text as="p" variant="bodySm">
-                          <Trans i18nKey="scan.manualAnalysis.guide.steps.step2.tip" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
+                          <Trans
+                            i18nKey="scan.manualAnalysis.guide.steps.step2.tip"
+                            components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }}
+                          />
                         </Text>
                       </Banner>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        <Trans i18nKey="scan.manualAnalysis.guide.steps.step2.hint" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
+                        <Trans
+                          i18nKey="scan.manualAnalysis.guide.steps.step2.hint"
+                          components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }}
+                        />
                       </Text>
                     </BlockStack>
                   </List.Item>
@@ -218,25 +228,40 @@ export function ManualAnalysis({ deprecationStatus, scriptAnalysisMaxContentLeng
                       </Text>
                       <Banner tone="info">
                         <Text as="p" variant="bodySm">
-                          <Trans i18nKey="scan.manualAnalysis.guide.steps.step3.tip" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
+                          <Trans
+                            i18nKey="scan.manualAnalysis.guide.steps.step3.tip"
+                            components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }}
+                          />
                         </Text>
                       </Banner>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        <Trans i18nKey="scan.manualAnalysis.guide.steps.step3.hint" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
+                        <Trans
+                          i18nKey="scan.manualAnalysis.guide.steps.step3.hint"
+                          components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }}
+                        />
                       </Text>
                       <Banner tone="warning">
                         <Text as="p" variant="bodySm">
-                          <Trans i18nKey="scan.manualAnalysis.guide.steps.step3.warning" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
+                          <Trans
+                            i18nKey="scan.manualAnalysis.guide.steps.step3.warning"
+                            components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }}
+                          />
                         </Text>
                         <List type="bullet">
                           <List.Item>
-                            <Text as="span" variant="bodySm">{t("scan.manualAnalysis.guide.steps.step3.checks.c1")}</Text>
+                            <Text as="span" variant="bodySm">
+                              {t("scan.manualAnalysis.guide.steps.step3.checks.c1")}
+                            </Text>
                           </List.Item>
                           <List.Item>
-                            <Text as="span" variant="bodySm">{t("scan.manualAnalysis.guide.steps.step3.checks.c2")}</Text>
+                            <Text as="span" variant="bodySm">
+                              {t("scan.manualAnalysis.guide.steps.step3.checks.c2")}
+                            </Text>
                           </List.Item>
                           <List.Item>
-                            <Text as="span" variant="bodySm">{t("scan.manualAnalysis.guide.steps.step3.checks.c3")}</Text>
+                            <Text as="span" variant="bodySm">
+                              {t("scan.manualAnalysis.guide.steps.step3.checks.c3")}
+                            </Text>
                           </List.Item>
                         </List>
                       </Banner>
@@ -265,7 +290,10 @@ export function ManualAnalysis({ deprecationStatus, scriptAnalysisMaxContentLeng
                         </Text>
                       </Banner>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        <Trans i18nKey="scan.manualAnalysis.guide.steps.step4.hint" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
+                        <Trans
+                          i18nKey="scan.manualAnalysis.guide.steps.step4.hint"
+                          components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }}
+                        />
                       </Text>
                     </BlockStack>
                   </List.Item>
@@ -278,14 +306,20 @@ export function ManualAnalysis({ deprecationStatus, scriptAnalysisMaxContentLeng
                         {t("scan.manualAnalysis.guide.steps.step5.desc")}
                       </Text>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        <Trans i18nKey="scan.manualAnalysis.guide.steps.step5.hint" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
+                        <Trans
+                          i18nKey="scan.manualAnalysis.guide.steps.step5.hint"
+                          components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }}
+                        />
                       </Text>
                     </BlockStack>
                   </List.Item>
                 </List>
                 <Divider />
                 <Text as="p" variant="bodySm" tone="subdued">
-                  <Trans i18nKey="scan.manualAnalysis.guide.notFound" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
+                  <Trans
+                    i18nKey="scan.manualAnalysis.guide.notFound"
+                    components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }}
+                  />
                 </Text>
               </BlockStack>
             </Banner>
@@ -333,24 +367,13 @@ export function ManualAnalysis({ deprecationStatus, scriptAnalysisMaxContentLeng
             </Text>
             <BlockStack gap="300">
               {analysisResult.risks.map((risk, index) => (
-                <Box
-                  key={index}
-                  background="bg-surface-secondary"
-                  padding="400"
-                  borderRadius="200"
-                >
+                <Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200">
                     <InlineStack align="space-between">
                       <InlineStack gap="200">
                         <Icon
                           source={AlertCircleIcon}
-                          tone={
-                            risk.severity === "high"
-                              ? "critical"
-                              : risk.severity === "medium"
-                              ? "warning"
-                              : "info"
-                          }
+                          tone={risk.severity === "high" ? "critical" : risk.severity === "medium" ? "warning" : "info"}
                         />
                         <Text as="span" fontWeight="semibold">
                           {risk.name}
@@ -388,36 +411,28 @@ export function ManualAnalysis({ deprecationStatus, scriptAnalysisMaxContentLeng
                 const lines = rec.split("\n");
                 const titleLine = lines[0] || "";
                 const titleMatch = titleLine.match(/\*\*(.*?)\*\*/);
-                const title = titleMatch
-                  ? titleMatch[1]
-                  : titleLine.replace(/^[^\w\u4e00-\u9fa5]+/, "");
+                const title = titleMatch ? titleMatch[1] : titleLine.replace(/^[^\w\u4e00-\u9fa5]+/, "");
                 const details = lines
                   .slice(1)
                   .map((l) => l.trim())
                   .filter((l) => l.length > 0);
-                
+
                 const linkLine = details.find((l) => l.includes("http"));
                 const urlMatch = linkLine?.match(/(https?:\/\/[^\s]+)/);
                 const url = urlMatch ? urlMatch[1] : null;
 
                 const isInternal =
-                  title.includes("Google Analytics") ||
-                  title.includes("Meta Pixel") ||
-                  title.includes("TikTok");
+                  title.includes("Google Analytics") || title.includes("Meta Pixel") || title.includes("TikTok");
                 const isExternal = !!url;
 
                 // Check for checklist recommendation using translated string
                 const checklistTitle = t("scan.analysis.recommendations.checklist").split("\n")[0];
-                const isChecklist = rec.includes(checklistTitle) || rec.includes("迁移清单建议") || rec.includes("Migration Checklist");
+                const isChecklist =
+                  rec.includes(checklistTitle) || rec.includes("迁移清单建议") || rec.includes("Migration Checklist");
 
                 if (isChecklist) {
                   return (
-                    <Box
-                      key={index}
-                      background="bg-surface-secondary"
-                      padding="400"
-                      borderRadius="200"
-                    >
+                    <Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
                       <BlockStack gap="200">
                         <Text as="h3" variant="headingSm">
                           {t("scan.manualAnalysis.results.generalTitle")}
@@ -435,12 +450,7 @@ export function ManualAnalysis({ deprecationStatus, scriptAnalysisMaxContentLeng
                 }
 
                 return (
-                  <Box
-                    key={index}
-                    background="bg-surface-secondary"
-                    padding="400"
-                    borderRadius="200"
-                  >
+                  <Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
                     <BlockStack gap="300">
                       <InlineStack align="space-between" blockAlign="start">
                         <BlockStack gap="100">

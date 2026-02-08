@@ -75,7 +75,7 @@ describe("Rate Limit Memory Fallback", () => {
   };
   beforeEach(async () => {
     vi.resetModules();
-    redisClientModule = await import("../../app/utils/redis-client.server") as typeof redisClientModule;
+    redisClientModule = (await import("../../app/utils/redis-client.server")) as typeof redisClientModule;
     rateLimitModule = await import("../../app/middleware/rate-limit.server");
     redisClientModule.__setMockConnected(true);
     redisClientModule.__setMockShouldFail(false);
@@ -160,7 +160,7 @@ describe("Rate Limit Memory Fallback", () => {
       await rateLimitModule.checkRateLimitAsync("expire-key", maxRequests, windowMs);
       const blockedResult = await rateLimitModule.checkRateLimitAsync("expire-key", maxRequests, windowMs);
       expect(blockedResult.allowed).toBe(false);
-      await new Promise(resolve => setTimeout(resolve, windowMs + 10));
+      await new Promise((resolve) => setTimeout(resolve, windowMs + 10));
       const allowedResult = await rateLimitModule.checkRateLimitAsync("expire-key", maxRequests, windowMs);
       expect(allowedResult.allowed).toBe(true);
     });

@@ -32,10 +32,7 @@ function getKey(identifier: string): string {
   return `${CIRCUIT_BREAKER_PREFIX}${identifier}`;
 }
 
-async function getState(
-  client: RedisClientWrapper,
-  key: string
-): Promise<CircuitBreakerState | null> {
+async function getState(client: RedisClientWrapper, key: string): Promise<CircuitBreakerState | null> {
   try {
     const data = await client.hGetAll(key);
     if (!data || Object.keys(data).length === 0) {
@@ -90,11 +87,7 @@ async function incrementCounter(
   }
 }
 
-async function tripBreaker(
-  client: RedisClientWrapper,
-  key: string,
-  config: CircuitBreakerConfig
-): Promise<void> {
+async function tripBreaker(client: RedisClientWrapper, key: string, config: CircuitBreakerConfig): Promise<void> {
   const cooldownSeconds = Math.ceil((config.cooldownMs || config.windowMs) / 1000);
   try {
     await client.hMSet(key, {
@@ -107,10 +100,7 @@ async function tripBreaker(
   }
 }
 
-async function resetBreaker(
-  client: RedisClientWrapper,
-  key: string
-): Promise<void> {
+async function resetBreaker(client: RedisClientWrapper, key: string): Promise<void> {
   try {
     await client.del(key);
   } catch (error) {
@@ -131,8 +121,7 @@ export async function checkCircuitBreaker(
       const retryAfter = Math.ceil((state.resetTime - Date.now()) / 1000);
       if (state.count === finalConfig.threshold + 1) {
         logger.error(
-          `🚨 Circuit breaker TRIPPED for ${identifier}: ` +
-            `${state.count} requests in ${finalConfig.windowMs}ms`
+          `🚨 Circuit breaker TRIPPED for ${identifier}: ` + `${state.count} requests in ${finalConfig.windowMs}ms`
         );
       }
       return {
@@ -178,9 +167,7 @@ export async function resetCircuitBreaker(identifier: string): Promise<void> {
   }
 }
 
-export async function getCircuitBreakerState(
-  identifier: string
-): Promise<CircuitBreakerState | null> {
+export async function getCircuitBreakerState(identifier: string): Promise<CircuitBreakerState | null> {
   const key = getKey(identifier);
   try {
     const client = await getRedisClient();
@@ -191,9 +178,7 @@ export async function getCircuitBreakerState(
   }
 }
 
-export async function isCircuitBreakerTripped(
-  identifier: string
-): Promise<boolean> {
+export async function isCircuitBreakerTripped(identifier: string): Promise<boolean> {
   const state = await getCircuitBreakerState(identifier);
   return state?.tripped ?? false;
 }

@@ -18,13 +18,7 @@ import {
   Button,
   Modal,
 } from "@shopify/polaris";
-import {
-  LockFilledIcon,
-  ClockIcon,
-  DeleteIcon,
-  InfoIcon,
-  CheckCircleIcon,
-} from "~/components/icons";
+import { LockFilledIcon, ClockIcon, DeleteIcon, InfoIcon, CheckCircleIcon } from "~/components/icons";
 import { useState } from "react";
 import { useToastContext } from "~/components/ui";
 
@@ -43,21 +37,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       consentStrategy: true,
     },
   });
-  const gdprJobs = tab === "gdpr"
-    ? await prisma.gDPRJob.findMany({
-        where: { shopDomain },
-        orderBy: { createdAt: "desc" },
-        take: 50,
-        select: {
-          id: true,
-          jobType: true,
-          status: true,
-          createdAt: true,
-          completedAt: true,
-          errorMessage: true,
-        },
-      })
-    : [];
+  const gdprJobs =
+    tab === "gdpr"
+      ? await prisma.gDPRJob.findMany({
+          where: { shopDomain },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+          select: {
+            id: true,
+            jobType: true,
+            status: true,
+            createdAt: true,
+            completedAt: true,
+            errorMessage: true,
+          },
+        })
+      : [];
   return json({
     shop: shop || { consentStrategy: "strict" },
     appDomain: process.env.APP_URL || "https://app.tracking-guardian.com",
@@ -149,10 +144,7 @@ export default function PrivacyPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   return (
-    <Page
-      title={t("PrivacyPage.Title")}
-      subtitle={t("PrivacyPage.Subtitle")}
-    >
+    <Page title={t("PrivacyPage.Title")} subtitle={t("PrivacyPage.Subtitle")}>
       <BlockStack gap="500">
         {isGdprTab ? (
           <Card>
@@ -172,12 +164,7 @@ export default function PrivacyPage() {
               ) : (
                 <BlockStack gap="300">
                   {gdprJobs.map((job) => {
-                    const tone =
-                      job.status === "completed"
-                        ? "success"
-                        : job.status === "failed"
-                        ? "critical"
-                        : "info";
+                    const tone = job.status === "completed" ? "success" : job.status === "failed" ? "critical" : "info";
                     const createdAt = new Date(job.createdAt).toLocaleString();
                     const completedAt = job.completedAt ? new Date(job.completedAt).toLocaleString() : null;
                     return (
@@ -221,9 +208,7 @@ export default function PrivacyPage() {
             <p>
               <Trans i18nKey="PrivacyPage.Overview.Content" />
             </p>
-            <p>
-              {t("PrivacyPage.Overview.Note")}
-            </p>
+            <p>{t("PrivacyPage.Overview.Note")}</p>
           </BlockStack>
         </Banner>
         <Card>
@@ -238,8 +223,8 @@ export default function PrivacyPage() {
                     {t("PrivacyPage.Config.Strategy")}
                   </Text>
                   <Badge tone={shop.consentStrategy === "strict" ? "success" : "info"}>
-                    {shop.consentStrategy === "strict" 
-                      ? t("PrivacyPage.Config.Strict") 
+                    {shop.consentStrategy === "strict"
+                      ? t("PrivacyPage.Config.Strict")
                       : t("PrivacyPage.Config.Balanced")}
                   </Badge>
                 </BlockStack>
@@ -427,9 +412,7 @@ export default function PrivacyPage() {
         </CollapsibleSection>
         <CollapsibleSection title={t("PrivacyPage.Deletion.Title")}>
           <BlockStack gap="300">
-            <Text as="p">
-              {t("PrivacyPage.Deletion.Desc")}
-            </Text>
+            <Text as="p">{t("PrivacyPage.Deletion.Desc")}</Text>
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack gap="300" blockAlign="center">
@@ -516,9 +499,7 @@ export default function PrivacyPage() {
         </CollapsibleSection>
         <CollapsibleSection title={t("PrivacyPage.GDPRTest.Title")}>
           <BlockStack gap="300">
-            <Text as="p">
-              {t("PrivacyPage.GDPRTest.Desc")}
-            </Text>
+            <Text as="p">{t("PrivacyPage.GDPRTest.Desc")}</Text>
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="200">
                 <Text as="span" fontWeight="semibold">
@@ -586,23 +567,13 @@ export default function PrivacyPage() {
                   {t("PrivacyPage.ExportDelete.Export.Desc")}
                 </Text>
                 <InlineStack gap="200">
-                  <Button
-                    url="/api/exports?type=conversions&format=json"
-                    external
-                    variant="primary"
-                  >
+                  <Button url="/api/exports?type=conversions&format=json" external variant="primary">
                     {t("PrivacyPage.ExportDelete.Export.JSON")}
                   </Button>
-                  <Button
-                    url="/api/exports?type=conversions&format=csv"
-                    external
-                  >
+                  <Button url="/api/exports?type=conversions&format=csv" external>
                     {t("PrivacyPage.ExportDelete.Export.CSV")}
                   </Button>
-                  <Button
-                    url="/api/exports?type=events&format=json"
-                    external
-                  >
+                  <Button url="/api/exports?type=events&format=json" external>
                     {t("PrivacyPage.ExportDelete.Export.Events")}
                   </Button>
                 </InlineStack>

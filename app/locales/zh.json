@@ -572,11 +572,7 @@
     "limitBannerMessage": "本月订单追踪已达到 {{limit}} 笔上限。请升级套餐以继续追踪更多订单。",
     "introTitle": "订阅与账单概览",
     "introDescription": "查看当前套餐、使用量、账单历史，并管理续费与升级。当前套餐包含像素迁移、验收报告与断档告警；服务端 CAPI 投递为可选能力，默认关闭。",
-    "introItems": [
-      "套餐权益与用量一目了然",
-      "支持在 Shopify 账单中心查看发票",
-      "升级后自动解锁对应功能"
-    ],
+    "introItems": ["套餐权益与用量一目了然", "支持在 Shopify 账单中心查看发票", "升级后自动解锁对应功能"],
     "viewPlan": "查看套餐",
     "billingCenter": "账单中心",
     "currentPlan": "当前套餐",
@@ -1095,11 +1091,7 @@
       "manual": {
         "title": "手动脚本分析",
         "description": "分析并迁移来自 checkout 的自定义脚本",
-        "items": [
-          "粘贴脚本内容以识别平台",
-          "检测潜在风险和 PII 访问",
-          "获取迁移建议"
-        ],
+        "items": ["粘贴脚本内容以识别平台", "检测潜在风险和 PII 访问", "获取迁移建议"],
         "action": {
           "primary": "开始分析",
           "secondary": "查看清单"
@@ -1108,11 +1100,7 @@
       "checklist": {
         "title": "迁移清单",
         "description": "追踪您的迁移进度",
-        "items": [
-          "查看已识别的脚本和风险",
-          "追踪迁移状态",
-          "导出清单为 CSV"
-        ],
+        "items": ["查看已识别的脚本和风险", "追踪迁移状态", "导出清单为 CSV"],
         "action": {
           "primary": "查看清单",
           "secondary": "返回自动扫描"
@@ -1121,11 +1109,7 @@
       "auto": {
         "title": "自动扫描",
         "description": "自动扫描您店铺的追踪脚本",
-        "items": [
-          "检测 ScriptTags 和 Web Pixels",
-          "识别追踪平台",
-          "查看风险评估"
-        ],
+        "items": ["检测 ScriptTags 和 Web Pixels", "识别追踪平台", "查看风险评估"],
         "action": {
           "primary": "开始自动扫描",
           "secondary": "手动分析"
@@ -1958,10 +1942,7 @@
       "intro": {
         "title": "验收报告说明",
         "description": "报告用于交付验收结果，包含事件触发、参数完整率与一致性检查。",
-        "items": [
-          "支持 CSV 导出",
-          "可用于客户/管理层验收签收"
-        ]
+        "items": ["支持 CSV 导出", "可用于客户/管理层验收签收"]
       },
       "status": {
         "completed": "已完成",
@@ -2014,64 +1995,64 @@
       "sandbox": {
         "title": "Strict Sandbox 限制说明",
         "banner": {
-            "title": "⚠️ Web Pixel 运行在 Strict Sandbox (Web Worker) 环境中",
-            "desc": "Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限："
+          "title": "⚠️ Web Pixel 运行在 Strict Sandbox (Web Worker) 环境中",
+          "desc": "Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限："
         },
         "limitations": [
-            "无法访问 DOM 元素",
-            "无法使用 localStorage/sessionStorage",
-            "无法访问第三方 cookie",
-            "无法执行某些浏览器 API",
-            "部分事件字段可能为 null 或 undefined，这是平台限制，不是故障"
+          "无法访问 DOM 元素",
+          "无法使用 localStorage/sessionStorage",
+          "无法访问第三方 cookie",
+          "无法执行某些浏览器 API",
+          "部分事件字段可能为 null 或 undefined，这是平台限制，不是故障"
         ],
         "missingFields": {
-            "title": "缺失字段（由于 strict sandbox 限制，已自动标注）",
-            "desc": "以下字段因 strict sandbox 限制而无法获取，这是平台限制，不是故障。报告中已自动标注这些限制。哪些事件/哪些字段拿不到已在报告中自动标注，减少纠纷。",
-            "eventType": "事件类型：",
-            "fields": "缺失字段（已自动标注）：",
-            "reason": "原因："
+          "title": "缺失字段（由于 strict sandbox 限制，已自动标注）",
+          "desc": "以下字段因 strict sandbox 限制而无法获取，这是平台限制，不是故障。报告中已自动标注这些限制。哪些事件/哪些字段拿不到已在报告中自动标注，减少纠纷。",
+          "eventType": "事件类型：",
+          "fields": "缺失字段（已自动标注）：",
+          "reason": "原因："
         },
         "unavailableEvents": {
-            "title": "不可用的事件类型（已自动标注）",
-            "desc": "以下事件类型在 strict sandbox 中不可用，需要通过订单 webhooks 获取。报告中已自动标注这些限制。哪些事件/哪些字段拿不到已在报告中自动标注，减少纠纷。"
+          "title": "不可用的事件类型（已自动标注）",
+          "desc": "以下事件类型在 strict sandbox 中不可用，需要通过订单 webhooks 获取。报告中已自动标注这些限制。哪些事件/哪些字段拿不到已在报告中自动标注，减少纠纷。"
         },
         "autoLabel": {
-            "title": "自动标注说明"
+          "title": "自动标注说明"
         },
         "infoBanner": {
-            "p1": "💡 <0>注意：</0>以下事件包含发往平台的请求 payload 证据链。如果某些字段（如姓名、邮箱、电话、地址）为 null，可能是由于 PCD (Protected Customer Data) 需要额外 scope 审批（2025-12-10 起生效）或用户未同意 consent。这是 Shopify 平台的合规行为，不是故障。",
-            "p2": "⚠️ <0>checkout_completed 事件触发行为说明（重要）：</0>",
-            "p3": "<0>checkout_completed</0> 不一定在 Thank you 页触发，且通常只触发一次。当存在 upsell 或 post-purchase offer 时，事件会在第一层 upsell 页触发，且不会在 Thank you 页再次触发。这是 Shopify 的预期行为，不是故障。如果页面加载失败或用户快速离开，事件可能不会触发。验收报告会标注事件触发位置和可能缺失的原因，帮助区分\"正常缺失\"和\"实际故障\"。",
-            "p4": "⚠️ <0>Strict Sandbox 限制（已自动标注）：</0>Web Pixel 运行在 strict sandbox (Web Worker) 环境中，无法访问 DOM、localStorage、第三方 cookie 等，部分字段可能不可用。报告中已自动标注所有因 strict sandbox 限制而无法获取的字段和事件。如果某些字段为 null 或缺失，可能是由于 strict sandbox 限制，这是平台限制，不是故障。哪些事件/哪些字段拿不到已在报告中自动标注，减少纠纷。详细说明请查看下方的\"Strict Sandbox 限制说明\"部分。",
-            "knownLimits": "已知限制字段（可能为 null，已自动标注）：",
-            "limitsList": [
-                "<0>checkout_completed / checkout_started：</0>buyer.email, buyer.phone, deliveryAddress, shippingAddress, billingAddress（这些字段在 Web Worker 环境中不可用，这是平台限制，不是故障。已在报告中自动标注）",
-                "<0>checkout_contact_info_submitted：</0>buyer.email, buyer.phone（这些字段在 Web Worker 环境中不可用，这是平台限制，不是故障。已在报告中自动标注）",
-                "<0>checkout_shipping_info_submitted：</0>deliveryAddress, shippingAddress（这些字段在 Web Worker 环境中不可用，这是平台限制，不是故障。已在报告中自动标注）",
-                "<0>payment_info_submitted：</0>billingAddress（这些字段在 Web Worker 环境中不可用，这是平台限制，不是故障。已在报告中自动标注）"
-            ],
-            "unavailableEventsTitle": "不可用的事件类型（已自动标注，需要通过订单 webhooks 获取）：",
-            "unavailableEventsDesc": "refund, order_cancelled, order_edited, subscription_created, subscription_updated, subscription_cancelled（这些事件在 strict sandbox 中不可用，需要通过订单 webhooks 获取。已在报告中自动标注）",
-            "autoLabelDesc": "💡 <0>自动标注说明：</0>报告中已自动标注所有因 strict sandbox 限制而无法获取的字段和事件。这些限制是 Shopify 平台的设计限制，不是故障。哪些事件/哪些字段拿不到已在报告中自动标注，减少纠纷。如需获取这些字段或事件，请使用订单 webhooks 或其他 Shopify API。详细说明请查看下方的\"Strict Sandbox 限制说明\"部分。"
+          "p1": "💡 <0>注意：</0>以下事件包含发往平台的请求 payload 证据链。如果某些字段（如姓名、邮箱、电话、地址）为 null，可能是由于 PCD (Protected Customer Data) 需要额外 scope 审批（2025-12-10 起生效）或用户未同意 consent。这是 Shopify 平台的合规行为，不是故障。",
+          "p2": "⚠️ <0>checkout_completed 事件触发行为说明（重要）：</0>",
+          "p3": "<0>checkout_completed</0> 不一定在 Thank you 页触发，且通常只触发一次。当存在 upsell 或 post-purchase offer 时，事件会在第一层 upsell 页触发，且不会在 Thank you 页再次触发。这是 Shopify 的预期行为，不是故障。如果页面加载失败或用户快速离开，事件可能不会触发。验收报告会标注事件触发位置和可能缺失的原因，帮助区分\"正常缺失\"和\"实际故障\"。",
+          "p4": "⚠️ <0>Strict Sandbox 限制（已自动标注）：</0>Web Pixel 运行在 strict sandbox (Web Worker) 环境中，无法访问 DOM、localStorage、第三方 cookie 等，部分字段可能不可用。报告中已自动标注所有因 strict sandbox 限制而无法获取的字段和事件。如果某些字段为 null 或缺失，可能是由于 strict sandbox 限制，这是平台限制，不是故障。哪些事件/哪些字段拿不到已在报告中自动标注，减少纠纷。详细说明请查看下方的\"Strict Sandbox 限制说明\"部分。",
+          "knownLimits": "已知限制字段（可能为 null，已自动标注）：",
+          "limitsList": [
+            "<0>checkout_completed / checkout_started：</0>buyer.email, buyer.phone, deliveryAddress, shippingAddress, billingAddress（这些字段在 Web Worker 环境中不可用，这是平台限制，不是故障。已在报告中自动标注）",
+            "<0>checkout_contact_info_submitted：</0>buyer.email, buyer.phone（这些字段在 Web Worker 环境中不可用，这是平台限制，不是故障。已在报告中自动标注）",
+            "<0>checkout_shipping_info_submitted：</0>deliveryAddress, shippingAddress（这些字段在 Web Worker 环境中不可用，这是平台限制，不是故障。已在报告中自动标注）",
+            "<0>payment_info_submitted：</0>billingAddress（这些字段在 Web Worker 环境中不可用，这是平台限制，不是故障。已在报告中自动标注）"
+          ],
+          "unavailableEventsTitle": "不可用的事件类型（已自动标注，需要通过订单 webhooks 获取）：",
+          "unavailableEventsDesc": "refund, order_cancelled, order_edited, subscription_created, subscription_updated, subscription_cancelled（这些事件在 strict sandbox 中不可用，需要通过订单 webhooks 获取。已在报告中自动标注）",
+          "autoLabelDesc": "💡 <0>自动标注说明：</0>报告中已自动标注所有因 strict sandbox 限制而无法获取的字段和事件。这些限制是 Shopify 平台的设计限制，不是故障。哪些事件/哪些字段拿不到已在报告中自动标注，减少纠纷。如需获取这些字段或事件，请使用订单 webhooks 或其他 Shopify API。详细说明请查看下方的\"Strict Sandbox 限制说明\"部分。"
         }
       },
       "reconciliation": {
         "title": "渠道对账结果",
         "local": {
-            "title": "本地一致性检查",
-            "total": "检查订单数",
-            "consistent": "一致",
-            "inconsistent": "不一致"
+          "title": "本地一致性检查",
+          "total": "检查订单数",
+          "consistent": "一致",
+          "inconsistent": "不一致"
         }
       },
       "upgrade": {
-          "desc": "导出报告需要升级：验收报告导出（CSV）是核心付费点，需要 Growth ($79/月) 或 Agency ($199/月) 套餐。",
-          "action": "升级解锁"
+        "desc": "导出报告需要升级：验收报告导出（CSV）是核心付费点，需要 Growth ($79/月) 或 Agency ($199/月) 套餐。",
+        "action": "升级解锁"
       },
-       "originWarning": {
-           "title": "事件接收校验：当前为宽松的 Origin 校验",
-           "desc": "来自非白名单或 HMAC 验证失败但未拒的请求仍可能被接收并标为低信任，验收报告可能包含此类事件。若需更高准确性，建议在部署环境设置 <0>PIXEL_STRICT_ORIGIN=true</0> 并配置 Origin 白名单。"
-       }
+      "originWarning": {
+        "title": "事件接收校验：当前为宽松的 Origin 校验",
+        "desc": "来自非白名单或 HMAC 验证失败但未拒的请求仍可能被接收并标为低信任，验收报告可能包含此类事件。若需更高准确性，建议在部署环境设置 <0>PIXEL_STRICT_ORIGIN=true</0> 并配置 Origin 白名单。"
+      }
     },
     "page": {
       "title": "验收（Verification）+ 断档监控（Monitoring）",
@@ -2097,10 +2078,7 @@
       "intro": {
         "title": "验收流程概览",
         "desc": "通过测试清单验证事件触发与参数完整率，输出可交付的验收报告。",
-        "items": [
-          "像素层验收覆盖标准事件",
-          "报告支持 CSV 导出"
-        ],
+        "items": ["像素层验收覆盖标准事件", "报告支持 CSV 导出"],
         "action": "查看验收报告"
       },
       "score": {
@@ -2279,11 +2257,7 @@
       "intro": {
         "title": "生成测试清单",
         "description": "将验收步骤整理为清单，便于测试与交付。",
-        "items": [
-          "覆盖像素层标准事件",
-          "补充订单层对账验证",
-          "支持复制或下载 CSV"
-        ]
+        "items": ["覆盖像素层标准事件", "补充订单层对账验证", "支持复制或下载 CSV"]
       },
       "banner": {
         "prdRequirement": "PRD 2.5要求：生成\"测试清单\"用于验收对账。按照以下步骤进行测试，确保像素事件和订单数据的一致性。"
@@ -2365,12 +2339,7 @@
     ],
     "noMatch": "没有匹配的项，请调整筛选条件",
     "empty": "暂无迁移清单项",
-    "tableHeadings": [
-      "资产名称/指纹",
-      "风险等级 + 原因",
-      "推荐迁移路径",
-      "预估工时 + 需要的信息"
-    ],
+    "tableHeadings": ["资产名称/指纹", "风险等级 + 原因", "推荐迁移路径", "预估工时 + 需要的信息"],
     "migrationPath": {
       "webPixel": "Web Pixel",
       "manual": "手动迁移",
@@ -2502,10 +2471,7 @@
     "intro": {
       "title": "支持与工单",
       "description": "遇到迁移、像素、验收问题可通过工单与 FAQ 获取支持。当前版本聚焦迁移与验收，服务端转化投递为可选/后续能力，默认关闭。",
-      "items": [
-        "支持 PII/PCD 与隐私合规咨询",
-        "迁移方案可预约专家协助"
-      ],
+      "items": ["支持 PII/PCD 与隐私合规咨询", "迁移方案可预约专家协助"],
       "action": {
         "faq": "查看 FAQ",
         "reports": "导出报告"
@@ -2527,11 +2493,7 @@
     "intro": {
       "title": "断档监控与告警",
       "description": "查看近期告警、事件成功率与流失统计；在设置中配置告警通道与阈值。",
-      "items": [
-        "告警列表：最近 30 天触发的异常告警",
-        "近 7 日转化与成功率汇总",
-        "近 24 小时事件流失与成功率"
-      ],
+      "items": ["告警列表：最近 30 天触发的异常告警", "近 7 日转化与成功率汇总", "近 24 小时事件流失与成功率"],
       "action": "告警配置"
     },
     "empty": "未找到店铺信息。",
@@ -2572,11 +2534,7 @@
       "intro": {
         "title": "像素迁移中心",
         "desc": "用模板化流程完成像素迁移、测试与回滚，确保事件映射与参数完整率。",
-        "items": [
-          "支持 Test/Live 双环境",
-          "映射 Shopify 标准事件到各平台",
-          "版本管理支持一键回滚"
-        ],
+        "items": ["支持 Test/Live 双环境", "映射 Shopify 标准事件到各平台", "版本管理支持一键回滚"],
         "primary": "新建 Pixel 配置",
         "secondary": "查看测试指引"
       },
@@ -2694,11 +2652,7 @@
       "intro": {
         "title": "配置流程概览",
         "desc": "使用模板快速完成平台配置，先在 Test 环境验证，再切换 Live。",
-        "items": [
-          "模板包含常用事件映射",
-          "凭据支持加密存储",
-          "验证通过后再切 Live"
-        ],
+        "items": ["模板包含常用事件映射", "凭据支持加密存储", "验证通过后再切 Live"],
         "action": "返回 Pixels"
       }
     }
@@ -3237,21 +3191,12 @@
       "PixelEvents": {
         "Title": "像素事件数据",
         "Description": "来自 Web Pixel 事件收据，用于诊断和统计",
-        "Items": [
-          "事件 ID/类型",
-          "时间戳",
-          "事件参数（金额、货币等）",
-          "结账令牌（已哈希）"
-        ]
+        "Items": ["事件 ID/类型", "时间戳", "事件参数（金额、货币等）", "结账令牌（已哈希）"]
       },
       "Consent": {
         "Title": "客户同意状态",
         "Description": "尊重客户隐私选择",
-        "Items": [
-          "marketing: 是否同意营销",
-          "analytics: 是否同意分析",
-          "saleOfData: 是否允许数据销售"
-        ]
+        "Items": ["marketing: 是否同意营销", "analytics: 是否同意分析", "saleOfData: 是否允许数据销售"]
       },
       "TechData": {
         "Title": "请求相关技术数据",

@@ -116,7 +116,10 @@ describe("Pixel Events API - Timestamp Validation", () => {
   });
 });
 describe("Pixel Events API - Rate Limiting", () => {
-  let trackAnomaly: (shopDomain: string, type: "invalid_key" | "invalid_origin" | "invalid_timestamp") => { shouldBlock: boolean; reason?: string };
+  let trackAnomaly: (
+    shopDomain: string,
+    type: "invalid_key" | "invalid_origin" | "invalid_timestamp"
+  ) => { shouldBlock: boolean; reason?: string };
   let unblockShop: (shopDomain: string) => boolean;
   let clearAllTracking: () => void;
   beforeEach(async () => {
@@ -256,10 +259,7 @@ describe("Pixel Events API - Consent Filtering", () => {
       marketing?: boolean;
       analytics?: boolean;
     }
-    function shouldSendToPlatform(
-      platform: string,
-      consent: ConsentState | undefined
-    ): boolean {
+    function shouldSendToPlatform(platform: string, consent: ConsentState | undefined): boolean {
       const hasMarketingConsent = consent?.marketing === true;
       const hasAnalyticsConsent = consent?.analytics === true;
       if (isMarketingPlatform(platform) && !hasMarketingConsent) {

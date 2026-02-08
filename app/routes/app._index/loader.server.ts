@@ -12,22 +12,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { checkCustomerAccountsEnabled } = await import("../../services/customer-accounts.server");
   const customerAccountsStatus = await checkCustomerAccountsEnabled(admin);
   const backendUrlInfo = getPixelEventIngestionUrl();
-  
+
   const shopDomain = session.shop;
   const { getExistingWebPixels, isOurWebPixel, needsSettingsUpgrade } = await import("../../services/migration.server");
-  
+
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true, ingestionSecret: true },
   });
-  
+
   let hasIngestionSecret = false;
   let hasWebPixel = false;
   let webPixelHasIngestionKey = false;
-  
+
   if (shop) {
     hasIngestionSecret = !!shop.ingestionSecret;
-    
+
     try {
       const existingPixels = await getExistingWebPixels(admin);
       const ourPixel = existingPixels.find((p) => {
@@ -39,14 +39,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           return false;
         }
       });
-      
+
       if (ourPixel) {
         hasWebPixel = true;
         if (ourPixel.settings) {
           try {
             const pixelSettings = JSON.parse(ourPixel.settings);
             if (!needsSettingsUpgrade(pixelSettings)) {
-              webPixelHasIngestionKey = typeof pixelSettings.ingestion_key === "string" && pixelSettings.ingestion_key.length > 0;
+              webPixelHasIngestionKey =
+                typeof pixelSettings.ingestion_key === "string" && pixelSettings.ingestion_key.length > 0;
             }
           } catch (e) {
             logger.warn("Failed to parse our pixel settings", { error: e, pixelId: ourPixel.id });
@@ -58,7 +59,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       logger.error("Failed to check existing web pixels", e, { shopDomain });
     }
   }
-  
+
   return json({
     ...data,
     customerAccountsEnabled: customerAccountsStatus.enabled,

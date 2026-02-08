@@ -25,24 +25,24 @@ function ToastItem({ toast, onDismiss }: ToastProps) {
       return () => clearTimeout(timer);
     }
   }, [toast.id, toast.duration, onDismiss]);
-  const tone = toast.type === "success" ? "success" :
-               toast.type === "error" ? "critical" :
-               toast.type === "warning" ? "warning" : "info";
-  const icon = toast.type === "success" ? CheckCircleIcon :
-               toast.type === "error" ? AlertCircleIcon :
-               InfoIcon;
+  const tone =
+    toast.type === "success"
+      ? "success"
+      : toast.type === "error"
+        ? "critical"
+        : toast.type === "warning"
+          ? "warning"
+          : "info";
+  const icon = toast.type === "success" ? CheckCircleIcon : toast.type === "error" ? AlertCircleIcon : InfoIcon;
   return (
     <div style={{ animation: "slideIn 0.3s ease-out" }}>
       <Box paddingBlockStart="200" paddingBlockEnd="200">
-      <Banner
-        tone={tone}
-        onDismiss={() => onDismiss(toast.id)}
-      >
-        <InlineStack gap="200" blockAlign="center">
-          <Icon source={icon} tone={tone} />
-          <Text as="span">{toast.message}</Text>
-        </InlineStack>
-      </Banner>
+        <Banner tone={tone} onDismiss={() => onDismiss(toast.id)}>
+          <InlineStack gap="200" blockAlign="center">
+            <Icon source={icon} tone={tone} />
+            <Text as="span">{toast.message}</Text>
+          </InlineStack>
+        </Banner>
       </Box>
     </div>
   );
@@ -77,29 +77,37 @@ export function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
 
 export function useToast() {
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const showToast = useCallback((
-    message: string,
-    type: ToastType = "info",
-    duration: number = 3000
-  ) => {
+  const showToast = useCallback((message: string, type: ToastType = "info", duration: number = 3000) => {
     const id = `toast-${Date.now()}-${Math.random()}`;
     setToasts((prev) => [...prev, { id, message, type, duration }]);
   }, []);
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
-  const showSuccess = useCallback((message: string, duration?: number) => {
-    showToast(message, "success", duration);
-  }, [showToast]);
-  const showError = useCallback((message: string, duration?: number) => {
-    showToast(message, "error", duration || 5000);
-  }, [showToast]);
-  const showInfo = useCallback((message: string, duration?: number) => {
-    showToast(message, "info", duration);
-  }, [showToast]);
-  const showWarning = useCallback((message: string, duration?: number) => {
-    showToast(message, "warning", duration);
-  }, [showToast]);
+  const showSuccess = useCallback(
+    (message: string, duration?: number) => {
+      showToast(message, "success", duration);
+    },
+    [showToast]
+  );
+  const showError = useCallback(
+    (message: string, duration?: number) => {
+      showToast(message, "error", duration || 5000);
+    },
+    [showToast]
+  );
+  const showInfo = useCallback(
+    (message: string, duration?: number) => {
+      showToast(message, "info", duration);
+    },
+    [showToast]
+  );
+  const showWarning = useCallback(
+    (message: string, duration?: number) => {
+      showToast(message, "warning", duration);
+    },
+    [showToast]
+  );
   return {
     toasts,
     showToast,

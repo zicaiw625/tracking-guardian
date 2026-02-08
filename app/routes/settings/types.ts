@@ -11,10 +11,7 @@ export interface AlertSettingsTelegram {
   chatId: string;
 }
 
-export type AlertSettings =
-  | AlertSettingsEmail
-  | AlertSettingsSlack
-  | AlertSettingsTelegram;
+export type AlertSettings = AlertSettingsEmail | AlertSettingsSlack | AlertSettingsTelegram;
 
 export interface AlertConfigDisplay {
   id: string;

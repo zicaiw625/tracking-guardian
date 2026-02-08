@@ -141,21 +141,25 @@ export async function saveWizardConfigs(
           eventMappings: config.eventMappings as object,
           environment: config.environment || "live",
           migrationStatus: "in_progress",
-          ...(existingConfig && existingConfig.isActive && JSON.stringify(existingConfig.eventMappings) !== JSON.stringify(config.eventMappings) ? {
-            configVersion: { increment: 1 },
-            rollbackAllowed: true,
-          } : {}),
+          ...(existingConfig &&
+          existingConfig.isActive &&
+          JSON.stringify(existingConfig.eventMappings) !== JSON.stringify(config.eventMappings)
+            ? {
+                configVersion: { increment: 1 },
+                rollbackAllowed: true,
+              }
+            : {}),
           updatedAt: new Date(),
         },
         create: {
           id: randomUUID(),
           shopId,
-      platform: config.platform as Platform,
-      platformId: config.platformId,
-      credentialsEncrypted: encryptedCredentials,
-      serverSideEnabled: config.serverSideEnabled ?? false,
-      eventMappings: config.eventMappings as object,
-      environment: config.environment || "live",
+          platform: config.platform as Platform,
+          platformId: config.platformId,
+          credentialsEncrypted: encryptedCredentials,
+          serverSideEnabled: config.serverSideEnabled ?? false,
+          eventMappings: config.eventMappings as object,
+          environment: config.environment || "live",
           migrationStatus: "in_progress",
           configVersion: 1,
           rollbackAllowed: false,
@@ -200,9 +204,7 @@ export async function getConfigPreview(shopId: string): Promise<{
       platform: config.platform,
       platformId: config.platformId || "",
       environment: config.environment,
-      eventCount: config.eventMappings
-        ? Object.keys(config.eventMappings as Record<string, unknown>).length
-        : 0,
+      eventCount: config.eventMappings ? Object.keys(config.eventMappings as Record<string, unknown>).length : 0,
     })),
   };
 }
@@ -232,7 +234,11 @@ export async function saveWizardDraft(
       ),
     };
     const step = draft.step === "testing" ? "review" : draft.step;
-    const result = await saveMigrationDraft(shopId, step as "select" | "credentials" | "mappings" | "review", configData);
+    const result = await saveMigrationDraft(
+      shopId,
+      step as "select" | "credentials" | "mappings" | "review",
+      configData
+    );
     if (!result.success) {
       return { success: false, error: result.error };
     }
@@ -276,7 +282,9 @@ export async function loadWizardDraft(shopId: string): Promise<WizardState | nul
         try {
           credentials = decryptJson(existingConfig.credentialsEncrypted) as Record<string, string>;
         } catch (error) {
-          logger.warn(`Failed to decrypt credentials for ${platform}`, { error: error instanceof Error ? error.message : String(error) });
+          logger.warn(`Failed to decrypt credentials for ${platform}`, {
+            error: error instanceof Error ? error.message : String(error),
+          });
           credentials = draftConfig.credentials || {};
         }
       } else {
@@ -391,7 +399,8 @@ export async function validateTestEnvironment(
         details.testEventCode = credentials.testEventCode;
         details.verificationInstructions = `测试事件已发送，请在 Meta Events Manager 的「测试事件」页面查看，使用 Test Event Code: ${credentials.testEventCode}`;
       } else {
-        details.verificationInstructions = "建议在 Meta Events Manager 中设置 Test Event Code，以便在测试模式下验证事件。";
+        details.verificationInstructions =
+          "建议在 Meta Events Manager 中设置 Test Event Code，以便在测试模式下验证事件。";
       }
     }
     if (platform === "google") {
@@ -461,9 +470,9 @@ export async function validateTestEnvironment(
       try {
         const res = await fetch(url, {
           method: "POST",
-          headers: { 
+          headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${accessToken}`,
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify(body),
         });

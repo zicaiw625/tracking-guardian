@@ -259,9 +259,7 @@ export function setupMockPrisma(mockPrisma: MockPrismaClient): void {
   mockPrisma.pixelEventReceipt.findFirst.mockResolvedValue(null);
   mockPrisma.pixelEventReceipt.findMany.mockResolvedValue([]);
   mockPrisma.eventNonce.findUnique.mockResolvedValue(null);
-  mockPrisma.eventNonce.create.mockImplementation((args) =>
-    Promise.resolve({ id: "nonce_123", ...args.data })
-  );
+  mockPrisma.eventNonce.create.mockImplementation((args) => Promise.resolve({ id: "nonce_123", ...args.data }));
   mockPrisma.monthlyUsage.findFirst.mockResolvedValue({
     id: "usage_123",
     shopId: "shop_123",

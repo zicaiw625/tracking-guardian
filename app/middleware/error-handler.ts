@@ -1,17 +1,10 @@
 import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
-import {
-  AppError,
-  ErrorCode,
-  ensureAppError,
-  type ApiErrorResponse,
-} from "../utils/errors";
+import { AppError, ErrorCode, ensureAppError, type ApiErrorResponse } from "../utils/errors";
 import { logger } from "../utils/logger.server";
 import { sanitizeSensitiveInfo } from "../utils/security";
 
-export type RouteHandler<T> = (
-  args: LoaderFunctionArgs | ActionFunctionArgs
-) => Promise<T>;
+export type RouteHandler<T> = (args: LoaderFunctionArgs | ActionFunctionArgs) => Promise<T>;
 
 export interface ErrorHandlerOptions {
   logErrors?: boolean;
@@ -20,11 +13,7 @@ export interface ErrorHandlerOptions {
   buildResponse?: (error: AppError) => Response;
 }
 
-function processError(
-  error: unknown,
-  options: ErrorHandlerOptions,
-  request?: Request
-): Response {
+function processError(error: unknown, options: ErrorHandlerOptions, request?: Request): Response {
   if (error instanceof Response) {
     throw error;
   }
@@ -73,10 +62,7 @@ export function withErrorHandling<T>(
   };
 }
 
-export async function handleErrors<T>(
-  fn: () => Promise<T>,
-  options?: ErrorHandlerOptions
-): Promise<T | Response> {
+export async function handleErrors<T>(fn: () => Promise<T>, options?: ErrorHandlerOptions): Promise<T | Response> {
   try {
     return await fn();
   } catch (error) {
@@ -89,10 +75,7 @@ export async function handleErrors<T>(
   }
 }
 
-export function buildErrorResponse(
-  error: AppError,
-  includeStackInDev?: boolean
-): Response {
+export function buildErrorResponse(error: AppError, includeStackInDev?: boolean): Response {
   const status = error.getHttpStatus();
   const clientResponse = error.toClientResponse();
   const errorDetails: ApiErrorResponse["error"] = {
@@ -109,19 +92,12 @@ export function buildErrorResponse(
     success: false,
     error: errorDetails,
   };
-  if (
-    includeStackInDev &&
-    process.env.NODE_ENV !== "production" &&
-    error.stack
-  ) {
+  if (includeStackInDev && process.env.NODE_ENV !== "production" && error.stack) {
     body.stack = error.stack;
   }
   const headers = new Headers();
   if (error.metadata.retryAfter && status === 429) {
-    headers.set(
-      "Retry-After",
-      String(Math.ceil(Number(error.metadata.retryAfter) / 1000))
-    );
+    headers.set("Retry-After", String(Math.ceil(Number(error.metadata.retryAfter) / 1000)));
   }
   return json(body, { status, headers });
 }
@@ -134,7 +110,12 @@ function logError(error: AppError, request: Request): void {
   const sanitizedSearchParams: Record<string, string> = {};
   for (const [key, value] of Object.entries(searchParamsObj)) {
     const lowerKey = key.toLowerCase();
-    if (lowerKey.includes("token") || lowerKey.includes("signature") || lowerKey.includes("hmac") || lowerKey.includes("id_token")) {
+    if (
+      lowerKey.includes("token") ||
+      lowerKey.includes("signature") ||
+      lowerKey.includes("hmac") ||
+      lowerKey.includes("id_token")
+    ) {
       sanitizedSearchParams[key] = "[REDACTED]";
     } else {
       sanitizedSearchParams[key] = sanitizeSensitiveInfo(String(value));
@@ -161,33 +142,19 @@ export function throwError(error: AppError): never {
 }
 
 export function throwBadRequest(message: string, field?: string): never {
-  throw buildErrorResponse(
-    new AppError(ErrorCode.VALIDATION_ERROR, message, false, { field })
-  );
+  throw buildErrorResponse(new AppError(ErrorCode.VALIDATION_ERROR, message, false, { field }));
 }
 
 export function throwUnauthorized(message?: string): never {
-  throw buildErrorResponse(
-    new AppError(
-      ErrorCode.AUTH_INVALID_TOKEN,
-      message ?? "Authentication required"
-    )
-  );
+  throw buildErrorResponse(new AppError(ErrorCode.AUTH_INVALID_TOKEN, message ?? "Authentication required"));
 }
 
 export function throwForbidden(message?: string): never {
-  throw buildErrorResponse(
-    new AppError(
-      ErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
-      message ?? "Access denied"
-    )
-  );
+  throw buildErrorResponse(new AppError(ErrorCode.AUTH_INSUFFICIENT_PERMISSIONS, message ?? "Access denied"));
 }
 
 export function throwNotFound(resource: string, id?: string): never {
-  const message = id
-    ? `${resource} '${id}' not found`
-    : `${resource} not found`;
+  const message = id ? `${resource} '${id}' not found` : `${resource} not found`;
   throw buildErrorResponse(
     new AppError(ErrorCode.NOT_FOUND_RESOURCE, message, false, {
       resource,
@@ -198,22 +165,12 @@ export function throwNotFound(resource: string, id?: string): never {
 
 export function throwRateLimited(retryAfter?: number): never {
   throw buildErrorResponse(
-    new AppError(
-      ErrorCode.BILLING_LIMIT_EXCEEDED,
-      "Rate limit exceeded",
-      false,
-      { retryAfter }
-    )
+    new AppError(ErrorCode.BILLING_LIMIT_EXCEEDED, "Rate limit exceeded", false, { retryAfter })
   );
 }
 
 export function throwInternalError(message?: string): never {
-  throw buildErrorResponse(
-    new AppError(
-      ErrorCode.INTERNAL_ERROR,
-      message ?? "An internal error occurred"
-    )
-  );
+  throw buildErrorResponse(new AppError(ErrorCode.INTERNAL_ERROR, message ?? "An internal error occurred"));
 }
 
 export function throwIf(condition: boolean, error: AppError): void {
@@ -222,20 +179,13 @@ export function throwIf(condition: boolean, error: AppError): void {
   }
 }
 
-export function throwIfNull<T>(
-  value: T | null | undefined,
-  error: AppError
-): asserts value is T {
+export function throwIfNull<T>(value: T | null | undefined, error: AppError): asserts value is T {
   if (value === null || value === undefined) {
     throwError(error);
   }
 }
 
-export function throwIfNotFound<T>(
-  value: T | null | undefined,
-  resource: string,
-  id?: string
-): asserts value is T {
+export function throwIfNotFound<T>(value: T | null | undefined, resource: string, id?: string): asserts value is T {
   if (value === null || value === undefined) {
     throwNotFound(resource, id);
   }

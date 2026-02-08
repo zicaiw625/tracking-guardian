@@ -210,7 +210,7 @@ export async function getVerificationRun(runId: string): Promise<VerificationSum
   });
   if (!run) return null;
   const summary = run.summaryJson as Record<string, unknown> | null;
-  const events = ((run.eventsJson as unknown) as VerificationEventResult[]) || [];
+  const events = (run.eventsJson as unknown as VerificationEventResult[]) || [];
   const reconciliation = summary?.reconciliation as VerificationSummary["reconciliation"] | undefined;
   const platformResults = (summary?.platformResults as Record<string, { sent: number; failed: number }>) || undefined;
   return {
@@ -277,17 +277,24 @@ export async function analyzeRecentEvents(
       orderKey: true,
     },
   });
-  const orderKeysFromReceipts = [...new Set(receipts.map((r) => {
-    if (r.orderKey) return r.orderKey;
-    const payload = r.payloadJson as Record<string, unknown> | null;
-    return (payload?.data as Record<string, unknown>)?.orderId as string | undefined;
-  }).filter(Boolean) as string[])];
-  const orderSummaries = orderKeysFromReceipts.length > 0
-    ? await prisma.orderSummary.findMany({
-        where: { shopId, orderId: { in: orderKeysFromReceipts } },
-        select: { orderId: true, totalPrice: true, currency: true },
-      })
-    : [];
+  const orderKeysFromReceipts = [
+    ...new Set(
+      receipts
+        .map((r) => {
+          if (r.orderKey) return r.orderKey;
+          const payload = r.payloadJson as Record<string, unknown> | null;
+          return (payload?.data as Record<string, unknown>)?.orderId as string | undefined;
+        })
+        .filter(Boolean) as string[]
+    ),
+  ];
+  const orderSummaries =
+    orderKeysFromReceipts.length > 0
+      ? await prisma.orderSummary.findMany({
+          where: { shopId, orderId: { in: orderKeysFromReceipts } },
+          select: { orderId: true, totalPrice: true, currency: true },
+        })
+      : [];
   const orderSummaryMap = new Map(
     orderSummaries.map((o) => [o.orderId, { totalPrice: Number(o.totalPrice), currency: o.currency }])
   );
@@ -296,9 +303,9 @@ export async function analyzeRecentEvents(
   const purchaseOrderKeys = receipts
     .filter((r) => r.eventType === "purchase" && r.orderKey)
     .map((r) => r.orderKey as string);
-  
+
   const duplicateMap = new Map<string, Array<{ id: string; createdAt: Date; eventId: string }>>();
-  
+
   if (purchaseOrderKeys.length > 0) {
     const potentialDuplicates = await prisma.pixelEventReceipt.findMany({
       where: {
@@ -309,7 +316,7 @@ export async function analyzeRecentEvents(
       select: { id: true, orderKey: true, createdAt: true, eventId: true },
       orderBy: { createdAt: "desc" },
     });
-    
+
     for (const r of potentialDuplicates) {
       if (!r.orderKey) continue;
       const list = duplicateMap.get(r.orderKey) || [];
@@ -325,7 +332,11 @@ export async function analyzeRecentEvents(
   let totalValueAccuracy = 0;
   let valueChecks = 0;
   const orderIds = new Set<string>();
-  const consistencyIssues: Array<{ orderId: string; issue: string; type: "value_mismatch" | "currency_mismatch" | "missing" | "duplicate" }> = [];
+  const consistencyIssues: Array<{
+    orderId: string;
+    issue: string;
+    type: "value_mismatch" | "currency_mismatch" | "missing" | "duplicate";
+  }> = [];
   const platformResults: Record<string, { sent: number; failed: number }> = {};
   for (const p of targetPlatforms) {
     platformResults[p] = { sent: 0, failed: 0 };
@@ -336,7 +347,7 @@ export async function analyzeRecentEvents(
     if (!platform || (targetPlatforms.length > 0 && !targetPlatforms.includes(platform))) {
       continue;
     }
-    const orderId = receipt.orderKey || (payload?.data as Record<string, unknown>)?.orderId as string | undefined;
+    const orderId = receipt.orderKey || ((payload?.data as Record<string, unknown>)?.orderId as string | undefined);
     if (orderId) {
       orderIds.add(orderId);
     }
@@ -427,9 +438,7 @@ export async function analyzeRecentEvents(
     if (orderId && receipt.eventType === "purchase") {
       const history = duplicateMap.get(orderId);
       if (history) {
-        const existingReceipt = history.find(
-          (h) => h.id !== receipt.id && h.createdAt < receipt.createdAt
-        );
+        const existingReceipt = history.find((h) => h.id !== receipt.id && h.createdAt < receipt.createdAt);
         if (existingReceipt) {
           dedupInfo = {
             existingEventId: existingReceipt.eventId,
@@ -465,7 +474,7 @@ export async function analyzeRecentEvents(
         const orderSummary = orderId ? orderSummaryMap.get(orderId) : undefined;
         let isFailed = false;
         let discrepancyNote: string | undefined;
-        
+
         if (orderSummary) {
           valueChecks++;
           const valueMatch = Math.abs((value ?? 0) - orderSummary.totalPrice) < 0.01;
@@ -539,7 +548,7 @@ export async function analyzeRecentEvents(
 
           // Check for specific test scenarios
           if (items && items > 1) {
-             results.push({
+            results.push({
               testItemId: "purchase_multi",
               eventType: "purchase (multi-item)",
               platform: p,
@@ -547,12 +556,12 @@ export async function analyzeRecentEvents(
               status: "success",
               triggeredAt: receipt.pixelTimestamp,
               params: { items },
-             });
-             passedTests++; 
+            });
+            passedTests++;
           }
-          
-          if (currency && currency !== "USD") { 
-             results.push({
+
+          if (currency && currency !== "USD") {
+            results.push({
               testItemId: "currency_test",
               eventType: "purchase (currency)",
               platform: p,
@@ -560,8 +569,8 @@ export async function analyzeRecentEvents(
               status: "success",
               triggeredAt: receipt.pixelTimestamp,
               params: { currency },
-             });
-             passedTests++;
+            });
+            passedTests++;
           }
         }
       }
@@ -591,8 +600,7 @@ export async function analyzeRecentEvents(
     }
   }
   const totalTests = results.length;
-  const parameterCompleteness =
-    totalTests > 0 ? Math.round(((passedTests + missingParamTests) / totalTests) * 100) : 0;
+  const parameterCompleteness = totalTests > 0 ? Math.round(((passedTests + missingParamTests) / totalTests) * 100) : 0;
   // If no value checks were performed, default to 0 to avoid misleading 100% accuracy
   const valueAccuracy = valueChecks > 0 ? Math.round(totalValueAccuracy / valueChecks) : 0;
   const reconciliation: VerificationSummary["reconciliation"] | undefined =
@@ -626,14 +634,14 @@ export async function analyzeRecentEvents(
     select: { shopDomain: true },
   });
   if (shop) {
-        const shopRecord = await prisma.shop.findUnique({
+    const shopRecord = await prisma.shop.findUnique({
       where: { id: shopId },
       select: { plan: true },
     });
     const planId = normalizePlanId(shopRecord?.plan ?? "free");
     const isAgency = isPlanAtLeast(planId, "agency");
     const verificationPassRate = totalTests > 0 ? (passedTests / totalTests) * 100 : 0;
-        const pixelConfigs = await prisma.pixelConfig.findMany({
+    const pixelConfigs = await prisma.pixelConfig.findMany({
       where: {
         shopId,
         isActive: true,
@@ -647,8 +655,8 @@ export async function analyzeRecentEvents(
     });
     const destinationType = pixelConfigs.length > 0 ? pixelConfigs[0].platform : targetPlatforms[0] || "none";
     const environment = pixelConfigs.length > 0 ? pixelConfigs[0].environment : "live";
-        const firstEventName = receipts.length > 0 ? receipts[0].eventType : undefined;
-        let riskScore: number | undefined;
+    const firstEventName = receipts.length > 0 ? receipts[0].eventType : undefined;
+    let riskScore: number | undefined;
     let assetCount: number | undefined;
     try {
       const latestScan = await prisma.scanReport.findFirst({
@@ -666,7 +674,7 @@ export async function analyzeRecentEvents(
     } catch {
       // no-op: ignore errors when counting assets
     }
-        safeFireAndForget(
+    safeFireAndForget(
       trackEvent({
         shopId,
         shopDomain: shop.shopDomain,
@@ -716,10 +724,7 @@ export async function analyzeRecentEvents(
   };
 }
 
-export async function getVerificationHistory(
-  shopId: string,
-  limit = 10
-): Promise<VerificationSummary[]> {
+export async function getVerificationHistory(shopId: string, limit = 10): Promise<VerificationSummary[]> {
   const runs = await prisma.verificationRun.findMany({
     where: { shopId },
     orderBy: { createdAt: "desc" },
@@ -831,16 +836,7 @@ export async function exportVerificationReport(
   const timestamp = new Date().toISOString().split("T")[0];
   const filename = `verification-report-${timestamp}`;
   if (format === "csv") {
-    const headers = [
-      "测试项",
-      "事件类型",
-      "平台",
-      "订单ID",
-      "状态",
-      "金额",
-      "币种",
-      "问题",
-    ];
+    const headers = ["测试项", "事件类型", "平台", "订单ID", "状态", "金额", "币种", "问题"];
     const rows = summary.results.map((r) => [
       escapeCSV(r.testItemId),
       escapeCSV(r.eventType),

@@ -1,17 +1,6 @@
 import { useState, useCallback } from "react";
 import { useTranslation, Trans } from "react-i18next";
-import {
-  Card,
-  Text,
-  BlockStack,
-  InlineStack,
-  Button,
-  ButtonGroup,
-  Badge,
-  Box,
-  Banner,
-  Modal,
-} from "@shopify/polaris";
+import { Card, Text, BlockStack, InlineStack, Button, ButtonGroup, Badge, Box, Banner, Modal } from "@shopify/polaris";
 
 type PixelEnvironment = "test" | "live";
 
@@ -104,10 +93,10 @@ export function EnvironmentToggle({
                 {platformNames[platform] || platform} {t("components.environmentToggle.pixelConfig")}
               </Text>
             </BlockStack>
-            <Badge
-              tone={currentEnvironment === "live" ? "success" : "warning"}
-            >
-              {currentEnvironment === "live" ? t("components.environmentToggle.prodEnv") : t("components.environmentToggle.testEnv")}
+            <Badge tone={currentEnvironment === "live" ? "success" : "warning"}>
+              {currentEnvironment === "live"
+                ? t("components.environmentToggle.prodEnv")
+                : t("components.environmentToggle.testEnv")}
             </Badge>
           </InlineStack>
           <Box
@@ -179,7 +168,8 @@ export function EnvironmentToggle({
                           {t("components.environmentToggle.versionManage")}
                         </Text>
                         <Text as="span" variant="bodySm" tone="subdued">
-                          {t("components.environmentToggle.currentVersion")}{configVersion}
+                          {t("components.environmentToggle.currentVersion")}
+                          {configVersion}
                         </Text>
                       </BlockStack>
                       {canRollback && (

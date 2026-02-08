@@ -25,9 +25,7 @@ vi.mock("../../../app/db.server", () => {
     auditAsset: { count: vi.fn() },
     $transaction: vi.fn(),
   };
-  (def as any).$transaction.mockImplementation((fn: (tx: unknown) => unknown) =>
-    Promise.resolve(fn(def))
-  );
+  (def as any).$transaction.mockImplementation((fn: (tx: unknown) => unknown) => Promise.resolve(fn(def)));
   return { default: def };
 });
 
@@ -45,11 +43,7 @@ vi.mock("../../../app/services/audit.server", () => ({
 }));
 
 import prisma from "../../../app/db.server";
-import {
-  processDataRequest,
-  processCustomerRedact,
-  processShopRedact,
-} from "../../../app/services/gdpr/handlers";
+import { processDataRequest, processCustomerRedact, processShopRedact } from "../../../app/services/gdpr/handlers";
 
 describe("GDPR Handlers", () => {
   beforeEach(() => {
@@ -129,9 +123,7 @@ describe("GDPR Handlers", () => {
       vi.mocked(prisma.pixelEventReceipt.deleteMany).mockResolvedValue({ count: 1 });
       vi.mocked(prisma.internalEvent.deleteMany).mockResolvedValue({ count: 0 });
       vi.mocked(prisma.orderSummary.deleteMany).mockResolvedValue({ count: 0 });
-      vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue([
-        { checkoutToken: "token-123" },
-      ] as never);
+      vi.mocked(prisma.pixelEventReceipt.findMany).mockResolvedValue([{ checkoutToken: "token-123" }] as never);
       await processCustomerRedact("test-shop.myshopify.com", {
         customer_id: 123,
         orders_to_redact: [1001],

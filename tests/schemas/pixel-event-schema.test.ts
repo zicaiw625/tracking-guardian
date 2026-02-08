@@ -26,12 +26,7 @@ describe("PixelEventNameSchema", () => {
     }
   });
   it("should reject invalid event names", () => {
-    const invalidNames = [
-      "invalid_event",
-      "purchase",
-      "CHECKOUT_COMPLETED",
-      "",
-    ];
+    const invalidNames = ["invalid_event", "purchase", "CHECKOUT_COMPLETED", ""];
     for (const name of invalidNames) {
       const result = PixelEventNameSchema.safeParse(name);
       expect(result.success).toBe(false);
@@ -58,7 +53,7 @@ describe("ConsentSchema", () => {
   it("should reject extra fields (strict mode)", () => {
     const invalidConsent = {
       marketing: true,
-      unknownField: "value"
+      unknownField: "value",
     };
     const result = ConsentSchema.safeParse(invalidConsent);
     expect(result.success).toBe(false);
@@ -119,11 +114,7 @@ describe("PixelEventSchema", () => {
     expect(result.success).toBe(true);
   });
   it("should reject invalid shop domain format", () => {
-    const invalidDomains = [
-      "invalid-domain.com",
-      "test.notshopify.com",
-      ".myshopify.com",
-    ];
+    const invalidDomains = ["invalid-domain.com", "test.notshopify.com", ".myshopify.com"];
     for (const domain of invalidDomains) {
       const payload = {
         ...validBasePayload,

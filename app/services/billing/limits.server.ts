@@ -1,7 +1,6 @@
 import prisma from "~/db.server";
 import { type PlanId, getPixelDestinationsLimit } from "./plans";
 
-
 export interface PlanLimitResult {
   allowed: boolean;
   reason?: string;
@@ -10,10 +9,7 @@ export interface PlanLimitResult {
   unlimited?: boolean;
 }
 
-export async function checkPixelDestinationsLimit(
-  shopId: string,
-  shopPlan: PlanId
-): Promise<PlanLimitResult> {
+export async function checkPixelDestinationsLimit(shopId: string, shopPlan: PlanId): Promise<PlanLimitResult> {
   const limit = getPixelDestinationsLimit(shopPlan);
   if (limit === -1) {
     return { allowed: true, unlimited: true };
@@ -42,10 +38,7 @@ export async function checkPixelDestinationsLimit(
   };
 }
 
-export async function checkUiModulesLimit(
-  _shopId: string,
-  _shopPlan: PlanId
-): Promise<PlanLimitResult> {
+export async function checkUiModulesLimit(_shopId: string, _shopPlan: PlanId): Promise<PlanLimitResult> {
   return {
     allowed: false,
     reason: "UI 模块功能已移除",
@@ -55,10 +48,7 @@ export async function checkUiModulesLimit(
   };
 }
 
-export async function checkMultiShopLimit(
-  _shopId: string,
-  _shopPlan: PlanId
-): Promise<PlanLimitResult> {
+export async function checkMultiShopLimit(_shopId: string, _shopPlan: PlanId): Promise<PlanLimitResult> {
   return {
     allowed: false,
     reason: "多店管理功能已移除",

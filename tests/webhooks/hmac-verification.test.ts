@@ -94,7 +94,7 @@ vi.mock("../../app/utils/logger.server", () => ({
 vi.mock("../../app/services/billing.server", () => ({
   checkBillingGate: vi.fn().mockResolvedValue({
     allowed: true,
-    usage: { current: 0, limit: 100 }
+    usage: { current: 0, limit: 100 },
   }),
   incrementMonthlyUsage: vi.fn(),
 }));
@@ -134,9 +134,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
   });
   describe("Invalid HMAC Signature → 401 Unauthorized", () => {
     it("returns 401 when HMAC signature is invalid", async () => {
-      vi.mocked(authenticate.webhook).mockRejectedValue(
-        new Response("Unauthorized", { status: 401 })
-      );
+      vi.mocked(authenticate.webhook).mockRejectedValue(new Response("Unauthorized", { status: 401 }));
       const request = new Request("https://example.com/webhook", {
         method: "POST",
         headers: {
@@ -155,9 +153,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
       expect(await response.text()).toMatch(/^Unauthorized/);
     });
     it("returns 401 when HMAC header is missing", async () => {
-      vi.mocked(authenticate.webhook).mockRejectedValue(
-        new Response("Unauthorized", { status: 401 })
-      );
+      vi.mocked(authenticate.webhook).mockRejectedValue(new Response("Unauthorized", { status: 401 }));
       const request = new Request("https://example.com/webhook", {
         method: "POST",
         headers: {
@@ -173,9 +169,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
       expect(response.status).toBe(401);
     });
     it("returns 401 when HMAC is forged (tampering attempt)", async () => {
-      vi.mocked(authenticate.webhook).mockRejectedValue(
-        new Response("Unauthorized", { status: 401 })
-      );
+      vi.mocked(authenticate.webhook).mockRejectedValue(new Response("Unauthorized", { status: 401 }));
       const request = new Request("https://example.com/webhook", {
         method: "POST",
         headers: {
@@ -317,9 +311,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
   });
   describe("Malformed Requests", () => {
     it("returns 400 for invalid JSON body", async () => {
-      vi.mocked(authenticate.webhook).mockRejectedValue(
-        new SyntaxError("Unexpected token")
-      );
+      vi.mocked(authenticate.webhook).mockRejectedValue(new SyntaxError("Unexpected token"));
       const request = new Request("https://example.com/webhook", {
         method: "POST",
         headers: {
@@ -334,9 +326,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
       expect(response.status).toBe(400);
     });
     it("returns 400 for unexpected authentication errors", async () => {
-      vi.mocked(authenticate.webhook).mockRejectedValue(
-        new Error("Unexpected server error")
-      );
+      vi.mocked(authenticate.webhook).mockRejectedValue(new Error("Unexpected server error"));
       const request = new Request("https://example.com/webhook", {
         method: "POST",
         headers: {
@@ -413,9 +403,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
         shopDomain: "test-shop.myshopify.com",
         isActive: true,
         plan: "starter",
-        pixelConfigs: [
-          { platform: "meta", isActive: true, serverSideEnabled: true },
-        ],
+        pixelConfigs: [{ platform: "meta", isActive: true, serverSideEnabled: true }],
       } as any);
       vi.mocked(prisma.webhookLog.create).mockResolvedValue({
         id: "log-id",

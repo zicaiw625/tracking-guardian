@@ -18,16 +18,9 @@ export interface PageSkeletonProps {
   primaryAction?: boolean;
 }
 
-export function PageSkeleton({
-  cards = 2,
-  showTabs = false,
-  primaryAction = false,
-}: PageSkeletonProps) {
+export function PageSkeleton({ cards = 2, showTabs = false, primaryAction = false }: PageSkeletonProps) {
   return (
-    <SkeletonPage
-      title=""
-      primaryAction={primaryAction}
-    >
+    <SkeletonPage title="" primaryAction={primaryAction}>
       {showTabs && <SkeletonTabs count={4} />}
       <BlockStack gap="400">
         {Array.from({ length: cards }).map((_, i) => (
@@ -115,10 +108,7 @@ export interface InlineSpinnerProps {
   size?: "small" | "large";
 }
 
-export function InlineSpinner({
-  message,
-  size = "small",
-}: InlineSpinnerProps) {
+export function InlineSpinner({ message, size = "small" }: InlineSpinnerProps) {
   const { t } = useTranslation();
   const displayMessage = message || t("common.loading");
   return (
@@ -141,10 +131,7 @@ export function FullScreenLoading({ message }: FullScreenLoadingProps) {
   const { t } = useTranslation();
   const displayMessage = message || t("common.loading");
   return (
-    <Box
-      position="relative"
-      minHeight="400px"
-    >
+    <Box position="relative" minHeight="400px">
       <div
         style={{
           position: "absolute",
@@ -171,11 +158,7 @@ export interface ButtonLoadingProps {
   children: React.ReactNode;
 }
 
-export function buttonLoadingText(
-  loading: boolean,
-  loadingText: string,
-  defaultText: string
-): string {
+export function buttonLoadingText(loading: boolean, loadingText: string, defaultText: string): string {
   return loading ? loadingText : defaultText;
 }
 
@@ -190,11 +173,7 @@ export function FormSkeleton({ fields = 4 }: FormSkeletonProps) {
         {Array.from({ length: fields }).map((_, i) => (
           <BlockStack key={i} gap="200">
             <SkeletonBodyText lines={1} />
-            <Box
-              background="bg-surface-secondary"
-              padding="300"
-              borderRadius="200"
-            >
+            <Box background="bg-surface-secondary" padding="300" borderRadius="200">
               <SkeletonBodyText lines={1} />
             </Box>
           </BlockStack>

@@ -56,9 +56,7 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
     );
   }, []);
   const handleFeatureToggle = useCallback((feature: string) => {
-    setSelectedFeatures((prev) =>
-      prev.includes(feature) ? prev.filter((f) => f !== feature) : [...prev, feature]
-    );
+    setSelectedFeatures((prev) => (prev.includes(feature) ? prev.filter((f) => f !== feature) : [...prev, feature]));
   }, []);
   const handleNext = useCallback(() => {
     if (step === 1) {
@@ -141,17 +139,21 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
               </Text>
               <Banner tone="warning">
                 <Text as="p" variant="bodySm">
-                  <strong>v1 支持范围</strong>：GA4、Meta、TikTok（其他平台将在 v1.1+ 支持）。请选择所有您使用的平台，系统将在报告中标注 v1 可迁移的项目。
+                  <strong>v1 支持范围</strong>：GA4、Meta、TikTok（其他平台将在 v1.1+
+                  支持）。请选择所有您使用的平台，系统将在报告中标注 v1 可迁移的项目。
                 </Text>
               </Banner>
               <BlockStack gap="300">
                 {AVAILABLE_PLATFORMS.filter((platform) => {
-                  return platform.value === "google" || platform.value === "meta" || platform.value === "tiktok" || platform.value === "other";
-                }).map((platform) => {
-                  const isV1Supported =
+                  return (
                     platform.value === "google" ||
                     platform.value === "meta" ||
-                    platform.value === "tiktok";
+                    platform.value === "tiktok" ||
+                    platform.value === "other"
+                  );
+                }).map((platform) => {
+                  const isV1Supported =
+                    platform.value === "google" || platform.value === "meta" || platform.value === "tiktok";
                   return (
                     <InlineStack key={platform.value} gap="200" blockAlign="center">
                       <Checkbox
@@ -160,10 +162,14 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
                         onChange={() => handlePlatformToggle(platform.value)}
                       />
                       {isV1Supported && (
-                        <Badge tone="success" size="small">v1 支持</Badge>
+                        <Badge tone="success" size="small">
+                          v1 支持
+                        </Badge>
                       )}
                       {!isV1Supported && platform.value !== "other" && (
-                        <Badge tone="info" size="small">v1.1+</Badge>
+                        <Badge tone="info" size="small">
+                          v1.1+
+                        </Badge>
                       )}
                     </InlineStack>
                   );
@@ -192,10 +198,14 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
                         onChange={() => handleFeatureToggle(feature.value)}
                       />
                       {isV1Supported && (
-                        <Badge tone="success" size="small">v1 支持</Badge>
+                        <Badge tone="success" size="small">
+                          v1 支持
+                        </Badge>
                       )}
                       {!isV1Supported && (
-                        <Badge tone="info" size="small">v1.1+</Badge>
+                        <Badge tone="info" size="small">
+                          v1.1+
+                        </Badge>
                       )}
                     </InlineStack>
                   );
@@ -230,30 +240,18 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
                     如何从 Shopify 升级向导获取信息：
                   </Text>
                   <List type="number">
-                    <List.Item>
-                      前往 Shopify Admin → 设置 → 结账和订单处理
-                    </List.Item>
-                    <List.Item>
-                      找到「Thank you / Order status 页面升级」部分
-                    </List.Item>
-                    <List.Item>
-                      查看升级向导中列出的脚本和功能清单
-                    </List.Item>
-                    <List.Item>
-                      将清单内容复制或截图，然后在此处补充
-                    </List.Item>
+                    <List.Item>前往 Shopify Admin → 设置 → 结账和订单处理</List.Item>
+                    <List.Item>找到「Thank you / Order status 页面升级」部分</List.Item>
+                    <List.Item>查看升级向导中列出的脚本和功能清单</List.Item>
+                    <List.Item>将清单内容复制或截图，然后在此处补充</List.Item>
                   </List>
                   <Divider />
                   <Text as="p" variant="bodySm" tone="subdued">
                     💡 <strong>提示：</strong>如果您从 Shopify 升级向导中看到了脚本清单，可以：
                   </Text>
                   <List>
-                    <List.Item>
-                      直接勾选上方对应的平台和功能（推荐）
-                    </List.Item>
-                    <List.Item>
-                      或者将脚本内容复制到"手动粘贴脚本"区域进行分析
-                    </List.Item>
+                    <List.Item>直接勾选上方对应的平台和功能（推荐）</List.Item>
+                    <List.Item>或者将脚本内容复制到"手动粘贴脚本"区域进行分析</List.Item>
                   </List>
                 </BlockStack>
               </Banner>
@@ -291,9 +289,7 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
                         <InlineStack gap="100" wrap>
                           {selectedPlatforms.map((p) => {
                             const platform = AVAILABLE_PLATFORMS.find((pl) => pl.value === p);
-                            return (
-                              <Badge key={p}>{platform?.label || p}</Badge>
-                            );
+                            return <Badge key={p}>{platform?.label || p}</Badge>;
                           })}
                         </InlineStack>
                       ) : (
@@ -310,9 +306,7 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
                         <InlineStack gap="100" wrap>
                           {selectedFeatures.map((f) => {
                             const feature = AVAILABLE_FEATURES.find((fe) => fe.value === f);
-                            return (
-                              <Badge key={f}>{feature?.label || f}</Badge>
-                            );
+                            return <Badge key={f}>{feature?.label || f}</Badge>;
                           })}
                         </InlineStack>
                       ) : (

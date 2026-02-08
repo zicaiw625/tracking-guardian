@@ -39,33 +39,26 @@ export function MigrationActionsCard({
           <Badge tone="attention">{t("scan.migrationActionsCard.pending", { count: migrationActions.length })}</Badge>
         </InlineStack>
         {deleteFetcherData && (
-          <Banner
-            tone={deleteFetcherData.success ? "success" : "critical"}
-            onDismiss={() => {}}
-          >
+          <Banner tone={deleteFetcherData.success ? "success" : "critical"} onDismiss={() => {}}>
             <Text as="p">
-              {String(deleteFetcherData.message || deleteFetcherData.error || t("scan.migrationActionsCard.operationComplete"))}
+              {String(
+                deleteFetcherData.message || deleteFetcherData.error || t("scan.migrationActionsCard.operationComplete")
+              )}
             </Text>
           </Banner>
         )}
         {upgradeFetcherData && (
-          <Banner
-            tone={upgradeFetcherData.success ? "success" : "critical"}
-            onDismiss={() => {}}
-          >
+          <Banner tone={upgradeFetcherData.success ? "success" : "critical"} onDismiss={() => {}}>
             <Text as="p">
-              {String(upgradeFetcherData.message || upgradeFetcherData.error || t("scan.migrationActionsCard.upgradeComplete"))}
+              {String(
+                upgradeFetcherData.message || upgradeFetcherData.error || t("scan.migrationActionsCard.upgradeComplete")
+              )}
             </Text>
           </Banner>
         )}
         <BlockStack gap="300">
           {migrationActions.map((action, index) => (
-            <Box
-              key={index}
-              background="bg-surface-secondary"
-              padding="400"
-              borderRadius="200"
-            >
+            <Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack align="space-between" blockAlign="start">
                   <BlockStack gap="100">
@@ -75,23 +68,17 @@ export function MigrationActionsCard({
                       </Text>
                       <Badge
                         tone={
-                          action.priority === "high"
-                            ? "critical"
-                            : action.priority === "medium"
-                            ? "warning"
-                            : "info"
+                          action.priority === "high" ? "critical" : action.priority === "medium" ? "warning" : "info"
                         }
                       >
                         {action.priority === "high"
                           ? t("scan.migrationActionsCard.priority.high")
                           : action.priority === "medium"
-                          ? t("scan.migrationActionsCard.priority.medium")
-                          : t("scan.migrationActionsCard.priority.low")}
+                            ? t("scan.migrationActionsCard.priority.medium")
+                            : t("scan.migrationActionsCard.priority.low")}
                       </Badge>
                     </InlineStack>
-                    {action.platform && (
-                      <Badge>{getPlatformName(action.platform, t)}</Badge>
-                    )}
+                    {action.platform && <Badge>{getPlatformName(action.platform, t)}</Badge>}
                   </BlockStack>
                   {action.deadline && (
                     <Badge tone="warning">{t("scan.migrationActionsCard.deadline", { date: action.deadline })}</Badge>
@@ -112,9 +99,7 @@ export function MigrationActionsCard({
                     <Button
                       size="slim"
                       icon={InfoIcon}
-                      onClick={() =>
-                        onShowScriptTagGuidance(action.scriptTagId!, action.platform)
-                      }
+                      onClick={() => onShowScriptTagGuidance(action.scriptTagId!, action.platform)}
                     >
                       {t("scan.migrationActionsCard.cleanGuide")}
                     </Button>
@@ -130,12 +115,7 @@ export function MigrationActionsCard({
                     </Button>
                   )}
                   {action.type === "configure_pixel" && action.titleKey === "scan.migrationLogic.upgrade.title" && (
-                    <Button
-                      size="slim"
-                      icon={RefreshIcon}
-                      loading={isUpgrading}
-                      onClick={onUpgradePixelSettings}
-                    >
+                    <Button size="slim" icon={RefreshIcon} loading={isUpgrading} onClick={onUpgradePixelSettings}>
                       {t("scan.migrationActionsCard.upgradeConfig")}
                     </Button>
                   )}

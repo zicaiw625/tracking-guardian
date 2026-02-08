@@ -38,11 +38,7 @@ export function SelectPlatformStep({
           <Text as="p" variant="bodySm">
             提示：您可以使用预设模板快速配置多个平台，或手动选择平台。
           </Text>
-          <Button
-            size="slim"
-            onClick={() => onShowTemplateModal(true)}
-            icon={SettingsIcon}
-          >
+          <Button size="slim" onClick={() => onShowTemplateModal(true)} icon={SettingsIcon}>
             查看预设模板
           </Button>
         </BlockStack>
@@ -72,67 +68,74 @@ export function SelectPlatformStep({
             ⚠️ 技术限制说明：
           </Text>
           <Text as="p" variant="bodySm">
-            Web Pixel 运行在 strict sandbox（Web Worker）环境中，很多能力受限（如 DOM 访问、第三方 cookie、localStorage 等）。部分原有脚本功能可能无法完全迁移。
+            Web Pixel 运行在 strict sandbox（Web Worker）环境中，很多能力受限（如 DOM 访问、第三方 cookie、localStorage
+            等）。部分原有脚本功能可能无法完全迁移。
           </Text>
         </BlockStack>
       </Banner>
       <BlockStack gap="300">
-        {(Object.keys(PLATFORM_INFO) as PlatformType[]).filter((platform) => {
-          return isV1SupportedPlatform(platform);
-        }).map((platform) => {
-          const info = PLATFORM_INFO[platform];
-          if (!info) return null;
-          const isSelected = selectedPlatforms.has(platform);
-          const isV1Supported = isV1SupportedPlatform(platform);
-          const isDisabled = !isV1Supported;
-          return (
-            <Card key={platform}>
-              <BlockStack gap="300">
-                <InlineStack align="space-between" blockAlign="center">
-                  <InlineStack gap="300" blockAlign="center">
-                    <Text as="span" variant="headingLg">
-                      {info.icon}
-                    </Text>
-                    <BlockStack gap="100">
-                      <InlineStack gap="200" blockAlign="center">
-                        <Text as="span" fontWeight="semibold">
-                          {info.name}
-                        </Text>
-                        {isV1Supported && (
-                          <Badge tone="success" size="small">v1 支持</Badge>
-                        )}
-                        {!isV1Supported && (
-                          <Badge tone="info" size="small">v1.1+</Badge>
-                        )}
-                      </InlineStack>
-                      <Text as="span" variant="bodySm" tone="subdued">
-                        {info.description}
-                        {!isV1Supported && "（v1.1+ 版本将支持）"}
+        {(Object.keys(PLATFORM_INFO) as PlatformType[])
+          .filter((platform) => {
+            return isV1SupportedPlatform(platform);
+          })
+          .map((platform) => {
+            const info = PLATFORM_INFO[platform];
+            if (!info) return null;
+            const isSelected = selectedPlatforms.has(platform);
+            const isV1Supported = isV1SupportedPlatform(platform);
+            const isDisabled = !isV1Supported;
+            return (
+              <Card key={platform}>
+                <BlockStack gap="300">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <InlineStack gap="300" blockAlign="center">
+                      <Text as="span" variant="headingLg">
+                        {info.icon}
                       </Text>
-                    </BlockStack>
+                      <BlockStack gap="100">
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text as="span" fontWeight="semibold">
+                            {info.name}
+                          </Text>
+                          {isV1Supported && (
+                            <Badge tone="success" size="small">
+                              v1 支持
+                            </Badge>
+                          )}
+                          {!isV1Supported && (
+                            <Badge tone="info" size="small">
+                              v1.1+
+                            </Badge>
+                          )}
+                        </InlineStack>
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          {info.description}
+                          {!isV1Supported && "（v1.1+ 版本将支持）"}
+                        </Text>
+                      </BlockStack>
+                    </InlineStack>
+                    <Checkbox
+                      checked={isSelected}
+                      onChange={(checked) => {
+                        if (!isDisabled) {
+                          onPlatformToggle(platform, checked);
+                        }
+                      }}
+                      disabled={isDisabled}
+                      label=""
+                    />
                   </InlineStack>
-                  <Checkbox
-                    checked={isSelected}
-                    onChange={(checked) => {
-                      if (!isDisabled) {
-                        onPlatformToggle(platform, checked);
-                      }
-                    }}
-                    disabled={isDisabled}
-                    label=""
-                  />
-                </InlineStack>
-                {isDisabled && (
-                  <Banner tone="info">
-                    <Text as="p" variant="bodySm">
-                      该平台将在 v1.1+ 版本支持。v1 专注于 GA4、Meta、TikTok 的最小可用迁移。
-                    </Text>
-                  </Banner>
-                )}
-              </BlockStack>
-            </Card>
-          );
-        })}
+                  {isDisabled && (
+                    <Banner tone="info">
+                      <Text as="p" variant="bodySm">
+                        该平台将在 v1.1+ 版本支持。v1 专注于 GA4、Meta、TikTok 的最小可用迁移。
+                      </Text>
+                    </Banner>
+                  )}
+                </BlockStack>
+              </Card>
+            );
+          })}
       </BlockStack>
       <Modal
         open={showTemplateModal}
@@ -157,32 +160,21 @@ export function SelectPlatformStep({
                         <Text as="span" fontWeight="semibold">
                           {template.name}
                         </Text>
-                        {template.isPublic && (
-                          <Badge tone="info">公开</Badge>
-                        )}
-                        {template.usageCount > 0 && (
-                          <Badge>{`使用 ${String(template.usageCount)} 次`}</Badge>
-                        )}
+                        {template.isPublic && <Badge tone="info">公开</Badge>}
+                        {template.usageCount > 0 && <Badge>{`使用 ${String(template.usageCount)} 次`}</Badge>}
                       </InlineStack>
                       <Text as="span" variant="bodySm" tone="subdued">
                         {template.description}
                       </Text>
                     </BlockStack>
-                    <Button
-                      size="slim"
-                      onClick={() => onApplyTemplate(template)}
-                    >
+                    <Button size="slim" onClick={() => onApplyTemplate(template)}>
                       应用
                     </Button>
                   </InlineStack>
                   <InlineStack gap="100">
                     {template.platforms.map((p) => {
                       const platformKey = p as PlatformType;
-                      return (
-                        <Badge key={p}>
-                          {PLATFORM_INFO[platformKey]?.name || p}
-                        </Badge>
-                      );
+                      return <Badge key={p}>{PLATFORM_INFO[platformKey]?.name || p}</Badge>;
                     })}
                   </InlineStack>
                 </BlockStack>

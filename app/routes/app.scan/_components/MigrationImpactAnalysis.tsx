@@ -1,5 +1,16 @@
-
-import { Card, Text, BlockStack, InlineStack, Badge, Box, Banner, Divider, Icon, RangeSlider, Button } from "@shopify/polaris";
+import {
+  Card,
+  Text,
+  BlockStack,
+  InlineStack,
+  Badge,
+  Box,
+  Banner,
+  Divider,
+  Icon,
+  RangeSlider,
+  Button,
+} from "@shopify/polaris";
 import { AlertCircleIcon, CheckCircleIcon, ArrowRightIcon } from "~/components/icons";
 import { getPlatformName } from "~/components/scan/utils";
 import { calculateROIEstimate } from "~/utils/scan-format";
@@ -62,7 +73,11 @@ export function MigrationImpactAnalysis({
               min={100}
               max={10000}
               step={100}
-              suffix={<Text as="span" variant="bodySm">{t("scan.impactAnalysis.monthlyOrders.suffix", { count: monthlyOrders })}</Text>}
+              suffix={
+                <Text as="span" variant="bodySm">
+                  {t("scan.impactAnalysis.monthlyOrders.suffix", { count: monthlyOrders })}
+                </Text>
+              }
             />
           </BlockStack>
         </Box>
@@ -77,18 +92,25 @@ export function MigrationImpactAnalysis({
             <InlineStack gap="400" align="space-between" wrap>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
-                  <Text as="p" variant="bodySm" tone="subdued">{t("scan.impactAnalysis.loss.events.label")}</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    {t("scan.impactAnalysis.loss.events.label")}
+                  </Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">
                     {roiEstimate.eventsLostPerMonth.toLocaleString()}
                   </Text>
                   <Text as="p" variant="bodySm" tone="critical">
-                    {t("scan.impactAnalysis.loss.events.desc", { platformCount: roiEstimate.platforms, orders: monthlyOrders })}
+                    {t("scan.impactAnalysis.loss.events.desc", {
+                      platformCount: roiEstimate.platforms,
+                      orders: monthlyOrders,
+                    })}
                   </Text>
                 </BlockStack>
               </Box>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
-                  <Text as="p" variant="bodySm" tone="subdued">{t("scan.impactAnalysis.loss.scriptTags.label")}</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    {t("scan.impactAnalysis.loss.scriptTags.label")}
+                  </Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">
                     {roiEstimate.scriptTagCount}
                   </Text>
@@ -99,7 +121,9 @@ export function MigrationImpactAnalysis({
               </Box>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
-                  <Text as="p" variant="bodySm" tone="subdued">{t("scan.impactAnalysis.loss.impact.label")}</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    {t("scan.impactAnalysis.loss.impact.label")}
+                  </Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="caution">
                     {t("scan.impactAnalysis.loss.impact.title")}
                   </Text>
@@ -116,7 +140,9 @@ export function MigrationImpactAnalysis({
                     <InlineStack align="space-between" blockAlign="center">
                       <InlineStack gap="200">
                         <Badge tone="critical">{t("scan.impactAnalysis.loss.platform.invalid")}</Badge>
-                        <Text as="span" fontWeight="semibold">{getPlatformName(platform, t)}</Text>
+                        <Text as="span" fontWeight="semibold">
+                          {getPlatformName(platform, t)}
+                        </Text>
                       </InlineStack>
                       <Text as="span" variant="bodySm" tone="critical">
                         {t("scan.impactAnalysis.loss.platform.reference")}
@@ -152,7 +178,9 @@ export function MigrationImpactAnalysis({
             <InlineStack gap="400" align="space-between" wrap>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
-                  <Text as="p" variant="bodySm" tone="subdued">{t("scan.impactAnalysis.gain.events.label")}</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    {t("scan.impactAnalysis.gain.events.label")}
+                  </Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
                     {roiEstimate.eventsLostPerMonth.toLocaleString()}
                   </Text>
@@ -163,7 +191,9 @@ export function MigrationImpactAnalysis({
               </Box>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
-                  <Text as="p" variant="bodySm" tone="subdued">{t("scan.impactAnalysis.gain.potential.label")}</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    {t("scan.impactAnalysis.gain.potential.label")}
+                  </Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
                     {t("scan.impactAnalysis.gain.potential.title")}
                   </Text>
@@ -174,7 +204,9 @@ export function MigrationImpactAnalysis({
               </Box>
               <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                 <BlockStack gap="100">
-                  <Text as="p" variant="bodySm" tone="subdued">{t("scan.impactAnalysis.gain.webPixel.label")}</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    {t("scan.impactAnalysis.gain.webPixel.label")}
+                  </Text>
                   <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
                     {t("scan.impactAnalysis.gain.webPixel.title")}
                   </Text>
@@ -191,7 +223,9 @@ export function MigrationImpactAnalysis({
                     <InlineStack align="space-between" blockAlign="center">
                       <InlineStack gap="200">
                         <Badge tone="success">{t("scan.impactAnalysis.gain.platform.restored")}</Badge>
-                        <Text as="span" fontWeight="semibold">{getPlatformName(platform, t)}</Text>
+                        <Text as="span" fontWeight="semibold">
+                          {getPlatformName(platform, t)}
+                        </Text>
                       </InlineStack>
                       <Text as="span" variant="bodySm" tone="success">
                         {t("scan.impactAnalysis.gain.platform.desc", { orders: monthlyOrders.toLocaleString() })}
@@ -220,7 +254,9 @@ export function MigrationImpactAnalysis({
           <InlineStack gap="400" align="space-between" wrap={false}>
             <Box background="bg-surface-critical" padding="300" borderRadius="200" minWidth="200px">
               <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{t("scan.impactAnalysis.comparison.current.label")}</Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  {t("scan.impactAnalysis.comparison.current.label")}
+                </Text>
                 <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">
                   {getRiskLevelText(latestScan.riskScore)}
                 </Text>
@@ -234,7 +270,9 @@ export function MigrationImpactAnalysis({
             </Box>
             <Box background="bg-surface-success" padding="300" borderRadius="200" minWidth="200px">
               <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{t("scan.impactAnalysis.comparison.after.label")}</Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  {t("scan.impactAnalysis.comparison.after.label")}
+                </Text>
                 <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
                   {t("scan.impactAnalysis.comparison.after.title")}
                 </Text>
@@ -248,7 +286,9 @@ export function MigrationImpactAnalysis({
             </Box>
             <Box background="bg-surface-success" padding="300" borderRadius="200" minWidth="200px">
               <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{t("scan.impactAnalysis.comparison.extra.label")}</Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  {t("scan.impactAnalysis.comparison.extra.label")}
+                </Text>
                 <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
                   {t("scan.impactAnalysis.comparison.extra.title")}
                 </Text>

@@ -3,11 +3,7 @@ import { logger } from "../logger.server";
 import { AppError, ErrorCode } from "../errors/index";
 import type { Result, AsyncResult } from "../../types/result";
 import { ok, err } from "../../types/result";
-import {
-  formatZodErrorsToRecord,
-  getFirstZodError,
-  zodErrorToAppError,
-} from "./formatters";
+import { formatZodErrorsToRecord, getFirstZodError, zodErrorToAppError } from "./formatters";
 
 export interface ValidationResult<T> {
   success: true;
@@ -24,10 +20,7 @@ export type ValidateResult<T> = ValidationResult<T> | ValidationError;
 
 import { readJsonWithSizeLimit } from "../body-size-guard";
 
-export async function validateJsonBodyResult<T>(
-  request: Request,
-  schema: ZodSchema<T>
-): AsyncResult<T, AppError> {
+export async function validateJsonBodyResult<T>(request: Request, schema: ZodSchema<T>): AsyncResult<T, AppError> {
   try {
     const body = await readJsonWithSizeLimit(request);
     const result = schema.safeParse(body);
@@ -37,20 +30,14 @@ export async function validateJsonBodyResult<T>(
     return ok(result.data);
   } catch (error) {
     return err(
-      new AppError(
-        ErrorCode.VALIDATION_ERROR,
-        "Invalid JSON body",
-        false,
-        { parseError: error instanceof Error ? error.message : String(error) }
-      )
+      new AppError(ErrorCode.VALIDATION_ERROR, "Invalid JSON body", false, {
+        parseError: error instanceof Error ? error.message : String(error),
+      })
     );
   }
 }
 
-export async function validateJsonBody<T>(
-  request: Request,
-  schema: ZodSchema<T>
-): Promise<ValidateResult<T>> {
+export async function validateJsonBody<T>(request: Request, schema: ZodSchema<T>): Promise<ValidateResult<T>> {
   try {
     const body = await readJsonWithSizeLimit(request);
     const result = schema.safeParse(body);
@@ -83,10 +70,7 @@ export async function validateJsonBody<T>(
   }
 }
 
-export async function requireValidJsonBody<T>(
-  request: Request,
-  schema: ZodSchema<T>
-): Promise<T> {
+export async function requireValidJsonBody<T>(request: Request, schema: ZodSchema<T>): Promise<T> {
   const result = await validateJsonBody(request, schema);
   if (!result.success) {
     throw new AppError(ErrorCode.VALIDATION_ERROR, result.error);
@@ -101,11 +85,7 @@ function formDataToObject(formData: FormData): Record<string, unknown> {
       obj[key] = true;
     } else if (value === "false") {
       obj[key] = false;
-    } else if (
-      typeof value === "string" &&
-      !isNaN(Number(value)) &&
-      value !== ""
-    ) {
+    } else if (typeof value === "string" && !isNaN(Number(value)) && value !== "") {
       obj[key] = Number(value);
     } else {
       obj[key] = value;
@@ -114,10 +94,7 @@ function formDataToObject(formData: FormData): Record<string, unknown> {
   return obj;
 }
 
-export async function validateFormDataResult<T>(
-  request: Request,
-  schema: ZodSchema<T>
-): AsyncResult<T, AppError> {
+export async function validateFormDataResult<T>(request: Request, schema: ZodSchema<T>): AsyncResult<T, AppError> {
   try {
     const formData = await request.formData();
     const data = formDataToObject(formData);
@@ -128,20 +105,14 @@ export async function validateFormDataResult<T>(
     return ok(result.data);
   } catch (error) {
     return err(
-      new AppError(
-        ErrorCode.VALIDATION_ERROR,
-        "Invalid form data",
-        false,
-        { parseError: error instanceof Error ? error.message : String(error) }
-      )
+      new AppError(ErrorCode.VALIDATION_ERROR, "Invalid form data", false, {
+        parseError: error instanceof Error ? error.message : String(error),
+      })
     );
   }
 }
 
-export async function validateFormData<T>(
-  request: Request,
-  schema: ZodSchema<T>
-): Promise<ValidateResult<T>> {
+export async function validateFormData<T>(request: Request, schema: ZodSchema<T>): Promise<ValidateResult<T>> {
   try {
     const formData = await request.formData();
     const data = formDataToObject(formData);
@@ -169,10 +140,7 @@ export async function validateFormData<T>(
   }
 }
 
-export async function requireValidFormData<T>(
-  request: Request,
-  schema: ZodSchema<T>
-): Promise<T> {
+export async function requireValidFormData<T>(request: Request, schema: ZodSchema<T>): Promise<T> {
   const result = await validateFormData(request, schema);
   if (!result.success) {
     throw new AppError(ErrorCode.VALIDATION_ERROR, result.error);
@@ -180,10 +148,7 @@ export async function requireValidFormData<T>(
   return result.data;
 }
 
-export function validateSearchParamsResult<T>(
-  request: Request,
-  schema: ZodSchema<T>
-): Result<T, AppError> {
+export function validateSearchParamsResult<T>(request: Request, schema: ZodSchema<T>): Result<T, AppError> {
   const url = new URL(request.url);
   const params = Object.fromEntries(url.searchParams.entries());
   const result = schema.safeParse(params);
@@ -193,10 +158,7 @@ export function validateSearchParamsResult<T>(
   return ok(result.data);
 }
 
-export function validateQueryParams<T>(
-  url: URL,
-  schema: ZodSchema<T>
-): ValidateResult<T> {
+export function validateQueryParams<T>(url: URL, schema: ZodSchema<T>): ValidateResult<T> {
   const params: Record<string, unknown> = {};
   for (const [key, value] of url.searchParams.entries()) {
     if (value === "true") {

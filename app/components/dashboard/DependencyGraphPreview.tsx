@@ -19,7 +19,7 @@ interface GraphSummary {
 
 export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPreviewProps) {
   const { t } = useTranslation();
-  
+
   const summary = useMemo<GraphSummary | null>(() => {
     if (!dependencyGraph || dependencyGraph.nodes.length === 0) {
       return null;
@@ -34,14 +34,13 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
       }
       const category = node.category || "other";
       nodesByCategory[category] = (nodesByCategory[category] || 0) + 1;
-      const depCount = dependencyGraph.edges.filter(
-        (e) => e.to === node.id && e.type === "depends_on"
-      ).length;
+      const depCount = dependencyGraph.edges.filter((e) => e.to === node.id && e.type === "depends_on").length;
       dependencyCounts.push(depCount);
     });
-    const avgDependencies = dependencyCounts.length > 0
-      ? (dependencyCounts.reduce((a, b) => a + b, 0) / dependencyCounts.length).toFixed(1)
-      : "0";
+    const avgDependencies =
+      dependencyCounts.length > 0
+        ? (dependencyCounts.reduce((a, b) => a + b, 0) / dependencyCounts.length).toFixed(1)
+        : "0";
     const criticalPath = dependencyGraph.edges.filter((e) => e.type === "depends_on").length;
     return {
       totalNodes: dependencyGraph.nodes.length,
@@ -63,7 +62,12 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
   } as const;
 
   const categorySectionData = useMemo<[string, number][] | null>(() => {
-    if (!summary || !summary.nodesByCategory || typeof summary.nodesByCategory !== "object" || Object.keys(summary.nodesByCategory).length === 0) {
+    if (
+      !summary ||
+      !summary.nodesByCategory ||
+      typeof summary.nodesByCategory !== "object" ||
+      Object.keys(summary.nodesByCategory).length === 0
+    ) {
       return null;
     }
     return Object.entries(summary.nodesByCategory) as [string, number][];
@@ -140,37 +144,33 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
                   </Badge>
                 )}
                 {summary.nodesByRisk.low > 0 && (
-                  <Badge tone="success">
-                    {t("dashboard.dependency.lowRisk", { count: summary.nodesByRisk.low })}
-                  </Badge>
+                  <Badge tone="success">{t("dashboard.dependency.lowRisk", { count: summary.nodesByRisk.low })}</Badge>
                 )}
               </InlineStack>
             </BlockStack>
-            {(categorySectionData !== null && categorySectionData.length > 0 ? (
-              <BlockStack gap="200">
-                <Text as="h3" variant="headingSm">
-                  {t("dashboard.dependency.categoryDistribution")}
-                </Text>
-                <InlineStack gap="200" wrap>
-                  {categorySectionData
-                    .sort(([_, a], [__, b]) => {
-                      const countA = typeof a === "number" ? a : 0;
-                      const countB = typeof b === "number" ? b : 0;
-                      return countB - countA;
-                    })
-                    .slice(0, 5)
-                    .map(([category, count]) => {
-                      const label = (categoryLabels[category as keyof typeof categoryLabels] as string) || category;
-                      const countValue = typeof count === "number" ? count : 0;
-                      return (
-                        <Badge key={category}>
-                          {`${String(label)}: ${String(countValue)}`}
-                        </Badge>
-                      );
-                    })}
-                </InlineStack>
-              </BlockStack>
-            ) : null) as ReactNode}
+            {
+              (categorySectionData !== null && categorySectionData.length > 0 ? (
+                <BlockStack gap="200">
+                  <Text as="h3" variant="headingSm">
+                    {t("dashboard.dependency.categoryDistribution")}
+                  </Text>
+                  <InlineStack gap="200" wrap>
+                    {categorySectionData
+                      .sort(([_, a], [__, b]) => {
+                        const countA = typeof a === "number" ? a : 0;
+                        const countB = typeof b === "number" ? b : 0;
+                        return countB - countA;
+                      })
+                      .slice(0, 5)
+                      .map(([category, count]) => {
+                        const label = (categoryLabels[category as keyof typeof categoryLabels] as string) || category;
+                        const countValue = typeof count === "number" ? count : 0;
+                        return <Badge key={category}>{`${String(label)}: ${String(countValue)}`}</Badge>;
+                      })}
+                  </InlineStack>
+                </BlockStack>
+              ) : null) as ReactNode
+            }
             {dependencyGraph.edges.length > 0 ? (
               <BlockStack gap="200">
                 <InlineStack align="space-between" blockAlign="center">
@@ -178,7 +178,13 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
                     {t("dashboard.dependency.relations")}
                   </Text>
                   <Badge tone="info">
-                    {t("dashboard.dependency.edgesUnit") + " " + String(dependencyGraph.edges.filter((e) => e.type === "depends_on" || e.type === "blocks" || e.type === "recommended_after").length)}
+                    {t("dashboard.dependency.edgesUnit") +
+                      " " +
+                      String(
+                        dependencyGraph.edges.filter(
+                          (e) => e.type === "depends_on" || e.type === "blocks" || e.type === "recommended_after"
+                        ).length
+                      )}
                   </Badge>
                 </InlineStack>
                 <Box background="bg-surface-secondary" padding="300" borderRadius="200">
@@ -190,17 +196,23 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
                         const fromNode = dependencyGraph.nodes.find((n) => n.assetId === edge.from);
                         const toNode = dependencyGraph.nodes.find((n) => n.assetId === edge.to);
                         if (!fromNode || !toNode) return null;
-                        const fromRiskBadge = fromNode.riskLevel === "high" ? "critical" :
-                                            fromNode.riskLevel === "medium" ? "warning" : "info";
-                        const toRiskBadge = toNode.riskLevel === "high" ? "critical" :
-                                           toNode.riskLevel === "medium" ? "warning" : "info";
+                        const fromRiskBadge =
+                          fromNode.riskLevel === "high"
+                            ? "critical"
+                            : fromNode.riskLevel === "medium"
+                              ? "warning"
+                              : "info";
+                        const toRiskBadge =
+                          toNode.riskLevel === "high" ? "critical" : toNode.riskLevel === "medium" ? "warning" : "info";
                         return (
                           <Box key={index} padding="200">
                             <InlineStack gap="200" blockAlign="center" wrap>
                               <Badge tone={toRiskBadge}>
                                 {String(toNode.platform || toNode.category || toNode.displayName || toNode.id)}
                               </Badge>
-                              <Text as="span" variant="bodySm" tone="subdued">{t("dashboard.dependency.dependsOn")}</Text>
+                              <Text as="span" variant="bodySm" tone="subdued">
+                                {t("dashboard.dependency.dependsOn")}
+                              </Text>
                               <Badge tone={fromRiskBadge}>
                                 {String(fromNode.platform || fromNode.category || fromNode.displayName || fromNode.id)}
                               </Badge>
@@ -208,16 +220,26 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
                           </Box>
                         );
                       })}
-                    {dependencyGraph.edges.filter((e) => e.type === "depends_on" || e.type === "blocks" || e.type === "recommended_after").length > 5 ? (
+                    {dependencyGraph.edges.filter(
+                      (e) => e.type === "depends_on" || e.type === "blocks" || e.type === "recommended_after"
+                    ).length > 5 ? (
                       <Text as="p" variant="bodySm" tone="subdued" alignment="center">
-                        {t("dashboard.dependency.moreRelations", { count: dependencyGraph.edges.filter((e) => e.type === "depends_on" || e.type === "blocks" || e.type === "recommended_after").length - 5 })}
+                        {t("dashboard.dependency.moreRelations", {
+                          count:
+                            dependencyGraph.edges.filter(
+                              (e) => e.type === "depends_on" || e.type === "blocks" || e.type === "recommended_after"
+                            ).length - 5,
+                        })}
                       </Text>
                     ) : null}
                   </BlockStack>
                 </Box>
               </BlockStack>
             ) : null}
-            {("cycles" in dependencyGraph && dependencyGraph.cycles && Array.isArray(dependencyGraph.cycles) && dependencyGraph.cycles.length > 0) ? (
+            {"cycles" in dependencyGraph &&
+            dependencyGraph.cycles &&
+            Array.isArray(dependencyGraph.cycles) &&
+            dependencyGraph.cycles.length > 0 ? (
               <Banner tone="warning">
                 <BlockStack gap="200">
                   <Text as="p" variant="bodySm" fontWeight="semibold">

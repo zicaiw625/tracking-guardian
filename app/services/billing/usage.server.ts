@@ -21,10 +21,7 @@ export interface UsageStats {
   trend: "up" | "down" | "stable";
 }
 
-export async function getMonthlyUsage(
-  shopId: string,
-  planId: PlanId
-): Promise<UsageStats> {
+export async function getMonthlyUsage(shopId: string, planId: PlanId): Promise<UsageStats> {
   const now = new Date();
   const currentYearMonth = getCurrentYearMonth();
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -32,7 +29,7 @@ export async function getMonthlyUsage(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
   const previousYearMonth = `${previousMonthStart.getFullYear()}-${String(previousMonthStart.getMonth() + 1).padStart(2, "0")}`;
-  
+
   const [currentUsage, previousUsage] = await Promise.all([
     getOrCreateMonthlyUsage(shopId, currentYearMonth),
     prisma.monthlyUsage.findUnique({
@@ -44,10 +41,10 @@ export async function getMonthlyUsage(
       },
     }),
   ]);
-  
+
   const currentMonthOrders = currentUsage.sentCount;
   const previousMonthOrders = previousUsage?.sentCount || 0;
-  
+
   const platformCounts: Record<string, number> = {};
   const groupedPlatformCounts = await prisma.pixelEventReceipt.groupBy({
     by: ["platform"],
@@ -68,7 +65,7 @@ export async function getMonthlyUsage(
     const platform = group.platform || "unknown";
     platformCounts[platform] = group._count._all;
   }
-  
+
   const limit = getPlanLimit(planId);
   const usagePercentage = limit > 0 ? (currentMonthOrders / limit) * 100 : 0;
   const isOverLimit = limit > 0 && currentMonthOrders >= limit;
@@ -170,10 +167,7 @@ export function getMonthDateRange(yearMonth: string): { start: Date; end: Date }
   return { start, end };
 }
 
-export async function getOrCreateMonthlyUsage(
-  shopId: string,
-  yearMonth?: string
-): Promise<MonthlyUsageRecord> {
+export async function getOrCreateMonthlyUsage(shopId: string, yearMonth?: string): Promise<MonthlyUsageRecord> {
   const ym = yearMonth || getCurrentYearMonth();
   const existing = await prisma.monthlyUsage.findUnique({
     where: {
@@ -211,10 +205,7 @@ export async function getOrCreateMonthlyUsage(
   };
 }
 
-export async function getMonthlyUsageCount(
-  shopId: string,
-  yearMonth?: string
-): Promise<number> {
+export async function getMonthlyUsageCount(shopId: string, yearMonth?: string): Promise<number> {
   const ym = yearMonth || getCurrentYearMonth();
   const usage = await prisma.monthlyUsage.findUnique({
     where: {
@@ -230,10 +221,7 @@ export async function getMonthlyUsageCount(
   return usage?.sentCount || 0;
 }
 
-export async function isOrderAlreadyCounted(
-  shopId: string,
-  orderId: string
-): Promise<boolean> {
+export async function isOrderAlreadyCounted(shopId: string, orderId: string): Promise<boolean> {
   const receipt = await prisma.pixelEventReceipt.findFirst({
     where: {
       shopId,
@@ -250,10 +238,7 @@ export async function isOrderAlreadyCounted(
   return !!receipt;
 }
 
-export async function incrementMonthlyUsage(
-  shopId: string,
-  _orderId: string
-): Promise<number> {
+export async function incrementMonthlyUsage(shopId: string, _orderId: string): Promise<number> {
   const yearMonth = getCurrentYearMonth();
   await prisma.monthlyUsage.upsert({
     where: {
@@ -278,10 +263,7 @@ export async function incrementMonthlyUsage(
   return await getMonthlyUsageCount(shopId, yearMonth);
 }
 
-export async function incrementMonthlyUsageIdempotent(
-  shopId: string,
-  orderId: string
-): Promise<IncrementResult> {
+export async function incrementMonthlyUsageIdempotent(shopId: string, orderId: string): Promise<IncrementResult> {
   const alreadyCounted = await isOrderAlreadyCounted(shopId, orderId);
   if (alreadyCounted) {
     const current = await getMonthlyUsageCount(shopId);
@@ -319,11 +301,7 @@ export async function incrementMonthlyUsageIdempotent(
   };
 }
 
-export async function tryReserveUsageSlot(
-  shopId: string,
-  orderId: string,
-  limit: number
-): Promise<ReservationResult> {
+export async function tryReserveUsageSlot(shopId: string, orderId: string, limit: number): Promise<ReservationResult> {
   const alreadyCounted = await isOrderAlreadyCounted(shopId, orderId);
   const yearMonth = getCurrentYearMonth();
   const current = await getMonthlyUsageCount(shopId, yearMonth);
@@ -351,10 +329,7 @@ export async function tryReserveUsageSlot(
   };
 }
 
-export async function decrementMonthlyUsage(
-  shopId: string,
-  yearMonth?: string
-): Promise<number> {
+export async function decrementMonthlyUsage(shopId: string, yearMonth?: string): Promise<number> {
   const ym = yearMonth || getCurrentYearMonth();
   await prisma.monthlyUsage.upsert({
     where: {

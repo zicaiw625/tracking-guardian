@@ -1,5 +1,9 @@
 import { jsonWithCors } from "../cors";
-import { validatePixelOriginPreBody, validatePixelOriginForShop, trackNullOriginRequest } from "~/utils/origin-validation.server";
+import {
+  validatePixelOriginPreBody,
+  validatePixelOriginForShop,
+  trackNullOriginRequest,
+} from "~/utils/origin-validation.server";
 import { trackAnomaly } from "~/utils/rate-limiter";
 import { logger, metrics } from "~/utils/logger.server";
 import { rejectionTracker } from "../rejection-tracker.server";
@@ -7,7 +11,11 @@ import { shouldRecordRejection } from "../stats-sampling";
 import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types";
 
 function safeHost(u: string | null): string | null {
-  try { return u ? new URL(u).hostname : null; } catch { return null; }
+  try {
+    return u ? new URL(u).hostname : null;
+  } catch {
+    return null;
+  }
 }
 
 export const originValidationPreBodyMiddleware: IngestMiddleware = async (
@@ -39,7 +47,10 @@ export const originValidationPreBodyMiddleware: IngestMiddleware = async (
         reason: preBodyValidation.reason,
       });
     }
-    if (preBodyValidation.shouldReject && (context.isProduction || !context.hasSignatureHeader || context.strictOrigin)) {
+    if (
+      preBodyValidation.shouldReject &&
+      (context.isProduction || !context.hasSignatureHeader || context.strictOrigin)
+    ) {
       if (shouldRecordRejection(context.isProduction, anomalyCheck.shouldBlock, "origin_not_allowlisted")) {
         rejectionTracker.record({
           requestId: context.requestId,
@@ -80,15 +91,11 @@ export const originValidationPostShopMiddleware: IngestMiddleware = async (
   }
 
   const referer = context.request.headers.get("Referer");
-  const shopOriginValidation = validatePixelOriginForShop(
-    context.origin,
-    context.shopAllowedDomains,
-    {
-      referer,
-      shopDomain: context.shop.shopDomain,
-      hasSignatureHeaderOrHMAC: context.keyValidation?.matched === true,
-    }
-  );
+  const shopOriginValidation = validatePixelOriginForShop(context.origin, context.shopAllowedDomains, {
+    referer,
+    shopDomain: context.shop.shopDomain,
+    hasSignatureHeaderOrHMAC: context.keyValidation?.matched === true,
+  });
 
   if (!shopOriginValidation.valid && shopOriginValidation.shouldReject) {
     const anomalyCheck = trackAnomaly(context.shop.shopDomain, "invalid_origin");
@@ -137,7 +144,12 @@ export const originValidationPostShopMiddleware: IngestMiddleware = async (
         continue: false,
         response: jsonWithCors(
           { error: "Origin not allowlisted" },
-          { status: 403, request: context.request, shopAllowedDomains: context.shopAllowedDomains, requestId: context.requestId }
+          {
+            status: 403,
+            request: context.request,
+            shopAllowedDomains: context.shopAllowedDomains,
+            requestId: context.requestId,
+          }
         ),
       };
     }

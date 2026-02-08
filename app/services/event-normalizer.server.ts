@@ -31,10 +31,7 @@ export interface PlatformEventParams {
   missingParameters: string[];
 }
 
-export function normalizeToCanonical(
-  payload: PixelEventPayload,
-  eventId: string
-): CanonicalEvent {
+export function normalizeToCanonical(payload: PixelEventPayload, eventId: string): CanonicalEvent {
   const data = payload.data || {};
   const value = normalizeValue(data.value);
   const currency = normalizeCurrency(data.currency, payload.eventName);
@@ -53,10 +50,7 @@ export function normalizeToCanonical(
   };
 }
 
-export function mapToPlatform(
-  canonical: CanonicalEvent,
-  platform: string
-): PlatformEventParams {
+export function mapToPlatform(canonical: CanonicalEvent, platform: string): PlatformEventParams {
   const payload: PixelEventPayload = {
     eventName: canonical.eventName as PixelEventName,
     timestamp: canonical.timestamp,
@@ -65,7 +59,7 @@ export function mapToPlatform(
       ...canonical.rawData,
       value: canonical.value,
       currency: canonical.currency,
-      items: canonical.items?.map(item => ({
+      items: canonical.items?.map((item) => ({
         id: item.id,
         name: item.name,
         price: item.price,
@@ -77,11 +71,7 @@ export function mapToPlatform(
       checkoutToken: canonical.checkoutToken,
     } as PixelEventData,
   };
-  const mapped = mapEventToPlatform(
-    canonical.eventName,
-    platform,
-    payload
-  );
+  const mapped = mapEventToPlatform(canonical.eventName, platform, payload);
   return {
     eventName: mapped.eventName,
     parameters: {
@@ -130,19 +120,13 @@ export function generateCanonicalEventId(
   let itemsHash = "";
   if (items && items.length > 0) {
     const itemsKey = items
-      .map(item => `${item.id}:${item.quantity}`)
+      .map((item) => `${item.id}:${item.quantity}`)
       .sort()
       .join(",");
-    itemsHash = createHash("sha256")
-      .update(itemsKey)
-      .digest("hex")
-      .substring(0, 8);
+    itemsHash = createHash("sha256").update(itemsKey).digest("hex").substring(0, 8);
   }
   const input = `${version}:${shopDomain}:${identifier}:${eventName}:${itemsHash}`;
-  return createHash("sha256")
-    .update(input, "utf8")
-    .digest("hex")
-    .substring(0, 32);
+  return createHash("sha256").update(input, "utf8").digest("hex").substring(0, 32);
 }
 
 function normalizeValue(value: unknown): number {
@@ -158,11 +142,20 @@ function normalizeValue(value: unknown): number {
 
 function normalizeCurrency(currency: unknown, eventName: string): string {
   if (currency === null || currency === undefined) {
-    const requiresCurrency = ["checkout_completed", "purchase", "product_added_to_cart", "checkout_started", "product_viewed"].includes(eventName);
+    const requiresCurrency = [
+      "checkout_completed",
+      "purchase",
+      "product_added_to_cart",
+      "checkout_started",
+      "product_viewed",
+    ].includes(eventName);
     if (requiresCurrency) {
-      logger.warn(`Missing currency for ${eventName} event, using USD as fallback. This may indicate a data quality issue.`, {
-        eventName,
-      });
+      logger.warn(
+        `Missing currency for ${eventName} event, using USD as fallback. This may indicate a data quality issue.`,
+        {
+          eventName,
+        }
+      );
     }
     return "USD";
   }
@@ -180,30 +173,26 @@ function normalizeCurrency(currency: unknown, eventName: string): string {
   return "USD";
 }
 
-function normalizeItems(
-  items: unknown
-): CanonicalEvent["items"] {
+function normalizeItems(items: unknown): CanonicalEvent["items"] {
   if (!Array.isArray(items)) {
     return undefined;
   }
   return items
-    .filter(item => item != null && typeof item === "object")
-    .map(item => {
+    .filter((item) => item != null && typeof item === "object")
+    .map((item) => {
       const itemObj = item as Record<string, unknown>;
-      const id =
-        String(itemObj.id || itemObj.item_id || itemObj.variant_id || itemObj.sku || itemObj.product_id || "").trim();
-      const name =
-        String(itemObj.name || itemObj.item_name || itemObj.title || itemObj.product_name || "").trim();
+      const id = String(
+        itemObj.id || itemObj.item_id || itemObj.variant_id || itemObj.sku || itemObj.product_id || ""
+      ).trim();
+      const name = String(itemObj.name || itemObj.item_name || itemObj.title || itemObj.product_name || "").trim();
       const price = normalizeValue(itemObj.price);
       const quantity =
         typeof itemObj.quantity === "number"
           ? Math.max(1, Math.floor(itemObj.quantity))
           : typeof itemObj.quantity === "string"
-          ? Math.max(1, parseInt(itemObj.quantity, 10) || 1)
-          : 1;
-      const variantId = itemObj.variant_id
-        ? String(itemObj.variant_id).trim()
-        : undefined;
+            ? Math.max(1, parseInt(itemObj.quantity, 10) || 1)
+            : 1;
+      const variantId = itemObj.variant_id ? String(itemObj.variant_id).trim() : undefined;
       const sku = itemObj.sku ? String(itemObj.sku).trim() : undefined;
       return {
         id,
@@ -214,7 +203,7 @@ function normalizeItems(
         sku,
       };
     })
-    .filter(item => item.id && item.name);
+    .filter((item) => item.id && item.name);
 }
 
 function normalizeOrderId(orderId: string): string {
@@ -225,9 +214,7 @@ function normalizeOrderId(orderId: string): string {
   return orderId.trim();
 }
 
-export function validatePlatformEvent(
-  platformEvent: PlatformEventParams
-): {
+export function validatePlatformEvent(platformEvent: PlatformEventParams): {
   isValid: boolean;
   errors: string[];
 } {

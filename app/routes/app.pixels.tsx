@@ -75,23 +75,26 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         take: 200,
       })
     : [];
-  const latestByKey = recentReceipts.reduce((acc, receipt) => {
-    const payload = receipt.payloadJson as Record<string, unknown> | null;
-    const platform = extractPlatformFromPayload(payload);
-    if (!platform || !platforms.includes(platform)) return acc;
-    const key = `${platform}:live`;
-    if (!acc[key]) {
-      const data = payload?.data as Record<string, unknown> | undefined;
-      const hasValue = data && typeof data.value === "number";
-      const hasCurrency = !!data?.currency;
-      const status = hasValue && hasCurrency ? "ok" : "pending";
-      acc[key] = {
-        status,
-        createdAt: receipt.createdAt.toISOString(),
-      };
-    }
-    return acc;
-  }, {} as Record<string, { status: string; createdAt: string }>);
+  const latestByKey = recentReceipts.reduce(
+    (acc, receipt) => {
+      const payload = receipt.payloadJson as Record<string, unknown> | null;
+      const platform = extractPlatformFromPayload(payload);
+      if (!platform || !platforms.includes(platform)) return acc;
+      const key = `${platform}:live`;
+      if (!acc[key]) {
+        const data = payload?.data as Record<string, unknown> | undefined;
+        const hasValue = data && typeof data.value === "number";
+        const hasCurrency = !!data?.currency;
+        const status = hasValue && hasCurrency ? "ok" : "pending";
+        acc[key] = {
+          status,
+          createdAt: receipt.createdAt.toISOString(),
+        };
+      }
+      return acc;
+    },
+    {} as Record<string, { status: string; createdAt: string }>
+  );
   const backendUrlInfo = getPixelEventIngestionUrl();
   return json({
     shop: { id: shop.id, domain: shop.shopDomain },
@@ -165,10 +168,7 @@ export default function PixelsListPage() {
     ];
   });
   return (
-    <Page
-      title={t("pixels.list.title")}
-      primaryAction={{ content: t("pixels.list.create"), url: "/app/pixels/new" }}
-    >
+    <Page title={t("pixels.list.title")} primaryAction={{ content: t("pixels.list.create"), url: "/app/pixels/new" }}>
       <BlockStack gap="500">
         <PageIntroCard
           title={t("pixels.list.intro.title")}
@@ -184,7 +184,7 @@ export default function PixelsListPage() {
                 {t("pixels.new.banners.placeholder.title")}
               </Text>
               <Text as="p" variant="bodySm">
-                 <Trans i18nKey="pixels.new.banners.placeholder.desc" />
+                <Trans i18nKey="pixels.new.banners.placeholder.desc" />
               </Text>
               <Text as="p" variant="bodySm" fontWeight="semibold">
                 {t("pixels.new.banners.placeholder.stepsTitle")}
@@ -193,7 +193,14 @@ export default function PixelsListPage() {
                 {(t("pixels.new.banners.placeholder.steps", { returnObjects: true }) as string[]).map((step, i) => (
                   <List.Item key={i}>
                     <Text as="span" variant="bodySm">
-                       <Trans defaults={step} components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" />, code: <code /> }} />
+                      <Trans
+                        defaults={step}
+                        components={{
+                          strong: <strong />,
+                          a: <a target="_blank" rel="noopener noreferrer" />,
+                          code: <code />,
+                        }}
+                      />
                     </Text>
                   </List.Item>
                 ))}
@@ -214,7 +221,10 @@ export default function PixelsListPage() {
                 {t("pixels.new.banners.configured.important")}
               </Text>
               <Text as="p" variant="bodySm">
-                 <Trans i18nKey="pixels.new.banners.configured.importantDesc" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
+                <Trans
+                  i18nKey="pixels.new.banners.configured.importantDesc"
+                  components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }}
+                />
               </Text>
             </BlockStack>
           </Banner>
@@ -229,13 +239,18 @@ export default function PixelsListPage() {
             </Text>
             <List type="bullet">
               {(t("pixels.new.banners.sandbox.limitations", { returnObjects: true }) as string[]).map((item, i) => (
-                 <List.Item key={i}>
-                    <Text as="span" variant="bodySm">{item}</Text>
-                 </List.Item>
+                <List.Item key={i}>
+                  <Text as="span" variant="bodySm">
+                    {item}
+                  </Text>
+                </List.Item>
               ))}
               <List.Item>
                 <Text as="span" variant="bodySm">
-                   <Trans i18nKey="pixels.new.banners.sandbox.unsupported.desc" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
+                  <Trans
+                    i18nKey="pixels.new.banners.sandbox.unsupported.desc"
+                    components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }}
+                  />
                 </Text>
               </List.Item>
             </List>
@@ -250,81 +265,77 @@ export default function PixelsListPage() {
               {t("pixels.list.banners.eventSource.title")}
             </Text>
             <Text as="p" variant="bodySm">
-               <Trans i18nKey="pixels.list.banners.eventSource.desc" components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }} />
+              <Trans
+                i18nKey="pixels.list.banners.eventSource.desc"
+                components={{ strong: <strong />, a: <a target="_blank" rel="noopener noreferrer" /> }}
+              />
             </Text>
             <List type="bullet">
-               {(t("pixels.list.banners.eventSource.items", { returnObjects: true }) as string[]).map((item, i) => (
-                  <List.Item key={i}>
-                    <Text as="span" variant="bodySm">{item}</Text>
-                  </List.Item>
-               ))}
+              {(t("pixels.list.banners.eventSource.items", { returnObjects: true }) as string[]).map((item, i) => (
+                <List.Item key={i}>
+                  <Text as="span" variant="bodySm">
+                    {item}
+                  </Text>
+                </List.Item>
+              ))}
             </List>
           </BlockStack>
         </Card>
-      <Layout>
-        <Layout.Section>
-          <Card>
-            <BlockStack gap="400">
-              <InlineStack align="space-between" blockAlign="center">
-                <Text as="h2" variant="headingMd">
-                  {t("pixels.list.configured.title")}
-                </Text>
-                <Badge tone="success">{`${pixelConfigs.length} ${t("common.countItems", { count: pixelConfigs.length }).trim()}`}</Badge>
-              </InlineStack>
-              {pixelConfigs.length === 0 ? (
-                <BlockStack gap="200">
-                  <Text as="p" tone="subdued">
-                    {t("pixels.list.configured.empty")}
+        <Layout>
+          <Layout.Section>
+            <Card>
+              <BlockStack gap="400">
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text as="h2" variant="headingMd">
+                    {t("pixels.list.configured.title")}
                   </Text>
-                  <Button variant="primary" url="/app/pixels/new">
-                    {t("pixels.list.configured.create")}
+                  <Badge tone="success">{`${pixelConfigs.length} ${t("common.countItems", { count: pixelConfigs.length }).trim()}`}</Badge>
+                </InlineStack>
+                {pixelConfigs.length === 0 ? (
+                  <BlockStack gap="200">
+                    <Text as="p" tone="subdued">
+                      {t("pixels.list.configured.empty")}
+                    </Text>
+                    <Button variant="primary" url="/app/pixels/new">
+                      {t("pixels.list.configured.create")}
+                    </Button>
+                  </BlockStack>
+                ) : (
+                  <DataTable
+                    columnContentTypes={["text", "text", "text", "text", "text", "text", "text", "text"]}
+                    headings={[
+                      t("pixels.list.table.platform"),
+                      t("pixels.list.table.id"),
+                      t("pixels.list.table.env"),
+                      t("pixels.list.table.lastSent"),
+                      t("pixels.list.table.version"),
+                      t("pixels.list.table.updated"),
+                      t("pixels.list.table.actions"),
+                    ]}
+                    rows={rows}
+                  />
+                )}
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+          <Layout.Section variant="oneThird">
+            <Card>
+              <BlockStack gap="300">
+                <Text as="h2" variant="headingMd">
+                  {t("pixels.list.quickActions.title")}
+                </Text>
+                <BlockStack gap="200">
+                  <Button url="/app/pixels/new" variant="primary">
+                    {t("pixels.list.quickActions.create")}
+                  </Button>
+                  <Button url="/app/verification" variant="plain">
+                    {t("pixels.list.quickActions.verify")}
                   </Button>
                 </BlockStack>
-              ) : (
-                <DataTable
-                  columnContentTypes={[
-                    "text",
-                    "text",
-                    "text",
-                    "text",
-                    "text",
-                    "text",
-                    "text",
-                    "text",
-                  ]}
-                  headings={[
-                    t("pixels.list.table.platform"),
-                    t("pixels.list.table.id"),
-                    t("pixels.list.table.env"),
-                    t("pixels.list.table.lastSent"),
-                    t("pixels.list.table.version"),
-                    t("pixels.list.table.updated"),
-                    t("pixels.list.table.actions")
-                  ]}
-                  rows={rows}
-                />
-              )}
-            </BlockStack>
-          </Card>
-        </Layout.Section>
-        <Layout.Section variant="oneThird">
-          <Card>
-            <BlockStack gap="300">
-              <Text as="h2" variant="headingMd">
-                {t("pixels.list.quickActions.title")}
-              </Text>
-              <BlockStack gap="200">
-                <Button url="/app/pixels/new" variant="primary">
-                  {t("pixels.list.quickActions.create")}
-                </Button>
-                <Button url="/app/verification" variant="plain">
-                  {t("pixels.list.quickActions.verify")}
-                </Button>
               </BlockStack>
-            </BlockStack>
-          </Card>
-        </Layout.Section>
-      </Layout>
+            </Card>
+          </Layout.Section>
+        </Layout>
       </BlockStack>
     </Page>
   );

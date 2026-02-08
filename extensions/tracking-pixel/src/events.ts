@@ -14,39 +14,42 @@ export function toNumber(value: string | number | undefined | null, defaultValue
 
 const MAX_ITEMS_PER_EVENT = 50;
 
-function truncateItems(items: Array<{
-  id?: string;
-  name?: string;
-  price?: number;
-  quantity?: number;
-  variantId?: string | null;
-  productId?: string | null;
-  productTitle?: string | null;
-}>): Array<{
+function truncateItems(
+  items: Array<{
+    id?: string;
+    name?: string;
+    price?: number;
+    quantity?: number;
+    variantId?: string | null;
+    productId?: string | null;
+    productTitle?: string | null;
+  }>
+): Array<{
   id: string;
   quantity: number;
   price: number;
 }> {
   return items
     .slice(0, MAX_ITEMS_PER_EVENT)
-    .map(item => ({
+    .map((item) => ({
       id: item.id || "",
       quantity: item.quantity || 1,
       price: item.price || 0,
     }))
-    .filter(item => item.id);
+    .filter((item) => item.id);
 }
 
 function mapCheckoutLineItems(checkout: CheckoutData): Array<{ id: string; quantity: number; price: number }> {
-  const allItems = checkout.lineItems?.map(item => ({
-    id: item.id || item.variant?.id || "",
-    name: item.title || "",
-    price: toNumber(item.variant?.price?.amount),
-    quantity: item.quantity || 1,
-    variantId: item.variant?.id || null,
-    productId: item.variant?.product?.id || null,
-    productTitle: item.variant?.product?.title || null,
-  })) ?? [];
+  const allItems =
+    checkout.lineItems?.map((item) => ({
+      id: item.id || item.variant?.id || "",
+      name: item.title || "",
+      price: toNumber(item.variant?.price?.amount),
+      quantity: item.quantity || 1,
+      variantId: item.variant?.id || null,
+      productId: item.variant?.product?.id || null,
+      productTitle: item.variant?.product?.title || null,
+    })) ?? [];
   return truncateItems(allItems);
 }
 
@@ -60,12 +63,7 @@ export interface EventSenderConfig {
   environment?: "test" | "live";
 }
 
-function generateHMACSignature(
-  token: string,
-  timestamp: number,
-  shopDomain: string,
-  bodyHash: string
-): string {
+function generateHMACSignature(token: string, timestamp: number, shopDomain: string, bodyHash: string): string {
   const message = `${timestamp}:${shopDomain}:${bodyHash}`;
   return bytesToHex(hmac(sha256, utf8ToBytes(token), utf8ToBytes(message)));
 }
@@ -122,9 +120,11 @@ async function sendCheckoutCompletedWithRetry(
       if (attempt < MAX_RETRIES - 1 && Date.now() - startTime <= MAX_TOTAL_RETRY_MS) {
         const delay = RETRY_DELAYS_MS[attempt + 1];
         if (isDevMode) {
-          log(`checkout_completed server error ${response.status}, retrying in ${delay}ms (attempt ${attempt + 2}/${MAX_RETRIES})`);
+          log(
+            `checkout_completed server error ${response.status}, retrying in ${delay}ms (attempt ${attempt + 2}/${MAX_RETRIES})`
+          );
         }
-        await new Promise(r => setTimeout(r, delay));
+        await new Promise((r) => setTimeout(r, delay));
         continue;
       }
       if (isDevMode) {
@@ -135,9 +135,12 @@ async function sendCheckoutCompletedWithRetry(
       if (attempt < MAX_RETRIES - 1 && Date.now() - startTime <= MAX_TOTAL_RETRY_MS) {
         const delay = RETRY_DELAYS_MS[attempt + 1];
         if (isDevMode) {
-          log(`checkout_completed network error, retrying in ${delay}ms (attempt ${attempt + 2}/${MAX_RETRIES}):`, error);
+          log(
+            `checkout_completed network error, retrying in ${delay}ms (attempt ${attempt + 2}/${MAX_RETRIES}):`,
+            error
+          );
         }
-        await new Promise(r => setTimeout(r, delay));
+        await new Promise((r) => setTimeout(r, delay));
         continue;
       }
       if (isDevMode) {
@@ -180,13 +183,16 @@ function generateNonce(
       const randomBytes = new Uint8Array(6);
       globalThis.crypto.getRandomValues(randomBytes);
       randomHex = Array.from(randomBytes)
-        .map(b => b.toString(16).padStart(2, "0"))
+        .map((b) => b.toString(16).padStart(2, "0"))
         .join("");
       cryptoAvailable = true;
     } catch (error) {
       if (!cryptoUnavailableWarningLogged) {
         if (isDevMode) {
-          log("Crypto.getRandomValues() failed, falling back to Math.random(). Replay protection may be disabled.", error);
+          log(
+            "Crypto.getRandomValues() failed, falling back to Math.random(). Replay protection may be disabled.",
+            error
+          );
         }
         cryptoUnavailableWarningLogged = true;
       }
@@ -199,10 +205,11 @@ function generateNonce(
       }
       cryptoUnavailableWarningLogged = true;
     }
-    randomHex = Array.from({ length: 3 }, () => Math.floor(Math.random() * 0xffffffff)
-      .toString(16)
-      .padStart(8, "0"))
-      .join("");
+    randomHex = Array.from({ length: 3 }, () =>
+      Math.floor(Math.random() * 0xffffffff)
+        .toString(16)
+        .padStart(8, "0")
+    ).join("");
   }
   return { timestamp, nonce: `${timestamp}-${randomHex}`, cryptoAvailable };
 }
@@ -212,24 +219,17 @@ export function createEventSender(config: EventSenderConfig) {
   const log = logger || (() => {});
   if (!backendUrl) {
     if (isDevMode) {
-      log("⚠️ BACKEND_URL not configured - event sending disabled. " +
+      log(
+        "⚠️ BACKEND_URL not configured - event sending disabled. " +
           "Run pnpm ext:inject to inject the backend URL at build time. " +
-          "If placeholder was not replaced, pixel extension will silently fail and events will be lost.");
+          "If placeholder was not replaced, pixel extension will silently fail and events will be lost."
+      );
     }
-    return async function sendToBackendDisabled(
-      _eventName: string,
-      _data: Record<string, unknown>
-    ): Promise<void> {
-    };
+    return async function sendToBackendDisabled(_eventName: string, _data: Record<string, unknown>): Promise<void> {};
   }
-  const normalizedIngestionKey =
-    typeof ingestionKey === "string" ? ingestionKey.trim() : "";
+  const normalizedIngestionKey = typeof ingestionKey === "string" ? ingestionKey.trim() : "";
   if (!normalizedIngestionKey && !isDevMode) {
-    return async function sendToBackendDisabled(
-      _eventName: string,
-      _data: Record<string, unknown>
-    ): Promise<void> {
-    };
+    return async function sendToBackendDisabled(_eventName: string, _data: Record<string, unknown>): Promise<void> {};
   }
   const encoder = typeof TextEncoder !== "undefined" ? new TextEncoder() : null;
   const utf8Length = (s: string): number => {
@@ -368,7 +368,7 @@ export function createEventSender(config: EventSenderConfig) {
             }
           }
         }
-        const hasCheckoutCompleted = batchEvents.some(e => e.eventName === "checkout_completed");
+        const hasCheckoutCompleted = batchEvents.some((e) => e.eventName === "checkout_completed");
         if (hasCheckoutCompleted) {
           await sendCheckoutCompletedWithRetry(url, body, isDevMode, log, headers, Date.now());
         } else {
@@ -432,7 +432,12 @@ export function createEventSender(config: EventSenderConfig) {
     if (eventName === "page_viewed" || eventName === "product_viewed" || eventName === "product_added_to_cart") {
       return "analytics";
     }
-    if (eventName === "checkout_started" || eventName === "checkout_contact_info_submitted" || eventName === "checkout_shipping_info_submitted" || eventName === "payment_info_submitted") {
+    if (
+      eventName === "checkout_started" ||
+      eventName === "checkout_contact_info_submitted" ||
+      eventName === "checkout_shipping_info_submitted" ||
+      eventName === "payment_info_submitted"
+    ) {
       return "analytics";
     }
     return "either";
@@ -450,13 +455,13 @@ export function createEventSender(config: EventSenderConfig) {
     if (!hasRequiredConsent) {
       log(
         `Skipping ${eventName} - required consent (${requiredConsent}) not granted. ` +
-        `analytics=${consentManager.analyticsAllowed}, marketing=${consentManager.marketingAllowed}`
+          `analytics=${consentManager.analyticsAllowed}, marketing=${consentManager.marketingAllowed}`
       );
       return;
     }
     log(
       `${eventName}: Queuing event with consent state. ` +
-      `analytics=${consentManager.analyticsAllowed}, marketing=${consentManager.marketingAllowed}, saleOfData=${consentManager.saleOfDataAllowed}, required=${requiredConsent}`
+        `analytics=${consentManager.analyticsAllowed}, marketing=${consentManager.marketingAllowed}, saleOfData=${consentManager.saleOfDataAllowed}, required=${requiredConsent}`
     );
     try {
       if (eventName === "checkout_completed") {
@@ -582,15 +587,17 @@ function subscribeToProductAddedToCart(
     sendToBackend("product_added_to_cart", {
       value: price * quantity,
       currency: currency,
-      items: [{
-        id: itemId,
-        name: cartLine.merchandise?.product?.title || "",
-        price: price,
-        quantity: quantity,
-        variantId: variantId,
-        productId: productId,
-        productTitle: cartLine.merchandise?.product?.title || null,
-      }],
+      items: [
+        {
+          id: itemId,
+          name: cartLine.merchandise?.product?.title || "",
+          price: price,
+          quantity: quantity,
+          variantId: variantId,
+          productId: productId,
+          productTitle: cartLine.merchandise?.product?.title || null,
+        },
+      ],
     });
   });
   log("product_added_to_cart event subscribed");
@@ -609,7 +616,7 @@ function subscribeToPageViewed(
       data?: {
         page?: { url?: string; title?: string; currencyCode?: string };
         cart?: { currencyCode?: string };
-      }
+      };
     };
     const page = typedEvent.data?.page;
     if (!page) return;
@@ -653,15 +660,17 @@ function subscribeToProductViewed(
     sendToBackend("product_viewed", {
       value: price,
       currency: currency,
-      items: [{
-        id: itemId,
-        name: productVariant.product?.title || "",
-        price: price,
-        quantity: 1,
-        variantId: variantId,
-        productId: productId,
-        productTitle: productVariant.product?.title || null,
-      }],
+      items: [
+        {
+          id: itemId,
+          name: productVariant.product?.title || "",
+          price: price,
+          quantity: 1,
+          variantId: variantId,
+          productId: productId,
+          productTitle: productVariant.product?.title || null,
+        },
+      ],
     });
   });
   log("product_viewed event subscribed");

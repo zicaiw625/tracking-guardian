@@ -1,16 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import {
-  Card,
-  Text,
-  BlockStack,
-  InlineStack,
-  TextField,
-  Badge,
-  Box,
-  Button,
-  Banner,
-  List,
-} from "@shopify/polaris";
+import { Card, Text, BlockStack, InlineStack, TextField, Badge, Box, Button, Banner, List } from "@shopify/polaris";
 import { ClipboardIcon, CheckCircleIcon } from "~/components/icons";
 import type { ScriptAnalysisResult } from "~/services/scanner/types";
 
@@ -29,33 +18,30 @@ export interface ScriptCodeEditorProps {
 function detectScriptFragments(content: string): string[] {
   if (!content.trim()) return [];
   const fragments: string[] = [];
-  const lines = content.split('\n');
-  let currentFragment = '';
+  const lines = content.split("\n");
+  let currentFragment = "";
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmedLine = line.trim();
-    if (trimmedLine.includes('<script') || trimmedLine.includes('&lt;script')) {
+    if (trimmedLine.includes("<script") || trimmedLine.includes("&lt;script")) {
       if (currentFragment.trim()) {
         fragments.push(currentFragment.trim());
-        currentFragment = '';
+        currentFragment = "";
       }
-      currentFragment += line + '\n';
-    }
-    else if (trimmedLine.includes('</script>') || trimmedLine.includes('&lt;/script&gt;')) {
-      currentFragment += line + '\n';
+      currentFragment += line + "\n";
+    } else if (trimmedLine.includes("</script>") || trimmedLine.includes("&lt;/script&gt;")) {
+      currentFragment += line + "\n";
       if (currentFragment.trim()) {
         fragments.push(currentFragment.trim());
-        currentFragment = '';
+        currentFragment = "";
       }
-    }
-    else if (trimmedLine === '' && lines[i + 1]?.trim() === '') {
+    } else if (trimmedLine === "" && lines[i + 1]?.trim() === "") {
       if (currentFragment.trim()) {
         fragments.push(currentFragment.trim());
-        currentFragment = '';
+        currentFragment = "";
       }
-    }
-    else {
-      currentFragment += line + '\n';
+    } else {
+      currentFragment += line + "\n";
     }
   }
   if (currentFragment.trim()) {
@@ -64,28 +50,20 @@ function detectScriptFragments(content: string): string[] {
   if (fragments.length === 0 && content.trim()) {
     return [content.trim()];
   }
-  return fragments.filter(f => f.length > 0);
+  return fragments.filter((f) => f.length > 0);
 }
 function PreviewPanel({ result }: { result: ScriptAnalysisResult | null }) {
   if (!result || result.identifiedPlatforms.length === 0) {
     return null;
   }
   return (
-    <Box
-      background="bg-surface-secondary"
-      padding="400"
-      borderRadius="200"
-      borderWidth="025"
-      borderColor="border"
-    >
+    <Box background="bg-surface-secondary" padding="400" borderRadius="200" borderWidth="025" borderColor="border">
       <BlockStack gap="300">
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h3" variant="headingSm">
             实时识别结果
           </Text>
-          <Badge tone="info">
-            {`${result.identifiedPlatforms.length} 个平台`}
-          </Badge>
+          <Badge tone="info">{`${result.identifiedPlatforms.length} 个平台`}</Badge>
         </InlineStack>
         <BlockStack gap="200">
           {result.identifiedPlatforms.map((platform) => {
@@ -97,28 +75,15 @@ function PreviewPanel({ result }: { result: ScriptAnalysisResult | null }) {
               bing: "Microsoft Ads",
               snapchat: "Snapchat",
             };
-            const details = result.platformDetails.filter(
-              (d) => d.platform === platform
-            );
+            const details = result.platformDetails.filter((d) => d.platform === platform);
             return (
-              <Box
-                key={platform}
-                background="bg-surface"
-                padding="300"
-                borderRadius="100"
-              >
+              <Box key={platform} background="bg-surface" padding="300" borderRadius="100">
                 <BlockStack gap="100">
                   <InlineStack align="space-between">
                     <Text as="span" fontWeight="semibold">
                       {platformNames[platform] || platform}
                     </Text>
-                    <Badge
-                      tone={
-                        details[0]?.confidence === "high"
-                          ? "success"
-                          : "attention"
-                      }
-                    >
+                    <Badge tone={details[0]?.confidence === "high" ? "success" : "attention"}>
                       {details[0]?.confidence === "high" ? "高置信度" : "中置信度"}
                     </Badge>
                   </InlineStack>
@@ -138,15 +103,7 @@ function PreviewPanel({ result }: { result: ScriptAnalysisResult | null }) {
               <Text as="span" variant="bodySm">
                 风险评分
               </Text>
-              <Badge
-                tone={
-                  result.riskScore >= 70
-                    ? "critical"
-                    : result.riskScore >= 40
-                      ? "warning"
-                      : "info"
-                }
-              >
+              <Badge tone={result.riskScore >= 70 ? "critical" : result.riskScore >= 40 ? "warning" : "info"}>
                 {`${result.riskScore} / 100`}
               </Badge>
             </InlineStack>
@@ -228,11 +185,7 @@ export function ScriptCodeEditor({
                 </Button>
               )}
               {value && (
-                <Button
-                  size="slim"
-                  variant="plain"
-                  onClick={() => setShowPreview(!showPreview)}
-                >
+                <Button size="slim" variant="plain" onClick={() => setShowPreview(!showPreview)}>
                   {showPreview ? "隐藏预览" : "显示预览"}
                 </Button>
               )}
@@ -249,7 +202,7 @@ export function ScriptCodeEditor({
                     <List.Item key={index}>
                       <Text as="span" variant="bodySm">
                         片段 {index + 1}: {fragment.substring(0, 50)}
-                        {fragment.length > 50 ? '...' : ''}
+                        {fragment.length > 50 ? "..." : ""}
                       </Text>
                     </List.Item>
                   ))}
@@ -311,11 +264,7 @@ export function ScriptCodeEditor({
                     <Text as="p" variant="bodySm" tone="subdued" fontWeight="semibold">
                       代码高亮预览：
                     </Text>
-                    <Box
-                      padding="300"
-                      background="bg-surface"
-                      borderRadius="100"
-                    >
+                    <Box padding="300" background="bg-surface" borderRadius="100">
                       <pre
                         style={{
                           margin: 0,
@@ -337,12 +286,7 @@ export function ScriptCodeEditor({
           </Box>
           {analysisResult && <PreviewPanel result={analysisResult} />}
           <InlineStack align="end">
-            <Button
-              variant="primary"
-              onClick={onAnalyze}
-              loading={isAnalyzing}
-              disabled={!value.trim()}
-            >
+            <Button variant="primary" onClick={onAnalyze} loading={isAnalyzing} disabled={!value.trim()}>
               分析脚本
             </Button>
           </InlineStack>

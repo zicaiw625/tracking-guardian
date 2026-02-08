@@ -204,10 +204,7 @@ describe("buildTrustMetadata", () => {
     expect(result.trustDetails).toBe("Token did not match");
   });
   it("should merge additional context", () => {
-    const result = buildTrustMetadata(
-      { trusted: true, level: "trusted" },
-      { shopId: "shop123", orderId: "order456" }
-    );
+    const result = buildTrustMetadata({ trusted: true, level: "trusted" }, { shopId: "shop123", orderId: "order456" });
     expect(result.shopId).toBe("shop123");
     expect(result.orderId).toBe("order456");
   });
@@ -240,19 +237,15 @@ describe("buildShopAllowedDomains", () => {
     expect(domains).toContain("mystore.myshopify.com");
   });
   it("should include primary domain if provided", () => {
-    const domains = buildShopAllowedDomains(
-      "mystore.myshopify.com",
-      "example.com"
-    );
+    const domains = buildShopAllowedDomains("mystore.myshopify.com", "example.com");
     expect(domains).toContain("mystore.myshopify.com");
     expect(domains).toContain("example.com");
   });
   it("should include custom domains", () => {
-    const domains = buildShopAllowedDomains(
-      "mystore.myshopify.com",
-      "example.com",
-      ["shop.example.com", "store.example.org"]
-    );
+    const domains = buildShopAllowedDomains("mystore.myshopify.com", "example.com", [
+      "shop.example.com",
+      "store.example.org",
+    ]);
     expect(domains).toContain("shop.example.com");
     expect(domains).toContain("store.example.org");
   });
@@ -262,11 +255,8 @@ describe("buildShopAllowedDomains", () => {
     expect(domains).toContain("mystore.myshopify.com");
   });
   it("should deduplicate domains", () => {
-    const domains = buildShopAllowedDomains(
-      "mystore.myshopify.com",
-      "mystore.myshopify.com"
-    );
-    const count = domains.filter(d => d === "mystore.myshopify.com").length;
+    const domains = buildShopAllowedDomains("mystore.myshopify.com", "mystore.myshopify.com");
+    const count = domains.filter((d) => d === "mystore.myshopify.com").length;
     expect(count).toBe(1);
   });
 });

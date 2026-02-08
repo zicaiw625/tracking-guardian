@@ -27,11 +27,11 @@ function createPixelEvent(shopDomain, timestamp) {
         {
           id: "test-item-1",
           name: "Test Product",
-          price: 10.00,
+          price: 10.0,
           quantity: 1,
         },
       ],
-      value: 10.00,
+      value: 10.0,
       currency: "USD",
     },
   };
@@ -48,7 +48,7 @@ async function sendPixelEvent(event, signature, timestamp) {
         "X-Shopify-Shop-Domain": SHOP_DOMAIN,
         "X-Shopify-Event-Signature": signature,
         "X-Shopify-Event-Timestamp": timestamp.toString(),
-        "Origin": `https://${SHOP_DOMAIN}`,
+        Origin: `https://${SHOP_DOMAIN}`,
       },
       body: body,
     });
@@ -94,9 +94,7 @@ async function runLoadTest() {
       const event = createPixelEvent(SHOP_DOMAIN, timestamp);
       const body = JSON.stringify(event);
       promises.push(
-        generateHMAC(body, INGESTION_SECRET, timestamp).then((signature) =>
-          sendPixelEvent(event, signature, timestamp)
-        )
+        generateHMAC(body, INGESTION_SECRET, timestamp).then((signature) => sendPixelEvent(event, signature, timestamp))
       );
     }
     const batchResults = await Promise.all(promises);
@@ -158,9 +156,9 @@ async function runLoadTest() {
     }
   }
 
-  const avgRateLimitRemaining = results
-    .filter((r) => r.rateLimitRemaining !== null)
-    .reduce((sum, r) => sum + r.rateLimitRemaining, 0) / results.filter((r) => r.rateLimitRemaining !== null).length;
+  const avgRateLimitRemaining =
+    results.filter((r) => r.rateLimitRemaining !== null).reduce((sum, r) => sum + r.rateLimitRemaining, 0) /
+    results.filter((r) => r.rateLimitRemaining !== null).length;
   if (!isNaN(avgRateLimitRemaining)) {
     console.log(`\n平均 Rate Limit 剩余: ${avgRateLimitRemaining.toFixed(0)}`);
   }
@@ -181,7 +179,7 @@ async function testNullOrigin() {
         "X-Shopify-Shop-Domain": SHOP_DOMAIN,
         "X-Shopify-Event-Signature": signature,
         "X-Shopify-Event-Timestamp": timestamp.toString(),
-        "Origin": "null",
+        Origin: "null",
       },
       body: body,
     });

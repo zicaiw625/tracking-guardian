@@ -1,13 +1,8 @@
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { logger } from "../../utils/logger.server";
-import type {
-  WebhookSubscriptionsQueryResponse,
-  WebhookDeleteMutationResponse,
-} from "../../types/shopify";
+import type { WebhookSubscriptionsQueryResponse, WebhookDeleteMutationResponse } from "../../types/shopify";
 
-const DEPRECATED_TOPICS = new Set<string>([
-  "CHECKOUT_AND_ACCOUNTS_CONFIGURATIONS_UPDATE",
-]);
+const DEPRECATED_TOPICS = new Set<string>(["CHECKOUT_AND_ACCOUNTS_CONFIGURATIONS_UPDATE"]);
 
 const MAX_CLEANUP_PAGES = 10;
 
@@ -47,10 +42,7 @@ async function fetchDeprecatedSubscriptions(
     );
     const data = (await response.json()) as WebhookSubscriptionsQueryResponse;
     if (data.errors) {
-      logger.warn(
-        `[Webhooks] Failed to query subscriptions for ${shopDomain}`,
-        { errors: data.errors }
-      );
+      logger.warn(`[Webhooks] Failed to query subscriptions for ${shopDomain}`, { errors: data.errors });
       return [];
     }
     const edges = data.data?.webhookSubscriptions?.edges ?? [];
@@ -65,10 +57,9 @@ async function fetchDeprecatedSubscriptions(
     pages++;
   }
   if (pages >= MAX_CLEANUP_PAGES && hasNextPage) {
-    logger.warn(
-      `[Webhooks] Pagination limit reached while querying webhook subscriptions for ${shopDomain}`,
-      { pagesProcessed: pages }
-    );
+    logger.warn(`[Webhooks] Pagination limit reached while querying webhook subscriptions for ${shopDomain}`, {
+      pagesProcessed: pages,
+    });
   }
   return deprecatedSubs;
 }
@@ -93,15 +84,10 @@ async function deleteSubscription(
     `,
       { variables: { id: sub.id } }
     );
-    const deleteData =
-      (await deleteResponse.json()) as WebhookDeleteMutationResponse;
-    const userErrors =
-      deleteData.data?.webhookSubscriptionDelete?.userErrors ?? [];
+    const deleteData = (await deleteResponse.json()) as WebhookDeleteMutationResponse;
+    const userErrors = deleteData.data?.webhookSubscriptionDelete?.userErrors ?? [];
     if (userErrors.length > 0) {
-      logger.warn(
-        `[Webhooks] Error deleting ${sub.topic} for ${shopDomain}`,
-        { userErrors }
-      );
+      logger.warn(`[Webhooks] Error deleting ${sub.topic} for ${shopDomain}`, { userErrors });
       return false;
     }
     logger.info(`[Webhooks] Deleted deprecated webhook for ${shopDomain}`, {
@@ -111,26 +97,21 @@ async function deleteSubscription(
   } catch (deleteError) {
     logger.warn(`[Webhooks] Failed to delete webhook for ${shopDomain}`, {
       topic: sub.topic,
-      error:
-        deleteError instanceof Error ? deleteError.message : String(deleteError),
+      error: deleteError instanceof Error ? deleteError.message : String(deleteError),
     });
     return false;
   }
 }
 
-export async function cleanupDeprecatedWebhookSubscriptions(
-  admin: AdminApiContext,
-  shopDomain: string
-): Promise<void> {
+export async function cleanupDeprecatedWebhookSubscriptions(admin: AdminApiContext, shopDomain: string): Promise<void> {
   try {
     const deprecatedSubs = await fetchDeprecatedSubscriptions(admin, shopDomain);
     if (deprecatedSubs.length === 0) {
       return;
     }
-    logger.info(
-      `[Webhooks] Found deprecated webhooks for ${shopDomain}, cleaning up`,
-      { count: deprecatedSubs.length }
-    );
+    logger.info(`[Webhooks] Found deprecated webhooks for ${shopDomain}, cleaning up`, {
+      count: deprecatedSubs.length,
+    });
     for (const sub of deprecatedSubs) {
       await deleteSubscription(admin, shopDomain, sub);
     }

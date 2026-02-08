@@ -3,10 +3,7 @@ import { z } from "zod";
 export const GoogleMeasurementIdSchema = z
   .string()
   .min(1, "Measurement ID is required")
-  .regex(
-    /^G-[A-Z0-9]{8,12}$/i,
-    "Invalid Measurement ID format. Expected format: G-XXXXXXXXXX"
-  );
+  .regex(/^G-[A-Z0-9]{8,12}$/i, "Invalid Measurement ID format. Expected format: G-XXXXXXXXXX");
 
 export const GoogleApiSecretSchema = z
   .string()
@@ -61,16 +58,18 @@ export const TikTokCredentialsInputSchema = z.object({
   testEventCode: TikTokTestEventCodeSchema,
 });
 
-export const TikTokCredentialsInputSchemaWithAlias = z.object({
-  pixelId: TikTokPixelCodeSchema.optional(),
-  pixelCode: TikTokPixelCodeSchema.optional(),
-  accessToken: TikTokAccessTokenSchema,
-  testEventCode: TikTokTestEventCodeSchema,
-}).transform((data) => ({
-  pixelCode: data.pixelCode || data.pixelId || "",
-  accessToken: data.accessToken,
-  testEventCode: data.testEventCode,
-}));
+export const TikTokCredentialsInputSchemaWithAlias = z
+  .object({
+    pixelId: TikTokPixelCodeSchema.optional(),
+    pixelCode: TikTokPixelCodeSchema.optional(),
+    accessToken: TikTokAccessTokenSchema,
+    testEventCode: TikTokTestEventCodeSchema,
+  })
+  .transform((data) => ({
+    pixelCode: data.pixelCode || data.pixelId || "",
+    accessToken: data.accessToken,
+    testEventCode: data.testEventCode,
+  }));
 
 export type TikTokCredentialsInput = z.infer<typeof TikTokCredentialsInputSchema>;
 
@@ -106,9 +105,7 @@ export interface CredentialsValidationResult<T> {
   errors?: string[];
 }
 
-export function validateGoogleCredentials(
-  input: unknown
-): CredentialsValidationResult<GoogleCredentialsInput> {
+export function validateGoogleCredentials(input: unknown): CredentialsValidationResult<GoogleCredentialsInput> {
   const result = GoogleCredentialsInputSchema.safeParse(input);
   if (result.success) {
     return { success: true, data: result.data };
@@ -119,9 +116,7 @@ export function validateGoogleCredentials(
   };
 }
 
-export function validateMetaCredentials(
-  input: unknown
-): CredentialsValidationResult<MetaCredentialsInput> {
+export function validateMetaCredentials(input: unknown): CredentialsValidationResult<MetaCredentialsInput> {
   const result = MetaCredentialsInputSchema.safeParse(input);
   if (result.success) {
     return { success: true, data: result.data };
@@ -132,9 +127,7 @@ export function validateMetaCredentials(
   };
 }
 
-export function validateTikTokCredentials(
-  input: unknown
-): CredentialsValidationResult<TikTokCredentialsInput> {
+export function validateTikTokCredentials(input: unknown): CredentialsValidationResult<TikTokCredentialsInput> {
   const result = TikTokCredentialsInputSchema.safeParse(input);
   if (result.success) {
     return { success: true, data: result.data };
@@ -163,9 +156,7 @@ export function validateCredentialsForPlatform(
   }
 }
 
-export function validateTypedCredentials(
-  input: unknown
-): CredentialsValidationResult<TypedPlatformCredentials> {
+export function validateTypedCredentials(input: unknown): CredentialsValidationResult<TypedPlatformCredentials> {
   const result = TypedPlatformCredentialsSchema.safeParse(input);
   if (result.success) {
     return { success: true, data: result.data };
@@ -176,20 +167,14 @@ export function validateTypedCredentials(
   };
 }
 
-export function isGoogleCredentialsInput(
-  creds: TypedPlatformCredentials
-): creds is TypedGoogleCredentials {
+export function isGoogleCredentialsInput(creds: TypedPlatformCredentials): creds is TypedGoogleCredentials {
   return creds.platform === "google";
 }
 
-export function isMetaCredentialsInput(
-  creds: TypedPlatformCredentials
-): creds is TypedMetaCredentials {
+export function isMetaCredentialsInput(creds: TypedPlatformCredentials): creds is TypedMetaCredentials {
   return creds.platform === "meta";
 }
 
-export function isTikTokCredentialsInput(
-  creds: TypedPlatformCredentials
-): creds is TypedTikTokCredentials {
+export function isTikTokCredentialsInput(creds: TypedPlatformCredentials): creds is TypedTikTokCredentials {
   return creds.platform === "tiktok";
 }

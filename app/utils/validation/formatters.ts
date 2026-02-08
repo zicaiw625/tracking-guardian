@@ -11,9 +11,7 @@ export function getZodIssues(error: ZodError<unknown>): ZodIssue[] {
   return error.issues ?? [];
 }
 
-export function formatZodErrorsToRecord(
-  error: ZodError<unknown>
-): Record<string, string> {
+export function formatZodErrorsToRecord(error: ZodError<unknown>): Record<string, string> {
   const errors: Record<string, string> = {};
   const issues = getZodIssues(error);
   for (const issue of issues) {
@@ -25,9 +23,7 @@ export function formatZodErrorsToRecord(
   return errors;
 }
 
-export function formatZodErrorsToArray(
-  error: ZodError<unknown>
-): ValidationErrorDetail[] {
+export function formatZodErrorsToArray(error: ZodError<unknown>): ValidationErrorDetail[] {
   const issues = getZodIssues(error);
   return issues.map((e: ZodIssue) => ({
     field: e.path.join("."),
@@ -49,9 +45,7 @@ export function getFirstZodError(error: ZodError<unknown>): string {
 export function zodErrorToAppError(zodError: ZodError<unknown>): AppError {
   const errors = formatZodErrorsToArray(zodError);
   const firstError = errors[0];
-  const message = firstError
-    ? `Validation error: ${firstError.field} - ${firstError.message}`
-    : "Validation error";
+  const message = firstError ? `Validation error: ${firstError.field} - ${firstError.message}` : "Validation error";
   return new AppError(ErrorCode.VALIDATION_ERROR, message, false, {
     field: firstError?.field,
     errors,

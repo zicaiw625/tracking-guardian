@@ -15,20 +15,13 @@ export interface DailyAggregatedMetrics {
   updatedAt: Date;
 }
 
-export async function aggregateDailyMetrics(
-  shopId: string,
-  date: Date
-): Promise<DailyAggregatedMetrics> {
+export async function aggregateDailyMetrics(shopId: string, date: Date): Promise<DailyAggregatedMetrics> {
   const startOfDay = new Date(date);
   startOfDay.setUTCHours(0, 0, 0, 0);
   const endOfDay = new Date(date);
   endOfDay.setUTCHours(23, 59, 59, 999);
 
-  const [
-    totalEvents,
-    groupedByPlatform,
-    validOrders
-  ] = await Promise.all([
+  const [totalEvents, groupedByPlatform, validOrders] = await Promise.all([
     // 1. Total Event Volume (all events)
     prisma.pixelEventReceipt.count({
       where: {
@@ -90,12 +83,15 @@ export async function aggregateDailyMetrics(
   const totalOrders = potentialOrdersGroups.length;
   const validOrdersGroups = validOrders as unknown as Array<{ orderKey: string; _max: { totalValue: string | null } }>;
   const successfulOrders = validOrdersGroups.length;
-  const totalValue = validOrdersGroups.reduce((sum, group) => sum + (group._max.totalValue ? Number(group._max.totalValue) : 0), 0);
+  const totalValue = validOrdersGroups.reduce(
+    (sum, group) => sum + (group._max.totalValue ? Number(group._max.totalValue) : 0),
+    0
+  );
   const successRate = totalOrders > 0 ? successfulOrders / totalOrders : 0;
   const missingParamsRate = totalOrders > 0 ? (totalOrders - successfulOrders) / totalOrders : 0;
 
   const platformBreakdown: Record<string, { count: number; value: number }> = {};
-  for (const group of (groupedByPlatform as any[])) {
+  for (const group of groupedByPlatform as any[]) {
     const platform = group.platform || "unknown";
     platformBreakdown[platform] = {
       count: group._count._all,
@@ -163,12 +159,98 @@ export async function getAggregatedMetrics(
   eventVolumeByType: Record<string, number>;
   totalEventVolume: number;
 }> {
+  // P0: Avoid unbounded in-memory aggregation and any hard take() truncation.
+  // Use DB-side aggregation (dedupe by orderKey, group by day) for correctness and stability.
+  const [orderStatsRows, dailyRows] = await Promise.all([
+    prisma.$queryRaw<
+      Array<{
+        total_orders: bigint;
+        successful_orders: bigint;
+        total_value: unknown;
+      }>
+    >`
+      WITH per_order AS (
+        SELECT
+          "orderKey",
+          bool_or("totalValue" IS NOT NULL AND "currency" IS NOT NULL) AS valid,
+          max("totalValue") AS max_value
+        FROM "PixelEventReceipt"
+        WHERE
+          "shopId" = ${shopId}
+          AND "createdAt" >= ${startDate}
+          AND "createdAt" <= ${endDate}
+          AND "eventType" IN ('purchase', 'checkout_completed')
+          AND "hmacMatched" = true
+          AND "orderKey" IS NOT NULL
+        GROUP BY "orderKey"
+      )
+      SELECT
+        count(*)::bigint AS total_orders,
+        count(*) FILTER (WHERE valid)::bigint AS successful_orders,
+        COALESCE(sum(max_value) FILTER (WHERE valid), 0) AS total_value
+      FROM per_order;
+    `,
+    prisma.$queryRaw<
+      Array<{
+        day: Date;
+        total_orders: bigint;
+        successful_orders: bigint;
+        total_value: unknown;
+      }>
+    >`
+      WITH per_order AS (
+        SELECT
+          date_trunc('day', "createdAt")::date AS day,
+          "orderKey",
+          bool_or("totalValue" IS NOT NULL AND "currency" IS NOT NULL) AS valid,
+          max("totalValue") AS max_value
+        FROM "PixelEventReceipt"
+        WHERE
+          "shopId" = ${shopId}
+          AND "createdAt" >= ${startDate}
+          AND "createdAt" <= ${endDate}
+          AND "eventType" IN ('purchase', 'checkout_completed')
+          AND "hmacMatched" = true
+          AND "orderKey" IS NOT NULL
+        GROUP BY day, "orderKey"
+      )
+      SELECT
+        day,
+        count(*)::bigint AS total_orders,
+        count(*) FILTER (WHERE valid)::bigint AS successful_orders,
+        COALESCE(sum(max_value) FILTER (WHERE valid), 0) AS total_value
+      FROM per_order
+      GROUP BY day
+      ORDER BY day ASC;
+    `,
+  ]);
+
+  const orderStats = orderStatsRows[0] ?? {
+    total_orders: 0n,
+    successful_orders: 0n,
+    total_value: 0,
+  };
+  const totalOrders = Number(orderStats.total_orders ?? 0n);
+  const successfulOrdersCount = Number(orderStats.successful_orders ?? 0n);
+  const totalValue = Number(orderStats.total_value ?? 0) || 0;
+  const successRate = totalOrders > 0 ? successfulOrdersCount / totalOrders : 0;
+
+  const dailyBreakdown = dailyRows.map((r) => {
+    const dayOrders = Number(r.total_orders ?? 0n);
+    const daySuccessful = Number(r.successful_orders ?? 0n);
+    const dayValue = Number(r.total_value ?? 0) || 0;
+    return {
+      date: new Date(r.day),
+      totalOrders: dayOrders,
+      totalValue: dayValue,
+      successRate: dayOrders > 0 ? daySuccessful / dayOrders : 0,
+    };
+  });
+
   const [
     eventVolumeGrouped,
     validOrdersGrouped,
-    potentialOrdersGrouped, // For success rate calc
-    allMatchedReceipts,
-    validOrdersGlobal // Deduped global stats
+    // Global + daily order stats are computed via SQL above.
   ] = await Promise.all([
     // 1. Event Volume by Type
     prisma.pixelEventReceipt.groupBy({
@@ -200,50 +282,6 @@ export async function getAggregatedMetrics(
         _all: true,
       },
     } as any),
-
-    // 3. Potential Orders (hmac matched) for success rate denominator
-    prisma.pixelEventReceipt.groupBy({
-      by: ["orderKey"],
-      where: {
-        shopId,
-        createdAt: { gte: startDate, lte: endDate },
-        eventType: { in: ["purchase", "checkout_completed"] },
-        hmacMatched: true,
-        orderKey: { not: null },
-      },
-    }),
-
-    // 4. Daily Breakdown (fetch light data to aggregate in node)
-    prisma.pixelEventReceipt.findMany({
-      where: {
-        shopId,
-        createdAt: { gte: startDate, lte: endDate },
-        eventType: { in: ["purchase", "checkout_completed"] },
-        hmacMatched: true,
-      } as any,
-      select: {
-        createdAt: true,
-        totalValue: true,
-        currency: true,
-        orderKey: true,
-      } as any,
-      take: 50000,
-    }),
-
-    // 5. Valid Orders Global (deduped)
-    prisma.pixelEventReceipt.groupBy({
-      by: ["orderKey"],
-      where: {
-        shopId,
-        createdAt: { gte: startDate, lte: endDate },
-        eventType: { in: ["purchase", "checkout_completed"] },
-        hmacMatched: true,
-        totalValue: { not: null },
-        currency: { not: null },
-        orderKey: { not: null },
-      },
-      _max: { totalValue: true },
-    }),
   ]);
 
   const eventVolumeByType: Record<string, number> = {};
@@ -256,8 +294,8 @@ export async function getAggregatedMetrics(
   }
 
   const platformBreakdown: Record<string, { count: number; value: number }> = {};
-  
-  for (const group of (validOrdersGrouped as any[])) {
+
+  for (const group of validOrdersGrouped as any[]) {
     const platform = group.platform || "unknown";
     const val = group._sum.totalValue ? Number(group._sum.totalValue) : 0;
     const cnt = group._count._all;
@@ -266,46 +304,6 @@ export async function getAggregatedMetrics(
       value: val,
     };
   }
-
-  // Calculate global stats from deduped groups
-  const potentialOrdersList = potentialOrdersGrouped as unknown as any[];
-  const validOrdersList = validOrdersGlobal as unknown as Array<{ orderKey: string; _max: { totalValue: string | null } }>;
-  
-  const totalOrders = potentialOrdersList.length;
-  const successfulOrdersCount = validOrdersList.length;
-  const totalValue = validOrdersList.reduce((sum, group) => sum + (group._max.totalValue ? Number(group._max.totalValue) : 0), 0);
-  const successRate = totalOrders > 0 ? successfulOrdersCount / totalOrders : 0;
-
-  const dailyMap = new Map<string, { orderKeys: Set<string>; validOrderKeys: Set<string>; value: number }>();
-  
-  for (const r of (allMatchedReceipts as unknown as any[])) {
-    const dateKey = (r as any).createdAt.toISOString().split("T")[0];
-    if (!dailyMap.has(dateKey)) {
-      dailyMap.set(dateKey, { orderKeys: new Set(), validOrderKeys: new Set(), value: 0 });
-    }
-    const day = dailyMap.get(dateKey)!;
-    const orderKey = (r as any).orderKey;
-    if (!orderKey) continue;
-
-    day.orderKeys.add(orderKey);
-    
-    const isValid = (r as any).totalValue !== null && (r as any).currency !== null;
-    if (isValid) {
-      if (!day.validOrderKeys.has(orderKey)) {
-        day.validOrderKeys.add(orderKey);
-        day.value += Number((r as any).totalValue);
-      }
-    }
-  }
-
-  const dailyBreakdown = Array.from(dailyMap.entries())
-    .map(([dateKey, stats]) => ({
-      date: new Date(dateKey),
-      totalOrders: stats.orderKeys.size,
-      totalValue: stats.value,
-      successRate: stats.orderKeys.size > 0 ? stats.validOrderKeys.size / stats.orderKeys.size : 0,
-    }))
-    .sort((a, b) => a.date.getTime() - b.date.getTime());
 
   return {
     totalOrders,
@@ -320,20 +318,37 @@ export async function getAggregatedMetrics(
 
 export async function batchAggregateMetrics(
   shopIds: string[],
-  date: Date = new Date()
+  date: Date = new Date(),
+  options?: { concurrency?: number }
 ): Promise<number> {
   let successCount = 0;
-  for (const shopId of shopIds) {
-    try {
-      await aggregateDailyMetrics(shopId, date);
-      successCount++;
-    } catch (error) {
-      logger.error("Failed to aggregate metrics for shop", error instanceof Error ? error : new Error(String(error)), {
-        shopId,
-        date: date.toISOString(),
-      });
+  const concurrency = Math.max(1, Math.floor(options?.concurrency ?? 5));
+
+  // Simple worker pool to limit DB pressure.
+  let idx = 0;
+  const worker = async () => {
+    for (;;) {
+      const i = idx++;
+      const shopId = shopIds[i];
+      if (!shopId) return;
+      try {
+        await aggregateDailyMetrics(shopId, date);
+        successCount++;
+      } catch (error) {
+        logger.error(
+          "Failed to aggregate metrics for shop",
+          error instanceof Error ? error : new Error(String(error)),
+          {
+            shopId,
+            date: date.toISOString(),
+          }
+        );
+      }
     }
-  }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, shopIds.length) }, () => worker()));
+
   logger.info("Batch aggregation completed", {
     total: shopIds.length,
     success: successCount,

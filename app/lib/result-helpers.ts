@@ -39,29 +39,20 @@ function handleDatabaseError(error: unknown, resourceName: string): AppError {
     const errorCode = getPrismaErrorCode(error);
     if (errorCode === "P2002") {
       const target = getPrismaErrorTarget(error)?.join(", ") || "field";
-      return new AppError(
-        ErrorCode.DB_UNIQUE_CONSTRAINT,
-        `${resourceName} with this ${target} already exists`,
-        false,
-        { resourceName, constraintTarget: target }
-      );
+      return new AppError(ErrorCode.DB_UNIQUE_CONSTRAINT, `${resourceName} with this ${target} already exists`, false, {
+        resourceName,
+        constraintTarget: target,
+      });
     }
     if (errorCode === "P2025") {
-      return new AppError(
-        ErrorCode.NOT_FOUND_RESOURCE,
-        `${resourceName} not found`,
-        false,
-        { resourceName }
-      );
+      return new AppError(ErrorCode.NOT_FOUND_RESOURCE, `${resourceName} not found`, false, { resourceName });
     }
     if (errorCode?.startsWith("P2")) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      return new AppError(
-        ErrorCode.DB_QUERY_ERROR,
-        `Database error: ${errorMessage}`,
-        false,
-        { resourceName, prismaCode: errorCode }
-      );
+      return new AppError(ErrorCode.DB_QUERY_ERROR, `Database error: ${errorMessage}`, false, {
+        resourceName,
+        prismaCode: errorCode,
+      });
     }
   }
   return ensureAppError(error, ErrorCode.DB_QUERY_ERROR);
@@ -99,13 +90,11 @@ export async function wrapApiCall<T>(
     cleanupTimeout();
     const isTimeoutError =
       error instanceof Error &&
-      (
-        (timeoutErrorSymbol in error && (error as Error & { [timeoutErrorSymbol]: boolean })[timeoutErrorSymbol]) ||
+      ((timeoutErrorSymbol in error && (error as Error & { [timeoutErrorSymbol]: boolean })[timeoutErrorSymbol]) ||
         error.message.includes("timed out") ||
         error.message.includes(`Request timed out after ${timeoutMs}ms`) ||
         error.name === "TimeoutError" ||
-        error.message.toLowerCase().includes("timeout")
-      );
+        error.message.toLowerCase().includes("timeout"));
     if (isTimeoutError) {
       logger.warn(`API call timed out: ${serviceName}`, {
         serviceName,
@@ -121,12 +110,16 @@ function handleApiError(error: unknown, serviceName: string): AppError {
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
     const errorName = error.name?.toLowerCase() || "";
-    if (message.includes("timeout") || message.includes("abort") || errorName.includes("timeout") || errorName.includes("abort")) {
-      return AppError.retryable(
-        ErrorCode.PLATFORM_TIMEOUT,
-        `${serviceName} request timed out`,
-        { platform: serviceName, originalError: error.message }
-      );
+    if (
+      message.includes("timeout") ||
+      message.includes("abort") ||
+      errorName.includes("timeout") ||
+      errorName.includes("abort")
+    ) {
+      return AppError.retryable(ErrorCode.PLATFORM_TIMEOUT, `${serviceName} request timed out`, {
+        platform: serviceName,
+        originalError: error.message,
+      });
     }
     if (
       message.includes("network") ||
@@ -137,27 +130,22 @@ function handleApiError(error: unknown, serviceName: string): AppError {
       errorName.includes("networkerror") ||
       errorName.includes("typeerror")
     ) {
-      return AppError.retryable(
-        ErrorCode.PLATFORM_NETWORK_ERROR,
-        `${serviceName} network error: ${error.message}`,
-        { platform: serviceName, originalError: error.message }
-      );
+      return AppError.retryable(ErrorCode.PLATFORM_NETWORK_ERROR, `${serviceName} network error: ${error.message}`, {
+        platform: serviceName,
+        originalError: error.message,
+      });
     }
     if (message.includes("unauthorized") || message.includes("401") || message.includes("authentication")) {
-      return new AppError(
-        ErrorCode.PLATFORM_AUTH_ERROR,
-        `${serviceName} authentication failed`,
-        false,
-        { platform: serviceName, originalError: error.message }
-      );
+      return new AppError(ErrorCode.PLATFORM_AUTH_ERROR, `${serviceName} authentication failed`, false, {
+        platform: serviceName,
+        originalError: error.message,
+      });
     }
     if (message.includes("forbidden") || message.includes("403") || message.includes("permission")) {
-      return new AppError(
-        ErrorCode.PLATFORM_AUTH_ERROR,
-        `${serviceName} access forbidden`,
-        false,
-        { platform: serviceName, originalError: error.message }
-      );
+      return new AppError(ErrorCode.PLATFORM_AUTH_ERROR, `${serviceName} access forbidden`, false, {
+        platform: serviceName,
+        originalError: error.message,
+      });
     }
   }
   if (typeof error === "string") {
@@ -187,32 +175,19 @@ export function parseJson<T>(json: string): Result<T, AppError> {
   }
 }
 
-export function parseJsonSafe<T>(
-  input: unknown,
-  validator?: (value: unknown) => value is T
-): Result<T, AppError> {
+export function parseJsonSafe<T>(input: unknown, validator?: (value: unknown) => value is T): Result<T, AppError> {
   if (typeof input === "string") {
     const parsed = parseJson<T>(input);
     if (!parsed.ok) return parsed;
     if (validator && !validator(parsed.value)) {
       return err(
-        new AppError(
-          ErrorCode.VALIDATION_INVALID_FORMAT,
-          "JSON structure does not match expected format",
-          false
-        )
+        new AppError(ErrorCode.VALIDATION_INVALID_FORMAT, "JSON structure does not match expected format", false)
       );
     }
     return ok(parsed.value);
   }
   if (validator && !validator(input)) {
-    return err(
-      new AppError(
-        ErrorCode.VALIDATION_INVALID_FORMAT,
-        "Value does not match expected format",
-        false
-      )
-    );
+    return err(new AppError(ErrorCode.VALIDATION_INVALID_FORMAT, "Value does not match expected format", false));
   }
   return ok(input as T);
 }
@@ -234,9 +209,7 @@ export async function collectResults<T extends readonly Result<unknown, AppError
   return ok(values as { [K in keyof T]: T[K] extends Result<infer V, AppError> ? V : never });
 }
 
-export async function collectAllResults<T>(
-  operations: Promise<Result<T, AppError>>[]
-): AsyncResult<T[], AppError[]> {
+export async function collectAllResults<T>(operations: Promise<Result<T, AppError>>[]): AsyncResult<T[], AppError[]> {
   if (!Array.isArray(operations) || operations.length === 0) {
     return ok([]);
   }
@@ -256,10 +229,7 @@ export async function collectAllResults<T>(
   return ok(values);
 }
 
-export function resultToResponse<T>(
-  result: Result<T, AppError>,
-  successStatus: number = 200
-): Response {
+export function resultToResponse<T>(result: Result<T, AppError>, successStatus: number = 200): Response {
   if (result.ok) {
     return new Response(JSON.stringify({ success: true, data: result.value }), {
       status: successStatus,
@@ -305,10 +275,7 @@ export async function chain<T, U>(
   return operation(result.value);
 }
 
-export function logResult<T, E>(
-  result: Result<T, E>,
-  context: string
-): Result<T, E> {
+export function logResult<T, E>(result: Result<T, E>, context: string): Result<T, E> {
   if (isOk(result)) {
     logger.debug(`${context}: Success`);
   } else if (isErr(result)) {

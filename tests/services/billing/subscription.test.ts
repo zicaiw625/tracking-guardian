@@ -146,9 +146,7 @@ describe("Subscription Service", () => {
             appSubscriptionCreate: {
               appSubscription: null,
               confirmationUrl: null,
-              userErrors: [
-                { field: "price", message: "Invalid price format" },
-              ],
+              userErrors: [{ field: "price", message: "Invalid price format" }],
             },
           },
         }),
@@ -167,9 +165,7 @@ describe("Subscription Service", () => {
       expect(result.error).toContain("Invalid price format");
     });
     it("should handle network errors", async () => {
-      (mockAdmin.graphql as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error("Network error")
-      );
+      (mockAdmin.graphql as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Network error"));
       const result = await createSubscription(
         mockAdmin,
         "test-store.myshopify.com",
@@ -220,12 +216,7 @@ describe("Subscription Service", () => {
         .mockResolvedValueOnce(mockGetShopPlan)
         .mockResolvedValueOnce(mockAppSubscriptionCreate);
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({ id: "shop-1" } as any);
-      await createSubscription(
-        mockAdmin,
-        "test-store.myshopify.com",
-        "growth",
-        "https://example.com/return"
-      );
+      await createSubscription(mockAdmin, "test-store.myshopify.com", "growth", "https://example.com/return");
       expect(mockAdmin.graphql).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
@@ -352,9 +343,7 @@ describe("Subscription Service", () => {
       expect(status.trialDaysRemaining).toBeLessThanOrEqual(7);
     });
     it("should handle API errors gracefully", async () => {
-      (mockAdmin.graphql as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error("API unavailable")
-      );
+      (mockAdmin.graphql as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("API unavailable"));
       const status = await getSubscriptionStatus(mockAdmin, "test-store.myshopify.com");
       expect(status.hasActiveSubscription).toBe(false);
       expect(status.plan).toBe("free");
@@ -399,19 +388,13 @@ describe("Subscription Service", () => {
           data: {
             appSubscriptionCancel: {
               appSubscription: null,
-              userErrors: [
-                { field: "id", message: "Subscription not found" },
-              ],
+              userErrors: [{ field: "id", message: "Subscription not found" }],
             },
           },
         }),
       };
       (mockAdmin.graphql as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse);
-      const result = await cancelSubscription(
-        mockAdmin,
-        "test-store.myshopify.com",
-        "invalid-id"
-      );
+      const result = await cancelSubscription(mockAdmin, "test-store.myshopify.com", "invalid-id");
       expect(result.success).toBe(false);
       expect(result.error).toContain("Subscription not found");
     });
@@ -524,11 +507,7 @@ describe("Subscription Service", () => {
       (mockAdmin.graphql as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse);
       vi.mocked(prisma.shop.update).mockResolvedValue({} as any);
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({ id: "shop-1" } as any);
-      const result = await handleSubscriptionConfirmation(
-        mockAdmin,
-        "test-store.myshopify.com",
-        "charge-123"
-      );
+      const result = await handleSubscriptionConfirmation(mockAdmin, "test-store.myshopify.com", "charge-123");
       expect(result.success).toBe(true);
       expect(result.plan).toBe("starter");
     });
@@ -546,11 +525,7 @@ describe("Subscription Service", () => {
       };
       (mockAdmin.graphql as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse);
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({ plan: "free" } as any);
-      const result = await handleSubscriptionConfirmation(
-        mockAdmin,
-        "test-store.myshopify.com",
-        "charge-123"
-      );
+      const result = await handleSubscriptionConfirmation(mockAdmin, "test-store.myshopify.com", "charge-123");
       expect(result.success).toBe(false);
       expect(result.error).toBe("Subscription not found for charge_id");
     });

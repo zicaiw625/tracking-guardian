@@ -22,7 +22,9 @@ describe("sanitizeForPersistence", () => {
     expect(out.access_token).toBe("***REDACTED***");
     expect(out.url).toBe("https://shop.example.com/path");
     expect((out.data as Record<string, unknown>).ip_address).toBeUndefined();
-    expect(((out.data as Record<string, unknown>).nested as Record<string, unknown>).refresh_token).toBe("***REDACTED***");
+    expect(((out.data as Record<string, unknown>).nested as Record<string, unknown>).refresh_token).toBe(
+      "***REDACTED***"
+    );
     expect(out.ok).toBe(1);
   });
 
@@ -107,4 +109,3 @@ describe("sanitizePrismaWriteArgs", () => {
     expect(data.Shop).toEqual({ connect: { id: "s1" } });
   });
 });
-

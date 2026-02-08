@@ -50,7 +50,7 @@ export function ScanHistoryTable({ scanHistory, onStartScan }: ScanHistoryTableP
             t("scan.history.headings.time"),
             t("scan.history.headings.riskScore"),
             t("scan.history.headings.platforms"),
-            t("scan.history.headings.status")
+            t("scan.history.headings.status"),
           ]}
           rows={processedScanHistory}
         />

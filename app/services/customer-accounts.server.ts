@@ -8,9 +8,7 @@ export interface CustomerAccountsStatus {
   confidence: "high" | "medium" | "low";
 }
 
-export async function checkCustomerAccountsEnabled(
-  admin: AdminApiContext
-): Promise<CustomerAccountsStatus> {
+export async function checkCustomerAccountsEnabled(admin: AdminApiContext): Promise<CustomerAccountsStatus> {
   try {
     const response = await admin.graphql(`
       query GetCustomerAccountsStatus {
@@ -21,7 +19,7 @@ export async function checkCustomerAccountsEnabled(
       }
     `);
 
-    const data = await response.json() as {
+    const data = (await response.json()) as {
       data?: {
         shop?: {
           checkoutApiSupported?: boolean;
@@ -44,8 +42,7 @@ export async function checkCustomerAccountsEnabled(
     const shop = data.data?.shop;
     const checkoutApiSupported = shop?.checkoutApiSupported === true;
     const customerAccountsSetting = shop?.customerAccounts;
-    const customerAccountsOn =
-      customerAccountsSetting === "OPTIONAL" || customerAccountsSetting === "REQUIRED";
+    const customerAccountsOn = customerAccountsSetting === "OPTIONAL" || customerAccountsSetting === "REQUIRED";
 
     const enabled = checkoutApiSupported || customerAccountsOn;
 

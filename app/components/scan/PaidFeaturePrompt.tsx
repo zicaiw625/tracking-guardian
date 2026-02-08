@@ -10,11 +10,7 @@ interface PaidFeaturePromptProps {
   compact?: boolean;
 }
 
-export function PaidFeaturePrompt({
-  feature,
-  currentPlan,
-  compact = false,
-}: PaidFeaturePromptProps) {
+export function PaidFeaturePrompt({ feature, currentPlan, compact = false }: PaidFeaturePromptProps) {
   const { t } = useTranslation();
   const requiredPlanId = {
     pixel_migration: "starter",
@@ -45,7 +41,7 @@ export function PaidFeaturePrompt({
           <Text as="span" variant="bodySm">
             {t("scan.paidFeature.requirementCompact", {
               name: t(`scan.paidFeature.${featureKey}.name`),
-              plan: requiredPlan.name
+              plan: requiredPlan.name,
             })}
           </Text>
           <Button size="slim" variant="plain" onClick={handleUpgrade}>

@@ -53,7 +53,16 @@ export function MigrationDeadlineBanner() {
               a: helpCenterLink,
             }}
           >
-            <strong>Important:</strong> The following dates are from Shopify official announcements for reference only. Please refer to Shopify Admin for actual deadlines. Shopify may update policies, we recommend checking <Link to="https://help.shopify.com/en/manual/checkout-settings/order-status-page/additional-scripts" target="_blank" rel="noopener noreferrer">{t("dashboard.migrationDeadlineBanner.helpCenter")}</Link> regularly.
+            <strong>Important:</strong> The following dates are from Shopify official announcements for reference only.
+            Please refer to Shopify Admin for actual deadlines. Shopify may update policies, we recommend checking{" "}
+            <Link
+              to="https://help.shopify.com/en/manual/checkout-settings/order-status-page/additional-scripts"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t("dashboard.migrationDeadlineBanner.helpCenter")}
+            </Link>{" "}
+            regularly.
           </Trans>
         </Text>
         <InlineStack align="start">

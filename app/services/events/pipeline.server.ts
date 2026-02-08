@@ -30,9 +30,7 @@ export interface EventValidationResult {
   warnings: string[];
 }
 
-export function validateEventPayload(
-  payload: PixelEventPayload
-): EventValidationResult {
+export function validateEventPayload(payload: PixelEventPayload): EventValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
   if (!payload.eventName) {
@@ -112,8 +110,8 @@ export async function processEventPipeline(
     };
   }
   const destinationConfigs: Array<{ platform: string; configId?: string; platformId?: string }> =
-    destinations.length > 0 && typeof destinations[0] === 'string'
-      ? (destinations as string[]).map(d => ({ platform: d }))
+    destinations.length > 0 && typeof destinations[0] === "string"
+      ? (destinations as string[]).map((d) => ({ platform: d }))
       : (destinations as Array<{ platform: string; configId?: string; platformId?: string }>);
   function normalizeValue(value: unknown): number {
     if (typeof value === "number") {
@@ -127,12 +125,21 @@ export async function processEventPipeline(
   }
   function normalizeCurrency(currency: unknown, eventName: string): string {
     if (currency === null || currency === undefined) {
-      const requiresCurrency = ["checkout_completed", "purchase", "product_added_to_cart", "checkout_started", "product_viewed"].includes(eventName);
+      const requiresCurrency = [
+        "checkout_completed",
+        "purchase",
+        "product_added_to_cart",
+        "checkout_started",
+        "product_viewed",
+      ].includes(eventName);
       if (requiresCurrency) {
-        logger.warn(`Missing currency for ${eventName} event, using USD as fallback. This may indicate a data quality issue. Pixel should always send currency from checkout/cart data.`, {
-          eventName,
-          shopId,
-        });
+        logger.warn(
+          `Missing currency for ${eventName} event, using USD as fallback. This may indicate a data quality issue. Pixel should always send currency from checkout/cart data.`,
+          {
+            eventName,
+            shopId,
+          }
+        );
       }
       return "USD";
     }
@@ -159,52 +166,47 @@ export async function processEventPipeline(
     normalizedValue = payload.data.items.reduce((sum: number, item: unknown) => {
       const itemObj = item as Record<string, unknown>;
       const price = normalizeValue(itemObj.price);
-      const quantity = typeof itemObj.quantity === "number"
-        ? Math.max(1, Math.floor(itemObj.quantity))
-        : typeof itemObj.quantity === "string"
-        ? Math.max(1, parseInt(itemObj.quantity, 10) || 1)
-        : 1;
-      return sum + (price * quantity);
+      const quantity =
+        typeof itemObj.quantity === "number"
+          ? Math.max(1, Math.floor(itemObj.quantity))
+          : typeof itemObj.quantity === "string"
+            ? Math.max(1, parseInt(itemObj.quantity, 10) || 1)
+            : 1;
+      return sum + price * quantity;
     }, 0);
   } else {
     normalizedValue = 0;
   }
   const normalizedCurrency = normalizeCurrency(payload.data?.currency, payload.eventName);
-  let normalizedItems: Array<{
-    id: string;
-    name: string;
-    price: number;
-    quantity: number;
-  }> | undefined;
+  let normalizedItems:
+    | Array<{
+        id: string;
+        name: string;
+        price: number;
+        quantity: number;
+      }>
+    | undefined;
   if (payload.eventName === "page_viewed") {
     normalizedItems = [];
   } else if (payload.data?.items && Array.isArray(payload.data.items)) {
     normalizedItems = payload.data.items
-      .filter(item => item != null && typeof item === "object")
-      .map(item => {
+      .filter((item) => item != null && typeof item === "object")
+      .map((item) => {
         const itemObj = item as Record<string, unknown>;
         const id = String(
-          itemObj.variantId ||
-          itemObj.variant_id ||
-          itemObj.productId ||
-          itemObj.product_id ||
-          itemObj.id ||
-          ""
+          itemObj.variantId || itemObj.variant_id || itemObj.productId || itemObj.product_id || itemObj.id || ""
         ).trim();
-        const name = String(
-          itemObj.name ||
-          itemObj.item_name ||
-          itemObj.title ||
-          itemObj.product_name ||
-          itemObj.productTitle ||
-          ""
-        ).trim() || "Unknown";
+        const name =
+          String(
+            itemObj.name || itemObj.item_name || itemObj.title || itemObj.product_name || itemObj.productTitle || ""
+          ).trim() || "Unknown";
         const price = itemObj.price !== undefined ? normalizeValue(itemObj.price) : 0;
-        const quantity = typeof itemObj.quantity === "number"
-          ? Math.max(1, Math.floor(itemObj.quantity))
-          : typeof itemObj.quantity === "string"
-          ? Math.max(1, parseInt(itemObj.quantity, 10) || 1)
-          : 1;
+        const quantity =
+          typeof itemObj.quantity === "number"
+            ? Math.max(1, Math.floor(itemObj.quantity))
+            : typeof itemObj.quantity === "string"
+              ? Math.max(1, parseInt(itemObj.quantity, 10) || 1)
+              : 1;
         return {
           id,
           name,
@@ -212,7 +214,7 @@ export async function processEventPipeline(
           quantity,
         };
       })
-      .filter(item => item.id);
+      .filter((item) => item.id);
   }
   const normalizedPayload: PixelEventPayload = {
     eventName: payload.eventName,
@@ -241,10 +243,11 @@ export async function processEventPipeline(
   };
   let finalEventId = eventId;
   if (!finalEventId) {
-    const normalizedItemsForEventId = normalizedItems?.map(item => ({
-      id: item.id,
-      quantity: item.quantity,
-    })) || [];
+    const normalizedItemsForEventId =
+      normalizedItems?.map((item) => ({
+        id: item.id,
+        quantity: item.quantity,
+      })) || [];
     finalEventId = generateCanonicalEventId(
       normalizedPayload.data?.orderId || null,
       normalizedPayload.data?.checkoutToken || null,
@@ -272,7 +275,7 @@ export async function processEventPipeline(
   return {
     success: true,
     eventId: finalEventId || undefined,
-    destinations: destinationConfigs.map(d => d.platform),
+    destinations: destinationConfigs.map((d) => d.platform),
   };
 }
 
@@ -291,7 +294,12 @@ export async function processBatchEvents(
       return await processEventPipeline(shopId, event.payload, event.eventId, event.destinations, environment);
     } catch (e) {
       logger.error("processEventPipeline threw", e, { shopId, eventId: event.eventId });
-      return { success: false, eventId: event.eventId ?? undefined, destinations: event.destinations, errors: [String(e)] };
+      return {
+        success: false,
+        eventId: event.eventId ?? undefined,
+        destinations: event.destinations,
+        errors: [String(e)],
+      };
     }
   });
 }

@@ -80,8 +80,7 @@ function convertEnumToVersion(enumValue) {
   return `20${year}-${monthNum}`;
 }
 
-const RELEASE_SCHEDULE_URL =
-  "https://shopify.dev/docs/api/admin-graphql/latest";
+const RELEASE_SCHEDULE_URL = "https://shopify.dev/docs/api/admin-graphql/latest";
 
 function checkVersionAge(version) {
   const match = version.match(/^(\d{4})-(\d{2})$/);
@@ -89,9 +88,7 @@ function checkVersionAge(version) {
   const [, year, month] = match;
   const versionDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1);
   const now = new Date();
-  const monthsOld =
-    (now.getFullYear() - versionDate.getFullYear()) * 12 +
-    (now.getMonth() - versionDate.getMonth());
+  const monthsOld = (now.getFullYear() - versionDate.getFullYear()) * 12 + (now.getMonth() - versionDate.getMonth());
   if (monthsOld >= 9) {
     [
       `⚠️  Warning: API version ${version} is ${monthsOld} months old.`,
@@ -135,9 +132,7 @@ function main() {
     const version = sources[0].version;
     console.log(`✅ All files use API version: ${version}`);
     if (!version || !VERSION_PATTERN.test(version)) {
-      console.warn(
-        `⚠️  Warning: Version format "${version}" doesn't match expected YYYY-MM pattern`,
-      );
+      console.warn(`⚠️  Warning: Version format "${version}" doesn't match expected YYYY-MM pattern`);
     }
     if (version) {
       checkVersionAge(version);

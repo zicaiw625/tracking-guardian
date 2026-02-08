@@ -23,10 +23,7 @@ export function createMetaSuccessResponse(eventsReceived: number = 1): MockPlatf
   };
 }
 
-export function createMetaErrorResponse(
-  message: string,
-  code: number = 100
-): MockPlatformResponse {
+export function createMetaErrorResponse(message: string, code: number = 100): MockPlatformResponse {
   return {
     success: false,
     error: {
@@ -65,10 +62,7 @@ export function createTikTokSuccessResponse(): MockPlatformResponse {
   };
 }
 
-export function createTikTokErrorResponse(
-  message: string,
-  code: number = 40001
-): MockPlatformResponse {
+export function createTikTokErrorResponse(message: string, code: number = 40001): MockPlatformResponse {
   return {
     success: false,
     error: {
@@ -78,9 +72,7 @@ export function createTikTokErrorResponse(
   };
 }
 
-export function createMetaApiHandler(
-  response: MockPlatformResponse = createMetaSuccessResponse()
-): MockFetchHandler {
+export function createMetaApiHandler(response: MockPlatformResponse = createMetaSuccessResponse()): MockFetchHandler {
   return async (url: string, options?: RequestInit): Promise<Response> => {
     await new Promise((resolve) => setTimeout(resolve, 10));
     if (options?.body) {
@@ -120,9 +112,7 @@ export function createGoogleApiHandler(
       if (!body.client_id) {
         return new Response(
           JSON.stringify({
-            validationMessages: [
-              { fieldPath: "client_id", description: "Missing required field" },
-            ],
+            validationMessages: [{ fieldPath: "client_id", description: "Missing required field" }],
           }),
           { status: 400 }
         );
@@ -261,14 +251,8 @@ export function createNetworkErrorHandler(): MockFetchHandler {
   };
 }
 
-export function assertMetaCapiCalled(
-  mockFetch: Mock,
-  expectedPixelId: string,
-  expectedEventName?: string
-): void {
-  const metaCalls = mockFetch.mock.calls.filter(([url]: [string]) =>
-    url.includes("graph.facebook.com")
-  );
+export function assertMetaCapiCalled(mockFetch: Mock, expectedPixelId: string, expectedEventName?: string): void {
+  const metaCalls = mockFetch.mock.calls.filter(([url]: [string]) => url.includes("graph.facebook.com"));
   expect(metaCalls.length).toBeGreaterThan(0);
   const [url, options] = metaCalls[0];
   expect(url).toContain(expectedPixelId);
@@ -278,24 +262,14 @@ export function assertMetaCapiCalled(
   }
 }
 
-export function assertGoogleAnalyticsCalled(
-  mockFetch: Mock,
-  expectedMeasurementId: string
-): void {
-  const googleCalls = mockFetch.mock.calls.filter(([url]: [string]) =>
-    url.includes("google-analytics.com")
-  );
+export function assertGoogleAnalyticsCalled(mockFetch: Mock, expectedMeasurementId: string): void {
+  const googleCalls = mockFetch.mock.calls.filter(([url]: [string]) => url.includes("google-analytics.com"));
   expect(googleCalls.length).toBeGreaterThan(0);
   expect(googleCalls[0][0]).toContain(expectedMeasurementId);
 }
 
-export function assertTikTokEventsCalled(
-  mockFetch: Mock,
-  expectedPixelCode?: string
-): void {
-  const tiktokCalls = mockFetch.mock.calls.filter(([url]: [string]) =>
-    url.includes("business-api.tiktok.com")
-  );
+export function assertTikTokEventsCalled(mockFetch: Mock, expectedPixelCode?: string): void {
+  const tiktokCalls = mockFetch.mock.calls.filter(([url]: [string]) => url.includes("business-api.tiktok.com"));
   expect(tiktokCalls.length).toBeGreaterThan(0);
   if (expectedPixelCode) {
     const [, options] = tiktokCalls[0];

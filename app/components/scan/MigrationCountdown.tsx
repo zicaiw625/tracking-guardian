@@ -141,11 +141,7 @@ export function MigrationCountdown({
         <BlockStack gap="400">
           <InlineStack align="space-between" blockAlign="center">
             <InlineStack gap="200" blockAlign="center">
-              <Box
-                background="bg-fill-success"
-                padding="200"
-                borderRadius="full"
-              >
+              <Box background="bg-fill-success" padding="200" borderRadius="full">
                 <Icon source={CheckCircleIcon} tone="success" />
               </Box>
               <BlockStack gap="050">
@@ -173,11 +169,7 @@ export function MigrationCountdown({
   return (
     <Card>
       <BlockStack gap="500">
-        <Box
-          background={urgencyBg}
-          padding="600"
-          borderRadius="300"
-        >
+        <Box background={urgencyBg} padding="600" borderRadius="300">
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="start" wrap={false}>
               <BlockStack gap="200">
@@ -185,30 +177,26 @@ export function MigrationCountdown({
                   <Text as="span" variant="bodyMd" fontWeight="semibold">
                     ⏰ 迁移倒计时
                   </Text>
-                  <Badge tone={shopTier === "plus" ? "attention" : "info"}>
-                    {tierLabel}
-                  </Badge>
+                  <Badge tone={shopTier === "plus" ? "attention" : "info"}>{tierLabel}</Badge>
                 </InlineStack>
                 <Text as="p" variant="bodySm" tone="subdued">
                   截止日期：{deadlineLabel}
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  <strong>日期来源：</strong>来自 <Link url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE} target="_blank">Shopify 官方公告</Link>，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，建议定期查看 <Link url={SHOPIFY_HELP_LINKS.CHECKOUT_EXTENSIBILITY} target="_blank">Shopify 官方文档</Link>。
+                  <strong>日期来源：</strong>来自{" "}
+                  <Link url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE} target="_blank">
+                    Shopify 官方公告
+                  </Link>
+                  ，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，建议定期查看{" "}
+                  <Link url={SHOPIFY_HELP_LINKS.CHECKOUT_EXTENSIBILITY} target="_blank">
+                    Shopify 官方文档
+                  </Link>
+                  。
                 </Text>
               </BlockStack>
-              <Box
-                background="bg-surface"
-                padding="400"
-                borderRadius="200"
-                minWidth="120px"
-              >
+              <Box background="bg-surface" padding="400" borderRadius="200" minWidth="120px">
                 <BlockStack gap="100" inlineAlign="center">
-                  <Text
-                    as="p"
-                    variant="heading2xl"
-                    fontWeight="bold"
-                    alignment="center"
-                  >
+                  <Text as="p" variant="heading2xl" fontWeight="bold" alignment="center">
                     {daysRemaining <= 0 ? "已过期" : daysRemaining}
                   </Text>
                   {daysRemaining > 0 && (
@@ -262,9 +250,13 @@ export function MigrationCountdown({
                       紧急程度
                     </Text>
                     <Badge tone={urgencyTone}>
-                      {daysRemaining <= 0 ? "已过期" :
-                       daysRemaining <= 30 ? "紧急" :
-                       daysRemaining <= 90 ? "警告" : "正常"}
+                      {daysRemaining <= 0
+                        ? "已过期"
+                        : daysRemaining <= 30
+                          ? "紧急"
+                          : daysRemaining <= 90
+                            ? "警告"
+                            : "正常"}
                     </Badge>
                   </BlockStack>
                 </Box>
@@ -275,12 +267,11 @@ export function MigrationCountdown({
         {daysRemaining <= 30 && daysRemaining > 0 && (
           <Banner tone="critical" title="⚠️ 紧急迁移提醒">
             <BlockStack gap="200">
-              <Text as="p">
-                距离截止日期仅剩 {daysRemaining} 天！请立即开始迁移以避免追踪中断。
-              </Text>
+              <Text as="p">距离截止日期仅剩 {daysRemaining} 天！请立即开始迁移以避免追踪中断。</Text>
               {shopTier === "plus" && (
                 <Text as="p" variant="bodySm" tone="subdued">
-                  Plus 商家提示：2026年1月起（Shopify 会提前30天通知，日期来自 Shopify 官方公告，请以 Admin 提示为准），Shopify 将开始自动升级未迁移的店铺，届时旧版脚本将被清除。
+                  Plus 商家提示：2026年1月起（Shopify 会提前30天通知，日期来自 Shopify 官方公告，请以 Admin
+                  提示为准），Shopify 将开始自动升级未迁移的店铺，届时旧版脚本将被清除。
                 </Text>
               )}
             </BlockStack>
@@ -315,7 +306,9 @@ export function MigrationCountdown({
                 <InlineStack align="space-between" blockAlign="center">
                   <InlineStack gap="300" blockAlign="center">
                     <Box
-                      background={milestone.isPassed ? "bg-fill-success" : milestone.isNext ? "bg-fill-info" : "bg-surface"}
+                      background={
+                        milestone.isPassed ? "bg-fill-success" : milestone.isNext ? "bg-fill-info" : "bg-surface"
+                      }
                       padding="100"
                       borderRadius="full"
                     >
@@ -329,15 +322,13 @@ export function MigrationCountdown({
                     </Box>
                     <BlockStack gap="050">
                       <InlineStack gap="200">
-                        <Text
-                          as="span"
-                          variant="bodySm"
-                          fontWeight={milestone.isNext ? "bold" : "regular"}
-                        >
+                        <Text as="span" variant="bodySm" fontWeight={milestone.isNext ? "bold" : "regular"}>
                           {milestone.label}
                         </Text>
                         {milestone.isNext && (
-                          <Badge tone="info" size="small">下一个</Badge>
+                          <Badge tone="info" size="small">
+                            下一个
+                          </Badge>
                         )}
                         {milestone.tier !== "all" && (
                           <Badge tone={milestone.tier === "plus" ? "attention" : "info"} size="small">

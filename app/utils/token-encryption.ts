@@ -25,8 +25,7 @@ export function decryptAccessToken(encryptedToken: string): string {
     return "";
   }
   if (!encryptedToken.startsWith(VERSION_PREFIX)) {
-    logger.warn("[Token Encryption] Found unencrypted legacy token. " +
-      "It will be encrypted on next auth refresh.");
+    logger.warn("[Token Encryption] Found unencrypted legacy token. " + "It will be encrypted on next auth refresh.");
     return encryptedToken;
   }
   try {
@@ -47,10 +46,7 @@ export function decryptAccessToken(encryptedToken: string): string {
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : "Unknown error";
     logger.error(`[Token Encryption] Decryption failed: ${errorMsg}`);
-    throw new TokenDecryptionError(
-      "Failed to decrypt access token. Re-authentication required.",
-      { cause: error }
-    );
+    throw new TokenDecryptionError("Failed to decrypt access token. Re-authentication required.", { cause: error });
   }
 }
 
@@ -74,10 +70,7 @@ export function decryptIngestionSecret(encryptedSecret: string): string {
   try {
     return decryptAccessToken(encryptedSecret);
   } catch {
-    logger.warn(
-      "[Token Encryption] Failed to decrypt ingestion secret. " +
-      "Shop should regenerate via Settings."
-    );
+    logger.warn("[Token Encryption] Failed to decrypt ingestion secret. " + "Shop should regenerate via Settings.");
     return "";
   }
 }

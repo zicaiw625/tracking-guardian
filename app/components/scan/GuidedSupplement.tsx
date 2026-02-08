@@ -35,20 +35,13 @@ const UPGRADE_WIZARD_CHECKLIST = [
   { id: "other", label: "其他脚本或功能", category: "other", platform: undefined },
 ];
 
-export function GuidedSupplement({
-  open,
-  onClose,
-  onComplete,
-  shopId: _shopId,
-}: GuidedSupplementProps) {
+export function GuidedSupplement({ open, onClose, onComplete, shopId: _shopId }: GuidedSupplementProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [additionalNotes, setAdditionalNotes] = useState("");
   const fetcher = useFetcher();
   const handleItemToggle = useCallback((itemId: string) => {
-    setSelectedItems((prev) =>
-      prev.includes(itemId) ? prev.filter((id) => id !== itemId) : [...prev, itemId]
-    );
+    setSelectedItems((prev) => (prev.includes(itemId) ? prev.filter((id) => id !== itemId) : [...prev, itemId]));
   }, []);
   const handleNext = useCallback(() => {
     if (step === 1) {
@@ -82,19 +75,33 @@ export function GuidedSupplement({
       tracking: ["tracking", "追踪", "物流", "aftership", "17track"],
     };
     Object.entries(keywordMap).forEach(([key, keywords]) => {
-      if (keywords.some(kw => lowerText.includes(kw))) {
-        const itemId = key === "ga4" ? "ga4" :
-                      key === "google" ? "ga4" :
-                      key === "meta" ? "meta" :
-                      key === "tiktok" ? "tiktok" :
-                      key === "pinterest" ? "pinterest" :
-                      key === "snapchat" ? "snapchat" :
-                      key === "survey" ? "survey" :
-                      key === "support" ? "support" :
-                      key === "reorder" ? "reorder" :
-                      key === "affiliate" ? "affiliate" :
-                      key === "upsell" ? "upsell" :
-                      key === "tracking" ? "tracking" : null;
+      if (keywords.some((kw) => lowerText.includes(kw))) {
+        const itemId =
+          key === "ga4"
+            ? "ga4"
+            : key === "google"
+              ? "ga4"
+              : key === "meta"
+                ? "meta"
+                : key === "tiktok"
+                  ? "tiktok"
+                  : key === "pinterest"
+                    ? "pinterest"
+                    : key === "snapchat"
+                      ? "snapchat"
+                      : key === "survey"
+                        ? "survey"
+                        : key === "support"
+                          ? "support"
+                          : key === "reorder"
+                            ? "reorder"
+                            : key === "affiliate"
+                              ? "affiliate"
+                              : key === "upsell"
+                                ? "upsell"
+                                : key === "tracking"
+                                  ? "tracking"
+                                  : null;
         if (itemId && !detectedItems.includes(itemId)) {
           detectedItems.push(itemId);
         }
@@ -109,42 +116,38 @@ export function GuidedSupplement({
     const finalSelectedItems = [...selectedItems];
     if (additionalNotes.trim()) {
       const detectedItems = extractFeaturesFromText(additionalNotes);
-      detectedItems.forEach(itemId => {
+      detectedItems.forEach((itemId) => {
         if (!finalSelectedItems.includes(itemId)) {
           finalSelectedItems.push(itemId);
         }
       });
     }
-    const assets = finalSelectedItems.map((itemId) => {
-      const item = UPGRADE_WIZARD_CHECKLIST.find((i) => i.id === itemId);
-      if (!item) return null;
-      return {
-        sourceType: "merchant_confirmed" as const,
-        category: item.category as
-          | "pixel"
-          | "affiliate"
-          | "survey"
-          | "support"
-          | "analytics"
-          | "other",
-        platform: item.platform,
-        displayName: item.label,
-        riskLevel: item.category === "pixel" ? ("high" as const) : ("medium" as const),
-        suggestedMigration:
-          item.category === "pixel"
-            ? ("web_pixel" as const)
-            : item.category === "survey" || item.category === "support"
-              ? ("ui_extension" as const)
-              : item.category === "affiliate"
-                ? ("server_side" as const)
-                : ("none" as const),
-        details: {
-          fromUpgradeWizard: true,
-          additionalNotes: additionalNotes.trim() || undefined,
-          autoDetected: !selectedItems.includes(itemId),
-        },
-      };
-    }).filter((asset): asset is NonNullable<typeof asset> => asset !== null);
+    const assets = finalSelectedItems
+      .map((itemId) => {
+        const item = UPGRADE_WIZARD_CHECKLIST.find((i) => i.id === itemId);
+        if (!item) return null;
+        return {
+          sourceType: "merchant_confirmed" as const,
+          category: item.category as "pixel" | "affiliate" | "survey" | "support" | "analytics" | "other",
+          platform: item.platform,
+          displayName: item.label,
+          riskLevel: item.category === "pixel" ? ("high" as const) : ("medium" as const),
+          suggestedMigration:
+            item.category === "pixel"
+              ? ("web_pixel" as const)
+              : item.category === "survey" || item.category === "support"
+                ? ("ui_extension" as const)
+                : item.category === "affiliate"
+                  ? ("server_side" as const)
+                  : ("none" as const),
+          details: {
+            fromUpgradeWizard: true,
+            additionalNotes: additionalNotes.trim() || undefined,
+            autoDetected: !selectedItems.includes(itemId),
+          },
+        };
+      })
+      .filter((asset): asset is NonNullable<typeof asset> => asset !== null);
     fetcher.submit(
       {
         _action: "create_from_wizard",
@@ -222,18 +225,10 @@ export function GuidedSupplement({
                     如何获取升级向导清单：
                   </Text>
                   <List type="number">
-                    <List.Item>
-                      前往 Shopify Admin → 设置 → 结账和订单处理
-                    </List.Item>
-                    <List.Item>
-                      找到「Thank you / Order status 页面升级」部分
-                    </List.Item>
-                    <List.Item>
-                      查看升级向导中列出的脚本和功能清单
-                    </List.Item>
-                    <List.Item>
-                      勾选下方对应的功能
-                    </List.Item>
+                    <List.Item>前往 Shopify Admin → 设置 → 结账和订单处理</List.Item>
+                    <List.Item>找到「Thank you / Order status 页面升级」部分</List.Item>
+                    <List.Item>查看升级向导中列出的脚本和功能清单</List.Item>
+                    <List.Item>勾选下方对应的功能</List.Item>
                   </List>
                 </BlockStack>
               </Banner>
@@ -255,14 +250,11 @@ export function GuidedSupplement({
               </Banner>
               <BlockStack gap="300">
                 {UPGRADE_WIZARD_CHECKLIST.map((item) => {
-                  const isV1Supported =
-                    item.id === "ga4" || item.id === "meta" || item.id === "tiktok";
+                  const isV1Supported = item.id === "ga4" || item.id === "meta" || item.id === "tiktok";
                   return (
                     <Box
                       key={item.id}
-                      background={
-                        selectedItems.includes(item.id) ? "bg-surface-success" : "bg-surface-secondary"
-                      }
+                      background={selectedItems.includes(item.id) ? "bg-surface-success" : "bg-surface-secondary"}
                       padding="300"
                       borderRadius="200"
                     >
@@ -273,11 +265,16 @@ export function GuidedSupplement({
                           onChange={() => handleItemToggle(item.id)}
                         />
                         {isV1Supported && (
-                          <Badge tone="success" size="small">v1 支持</Badge>
+                          <Badge tone="success" size="small">
+                            v1 支持
+                          </Badge>
                         )}
-                        {!isV1Supported && (item.category === "pixel" || item.category === "survey" || item.category === "support") && (
-                          <Badge tone="info" size="small">v1.1+</Badge>
-                        )}
+                        {!isV1Supported &&
+                          (item.category === "pixel" || item.category === "survey" || item.category === "support") && (
+                            <Badge tone="info" size="small">
+                              v1.1+
+                            </Badge>
+                          )}
                       </InlineStack>
                     </Box>
                   );
@@ -316,7 +313,9 @@ export function GuidedSupplement({
                         <Text as="span" variant="bodySm" tone="subdued">
                           <strong>方式二：</strong>上传升级向导的截图
                         </Text>
-                        <Badge tone="info" size="small">即将上线</Badge>
+                        <Badge tone="info" size="small">
+                          即将上线
+                        </Badge>
                       </InlineStack>
                     </List.Item>
                   </List>
@@ -340,7 +339,8 @@ export function GuidedSupplement({
               </Card>
               <Banner>
                 <Text as="p" variant="bodySm">
-                  💡 <strong>提示：</strong>截图识别暂未开放，请使用“文本粘贴”方式补充。若识别失败或内容缺失，请回退到方式一。
+                  💡 <strong>提示：</strong>
+                  截图识别暂未开放，请使用“文本粘贴”方式补充。若识别失败或内容缺失，请回退到方式一。
                 </Text>
               </Banner>
               <Card>
@@ -391,7 +391,9 @@ export function GuidedSupplement({
                           {selectedItems.map((itemId) => {
                             const item = UPGRADE_WIZARD_CHECKLIST.find((i) => i.id === itemId);
                             return item ? (
-                              <Badge key={itemId} tone="info">{item.label}</Badge>
+                              <Badge key={itemId} tone="info">
+                                {item.label}
+                              </Badge>
                             ) : null;
                           })}
                         </InlineStack>
@@ -401,25 +403,28 @@ export function GuidedSupplement({
                         </Text>
                       )}
                     </InlineStack>
-                    {additionalNotes.trim() && (() => {
-                      const detectedItems = extractFeaturesFromText(additionalNotes);
-                      const autoDetected = detectedItems.filter(id => !selectedItems.includes(id));
-                      return autoDetected.length > 0 ? (
-                        <InlineStack gap="200" align="start">
-                          <Text as="span" variant="bodySm" fontWeight="semibold">
-                            自动检测到的功能：
-                          </Text>
-                          <InlineStack gap="100" wrap>
-                            {autoDetected.map((itemId) => {
-                              const item = UPGRADE_WIZARD_CHECKLIST.find((i) => i.id === itemId);
-                              return item ? (
-                                <Badge key={itemId} tone="success">{item.label}</Badge>
-                              ) : null;
-                            })}
+                    {additionalNotes.trim() &&
+                      (() => {
+                        const detectedItems = extractFeaturesFromText(additionalNotes);
+                        const autoDetected = detectedItems.filter((id) => !selectedItems.includes(id));
+                        return autoDetected.length > 0 ? (
+                          <InlineStack gap="200" align="start">
+                            <Text as="span" variant="bodySm" fontWeight="semibold">
+                              自动检测到的功能：
+                            </Text>
+                            <InlineStack gap="100" wrap>
+                              {autoDetected.map((itemId) => {
+                                const item = UPGRADE_WIZARD_CHECKLIST.find((i) => i.id === itemId);
+                                return item ? (
+                                  <Badge key={itemId} tone="success">
+                                    {item.label}
+                                  </Badge>
+                                ) : null;
+                              })}
+                            </InlineStack>
                           </InlineStack>
-                        </InlineStack>
-                      ) : null;
-                    })()}
+                        ) : null;
+                      })()}
                     <InlineStack gap="200" align="center">
                       <CheckCircleIcon />
                       <Text as="span" variant="bodySm">

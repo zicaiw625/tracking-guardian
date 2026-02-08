@@ -1,8 +1,4 @@
-import type {
-  Middleware,
-  MiddlewareContext,
-  ApiHandlerConfig,
-} from "./types";
+import type { Middleware, MiddlewareContext, ApiHandlerConfig } from "./types";
 import { createContext } from "./types";
 import { buildErrorResponse } from "./error-handler";
 import { logger } from "../utils/logger.server";
@@ -57,8 +53,7 @@ export function createApiHandler<T = unknown>(
       if (handlerResult instanceof Response) {
         response = handlerResult;
       } else {
-        const corsHeaders =
-          (finalContext.meta.corsHeaders as Record<string, string>) || {};
+        const corsHeaders = (finalContext.meta.corsHeaders as Record<string, string>) || {};
         const headers = new Headers(corsHeaders);
         headers.set("Content-Type", "application/json");
         response = new Response(JSON.stringify(handlerResult), {

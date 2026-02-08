@@ -13,7 +13,10 @@ function toGa4Items(items: unknown): Array<{ item_id: string; item_name: string;
       item_id: String(i.id ?? i.variant_id ?? i.product_id ?? "").trim(),
       item_name: String(i.name ?? i.item_name ?? "").trim() || "Unknown",
       price: typeof i.price === "number" ? i.price : parseFloat(String(i.price ?? 0)) || 0,
-      quantity: typeof i.quantity === "number" ? Math.max(1, i.quantity) : Math.max(1, parseInt(String(i.quantity ?? 1), 10) || 1),
+      quantity:
+        typeof i.quantity === "number"
+          ? Math.max(1, i.quantity)
+          : Math.max(1, parseInt(String(i.quantity ?? 1), 10) || 1),
     }))
     .filter((i) => i.item_id);
 }
@@ -24,10 +27,7 @@ function numericValue(v: unknown): number {
   return Number.isNaN(n) ? 0 : n;
 }
 
-export async function sendEvent(
-  event: InternalEventPayload,
-  credentials: GoogleCredentials
-): Promise<SendEventResult> {
+export async function sendEvent(event: InternalEventPayload, credentials: GoogleCredentials): Promise<SendEventResult> {
   const { measurementId, apiSecret } = credentials;
   const clientId = event.client_id ?? `s2s_${event.event_id}`;
   const params: Record<string, unknown> = {

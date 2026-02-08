@@ -1,14 +1,10 @@
-export {
-    scanShopTracking,
-    getScanHistory,
-    analyzeScriptContent,
-} from "./scanner/index";
+export { scanShopTracking, getScanHistory, analyzeScriptContent } from "./scanner/index";
 
 export type {
-    WebPixelInfo,
-    EnhancedScanResult,
-    MigrationAction,
-    ScriptAnalysisResult,
-    ScanResult,
-    RiskItem,
+  WebPixelInfo,
+  EnhancedScanResult,
+  MigrationAction,
+  ScriptAnalysisResult,
+  ScanResult,
+  RiskItem,
 } from "./scanner/index";

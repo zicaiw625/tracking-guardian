@@ -87,7 +87,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const hasEnabledModules =
     (settings.uiModules as Record<string, unknown> | undefined)?.done === true ||
     Object.values(uiModulesConfig).some(
-      (module: unknown) => module && typeof module === "object" && "isEnabled" in module && (module as { isEnabled: boolean }).isEnabled
+      (module: unknown) =>
+        module && typeof module === "object" && "isEnabled" in module && (module as { isEnabled: boolean }).isEnabled
     );
 
   const latestVerification = await prisma.verificationRun.findFirst({
@@ -150,11 +151,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const result = await validateTestEnvironment(shop.id, platform as "google" | "meta" | "tiktok");
       return json(result);
     } catch (error) {
-      return json({
-        valid: false,
-        message: error instanceof Error ? error.message : "migrate.errors.validationFailed",
-        details: { eventSent: false, error: error instanceof Error ? error.message : "migrate.errors.validationFailed" },
-      }, { status: 500 });
+      return json(
+        {
+          valid: false,
+          message: error instanceof Error ? error.message : "migrate.errors.validationFailed",
+          details: {
+            eventSent: false,
+            error: error instanceof Error ? error.message : "migrate.errors.validationFailed",
+          },
+        },
+        { status: 500 }
+      );
     }
   }
   if (actionType === "saveWizardDraft") {
@@ -340,7 +347,10 @@ export default function MigratePage() {
             </InlineStack>
             <ProgressBar progress={progress} tone={progress === 100 ? "success" : undefined} />
             <Text as="p" variant="bodySm" tone="subdued">
-              {t("migrate.progress.stepsCompleted", { completed: Object.values(steps).filter((s) => s.completed).length, total: Object.keys(steps).length })}
+              {t("migrate.progress.stepsCompleted", {
+                completed: Object.values(steps).filter((s) => s.completed).length,
+                total: Object.keys(steps).length,
+              })}
             </Text>
           </BlockStack>
         </Card>
@@ -373,7 +383,9 @@ export default function MigratePage() {
                           {stepStatus.completed && <Badge tone="success">{t("migrate.buttons.completed")}</Badge>}
                           {!canAccess && stepConfig.requiresPlan && (
                             <Badge tone="warning">
-                              {stepConfig.requiresPlan === "starter" ? t("migrate.buttons.requiresStarter") : t("migrate.buttons.requiresUpgrade")}
+                              {stepConfig.requiresPlan === "starter"
+                                ? t("migrate.buttons.requiresStarter")
+                                : t("migrate.buttons.requiresUpgrade")}
                             </Badge>
                           )}
                         </InlineStack>
@@ -408,16 +420,10 @@ export default function MigratePage() {
                           <List.Item>{t("migrate.steps.modules.list.3")}</List.Item>
                         </List>
                         <InlineStack gap="200">
-                          <Button
-                            url={shop ? getShopifyAdminUrl(shop.domain, "/settings/checkout") : "#"}
-                            external
-                          >
+                          <Button url={shop ? getShopifyAdminUrl(shop.domain, "/settings/checkout") : "#"} external>
                             {t("migrate.steps.modules.openSettings")}
                           </Button>
-                          <Button
-                            url={shop ? getShopifyAdminUrl(shop.domain, "/themes/current/editor") : "#"}
-                            external
-                          >
+                          <Button url={shop ? getShopifyAdminUrl(shop.domain, "/themes/current/editor") : "#"} external>
                             {t("migrate.steps.modules.themeEditor")}
                           </Button>
                         </InlineStack>
@@ -451,11 +457,7 @@ export default function MigratePage() {
                             </Button>
                           ) : null
                         ) : (
-                          <Button
-                            url="/app/billing"
-                            variant="secondary"
-                            icon={LockIcon}
-                          >
+                          <Button url="/app/billing" variant="secondary" icon={LockIcon}>
                             {t("migrate.buttons.upgrade")}
                           </Button>
                         )}
@@ -541,7 +543,7 @@ export default function MigratePage() {
               {t("migrate.banner.important.subtitle")}
             </Text>
             <Text as="p" variant="bodySm" tone="subdued">
-               <Trans i18nKey="migrate.banner.important.desc" />
+              <Trans i18nKey="migrate.banner.important.desc" />
             </Text>
             <List type="bullet">
               <List.Item>

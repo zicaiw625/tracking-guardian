@@ -48,11 +48,7 @@ export function errorResponse(
   };
 }
 
-export function jsonSuccess<T>(
-  data: T,
-  message?: string,
-  init?: ResponseInit
-) {
+export function jsonSuccess<T>(data: T, message?: string, init?: ResponseInit) {
   return json(successResponse(data, message), init);
 }
 
@@ -95,21 +91,15 @@ export function jsonRateLimited(retryAfter: number = 60) {
   });
 }
 
-export function jsonInternalError(
-  message: string = "An unexpected error occurred"
-) {
+export function jsonInternalError(message: string = "An unexpected error occurred") {
   return jsonError(message, 500, { code: "INTERNAL_ERROR" });
 }
 
-export function isActionSuccess<T>(
-  response: ActionResponse<T>
-): response is ActionSuccess<T> {
+export function isActionSuccess<T>(response: ActionResponse<T>): response is ActionSuccess<T> {
   return response.success === true;
 }
 
-export function isActionError(
-  response: ActionResponse<unknown>
-): response is ActionError {
+export function isActionError(response: ActionResponse<unknown>): response is ActionError {
   return response.success === false;
 }
 
@@ -120,10 +110,7 @@ export function unwrapResponse<T>(response: ActionResponse<T>): T {
   return response.data as T;
 }
 
-export function unwrapResponseOr<T>(
-  response: ActionResponse<T>,
-  defaultValue: T
-): T {
+export function unwrapResponseOr<T>(response: ActionResponse<T>, defaultValue: T): T {
   if (isActionError(response)) {
     return defaultValue;
   }

@@ -9,7 +9,12 @@ import { dispatchWebhook, type WebhookContext, type ShopWithPixelConfigs } from 
 import { tryAcquireWebhookLock } from "../webhooks/middleware/idempotency";
 
 function getWebhookId(authResult: Awaited<ReturnType<typeof authenticate.webhook>>, request: Request): string | null {
-  if (authResult && typeof authResult === "object" && "webhookId" in authResult && typeof authResult.webhookId === "string") {
+  if (
+    authResult &&
+    typeof authResult === "object" &&
+    "webhookId" in authResult &&
+    typeof authResult.webhookId === "string"
+  ) {
     return authResult.webhookId;
   }
   return request.headers.get("X-Shopify-Event-Id") ?? request.headers.get("X-Shopify-Webhook-Id") ?? null;
@@ -97,11 +102,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   } catch (error) {
     const topic = request.headers.get("X-Shopify-Topic") || "unknown";
     const shopHeader = request.headers.get("X-Shopify-Shop-Domain") || "unknown";
-    const webhookIdHeader = request.headers.get("X-Shopify-Webhook-Id") || request.headers.get("X-Shopify-Event-Id") || "unknown";
+    const webhookIdHeader =
+      request.headers.get("X-Shopify-Webhook-Id") || request.headers.get("X-Shopify-Event-Id") || "unknown";
     const hasHmacHeader = !!request.headers.get("X-Shopify-Hmac-Sha256");
     const hasTopicHeader = !!request.headers.get("X-Shopify-Topic");
     const hasShopHeader = !!request.headers.get("X-Shopify-Shop-Domain");
-    
+
     if (error instanceof Response) {
       const errorStatus = error.status;
       if (errorStatus === 401) {
@@ -157,11 +163,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           logger.info(`[Webhook Idempotency] Skipping duplicate (early check): ${context.topic} for ${context.shop}`);
           return new Response("OK (duplicate)", { status: 200 });
         }
-        logger.error(`[Webhook Idempotency] Failed to acquire lock (system error): ${context.topic} for ${context.shop}`);
+        logger.error(
+          `[Webhook Idempotency] Failed to acquire lock (system error): ${context.topic} for ${context.shop}`
+        );
         return new Response("Temporary error", { status: 500 });
       }
     }
-    shopRecord = await prisma.shop.findUnique({
+    shopRecord = (await prisma.shop.findUnique({
       where: { shopDomain: context.shop },
       select: {
         id: true,
@@ -200,7 +208,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           },
         },
       },
-    }) as ShopWithPixelConfigs | null;
+    })) as ShopWithPixelConfigs | null;
   } catch (error) {
     logger.error(`[Webhook] Failed to fetch shop record for ${context.shop}:`, error);
   }

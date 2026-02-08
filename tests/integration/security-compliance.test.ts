@@ -28,9 +28,10 @@ vi.mock("../../app/utils/logger.server", async (importOriginal) => {
 
 vi.mock("../../app/services/shopify/app-config.server", () => ({
   addDocumentResponseHeaders: vi.fn((request: Request, headers: Headers) => {
-    const shopDomain = request.headers.get("x-shopify-shop-domain") || 
-                       new URL(request.url).searchParams.get("shop") ||
-                       "test-shop.myshopify.com";
+    const shopDomain =
+      request.headers.get("x-shopify-shop-domain") ||
+      new URL(request.url).searchParams.get("shop") ||
+      "test-shop.myshopify.com";
     const existingCsp = headers.get("Content-Security-Policy") || "";
     const frameAncestors = `frame-ancestors https://admin.shopify.com https://${shopDomain}`;
     if (existingCsp) {
@@ -124,9 +125,9 @@ describe("Security Compliance - App Store Requirements", () => {
         },
       });
       const headers = new Headers();
-      
+
       addDocumentResponseHeaders(request, headers);
-      
+
       const csp = headers.get("Content-Security-Policy");
       expect(csp).toBeTruthy();
       expect(csp).toContain("frame-ancestors");
@@ -143,9 +144,9 @@ describe("Security Compliance - App Store Requirements", () => {
         },
       });
       const headers = new Headers();
-      
+
       addDocumentResponseHeaders(request, headers);
-      
+
       const csp = headers.get("Content-Security-Policy");
       expect(csp).toBeTruthy();
       expect(csp).toContain("frame-ancestors");
@@ -161,9 +162,9 @@ describe("Security Compliance - App Store Requirements", () => {
         },
       });
       const headers = new Headers();
-      
+
       addDocumentResponseHeaders(request, headers);
-      
+
       const csp = headers.get("Content-Security-Policy");
       expect(csp).toBeTruthy();
       expect(csp).toContain("frame-ancestors");
@@ -173,15 +174,14 @@ describe("Security Compliance - App Store Requirements", () => {
   });
 
   describe("P0-2: /ingest Endpoint Security", () => {
-
     it("should reject requests without signature in production", async () => {
       process.env.NODE_ENV = "production";
-      
+
       const request = new Request("https://example.com/ingest", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Origin": "https://test-shop.myshopify.com",
+          Origin: "https://test-shop.myshopify.com",
         },
         body: JSON.stringify({
           eventName: "checkout_completed",
@@ -196,7 +196,7 @@ describe("Security Compliance - App Store Requirements", () => {
 
     it("should reject requests with expired timestamp", async () => {
       process.env.NODE_ENV = "production";
-      
+
       const expiredTimestamp = Date.now() - 600000;
       const request = new Request("https://example.com/ingest", {
         method: "POST",
@@ -204,7 +204,7 @@ describe("Security Compliance - App Store Requirements", () => {
           "Content-Type": "application/json",
           "X-Tracking-Guardian-Timestamp": String(expiredTimestamp),
           "X-Tracking-Guardian-Signature": "test-signature",
-          "Origin": "https://test-shop.myshopify.com",
+          Origin: "https://test-shop.myshopify.com",
         },
         body: JSON.stringify({
           eventName: "checkout_completed",
@@ -218,6 +218,4 @@ describe("Security Compliance - App Store Requirements", () => {
       expect([204, 400, 403, 422]).toContain(response.status);
     });
   });
-
-
 });

@@ -316,23 +316,13 @@ describe("Webhook Flow Integration", () => {
   });
   describe("Error Scenarios", () => {
     it("should handle database connection errors", async () => {
-      (prisma.shop.findUnique as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error("Database connection failed")
+      (prisma.shop.findUnique as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Database connection failed"));
+      await expect(prisma.shop.findUnique({ where: { shopDomain: "test.myshopify.com" } })).rejects.toThrow(
+        "Database connection failed"
       );
-      await expect(
-        prisma.shop.findUnique({ where: { shopDomain: "test.myshopify.com" } })
-      ).rejects.toThrow("Database connection failed");
     });
     it("should handle malformed webhook payload", () => {
-      const malformedPayloads = [
-        null,
-        undefined,
-        "",
-        "not json",
-        {},
-        { id: null },
-        { id: "not-a-number" },
-      ];
+      const malformedPayloads = [null, undefined, "", "not json", {}, { id: null }, { id: "not-a-number" }];
       for (const payload of malformedPayloads) {
         const isValid =
           payload !== null &&
@@ -358,9 +348,7 @@ describe("Webhook Flow Integration", () => {
       };
       expect(validateWebhookPayload({})).toContain("Missing id");
       expect(validateWebhookPayload({ id: 1 })).toContain("Missing order_number");
-      expect(validateWebhookPayload({ id: 1, order_number: "1001" })).toContain(
-        "Missing total_price"
-      );
+      expect(validateWebhookPayload({ id: 1, order_number: "1001" })).toContain("Missing total_price");
       expect(
         validateWebhookPayload({
           id: 1,

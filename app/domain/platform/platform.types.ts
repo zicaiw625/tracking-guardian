@@ -23,10 +23,7 @@ export interface TikTokCredentials {
   accessToken: string;
 }
 
-export type PlatformCredentials =
-  | GoogleCredentials
-  | MetaCredentials
-  | TikTokCredentials;
+export type PlatformCredentials = GoogleCredentials | MetaCredentials | TikTokCredentials;
 
 export interface TypedGoogleCredentials extends GoogleCredentials {
   platform: "google";
@@ -40,10 +37,7 @@ export interface TypedTikTokCredentials extends TikTokCredentials {
   platform: "tiktok";
 }
 
-export type TypedPlatformCredentials =
-  | TypedGoogleCredentials
-  | TypedMetaCredentials
-  | TypedTikTokCredentials;
+export type TypedPlatformCredentials = TypedGoogleCredentials | TypedMetaCredentials | TypedTikTokCredentials;
 
 export interface ConversionLineItem {
   id: string;
@@ -144,10 +138,5 @@ export function isRetryableError(error: PlatformError): boolean {
 }
 
 export function isRetryableErrorType(type: PlatformErrorType): boolean {
-  return (
-    type === "rate_limited" ||
-    type === "server_error" ||
-    type === "timeout" ||
-    type === "network_error"
-  );
+  return type === "rate_limited" || type === "server_error" || type === "timeout" || type === "network_error";
 }

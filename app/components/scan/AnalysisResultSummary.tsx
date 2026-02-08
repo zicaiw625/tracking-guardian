@@ -1,13 +1,4 @@
-import {
-  Layout,
-  Card,
-  BlockStack,
-  Box,
-  InlineStack,
-  Text,
-  Badge,
-  Icon,
-} from "@shopify/polaris";
+import { Layout, Card, BlockStack, Box, InlineStack, Text, Badge, Icon } from "@shopify/polaris";
 import { CheckCircleIcon } from "~/components/icons";
 import type { ScriptAnalysisResult } from "../../services/scanner/types";
 import { getPlatformName } from "./utils";
@@ -32,8 +23,8 @@ export function AnalysisResultSummary({ analysisResult }: AnalysisResultSummaryP
                 analysisResult.riskScore > 60
                   ? "bg-fill-critical"
                   : analysisResult.riskScore > 30
-                  ? "bg-fill-warning"
-                  : "bg-fill-success"
+                    ? "bg-fill-warning"
+                    : "bg-fill-success"
               }
               padding="600"
               borderRadius="200"
@@ -82,19 +73,16 @@ export function AnalysisResultSummary({ analysisResult }: AnalysisResultSummaryP
             {analysisResult.platformDetails.length > 0 ? (
               <BlockStack gap="200">
                 {analysisResult.platformDetails.slice(0, 5).map((detail, idx) => (
-                  <Box
-                    key={idx}
-                    background="bg-surface-secondary"
-                    padding="200"
-                    borderRadius="100"
-                  >
+                  <Box key={idx} background="bg-surface-secondary" padding="200" borderRadius="100">
                     <BlockStack gap="100">
                       <InlineStack gap="200" align="space-between">
                         <Text as="span" variant="bodySm" fontWeight="semibold">
                           {detail.type}
                         </Text>
                         <Badge tone={detail.confidence === "high" ? "success" : "info"}>
-                          {detail.confidence === "high" ? t("scan.analysisResult.confidence.high") : t("scan.analysisResult.confidence.medium")}
+                          {detail.confidence === "high"
+                            ? t("scan.analysisResult.confidence.high")
+                            : t("scan.analysisResult.confidence.medium")}
                         </Badge>
                       </InlineStack>
                       <Text as="span" variant="bodySm" tone="subdued">

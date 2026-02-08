@@ -12,14 +12,7 @@ module.exports = {
     commonjs: true,
     es6: true,
   },
-  ignorePatterns: [
-    "!**/.server",
-    "!**/.client",
-    "build/",
-    "node_modules/",
-    "dist/",
-    ".cache/",
-  ],
+  ignorePatterns: ["!**/.server", "!**/.client", "build/", "node_modules/", "dist/", ".cache/"],
   extends: ["eslint:recommended"],
   overrides: [
     {
@@ -40,17 +33,10 @@ module.exports = {
           version: "detect",
         },
       },
-      extends: [
-        "plugin:@typescript-eslint/recommended",
-        "plugin:import/recommended",
-        "plugin:import/typescript",
-      ],
+      extends: ["plugin:@typescript-eslint/recommended", "plugin:import/recommended", "plugin:import/typescript"],
       rules: {
         "@typescript-eslint/no-explicit-any": "off",
-        "@typescript-eslint/no-unused-vars": [
-          "warn",
-          { argsIgnorePattern: "^_" },
-        ],
+        "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
         "react-hooks/rules-of-hooks": "error",
         "react-hooks/exhaustive-deps": "warn",
       },

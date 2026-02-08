@@ -51,10 +51,7 @@ export default function ReportsPage() {
   };
 
   return (
-    <Page
-      title={t("reports.title")}
-      subtitle={t("reports.subtitle")}
-    >
+    <Page title={t("reports.title")} subtitle={t("reports.subtitle")}>
       <BlockStack gap="500">
         <PageIntroCard
           title={t("reports.intro.title")}
@@ -64,9 +61,7 @@ export default function ReportsPage() {
           secondaryAction={{ content: t("reports.intro.actions.scan"), url: "/app/scan" }}
         />
         {!shop ? (
-          <Banner tone="warning">
-            {t("reports.empty")}
-          </Banner>
+          <Banner tone="warning">{t("reports.empty")}</Banner>
         ) : (
           <>
             <Card>
@@ -98,7 +93,7 @@ export default function ReportsPage() {
                       {t("reports.verification.lastRun", {
                         name: latestRun.runName,
                         status: latestRun.status === "completed" ? t("common.success") : latestRun.status,
-                        time: latestRun.startedAt ? new Date(latestRun.startedAt).toLocaleString() : ""
+                        time: latestRun.startedAt ? new Date(latestRun.startedAt).toLocaleString() : "",
                       })}
                     </Text>
                     {canExportReports ? (

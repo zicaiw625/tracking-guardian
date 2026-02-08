@@ -50,9 +50,7 @@ describe("P0-02: v1.0 No PII Tests", () => {
           currency: "USD",
           tax: 9.99,
           shipping: 5.99,
-          items: [
-            { id: "product-1", name: "Test Product", price: 84.01, quantity: 1 },
-          ],
+          items: [{ id: "product-1", name: "Test Product", price: 84.01, quantity: 1 }],
           email: null,
           phone: null,
           firstName: null,
@@ -67,11 +65,7 @@ describe("P0-02: v1.0 No PII Tests", () => {
       expect(piiNullPayload.data.orderId).toBe("12345");
       const normalizedId = normalizeOrderId(piiNullPayload.data.orderId);
       expect(normalizedId).toBe("12345");
-      const eventId = generateEventId(
-        normalizedId,
-        "purchase",
-        piiNullPayload.shopDomain
-      );
+      const eventId = generateEventId(normalizedId, "purchase", piiNullPayload.shopDomain);
       expect(eventId).toBeTruthy();
       expect(eventId.length).toBeGreaterThan(0);
     });
@@ -90,12 +84,11 @@ describe("P0-02: v1.0 No PII Tests", () => {
         data: {
           orderId: null,
           checkoutToken: "checkout_token_abc123",
-          value: 50.00,
+          value: 50.0,
           currency: "USD",
         },
       };
-      const effectiveId = payloadWithNullOrderId.data.orderId ||
-                          payloadWithNullOrderId.data.checkoutToken;
+      const effectiveId = payloadWithNullOrderId.data.orderId || payloadWithNullOrderId.data.checkoutToken;
       expect(effectiveId).toBe("checkout_token_abc123");
     });
   });
@@ -106,9 +99,7 @@ describe("P0-02: v1.0 No PII Tests", () => {
         value: 99.99,
         currency: "USD",
         orderNumber: "1001",
-        items: [
-          { productId: "prod-1", name: "Test Product", quantity: 1, price: 99.99 },
-        ],
+        items: [{ productId: "prod-1", name: "Test Product", quantity: 1, price: 99.99 }],
         contentIds: ["prod-1"],
         numItems: 1,
         tax: 9.99,
@@ -176,7 +167,7 @@ describe("P0-02: v1.0 No PII Tests", () => {
     });
   });
   describe("CAPI Sending without PII", () => {
-        it("should send Meta CAPI without user_data field (v1.0: no PII)", () => {
+    it("should send Meta CAPI without user_data field (v1.0: no PII)", () => {
       const metaPayload = {
         event_name: "Purchase",
         event_time: Math.floor(Date.now() / 1000),
@@ -205,9 +196,7 @@ describe("P0-02: v1.0 No PII Tests", () => {
               transaction_id: "12345",
               value: 99.99,
               currency: "USD",
-              items: [
-                { item_id: "prod-1", item_name: "Test Product", price: 99.99, quantity: 1 },
-              ],
+              items: [{ item_id: "prod-1", item_name: "Test Product", price: 99.99, quantity: 1 }],
             },
           },
         ],
@@ -224,9 +213,7 @@ describe("P0-02: v1.0 No PII Tests", () => {
         properties: {
           currency: "USD",
           value: 99.99,
-          contents: [
-            { content_id: "prod-1", content_type: "product", quantity: 1, price: 99.99 },
-          ],
+          contents: [{ content_id: "prod-1", content_type: "product", quantity: 1, price: 99.99 }],
           content_type: "product",
           order_id: "12345",
         },
@@ -302,11 +289,7 @@ describe("Shopify 2025-12-10 PII Changes Compatibility", () => {
     expect(payloadWithNullPII.data.phone).toBeNull();
     const normalizedId = normalizeOrderId(payloadWithNullPII.data.orderId);
     expect(normalizedId).toBe("12345");
-    const eventId = generateEventId(
-      normalizedId,
-      "purchase",
-      payloadWithNullPII.shopDomain
-    );
+    const eventId = generateEventId(normalizedId, "purchase", payloadWithNullPII.shopDomain);
     expect(eventId).toBeTruthy();
   });
   it("should not depend on PII fields for event processing", () => {
@@ -322,11 +305,7 @@ describe("Shopify 2025-12-10 PII Changes Compatibility", () => {
     };
     expect(payloadWithoutPII.data.orderId).toBeTruthy();
     expect((payloadWithoutPII.data as Record<string, unknown>).email).toBeUndefined();
-    const eventId = generateEventId(
-      payloadWithoutPII.data.orderId!,
-      "purchase",
-      payloadWithoutPII.shopDomain
-    );
+    const eventId = generateEventId(payloadWithoutPII.data.orderId!, "purchase", payloadWithoutPII.shopDomain);
     expect(eventId).toBeTruthy();
   });
 });

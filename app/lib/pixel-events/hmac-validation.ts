@@ -24,16 +24,16 @@ const TIMESTAMP_HEADER = "X-Tracking-Guardian-Timestamp";
 export interface HMACValidationResult {
   valid: boolean;
   reason?: string;
-  errorCode?: "missing_signature" | "invalid_signature" | "timestamp_out_of_window" | "missing_timestamp_header" | "timestamp_mismatch";
+  errorCode?:
+    | "missing_signature"
+    | "invalid_signature"
+    | "timestamp_out_of_window"
+    | "missing_timestamp_header"
+    | "timestamp_mismatch";
   trustLevel?: "trusted" | "partial" | "untrusted";
 }
 
-export function generateHMACSignature(
-  token: string,
-  timestamp: number,
-  shopDomain: string,
-  bodyHash: string
-): string {
+export function generateHMACSignature(token: string, timestamp: number, shopDomain: string, bodyHash: string): string {
   const message = `${timestamp}:${shopDomain}:${bodyHash}`;
   const hmac = createHmac(HMAC_ALGORITHM, token);
   hmac.update(message);

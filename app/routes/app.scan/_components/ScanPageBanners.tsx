@@ -91,7 +91,8 @@ export function ScanPageBanners({
   const dep = deprecationStatus;
 
   // Only show pagination warning if we are close to the limits (e.g. > 80%) or if partial refresh occurred
-  const showPaginationWarning = partialRefresh ||
+  const showPaginationWarning =
+    partialRefresh ||
     (currentScriptTagCount > 0 && currentScriptTagCount >= scannerMaxScriptTags * 0.8) ||
     (currentWebPixelCount > 0 && currentWebPixelCount >= scannerMaxWebPixels * 0.8);
 
@@ -108,9 +109,7 @@ export function ScanPageBanners({
     <>
       <Banner tone="warning" title={t("scan.banners.additionalScripts.title")}>
         <BlockStack gap="200">
-          <Text as="p">
-            {t("scan.banners.additionalScripts.content")}
-          </Text>
+          <Text as="p">{t("scan.banners.additionalScripts.content")}</Text>
           {dep?.additionalScripts && (
             <Text as="p" tone="subdued">
               {t("scan.banners.additionalScripts.deadline", {
@@ -123,7 +122,7 @@ export function ScanPageBanners({
                   dep.additionalScripts.description,
                   dep.additionalScripts.descriptionKey,
                   dep.additionalScripts.descriptionParams
-                )
+                ),
               })}
             </Text>
           )}
@@ -135,12 +134,14 @@ export function ScanPageBanners({
       {showPaginationWarning && (
         <Banner tone="info" title={t("scan.banners.pagination.title")}>
           <BlockStack gap="200">
-            <Text as="p">
-              {t("scan.banners.pagination.content")}
-            </Text>
+            <Text as="p">{t("scan.banners.pagination.content")}</Text>
             <List type="bullet">
-              <List.Item>{t("scan.banners.pagination.limitScriptTags", { limit: scannerMaxScriptTags.toLocaleString() })}</List.Item>
-              <List.Item>{t("scan.banners.pagination.limitWebPixels", { limit: scannerMaxWebPixels.toLocaleString() })}</List.Item>
+              <List.Item>
+                {t("scan.banners.pagination.limitScriptTags", { limit: scannerMaxScriptTags.toLocaleString() })}
+              </List.Item>
+              <List.Item>
+                {t("scan.banners.pagination.limitWebPixels", { limit: scannerMaxWebPixels.toLocaleString() })}
+              </List.Item>
             </List>
             <Text as="p" tone="subdued">
               {t("scan.banners.pagination.footer")}
@@ -160,9 +161,14 @@ export function ScanPageBanners({
           </BlockStack>
         </Banner>
       )}
-      {(upgradeStatus?.autoUpgradeInfo?.autoUpgradeMessage || upgradeStatus?.autoUpgradeInfo?.autoUpgradeMessageKey) && (
+      {(upgradeStatus?.autoUpgradeInfo?.autoUpgradeMessage ||
+        upgradeStatus?.autoUpgradeInfo?.autoUpgradeMessageKey) && (
         <Banner
-          title={upgradeStatus.autoUpgradeInfo!.isInAutoUpgradeWindow ? t("scan.banners.autoUpgrade.windowOpen") : t("scan.banners.autoUpgrade.windowRisk")}
+          title={
+            upgradeStatus.autoUpgradeInfo!.isInAutoUpgradeWindow
+              ? t("scan.banners.autoUpgrade.windowOpen")
+              : t("scan.banners.autoUpgrade.windowRisk")
+          }
           tone={upgradeStatus.autoUpgradeInfo!.isInAutoUpgradeWindow ? "critical" : "warning"}
         >
           <BlockStack gap="200">
@@ -179,7 +185,7 @@ export function ScanPageBanners({
                 values={{
                   date1: getDateDisplayLabel(DEPRECATION_DATES.plusAdditionalScriptsReadOnly, "exact"),
                   date2: getDateDisplayLabel(DEPRECATION_DATES.plusAutoUpgradeStart, "month"),
-                  date3: getDateDisplayLabel(DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly, "exact")
+                  date3: getDateDisplayLabel(DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly, "exact"),
                 }}
               />
             </Text>
@@ -195,10 +201,14 @@ export function ScanPageBanners({
             <Text as="p">
               {getTranslatedText(upgradeStatus.message, upgradeStatus.messageKey, upgradeStatus.messageParams)}
             </Text>
-            {((upgradeStatus.actionsKeys && upgradeStatus.actionsKeys.length > 0) || (upgradeStatus.actions && upgradeStatus.actions.length > 0)) && (
+            {((upgradeStatus.actionsKeys && upgradeStatus.actionsKeys.length > 0) ||
+              (upgradeStatus.actions && upgradeStatus.actions.length > 0)) && (
               <BlockStack gap="100">
                 {(upgradeStatus.actionsKeys && upgradeStatus.actionsKeys.length > 0
-                  ? upgradeStatus.actionsKeys.map((actionKey, idx) => ({ text: t(actionKey.key, actionKey.params), idx }))
+                  ? upgradeStatus.actionsKeys.map((actionKey, idx) => ({
+                      text: t(actionKey.key, actionKey.params),
+                      idx,
+                    }))
                   : upgradeStatus.actions!.map((action, idx) => ({ text: action, idx }))
                 ).map(({ text, idx }) => (
                   <Text key={idx} as="p" variant="bodySm">
@@ -214,7 +224,11 @@ export function ScanPageBanners({
             )}
             {upgradeStatus.lastUpdated && parseDateSafely(upgradeStatus.lastUpdated) && (
               <Text as="p" variant="bodySm" tone="subdued">
-                {t("scan.banners.upgradeStatus.lastUpdated", { date: parseDateSafely(upgradeStatus.lastUpdated)!.toLocaleString(i18n.language === "en" ? "en-US" : "zh-CN") })}
+                {t("scan.banners.upgradeStatus.lastUpdated", {
+                  date: parseDateSafely(upgradeStatus.lastUpdated)!.toLocaleString(
+                    i18n.language === "en" ? "en-US" : "zh-CN"
+                  ),
+                })}
               </Text>
             )}
           </BlockStack>
@@ -231,13 +245,19 @@ export function ScanPageBanners({
         >
           <BlockStack gap="200">
             {planTagline && (
-              <Text as="p" variant="bodySm">{resolvePlanText(planTagline, "tagline")}</Text>
+              <Text as="p" variant="bodySm">
+                {resolvePlanText(planTagline, "tagline")}
+              </Text>
             )}
             {!isGrowthOrAbove && (
               <List type="bullet">
-                <List.Item><Trans i18nKey="scan.banners.plan.starter.item1" /></List.Item>
+                <List.Item>
+                  <Trans i18nKey="scan.banners.plan.starter.item1" />
+                </List.Item>
                 <List.Item>{t("scan.banners.plan.starter.item2")}</List.Item>
-                <List.Item><Trans i18nKey="scan.banners.plan.starter.item3" /></List.Item>
+                <List.Item>
+                  <Trans i18nKey="scan.banners.plan.starter.item3" />
+                </List.Item>
                 <List.Item>{t("scan.banners.plan.starter.item4")}</List.Item>
               </List>
             )}

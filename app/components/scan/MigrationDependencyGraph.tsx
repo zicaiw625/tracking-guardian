@@ -1,14 +1,5 @@
 import { useMemo } from "react";
-import {
-  Card,
-  Text,
-  BlockStack,
-  InlineStack,
-  Badge,
-  Box,
-  List,
-  Banner,
-} from "@shopify/polaris";
+import { Card, Text, BlockStack, InlineStack, Badge, Box, List, Banner } from "@shopify/polaris";
 import type { DependencyGraph } from "~/services/dependency-analysis.server";
 
 function formatTime(minutes: number): string {
@@ -35,7 +26,7 @@ export function MigrationDependencyGraph({
     }
     const inDegree = new Map<string, number>();
     const dependents = new Map<string, string[]>();
-    const nodeMap = new Map<string, typeof dependencyGraph.nodes[0]>();
+    const nodeMap = new Map<string, (typeof dependencyGraph.nodes)[0]>();
     dependencyGraph.nodes.forEach((node) => {
       inDegree.set(node.id, 0);
       dependents.set(node.id, []);
@@ -74,9 +65,7 @@ export function MigrationDependencyGraph({
       });
     }
     const cycles: string[][] = [];
-    const remaining = dependencyGraph.nodes.filter(
-      (n) => !sorted.find((s) => s.id === n.id)
-    );
+    const remaining = dependencyGraph.nodes.filter((n) => !sorted.find((s) => s.id === n.id));
     if (remaining.length > 0) {
       cycles.push(remaining.map((n) => n.id));
     }
@@ -88,17 +77,13 @@ export function MigrationDependencyGraph({
       }
       const node = nodeMap.get(nodeId);
       if (!node) return 0;
-      const incomingEdges = dependencyGraph.edges.filter(
-        (e) => e.to === nodeId && e.type === "depends_on"
-      );
+      const incomingEdges = dependencyGraph.edges.filter((e) => e.to === nodeId && e.type === "depends_on");
       if (incomingEdges.length === 0) {
         pathLengths.set(nodeId, 1);
         return 1;
       }
       const incomingPathLengths = incomingEdges.map((e) => calculatePathLength(e.from));
-      const maxLength = incomingPathLengths.length > 0
-        ? Math.max(...incomingPathLengths) + 1
-        : 1;
+      const maxLength = incomingPathLengths.length > 0 ? Math.max(...incomingPathLengths) + 1 : 1;
       pathLengths.set(nodeId, maxLength);
       return maxLength;
     };
@@ -107,16 +92,12 @@ export function MigrationDependencyGraph({
     });
     const pathLengthValues = Array.from(pathLengths.values());
     const maxLength = pathLengthValues.length > 0 ? Math.max(...pathLengthValues) : 0;
-    const criticalNode = Array.from(pathLengths.entries()).find(
-      ([, length]) => length === maxLength
-    )?.[0];
+    const criticalNode = Array.from(pathLengths.entries()).find(([, length]) => length === maxLength)?.[0];
     if (criticalNode) {
       let current = criticalNode;
       while (current) {
         criticalPath.unshift(current);
-        const incomingEdge = dependencyGraph.edges.find(
-          (e) => e.to === current && e.type === "depends_on"
-        );
+        const incomingEdge = dependencyGraph.edges.find((e) => e.to === current && e.type === "depends_on");
         if (incomingEdge) {
           current = incomingEdge.from;
         } else {
@@ -149,9 +130,7 @@ export function MigrationDependencyGraph({
           <Text as="h3" variant="headingMd">
             依赖关系分析
           </Text>
-          <Badge tone="info">
-            {`${dependencyGraph.nodes.length} 个资产`}
-          </Badge>
+          <Badge tone="info">{`${dependencyGraph.nodes.length} 个资产`}</Badge>
         </InlineStack>
         {cycles.length > 0 && (
           <Banner tone="critical">
@@ -187,9 +166,7 @@ export function MigrationDependencyGraph({
                 <Text as="h4" variant="headingSm">
                   关键路径（最长依赖链）
                 </Text>
-                <Badge>
-                  {`${criticalPath.length} 步`}
-                </Badge>
+                <Badge>{`${criticalPath.length} 步`}</Badge>
               </InlineStack>
               <List type="number">
                 {criticalPath.map((nodeId, _index) => {
@@ -203,27 +180,15 @@ export function MigrationDependencyGraph({
                         </Text>
                         <Badge
                           tone={
-                            node.riskLevel === "high"
-                              ? "critical"
-                              : node.riskLevel === "medium"
-                                ? "warning"
-                                : "info"
+                            node.riskLevel === "high" ? "critical" : node.riskLevel === "medium" ? "warning" : "info"
                           }
                         >
                           {node.riskLevel}
                         </Badge>
-                        {node.platform && (
-                          <Badge tone="info">{node.platform}</Badge>
-                        )}
-                        {node.priority && (
-                          <Badge tone="success">
-                            {`优先级: ${node.priority}/10`}
-                          </Badge>
-                        )}
+                        {node.platform && <Badge tone="info">{node.platform}</Badge>}
+                        {node.priority && <Badge tone="success">{`优先级: ${node.priority}/10`}</Badge>}
                         {node.estimatedTimeMinutes && (
-                          <Badge tone="info">
-                            {`预计: ${formatTime(node.estimatedTimeMinutes)}`}
-                          </Badge>
+                          <Badge tone="info">{`预计: ${formatTime(node.estimatedTimeMinutes)}`}</Badge>
                         )}
                       </InlineStack>
                     </List.Item>
@@ -233,13 +198,7 @@ export function MigrationDependencyGraph({
             </BlockStack>
           </Box>
         )}
-        <Box
-          background="bg-surface-secondary"
-          padding="400"
-          borderRadius="200"
-          borderWidth="025"
-          borderColor="border"
-        >
+        <Box background="bg-surface-secondary" padding="400" borderRadius="200" borderWidth="025" borderColor="border">
           <BlockStack gap="300">
             <Text as="h4" variant="headingSm">
               推荐迁移顺序（基于依赖关系）
@@ -258,27 +217,15 @@ export function MigrationDependencyGraph({
                         </Text>
                         <Badge
                           tone={
-                            node.riskLevel === "high"
-                              ? "critical"
-                              : node.riskLevel === "medium"
-                                ? "warning"
-                                : "info"
+                            node.riskLevel === "high" ? "critical" : node.riskLevel === "medium" ? "warning" : "info"
                           }
                         >
                           {node.riskLevel}
                         </Badge>
-                        {node.platform && (
-                          <Badge tone="info">{node.platform}</Badge>
-                        )}
-                        {node.priority && (
-                          <Badge tone="success">
-                            {`优先级: ${node.priority}/10`}
-                          </Badge>
-                        )}
+                        {node.platform && <Badge tone="info">{node.platform}</Badge>}
+                        {node.priority && <Badge tone="success">{`优先级: ${node.priority}/10`}</Badge>}
                         {node.estimatedTimeMinutes && (
-                          <Badge tone="info">
-                            {`预计: ${formatTime(node.estimatedTimeMinutes)}`}
-                          </Badge>
+                          <Badge tone="info">{`预计: ${formatTime(node.estimatedTimeMinutes)}`}</Badge>
                         )}
                       </InlineStack>
                       {dependencies.length > 0 && (
@@ -295,13 +242,7 @@ export function MigrationDependencyGraph({
             </List>
           </BlockStack>
         </Box>
-        <Box
-          background="bg-surface-secondary"
-          padding="400"
-          borderRadius="200"
-          borderWidth="025"
-          borderColor="border"
-        >
+        <Box background="bg-surface-secondary" padding="400" borderRadius="200" borderWidth="025" borderColor="border">
           <BlockStack gap="300">
             <Text as="h4" variant="headingSm">
               依赖关系详情
@@ -309,20 +250,11 @@ export function MigrationDependencyGraph({
             {dependencyGraph.edges
               .filter((e) => e.type === "depends_on")
               .map((edge, index) => {
-                const fromNode = dependencyGraph.nodes.find(
-                  (n) => n.id === edge.from
-                );
-                const toNode = dependencyGraph.nodes.find(
-                  (n) => n.id === edge.to
-                );
+                const fromNode = dependencyGraph.nodes.find((n) => n.id === edge.from);
+                const toNode = dependencyGraph.nodes.find((n) => n.id === edge.to);
                 if (!fromNode || !toNode) return null;
                 return (
-                  <Box
-                    key={index}
-                    padding="300"
-                    background="bg-surface"
-                    borderRadius="100"
-                  >
+                  <Box key={index} padding="300" background="bg-surface" borderRadius="100">
                     <InlineStack gap="200" blockAlign="center">
                       <Text as="span" variant="bodySm">
                         {fromNode.assetId.substring(0, 8)}...
@@ -333,9 +265,7 @@ export function MigrationDependencyGraph({
                       <Text as="span" variant="bodySm">
                         {toNode.assetId.substring(0, 8)}...
                       </Text>
-                      {edge.reason && (
-                        <Badge tone="info">{edge.reason}</Badge>
-                      )}
+                      {edge.reason && <Badge tone="info">{edge.reason}</Badge>}
                     </InlineStack>
                   </Box>
                 );

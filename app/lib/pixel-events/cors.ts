@@ -5,7 +5,6 @@ import {
 } from "../../utils/cors";
 import { PIXEL_INGESTION_HEADERS } from "../../utils/security-headers";
 
-
 export const PIXEL_CUSTOM_HEADERS = [
   "X-Tracking-Guardian-Timestamp",
   "X-Tracking-Guardian-Signature",
@@ -20,15 +19,8 @@ export function getCorsHeadersPreBody(request: Request): HeadersInit {
   };
 }
 
-export function getCorsHeadersForShop(
-  request: Request,
-  shopAllowedDomains: string[]
-): HeadersInit {
-  const corsHeaders = getPixelEventsCorsHeadersForShop(
-    request,
-    shopAllowedDomains,
-    PIXEL_CUSTOM_HEADERS
-  );
+export function getCorsHeadersForShop(request: Request, shopAllowedDomains: string[]): HeadersInit {
+  const corsHeaders = getPixelEventsCorsHeadersForShop(request, shopAllowedDomains, PIXEL_CUSTOM_HEADERS);
   return {
     ...PIXEL_INGESTION_HEADERS,
     ...corsHeaders,
@@ -62,11 +54,7 @@ export function jsonWithCors<T>(
   });
 }
 
-export function emptyResponseWithCors(
-  request: Request,
-  shopAllowedDomains?: string[],
-  requestId?: string
-): Response {
+export function emptyResponseWithCors(request: Request, shopAllowedDomains?: string[], requestId?: string): Response {
   const headers = shopAllowedDomains
     ? getCorsHeadersForShop(request, shopAllowedDomains)
     : getCorsHeadersPreBody(request);

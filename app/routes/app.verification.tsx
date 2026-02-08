@@ -21,12 +21,8 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { RefreshIcon, ExportIcon } from "~/components/icons";
 import { useToastContext } from "~/components/ui";
-import {
-  VerificationResultsTable,
-} from "~/components/verification/VerificationResultsTable";
-import {
-  VerificationHistoryPanel,
-} from "~/components/verification/VerificationHistoryPanel";
+import { VerificationResultsTable } from "~/components/verification/VerificationResultsTable";
+import { VerificationHistoryPanel } from "~/components/verification/VerificationHistoryPanel";
 import { TestOrderGuide } from "~/components/verification/TestOrderGuide";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { useTranslation } from "react-i18next";
@@ -93,7 +89,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     },
   });
 
-  const history = historyRaw.map(h => {
+  const history = historyRaw.map((h) => {
     const summary = (h.summaryJson || {}) as unknown as VerificationRunSummary;
     return {
       runId: h.id,
@@ -103,7 +99,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       passedTests: summary?.passedTests || 0,
       failedTests: summary?.failedTests || 0,
       missingParamTests: summary?.missingParamTests || 0,
-      completedAt: h.completedAt ? h.completedAt.toISOString() : h.createdAt.toISOString()
+      completedAt: h.completedAt ? h.completedAt.toISOString() : h.createdAt.toISOString(),
     };
   });
 
@@ -116,8 +112,8 @@ const GUIDE_TEST_ITEMS = [
     name: "Purchase Flow",
     description: "Test standard purchase flow",
     steps: ["Add item to cart", "Go to checkout", "Complete purchase"],
-    expectedEvents: ["checkout_completed"]
-  }
+    expectedEvents: ["checkout_completed"],
+  },
 ];
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -205,7 +201,7 @@ export default function VerificationPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { showSuccess, showError } = useToastContext();
-  
+
   const tabParam = searchParams.get("tab");
   const selectedTab = tabParam ? Math.max(0, parseInt(tabParam, 10) || 0) : 0;
   const [showGuide, setShowGuide] = useState(false);
@@ -258,11 +254,8 @@ export default function VerificationPage() {
     );
   }
 
-  const passRate = latestRun && latestRun.totalTests > 0
-    ? Math.round(
-        (latestRun.passedTests / latestRun.totalTests) * 100
-      )
-    : 0;
+  const passRate =
+    latestRun && latestRun.totalTests > 0 ? Math.round((latestRun.passedTests / latestRun.totalTests) * 100) : 0;
 
   return (
     <Page
@@ -291,10 +284,7 @@ export default function VerificationPage() {
         <PageIntroCard
           title={t("verification.page.intro.title")}
           description={t("verification.page.intro.desc")}
-          items={[
-            t("verification.page.intro.items.0"),
-            t("verification.page.intro.items.1"),
-          ]}
+          items={[t("verification.page.intro.items.0"), t("verification.page.intro.items.1")]}
           primaryAction={{
             content: t("verification.page.intro.action"),
             onAction: () => handleTabChange(2), // Jump to results
@@ -350,12 +340,20 @@ export default function VerificationPage() {
                             />
                           </InlineStack>
                           <Banner tone="info" title={t("verification.page.banners.attribution.title")}>
-                             <BlockStack gap="200">
-                               <Text as="p" variant="bodySm" fontWeight="semibold">{t("verification.page.banners.attribution.subtitle")}</Text>
-                               <Text as="p" variant="bodySm">{t("verification.page.banners.attribution.provide")}</Text>
-                               <Text as="p" variant="bodySm">{t("verification.page.banners.attribution.noGuarantee")}</Text>
-                               <Text as="p" variant="bodySm" tone="subdued">{t("verification.page.banners.attribution.report")}</Text>
-                             </BlockStack>
+                            <BlockStack gap="200">
+                              <Text as="p" variant="bodySm" fontWeight="semibold">
+                                {t("verification.page.banners.attribution.subtitle")}
+                              </Text>
+                              <Text as="p" variant="bodySm">
+                                {t("verification.page.banners.attribution.provide")}
+                              </Text>
+                              <Text as="p" variant="bodySm">
+                                {t("verification.page.banners.attribution.noGuarantee")}
+                              </Text>
+                              <Text as="p" variant="bodySm" tone="subdued">
+                                {t("verification.page.banners.attribution.report")}
+                              </Text>
+                            </BlockStack>
                           </Banner>
                         </BlockStack>
                       )}
@@ -369,13 +367,17 @@ export default function VerificationPage() {
                         </BlockStack>
                       )}
                       {selectedTab === 2 && (
-                         <VerificationResultsTable latestRun={latestRun} pixelStrictOrigin={false} />
+                        <VerificationResultsTable latestRun={latestRun} pixelStrictOrigin={false} />
                       )}
                       {selectedTab === 3 && (
                         <TestOrderGuide shopDomain={shop.shopDomain} shopId={shop.id} testItems={GUIDE_TEST_ITEMS} />
                       )}
                       {selectedTab === 4 && (
-                        <VerificationHistoryPanel history={history as VerificationHistoryRun[]} onRunVerification={handleRunVerification} shop={shop} />
+                        <VerificationHistoryPanel
+                          history={history as VerificationHistoryRun[]}
+                          onRunVerification={handleRunVerification}
+                          shop={shop}
+                        />
                       )}
                     </Box>
                   </Tabs>
@@ -397,17 +399,21 @@ export default function VerificationPage() {
                         </Text>
                       </InlineStack>
                       <InlineStack align="space-between">
-                         <Text as="span" tone="subdued">
+                        <Text as="span" tone="subdued">
                           {t("verification.page.status.type")}
                         </Text>
-                        <Badge>{latestRun.runType === "full" ? t("verification.page.status.full") : t("verification.page.status.quick")}</Badge>
+                        <Badge>
+                          {latestRun.runType === "full"
+                            ? t("verification.page.status.full")
+                            : t("verification.page.status.quick")}
+                        </Badge>
                       </InlineStack>
                     </BlockStack>
                   </Card>
                   <Card>
                     <BlockStack gap="200">
                       <Text as="h2" variant="headingSm">
-                         {t("verification.page.related.title")}
+                        {t("verification.page.related.title")}
                       </Text>
                       <Button variant="plain" url="/app/settings">
                         {t("verification.page.related.settings")}
@@ -447,7 +453,7 @@ export default function VerificationPage() {
         }}
       >
         <Modal.Section>
-           <TestOrderGuide shopDomain={shop.shopDomain} shopId={shop.id} testItems={GUIDE_TEST_ITEMS} />
+          <TestOrderGuide shopDomain={shop.shopDomain} shopId={shop.id} testItems={GUIDE_TEST_ITEMS} />
         </Modal.Section>
       </Modal>
     </Page>

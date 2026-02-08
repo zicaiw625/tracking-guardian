@@ -20,8 +20,8 @@ export default function App() {
   return (
     <html lang={i18n.language || "en"}>
       <head>
-        <meta charSet="utf-8"/>
-        <meta name="viewport" content="width=device-width,initial-scale=1"/>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
         <Meta />
         <Links />
       </head>
@@ -31,7 +31,8 @@ export default function App() {
         <ScrollRestoration />
         <Scripts />
       </body>
-    </html>);
+    </html>
+  );
 }
 
 export function ErrorBoundary() {
@@ -44,14 +45,14 @@ export function ErrorBoundary() {
   const isProduction = process.env.NODE_ENV === "production";
   if (isRouteErrorResponse(error)) {
     status = error.status;
-    title = error.status === 404
-      ? t("errorPage.pageNotFound")
-      : `${error.status} ${error.statusText || t("common.error")}`;
-    message = typeof error.data === 'string'
-      ? error.data
-      : error.status === 404
-        ? t("errorPage.pageNotFoundMessage")
-        : t("errorPage.loadingError");
+    title =
+      error.status === 404 ? t("errorPage.pageNotFound") : `${error.status} ${error.statusText || t("common.error")}`;
+    message =
+      typeof error.data === "string"
+        ? error.data
+        : error.status === 404
+          ? t("errorPage.pageNotFoundMessage")
+          : t("errorPage.loadingError");
     code = `HTTP_${error.status}`;
   } else if (error instanceof Error) {
     message = error.message || t("errorPage.defaultMessage");
@@ -65,16 +66,13 @@ export function ErrorBoundary() {
   } else if (typeof error === "object" && error !== null) {
     console.error("[Root ErrorBoundary] Caught non-standard error:", error);
     const errObj = error as Record<string, unknown>;
-    message = typeof errObj.message === "string"
-      ? errObj.message
-      : typeof errObj.error === "string"
-        ? errObj.error
-        : t("errorPage.unknownError");
-    code = typeof errObj.code === "string"
-      ? errObj.code
-      : typeof errObj.name === "string"
-        ? errObj.name
-        : "UNKNOWN";
+    message =
+      typeof errObj.message === "string"
+        ? errObj.message
+        : typeof errObj.error === "string"
+          ? errObj.error
+          : t("errorPage.unknownError");
+    code = typeof errObj.code === "string" ? errObj.code : typeof errObj.name === "string" ? errObj.name : "UNKNOWN";
     import("./utils/debug-log.client").then(({ debugError }) => {
       debugError("Non-standard error caught in root ErrorBoundary:", error);
     });
@@ -143,16 +141,15 @@ export function ErrorBoundary() {
           }
         `}</style>
       </head>
-      <body style={{ margin: 0, backgroundColor: '#f6f6f7' }}>
+      <body style={{ margin: 0, backgroundColor: "#f6f6f7" }}>
         <div className="error-container">
           <div className="error-card">
             <h1 className="error-title">{title}</h1>
             <p className="error-message">{message}</p>
-            <p className="error-code">{t("errorPage.errorCode")} {code}</p>
-            <button
-              className="error-button"
-              onClick={() => window.location.reload()}
-            >
+            <p className="error-code">
+              {t("errorPage.errorCode")} {code}
+            </p>
+            <button className="error-button" onClick={() => window.location.reload()}>
               {t("errorPage.retry")}
             </button>
           </div>

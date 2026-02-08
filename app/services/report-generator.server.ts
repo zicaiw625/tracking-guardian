@@ -1,4 +1,3 @@
-
 export interface RiskReasonParams {
   category: string;
   platform?: string | null;
@@ -25,37 +24,40 @@ export function getRiskReason(params: RiskReasonParams): LocalizedResult {
     if (category === "script_tag" || category === "checkout_script") {
       return {
         text: "脚本标签在 Thank you/Order status 页面已被弃用，可能导致功能失效",
-        key: "scan.riskReason.scriptTagDeprecated"
+        key: "scan.riskReason.scriptTagDeprecated",
       };
     }
     if (platform === "google_analytics" || platform === "gtag") {
       return {
         text: "Google Analytics 脚本标签需要迁移到 Web Pixel",
-        key: "scan.riskReason.gaMigration"
+        key: "scan.riskReason.gaMigration",
       };
     }
     return {
       text: "高风险：需要立即迁移",
-      key: "scan.riskReason.high"
+      key: "scan.riskReason.high",
     };
   }
   if (riskLevel === "medium") {
     return {
       text: "中等风险：建议尽快迁移",
-      key: "scan.riskReason.medium"
+      key: "scan.riskReason.medium",
     };
   }
   return {
     text: "低风险：可逐步迁移",
-    key: "scan.riskReason.low"
+    key: "scan.riskReason.low",
   };
 }
 
-export function extractRequiredInfo(params: RequiredInfoParams): { text: string, keys: { key: string, params?: any }[] } {
+export function extractRequiredInfo(params: RequiredInfoParams): {
+  text: string;
+  keys: { key: string; params?: any }[];
+} {
   const { category, platform, suggestedMigration, details } = params;
   const info: string[] = [];
-  const keys: { key: string, params?: any }[] = [];
-  
+  const keys: { key: string; params?: any }[] = [];
+
   if (suggestedMigration === "web_pixel") {
     info.push("需要配置 Web Pixel 扩展");
     keys.push({ key: "scan.requiredInfo.webPixelConfig" });

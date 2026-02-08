@@ -26,10 +26,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   });
   if (!shop) {
     logger.warn(`Extension error report for unknown shop: ${shopDomain}`);
-      return addSecurityHeaders(authResult.cors(json(
-        { error: "Shop not found" },
-        { status: 404 }
-      )));
+    return addSecurityHeaders(authResult.cors(json({ error: "Shop not found" }, { status: 404 })));
   }
   const rateLimitKey = `extension-errors:${shopDomain}`;
   const rateLimitResult = await checkRateLimitAsync(rateLimitKey, 100, 60 * 1000);
@@ -45,14 +42,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       shopDomain,
       retryAfter: rateLimitResult.retryAfter,
     });
-      return addSecurityHeaders(authResult.cors(json(
-        {
-          error: "Too many error reports",
-          retryAfter: rateLimitResult.retryAfter,
-        },
-        { status: 429, headers }
-      )));
-    }
+    return addSecurityHeaders(
+      authResult.cors(
+        json(
+          {
+            error: "Too many error reports",
+            retryAfter: rateLimitResult.retryAfter,
+          },
+          { status: 429, headers }
+        )
+      )
+    );
+  }
   try {
     const body = await readJsonWithSizeLimit<{
       extension?: string;
@@ -63,22 +64,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       orderId?: string | null;
       timestamp?: string;
     }>(request);
-      if (!body || !body.extension || !body.endpoint || !body.error) {
-      return addSecurityHeaders(authResult.cors(json(
-        { error: "Missing required fields: extension, endpoint, error" },
-      { status: 400 }
-    )));
+    if (!body || !body.extension || !body.endpoint || !body.error) {
+      return addSecurityHeaders(
+        authResult.cors(json({ error: "Missing required fields: extension, endpoint, error" }, { status: 400 }))
+      );
     }
     const MAX_ERROR_LENGTH = 2000;
     const MAX_STACK_LENGTH = 8000;
     const sanitizedError = sanitizeSensitiveInfo(body.error);
-    const truncatedError = sanitizedError.length > MAX_ERROR_LENGTH
-      ? sanitizedError.substring(0, MAX_ERROR_LENGTH) + "... [truncated]"
-      : sanitizedError;
+    const truncatedError =
+      sanitizedError.length > MAX_ERROR_LENGTH
+        ? sanitizedError.substring(0, MAX_ERROR_LENGTH) + "... [truncated]"
+        : sanitizedError;
     const sanitizedStack = body.stack ? sanitizeSensitiveInfo(body.stack) : null;
-    const truncatedStack = sanitizedStack && sanitizedStack.length > MAX_STACK_LENGTH
-      ? sanitizedStack.substring(0, MAX_STACK_LENGTH) + "... [truncated]"
-      : sanitizedStack;
+    const truncatedStack =
+      sanitizedStack && sanitizedStack.length > MAX_STACK_LENGTH
+        ? sanitizedStack.substring(0, MAX_STACK_LENGTH) + "... [truncated]"
+        : sanitizedStack;
     const orderIdHash = body.orderId ? hashValueSync(body.orderId).slice(0, 32) : null;
     const errorData = {
       shopId: shop.id,
@@ -140,14 +142,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       stack: error instanceof Error ? error.stack : undefined,
     });
     if (authResult) {
-      return addSecurityHeaders(authResult.cors(json(
-        { error: "Internal server error" },
-      { status: 500 }
-    )));
+      return addSecurityHeaders(authResult.cors(json({ error: "Internal server error" }, { status: 500 })));
     }
-    return addSecurityHeaders(json(
-      { error: "Internal server error" },
-      { status: 500 }
-    ));
+    return addSecurityHeaders(json({ error: "Internal server error" }, { status: 500 }));
   }
 };

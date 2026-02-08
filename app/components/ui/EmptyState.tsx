@@ -37,11 +37,7 @@ export const EnhancedEmptyState = memo(function EnhancedEmptyState({
       <BlockStack gap="400" align="center">
         {image ? (
           <Box>
-            <img
-              src={image}
-              alt=""
-              style={{ maxWidth: "200px", height: "auto" }}
-            />
+            <img src={image} alt="" style={{ maxWidth: "200px", height: "auto" }} />
           </Box>
         ) : icon ? (
           <Text as="span" variant="heading3xl">
@@ -65,20 +61,12 @@ export const EnhancedEmptyState = memo(function EnhancedEmptyState({
         {hasActions && (
           <InlineStack gap="200">
             {primaryAction && (
-              <Button
-                variant="primary"
-                onClick={primaryAction.onAction}
-                url={primaryAction.url}
-              >
+              <Button variant="primary" onClick={primaryAction.onAction} url={primaryAction.url}>
                 {primaryAction.content}
               </Button>
             )}
             {secondaryAction && (
-              <Button
-                variant="secondary"
-                onClick={secondaryAction.onAction}
-                url={secondaryAction.url}
-              >
+              <Button variant="secondary" onClick={secondaryAction.onAction} url={secondaryAction.url}>
                 {secondaryAction.content}
               </Button>
             )}
@@ -91,7 +79,7 @@ export const EnhancedEmptyState = memo(function EnhancedEmptyState({
 
 export function EmptyStateNoData({
   primaryAction,
-  secondaryAction
+  secondaryAction,
 }: {
   primaryAction?: EnhancedEmptyStateProps["primaryAction"];
   secondaryAction?: EnhancedEmptyStateProps["secondaryAction"];
@@ -108,34 +96,36 @@ export function EmptyStateNoData({
   );
 }
 
-export function EmptyStateNoResults({
-  onReset,
-  onSearch
-}: {
-  onReset?: () => void;
-  onSearch?: () => void;
-}) {
+export function EmptyStateNoResults({ onReset, onSearch }: { onReset?: () => void; onSearch?: () => void }) {
   return (
     <EnhancedEmptyState
       icon="🔍"
       title="未找到结果"
       description="没有找到匹配的搜索结果。"
       helpText="请尝试调整搜索条件或筛选器。"
-      primaryAction={onSearch ? {
-        content: "重新搜索",
-        onAction: onSearch,
-      } : undefined}
-      secondaryAction={onReset ? {
-        content: "清除筛选",
-        onAction: onReset,
-      } : undefined}
+      primaryAction={
+        onSearch
+          ? {
+              content: "重新搜索",
+              onAction: onSearch,
+            }
+          : undefined
+      }
+      secondaryAction={
+        onReset
+          ? {
+              content: "清除筛选",
+              onAction: onReset,
+            }
+          : undefined
+      }
     />
   );
 }
 
 export function EmptyStateNotConfigured({
   onConfigure,
-  configType = "配置"
+  configType = "配置",
 }: {
   onConfigure?: () => void;
   configType?: string;
@@ -145,35 +135,39 @@ export function EmptyStateNotConfigured({
       icon="⚙️"
       title={`${configType}未设置`}
       description={`请先完成${configType}设置以使用此功能。`}
-      primaryAction={onConfigure ? {
-        content: `开始${configType}`,
-        onAction: onConfigure,
-      } : undefined}
+      primaryAction={
+        onConfigure
+          ? {
+              content: `开始${configType}`,
+              onAction: onConfigure,
+            }
+          : undefined
+      }
     />
   );
 }
 
 export function EmptyStateNoPermission({
   onUpgrade,
-  requiredFeature
+  requiredFeature,
 }: {
   onUpgrade?: () => void;
   requiredFeature?: string;
 }) {
-  const upgradeAction = onUpgrade ? {
-    content: "查看套餐",
-    onAction: onUpgrade,
-  } : {
-    content: "查看套餐",
-    url: "/app/billing",
-  };
+  const upgradeAction = onUpgrade
+    ? {
+        content: "查看套餐",
+        onAction: onUpgrade,
+      }
+    : {
+        content: "查看套餐",
+        url: "/app/billing",
+      };
   return (
     <EnhancedEmptyState
       icon="🔒"
       title="需要升级套餐"
-      description={requiredFeature
-        ? `此功能需要 ${requiredFeature} 套餐。`
-        : "您的当前套餐不支持此功能。"}
+      description={requiredFeature ? `此功能需要 ${requiredFeature} 套餐。` : "您的当前套餐不支持此功能。"}
       helpText="升级套餐以解锁更多功能。"
       primaryAction={upgradeAction}
     />

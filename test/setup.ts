@@ -1,6 +1,6 @@
-import { vi } from 'vitest';
+import { vi } from "vitest";
 
-Object.defineProperty(window, 'matchMedia', {
+Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: vi.fn().mockImplementation((query) => ({
     matches: false,
@@ -35,11 +35,12 @@ const createRect = (width: number, height: number) => ({
 // Mock Range methods that might be missing or need specific behavior in JSDOM
 Range.prototype.getBoundingClientRect = () => createRect(0, 0) as DOMRect;
 
-Range.prototype.getClientRects = () => ({
-  item: () => null,
-  length: 0,
-  [Symbol.iterator]: function* () {},
-}) as unknown as DOMRectList;
+Range.prototype.getClientRects = () =>
+  ({
+    item: () => null,
+    length: 0,
+    [Symbol.iterator]: function* () {},
+  }) as unknown as DOMRectList;
 
 Range.prototype.createContextualFragment = (html: string) => {
   const div = document.createElement("div");

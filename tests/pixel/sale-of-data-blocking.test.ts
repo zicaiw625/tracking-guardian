@@ -53,14 +53,19 @@ describe("P0-7: sale_of_data Opt-Out Blocking", () => {
     it("should NOT create ConversionLog when sale_of_data is undefined (P0-04 strict)", async () => {
       expect(prisma.conversionLog.upsert).not.toHaveBeenCalled();
     });
-    it("should create ConversionLog when sale_of_data is true (explicit allow)", async () => {
-    });
+    it("should create ConversionLog when sale_of_data is true (explicit allow)", async () => {});
   });
   describe("Consent Logic Matrix (P0-04 strict)", () => {
     const testCases = [
       { marketing: true, analytics: true, saleOfData: true, shouldRecord: true, desc: "all granted" },
       { marketing: true, analytics: true, saleOfData: false, shouldRecord: false, desc: "sale_of_data opted out" },
-      { marketing: true, analytics: true, saleOfData: undefined, shouldRecord: false, desc: "sale_of_data undefined (P0-04: blocked)" },
+      {
+        marketing: true,
+        analytics: true,
+        saleOfData: undefined,
+        shouldRecord: false,
+        desc: "sale_of_data undefined (P0-04: blocked)",
+      },
       { marketing: false, analytics: true, saleOfData: true, shouldRecord: false, desc: "marketing denied" },
       { marketing: true, analytics: false, saleOfData: true, shouldRecord: false, desc: "analytics denied" },
       { marketing: false, analytics: false, saleOfData: true, shouldRecord: false, desc: "both denied" },

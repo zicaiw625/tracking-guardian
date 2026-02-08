@@ -1,15 +1,7 @@
 import { AsyncLocalStorage } from "async_hooks";
 import { randomBytes } from "crypto";
 import type { PrismaClient } from "@prisma/client";
-import type {
-  IAppContext,
-  IScopedContext,
-  IRequestContext,
-  ILogger,
-  IAppConfig,
-  LogContext,
-  LogLevel,
-} from "./types";
+import type { IAppContext, IScopedContext, IRequestContext, ILogger, IAppConfig, LogContext, LogLevel } from "./types";
 
 export const requestContextStorage = new AsyncLocalStorage<IRequestContext>();
 
@@ -22,19 +14,11 @@ export function generateCorrelationId(): string {
 }
 
 export function extractRequestId(request: Request): string {
-  return (
-    request.headers.get("X-Request-Id") ||
-    request.headers.get("X-Correlation-Id") ||
-    generateRequestId()
-  );
+  return request.headers.get("X-Request-Id") || request.headers.get("X-Correlation-Id") || generateRequestId();
 }
 
 export function extractCorrelationId(request: Request): string {
-  return (
-    request.headers.get("X-Correlation-Id") ||
-    request.headers.get("X-Request-Id") ||
-    generateCorrelationId()
-  );
+  return request.headers.get("X-Correlation-Id") || request.headers.get("X-Request-Id") || generateCorrelationId();
 }
 
 export function createRequestContext(request: Request): IRequestContext {
@@ -45,10 +29,7 @@ export function createRequestContext(request: Request): IRequestContext {
   };
 }
 
-export function createRequestContextFromValues(
-  requestId?: string,
-  correlationId?: string
-): IRequestContext {
+export function createRequestContextFromValues(requestId?: string, correlationId?: string): IRequestContext {
   const rid = requestId || generateRequestId();
   return {
     requestId: rid,
@@ -61,17 +42,11 @@ export function getCurrentRequestContext(): IRequestContext | undefined {
   return requestContextStorage.getStore();
 }
 
-export function withRequestContext<T>(
-  context: IRequestContext,
-  fn: () => T
-): T {
+export function withRequestContext<T>(context: IRequestContext, fn: () => T): T {
   return requestContextStorage.run(context, fn);
 }
 
-export async function withRequestContextAsync<T>(
-  context: IRequestContext,
-  fn: () => Promise<T>
-): Promise<T> {
+export async function withRequestContextAsync<T>(context: IRequestContext, fn: () => Promise<T>): Promise<T> {
   return requestContextStorage.run(context, fn);
 }
 
@@ -82,10 +57,7 @@ export function updateRequestContext(updates: Partial<IRequestContext>): void {
   }
 }
 
-export function createContextAwareLogger(
-  baseLogger: ILogger,
-  getContext: () => IRequestContext | undefined
-): ILogger {
+export function createContextAwareLogger(baseLogger: ILogger, getContext: () => IRequestContext | undefined): ILogger {
   const enrichContext = (context?: LogContext): LogContext => {
     const reqCtx = getContext();
     if (!reqCtx) return context || {};
@@ -116,10 +88,7 @@ export function createContextAwareLogger(
       baseLogger.log(level, message, enrichContext(context));
     },
     child(additionalContext: LogContext): ILogger {
-      return createContextAwareLogger(
-        baseLogger.child(additionalContext),
-        getContext
-      );
+      return createContextAwareLogger(baseLogger.child(additionalContext), getContext);
     },
   };
 }
@@ -148,28 +117,13 @@ class ScopedContext implements IScopedContext {
   }
 }
 
-export function createAppContext(
-  db: PrismaClient,
-  logger: ILogger,
-  config: IAppConfig
-): IAppContext {
-  const contextAwareLogger = createContextAwareLogger(
-    logger,
-    getCurrentRequestContext
-  );
+export function createAppContext(db: PrismaClient, logger: ILogger, config: IAppConfig): IAppContext {
+  const contextAwareLogger = createContextAwareLogger(logger, getCurrentRequestContext);
   return new AppContext(db, contextAwareLogger, config);
 }
 
-export function createScopedContext(
-  appContext: IAppContext,
-  requestContext: IRequestContext
-): IScopedContext {
-  return new ScopedContext(
-    appContext.db,
-    appContext.logger,
-    appContext.config,
-    requestContext
-  );
+export function createScopedContext(appContext: IAppContext, requestContext: IRequestContext): IScopedContext {
+  return new ScopedContext(appContext.db, appContext.logger, appContext.config, requestContext);
 }
 
 export function getRequestElapsedMs(context: IRequestContext): number {

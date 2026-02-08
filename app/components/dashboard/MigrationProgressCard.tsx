@@ -41,7 +41,10 @@ export const MigrationProgressCard = memo(function MigrationProgressCard({
           </Text>
         </InlineStack>
         <ProgressBar progress={migrationProgress.progressPercentage} />
-        {(migrationProgress.auditCompletion || migrationProgress.pixelsStatus || migrationProgress.modulesEnabled !== undefined || migrationProgress.verificationLatest) && (
+        {(migrationProgress.auditCompletion ||
+          migrationProgress.pixelsStatus ||
+          migrationProgress.modulesEnabled !== undefined ||
+          migrationProgress.verificationLatest) && (
           <BlockStack gap="300">
             <Divider />
             <Text as="h3" variant="headingSm">
@@ -50,15 +53,31 @@ export const MigrationProgressCard = memo(function MigrationProgressCard({
             <BlockStack gap="200">
               {migrationProgress.auditCompletion && (
                 <InlineStack align="space-between" blockAlign="center">
-                  <Text as="span" variant="bodySm">Audit 完成度</Text>
-                  <Badge tone={migrationProgress.auditCompletion.completed ? "success" : migrationProgress.auditCompletion.status === "in_progress" ? "info" : undefined}>
-                    {migrationProgress.auditCompletion.completed ? "已完成" : migrationProgress.auditCompletion.status === "in_progress" ? "进行中" : "待开始"}
+                  <Text as="span" variant="bodySm">
+                    Audit 完成度
+                  </Text>
+                  <Badge
+                    tone={
+                      migrationProgress.auditCompletion.completed
+                        ? "success"
+                        : migrationProgress.auditCompletion.status === "in_progress"
+                          ? "info"
+                          : undefined
+                    }
+                  >
+                    {migrationProgress.auditCompletion.completed
+                      ? "已完成"
+                      : migrationProgress.auditCompletion.status === "in_progress"
+                        ? "进行中"
+                        : "待开始"}
                   </Badge>
                 </InlineStack>
               )}
               {migrationProgress.pixelsStatus && (
                 <InlineStack align="space-between" blockAlign="center">
-                  <Text as="span" variant="bodySm">Pixels 状态</Text>
+                  <Text as="span" variant="bodySm">
+                    Pixels 状态
+                  </Text>
                   <InlineStack gap="200">
                     <Badge tone={migrationProgress.pixelsStatus.test > 0 ? "warning" : undefined}>
                       {`Test: ${migrationProgress.pixelsStatus.test}`}
@@ -71,7 +90,9 @@ export const MigrationProgressCard = memo(function MigrationProgressCard({
               )}
               {migrationProgress.modulesEnabled !== undefined && (
                 <InlineStack align="space-between" blockAlign="center">
-                  <Text as="span" variant="bodySm">Modules 启用数</Text>
+                  <Text as="span" variant="bodySm">
+                    Modules 启用数
+                  </Text>
                   <Badge tone={migrationProgress.modulesEnabled > 0 ? "success" : undefined}>
                     {`${migrationProgress.modulesEnabled} 个`}
                   </Badge>
@@ -79,9 +100,25 @@ export const MigrationProgressCard = memo(function MigrationProgressCard({
               )}
               {migrationProgress.verificationLatest && (
                 <InlineStack align="space-between" blockAlign="center">
-                  <Text as="span" variant="bodySm">Verification 最近结果</Text>
-                  <Badge tone={migrationProgress.verificationLatest.status === "completed" ? "success" : migrationProgress.verificationLatest.status === "running" ? "info" : undefined}>
-                    {migrationProgress.verificationLatest.status === "completed" ? "已完成" : migrationProgress.verificationLatest.status === "running" ? "运行中" : migrationProgress.verificationLatest.status === "pending" ? "待开始" : "无记录"}
+                  <Text as="span" variant="bodySm">
+                    Verification 最近结果
+                  </Text>
+                  <Badge
+                    tone={
+                      migrationProgress.verificationLatest.status === "completed"
+                        ? "success"
+                        : migrationProgress.verificationLatest.status === "running"
+                          ? "info"
+                          : undefined
+                    }
+                  >
+                    {migrationProgress.verificationLatest.status === "completed"
+                      ? "已完成"
+                      : migrationProgress.verificationLatest.status === "running"
+                        ? "运行中"
+                        : migrationProgress.verificationLatest.status === "pending"
+                          ? "待开始"
+                          : "无记录"}
                   </Badge>
                 </InlineStack>
               )}
@@ -109,9 +146,7 @@ export const MigrationProgressCard = memo(function MigrationProgressCard({
                 >
                   {stage.label}
                 </Text>
-                {isCurrent && (
-                  <Badge tone="info">进行中</Badge>
-                )}
+                {isCurrent && <Badge tone="info">进行中</Badge>}
               </InlineStack>
             );
           })}

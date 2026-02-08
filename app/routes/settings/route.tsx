@@ -9,11 +9,7 @@ import { useTranslation } from "react-i18next";
 import { settingsLoader } from "./loader.server";
 import { settingsAction } from "./actions.server";
 import type { SettingsActionResponse } from "./types";
-import {
-  SecurityTab,
-  SubscriptionTab,
-  AlertsTab,
-} from "./_components";
+import { SecurityTab, SubscriptionTab, AlertsTab } from "./_components";
 import type { PlanId } from "~/services/billing/plans";
 
 export const loader = settingsLoader;
@@ -55,10 +51,13 @@ export default function SettingsPage() {
     const newTabIndex = getTabIndex(tabParam);
     setSelectedTab(newTabIndex);
   }, [tabParam]);
-  const handleTabChange = useCallback((index: number) => {
-    const tabId = getTabId(index);
-    setSearchParams({ tab: tabId });
-  }, [setSearchParams]);
+  const handleTabChange = useCallback(
+    (index: number) => {
+      const tabId = getTabId(index);
+      setSearchParams({ tab: tabId });
+    },
+    [setSearchParams]
+  );
   const handleRotateSecret = useCallback(() => {
     const formData = new FormData();
     formData.append("_action", "rotateIngestionSecret");
@@ -76,11 +75,7 @@ export default function SettingsPage() {
         <PageIntroCard
           title={t("settings.intro.title")}
           description={t("settings.intro.description")}
-          items={[
-            t("settings.intro.items.0"),
-            t("settings.intro.items.1"),
-            t("settings.intro.items.2"),
-          ]}
+          items={[t("settings.intro.items.0"), t("settings.intro.items.1"), t("settings.intro.items.2")]}
           primaryAction={{ content: t("settings.intro.action.billing"), url: "/app/billing" }}
           secondaryAction={{ content: t("settings.intro.action.privacy"), url: "/app/privacy" }}
         />
@@ -151,7 +146,12 @@ export default function SettingsPage() {
             )}
             {typOspStatus?.status === "unknown" && typOspStatus.unknownReason && (
               <Text as="p" variant="bodySm" tone="subdued">
-                {t("settings.card.modules.status.explanation")}{typOspStatus.unknownReason === "NOT_PLUS" ? t("settings.card.modules.reason.notPlus") : typOspStatus.unknownReason === "NO_EDITOR_ACCESS" ? t("settings.card.modules.reason.noAccess") : typOspStatus.unknownReason}
+                {t("settings.card.modules.status.explanation")}
+                {typOspStatus.unknownReason === "NOT_PLUS"
+                  ? t("settings.card.modules.reason.notPlus")
+                  : typOspStatus.unknownReason === "NO_EDITOR_ACCESS"
+                    ? t("settings.card.modules.reason.noAccess")
+                    : typOspStatus.unknownReason}
               </Text>
             )}
           </BlockStack>
@@ -166,7 +166,7 @@ export default function SettingsPage() {
               pixelStrictOrigin={pixelStrictOrigin}
             />
           )}
-          {selectedTab === 1 && <SubscriptionTab currentPlan={shop?.plan as PlanId || "free"} />}
+          {selectedTab === 1 && <SubscriptionTab currentPlan={(shop?.plan as PlanId) || "free"} />}
           {selectedTab === 2 && (
             <AlertsTab
               alertConfigs={shop?.alertConfigs ?? []}

@@ -2,18 +2,14 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 
-const FORBIDDEN_LICENSES = [
-  "GPL",
-  "AGPL",
-  "LGPL",
-];
+const FORBIDDEN_LICENSES = ["GPL", "AGPL", "LGPL"];
 
 const packageJsonPath = join(process.cwd(), "package.json");
 const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
 
 const allDependencies = {
-  ...packageJson.dependencies || {},
-  ...packageJson.devDependencies || {},
+  ...(packageJson.dependencies || {}),
+  ...(packageJson.devDependencies || {}),
 };
 
 const issues = [];
@@ -23,9 +19,9 @@ for (const [pkgName, version] of Object.entries(allDependencies)) {
     const pkgPath = join(process.cwd(), "node_modules", pkgName, "package.json");
     const pkgJson = JSON.parse(readFileSync(pkgPath, "utf-8"));
     const license = pkgJson.license || (pkgJson.licenses && pkgJson.licenses[0]?.type) || "UNKNOWN";
-    
+
     const licenseStr = typeof license === "string" ? license : license.type || "UNKNOWN";
-    
+
     for (const forbidden of FORBIDDEN_LICENSES) {
       if (licenseStr.includes(forbidden)) {
         issues.push({

@@ -9,8 +9,10 @@ function checkFrameAncestors() {
   const securityHeadersFile = join(process.cwd(), "app/utils/security-headers.ts");
   try {
     const content = readFileSync(securityHeadersFile, "utf-8");
-    
-    const cspDirectivesMatch = content.match(/export const APP_PAGE_CSP_DIRECTIVES\s*:\s*Record<string,\s*string\[\]>\s*=\s*\{([^}]+)\}/s);
+
+    const cspDirectivesMatch = content.match(
+      /export const APP_PAGE_CSP_DIRECTIVES\s*:\s*Record<string,\s*string\[\]>\s*=\s*\{([^}]+)\}/s
+    );
     if (!cspDirectivesMatch) {
       checks.push({
         name: "Frame Ancestors CSP Check",
@@ -20,7 +22,7 @@ function checkFrameAncestors() {
       hasErrors = true;
       return;
     }
-    
+
     const objectBody = cspDirectivesMatch[1];
     const frameAncestorsMatch = objectBody.match(/"frame-ancestors"\s*:\s*\[([^\]]+)\]/);
     if (!frameAncestorsMatch) {
@@ -32,21 +34,19 @@ function checkFrameAncestors() {
       hasErrors = true;
       return;
     }
-    
+
     const frameAncestorsArrayContent = frameAncestorsMatch[1];
     const arrayValues = frameAncestorsArrayContent
       .split(",")
-      .map(v => v.trim().replace(/^["']|["']$/g, ""))
-      .filter(v => v.length > 0);
-    
+      .map((v) => v.trim().replace(/^["']|["']$/g, ""))
+      .filter((v) => v.length > 0);
+
     const hasAdminShopify = arrayValues.includes("https://admin.shopify.com");
-    const hasShopDomainPattern = arrayValues.some(v => 
-      v.includes("myshopify.com") || 
-      v.includes("shopDomain") ||
-      v.includes("shop-domain")
+    const hasShopDomainPattern = arrayValues.some(
+      (v) => v.includes("myshopify.com") || v.includes("shopDomain") || v.includes("shop-domain")
     );
     const hasSelf = arrayValues.includes("'self'") || arrayValues.includes('"self"');
-    
+
     if (!hasAdminShopify) {
       checks.push({
         name: "Frame Ancestors CSP Check",
@@ -55,7 +55,7 @@ function checkFrameAncestors() {
       });
       hasErrors = true;
     }
-    
+
     if (!hasShopDomainPattern && !hasSelf) {
       checks.push({
         name: "Frame Ancestors CSP Check",
@@ -63,7 +63,7 @@ function checkFrameAncestors() {
         message: "frame-ancestors should include shop domain pattern or 'self' for embedded app compatibility",
       });
     }
-    
+
     if (hasAdminShopify && (hasShopDomainPattern || hasSelf)) {
       checks.push({
         name: "Frame Ancestors CSP Check",
@@ -91,15 +91,16 @@ function checkEmbeddedAppHeaders() {
   const entryServerFile = join(process.cwd(), "app/entry.server.tsx");
   try {
     const content = readFileSync(entryServerFile, "utf-8");
-    
+
     const hasEmbeddedHeaders = content.includes("EMBEDDED_APP_HEADERS");
     const hasAddDocumentResponseHeaders = content.includes("addDocumentResponseHeaders");
-    
+
     if (!hasEmbeddedHeaders || !hasAddDocumentResponseHeaders) {
       checks.push({
         name: "Embedded App Headers Check",
         status: "warn",
-        message: "entry.server.tsx should use EMBEDDED_APP_HEADERS and addDocumentResponseHeaders for embedded app pages",
+        message:
+          "entry.server.tsx should use EMBEDDED_APP_HEADERS and addDocumentResponseHeaders for embedded app pages",
       });
     } else {
       checks.push({
@@ -122,12 +123,12 @@ function checkSecurityHeadersValidation() {
   const securityHeadersFile = join(process.cwd(), "app/utils/security-headers.ts");
   try {
     const content = readFileSync(securityHeadersFile, "utf-8");
-    
+
     const hasValidation = content.includes("validateSecurityHeaders");
-    const hasFrameAncestorsCheck = content.includes("frame-ancestors") && 
-                                    (content.includes("validateSecurityHeaders") || 
-                                     content.includes("EMBEDDED_APP_HEADERS"));
-    
+    const hasFrameAncestorsCheck =
+      content.includes("frame-ancestors") &&
+      (content.includes("validateSecurityHeaders") || content.includes("EMBEDDED_APP_HEADERS"));
+
     if (!hasValidation) {
       checks.push({
         name: "Security Headers Validation Check",
@@ -156,7 +157,7 @@ checkEmbeddedAppHeaders();
 checkSecurityHeadersValidation();
 
 console.log("\n=== Frame Ancestors Security Check ===\n");
-checks.forEach(check => {
+checks.forEach((check) => {
   const icon = check.status === "pass" ? "✅" : check.status === "warn" ? "⚠️" : "❌";
   console.log(`${icon} ${check.name}: ${check.message}`);
 });

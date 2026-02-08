@@ -17,10 +17,7 @@ import {
   ButtonGroup,
   ActionList,
 } from "@shopify/polaris";
-import {
-  ArrowUpIcon,
-  ArrowDownIcon,
-} from "~/components/icons";
+import { ArrowUpIcon, ArrowDownIcon } from "~/components/icons";
 
 type Platform = "google" | "meta" | "tiktok";
 
@@ -213,9 +210,7 @@ export function EventMappingEditor({
   const [showComparison, setShowComparison] = useState<boolean>(false);
   const [showPreview, setShowPreview] = useState<Record<string, boolean>>({});
   const [popoverActive, setPopoverActive] = useState<boolean>(false);
-  const [eventOrder, setEventOrder] = useState<string[]>(() =>
-    SHOPIFY_EVENTS.map(e => e.id)
-  );
+  const [eventOrder, setEventOrder] = useState<string[]>(() => SHOPIFY_EVENTS.map((e) => e.id));
   const platformEvents = PLATFORM_EVENTS[platform];
   const validateMapping = useCallback(
     (shopifyEvent: string, platformEvent: string): { valid: boolean; errors: string[] } => {
@@ -257,17 +252,20 @@ export function EventMappingEditor({
     setSelectedEvents(new Set());
     setBulkMappingValue("");
   }, [bulkMappingValue, selectedEvents, onMappingChange]);
-  const toggleEventSelection = useCallback((eventId: string) => {
-    const newSelected = new Set(selectedEvents);
-    if (newSelected.has(eventId)) {
-      newSelected.delete(eventId);
-    } else {
-      newSelected.add(eventId);
-    }
-    setSelectedEvents(newSelected);
-  }, [selectedEvents]);
+  const toggleEventSelection = useCallback(
+    (eventId: string) => {
+      const newSelected = new Set(selectedEvents);
+      if (newSelected.has(eventId)) {
+        newSelected.delete(eventId);
+      } else {
+        newSelected.add(eventId);
+      }
+      setSelectedEvents(newSelected);
+    },
+    [selectedEvents]
+  );
   const selectAll = useCallback(() => {
-    setSelectedEvents(new Set(SHOPIFY_EVENTS.map(e => e.id)));
+    setSelectedEvents(new Set(SHOPIFY_EVENTS.map((e) => e.id)));
   }, []);
   const clearSelection = useCallback(() => {
     setSelectedEvents(new Set());
@@ -288,20 +286,21 @@ export function EventMappingEditor({
   );
   const generateEventPreview = useCallback(
     (shopifyEventId: string, platformEventId: string) => {
-      const shopifyEvent = SHOPIFY_EVENTS.find(e => e.id === shopifyEventId);
-      const platformEvent = platformEvents.find(e => e.id === platformEventId);
+      const shopifyEvent = SHOPIFY_EVENTS.find((e) => e.id === shopifyEventId);
+      const platformEvent = platformEvents.find((e) => e.id === platformEventId);
       if (!shopifyEvent || !platformEvent) return null;
       const preview: Record<string, string | number | unknown[]> = {
         event_name: platformEventId,
         event_time: Math.floor(Date.now() / 1000),
         event_id: "preview_event_id_" + Date.now(),
       };
-      platformEvent.requiredParams.forEach(param => {
+      platformEvent.requiredParams.forEach((param) => {
         if (shopifyEvent.availableParams.includes(param)) {
-          preview[param] = param === "value" ? "99.99" : param === "currency" ? "USD" : param === "items" ? [] : "sample_value";
+          preview[param] =
+            param === "value" ? "99.99" : param === "currency" ? "USD" : param === "items" ? [] : "sample_value";
         }
       });
-      platformEvent.optionalParams.forEach(param => {
+      platformEvent.optionalParams.forEach((param) => {
         if (shopifyEvent.availableParams.includes(param)) {
           preview[param] = param === "items" || param === "contents" || param === "line_items" ? [] : "sample_value";
         }
@@ -310,22 +309,28 @@ export function EventMappingEditor({
     },
     [platformEvents]
   );
-  const moveEventUp = useCallback((eventId: string) => {
-    const currentIndex = eventOrder.indexOf(eventId);
-    if (currentIndex <= 0) return;
-    const newOrder = [...eventOrder];
-    [newOrder[currentIndex - 1], newOrder[currentIndex]] = [newOrder[currentIndex], newOrder[currentIndex - 1]];
-    setEventOrder(newOrder);
-  }, [eventOrder]);
-  const moveEventDown = useCallback((eventId: string) => {
-    const currentIndex = eventOrder.indexOf(eventId);
-    if (currentIndex >= eventOrder.length - 1) return;
-    const newOrder = [...eventOrder];
-    [newOrder[currentIndex], newOrder[currentIndex + 1]] = [newOrder[currentIndex + 1], newOrder[currentIndex]];
-    setEventOrder(newOrder);
-  }, [eventOrder]);
+  const moveEventUp = useCallback(
+    (eventId: string) => {
+      const currentIndex = eventOrder.indexOf(eventId);
+      if (currentIndex <= 0) return;
+      const newOrder = [...eventOrder];
+      [newOrder[currentIndex - 1], newOrder[currentIndex]] = [newOrder[currentIndex], newOrder[currentIndex - 1]];
+      setEventOrder(newOrder);
+    },
+    [eventOrder]
+  );
+  const moveEventDown = useCallback(
+    (eventId: string) => {
+      const currentIndex = eventOrder.indexOf(eventId);
+      if (currentIndex >= eventOrder.length - 1) return;
+      const newOrder = [...eventOrder];
+      [newOrder[currentIndex], newOrder[currentIndex + 1]] = [newOrder[currentIndex + 1], newOrder[currentIndex]];
+      setEventOrder(newOrder);
+    },
+    [eventOrder]
+  );
   const orderedEvents = useMemo(() => {
-    const eventMap = new Map(SHOPIFY_EVENTS.map(e => [e.id, e]));
+    const eventMap = new Map(SHOPIFY_EVENTS.map((e) => [e.id, e]));
     return eventOrder
       .map((id: string) => eventMap.get(id))
       .filter((event: ShopifyEvent | undefined): event is ShopifyEvent => event !== undefined);
@@ -431,7 +436,9 @@ export function EventMappingEditor({
               <List type="bullet">
                 <List.Item>
                   <Text as="span" variant="bodySm">
-                    <strong>checkout_completed</strong> → <strong>{RECOMMENDED_MAPPINGS[platform].checkout_completed || "purchase"}</strong>：这是最重要的转化事件，确保正确映射
+                    <strong>checkout_completed</strong> →{" "}
+                    <strong>{RECOMMENDED_MAPPINGS[platform].checkout_completed || "purchase"}</strong>
+                    ：这是最重要的转化事件，确保正确映射
                   </Text>
                 </List.Item>
                 <List.Item>
@@ -463,18 +470,24 @@ export function EventMappingEditor({
                     const currentMapping = mappings[shopifyEvent.id] || "";
                     const recommendedMapping = RECOMMENDED_MAPPINGS[platform][shopifyEvent.id] || "";
                     const isRecommended = currentMapping === recommendedMapping;
-                    const platformEvent = platformEvents.find(e => e.id === currentMapping);
-                    const recommendedPlatformEvent = platformEvents.find(e => e.id === recommendedMapping);
+                    const platformEvent = platformEvents.find((e) => e.id === currentMapping);
+                    const recommendedPlatformEvent = platformEvents.find((e) => e.id === recommendedMapping);
                     return [
                       shopifyEvent.name,
                       currentMapping ? `${platformEvent?.name || currentMapping}` : "未映射",
                       recommendedMapping ? `${recommendedPlatformEvent?.name || recommendedMapping}` : "-",
                       isRecommended ? (
-                        <Badge key="rec" tone="success">推荐</Badge>
+                        <Badge key="rec" tone="success">
+                          推荐
+                        </Badge>
                       ) : currentMapping ? (
-                        <Badge key="custom" tone="info">自定义</Badge>
+                        <Badge key="custom" tone="info">
+                          自定义
+                        </Badge>
                       ) : (
-                        <Badge key="none" tone="warning">未配置</Badge>
+                        <Badge key="none" tone="warning">
+                          未配置
+                        </Badge>
                       ),
                     ];
                   })}
@@ -501,9 +514,7 @@ export function EventMappingEditor({
           </InlineStack>
           {orderedEvents.map((shopifyEvent: ShopifyEvent, index: number) => {
             const currentMapping = mappings[shopifyEvent.id] || "";
-            const mappingStatus = currentMapping
-              ? getMappingStatus(shopifyEvent.id, currentMapping)
-              : null;
+            const mappingStatus = currentMapping ? getMappingStatus(shopifyEvent.id, currentMapping) : null;
             const isSelected = selectedEvents.has(shopifyEvent.id);
             const recommendedMapping = RECOMMENDED_MAPPINGS[platform][shopifyEvent.id] || "";
             const eventPreview = currentMapping ? generateEventPreview(shopifyEvent.id, currentMapping) : null;
@@ -513,11 +524,7 @@ export function EventMappingEditor({
                 <BlockStack gap="300">
                   <InlineStack align="space-between" blockAlign="start">
                     <InlineStack gap="200" blockAlign="center">
-                      <Checkbox
-                        label=""
-                        checked={isSelected}
-                        onChange={() => toggleEventSelection(shopifyEvent.id)}
-                      />
+                      <Checkbox label="" checked={isSelected} onChange={() => toggleEventSelection(shopifyEvent.id)} />
                       <InlineStack gap="100" blockAlign="center">
                         <ButtonGroup>
                           <Button
@@ -543,28 +550,22 @@ export function EventMappingEditor({
                           <Text as="span" fontWeight="semibold">
                             {shopifyEvent.name}
                           </Text>
-                        {mappingStatus?.status === "recommended" && (
-                          <Badge tone="success">推荐</Badge>
-                        )}
-                        {mappingStatus?.status === "error" && (
-                          <Badge tone="critical">错误</Badge>
-                        )}
-                        {mappingStatus?.status === "custom" && (
-                          <Badge tone="info">自定义</Badge>
-                        )}
-                        {showComparison && recommendedMapping && currentMapping !== recommendedMapping && (
-                          <Badge tone="warning">
-                            {`推荐: ${platformEvents.find(e => e.id === recommendedMapping)?.name || recommendedMapping}`}
-                          </Badge>
-                        )}
-                      </InlineStack>
-                      <Text as="span" variant="bodySm" tone="subdued">
-                        {shopifyEvent.description}
-                      </Text>
-                    </BlockStack>
+                          {mappingStatus?.status === "recommended" && <Badge tone="success">推荐</Badge>}
+                          {mappingStatus?.status === "error" && <Badge tone="critical">错误</Badge>}
+                          {mappingStatus?.status === "custom" && <Badge tone="info">自定义</Badge>}
+                          {showComparison && recommendedMapping && currentMapping !== recommendedMapping && (
+                            <Badge tone="warning">
+                              {`推荐: ${platformEvents.find((e) => e.id === recommendedMapping)?.name || recommendedMapping}`}
+                            </Badge>
+                          )}
+                        </InlineStack>
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          {shopifyEvent.description}
+                        </Text>
+                      </BlockStack>
+                    </InlineStack>
                   </InlineStack>
-                </InlineStack>
-                <Box minWidth="100%">
+                  <Box minWidth="100%">
                     <InlineStack gap="200" blockAlign="end">
                       <Box minWidth="300">
                         <Select
@@ -581,11 +582,7 @@ export function EventMappingEditor({
                         />
                       </Box>
                       {currentMapping && (
-                        <Button
-                          size="slim"
-                          variant="plain"
-                          onClick={() => togglePreview(shopifyEvent.id)}
-                        >
+                        <Button size="slim" variant="plain" onClick={() => togglePreview(shopifyEvent.id)}>
                           {isPreviewOpen ? "隐藏预览" : "预览事件 JSON"}
                         </Button>
                       )}
@@ -597,19 +594,17 @@ export function EventMappingEditor({
                         <Text as="span" variant="bodySm" fontWeight="semibold">
                           平台事件预览（{PLATFORM_NAMES[platform]}）：
                         </Text>
-                        <Box
-                          padding="300"
-                          background="bg-surface"
-                          borderRadius="100"
-                        >
-                          <pre style={{
-                            fontSize: "12px",
-                            overflow: "auto",
-                            maxHeight: "300px",
-                            margin: 0,
-                            whiteSpace: "pre-wrap",
-                            wordBreak: "break-word",
-                          }}>
+                        <Box padding="300" background="bg-surface" borderRadius="100">
+                          <pre
+                            style={{
+                              fontSize: "12px",
+                              overflow: "auto",
+                              maxHeight: "300px",
+                              margin: 0,
+                              whiteSpace: "pre-wrap",
+                              wordBreak: "break-word",
+                            }}
+                          >
                             {JSON.stringify(eventPreview, null, 2)}
                           </pre>
                         </Box>
@@ -627,24 +622,33 @@ export function EventMappingEditor({
                               if (!platformEventDef) return null;
                               const mappedParams = platformEventDef.requiredParams
                                 .concat(platformEventDef.optionalParams)
-                                .filter(param => shopifyEvent.availableParams.includes(param));
-                              const missingParams = platformEventDef.requiredParams
-                                .filter(param => !shopifyEvent.availableParams.includes(param));
+                                .filter((param) => shopifyEvent.availableParams.includes(param));
+                              const missingParams = platformEventDef.requiredParams.filter(
+                                (param) => !shopifyEvent.availableParams.includes(param)
+                              );
                               return (
                                 <>
                                   {mappedParams.length > 0 && (
                                     <InlineStack gap="100" wrap>
-                                      <Text as="span" variant="bodySm" tone="subdued">已映射参数：</Text>
+                                      <Text as="span" variant="bodySm" tone="subdued">
+                                        已映射参数：
+                                      </Text>
                                       {mappedParams.map((param) => (
-                                        <Badge key={param} tone="success">{param}</Badge>
+                                        <Badge key={param} tone="success">
+                                          {param}
+                                        </Badge>
                                       ))}
                                     </InlineStack>
                                   )}
                                   {missingParams.length > 0 && (
                                     <InlineStack gap="100" wrap>
-                                      <Text as="span" variant="bodySm" tone="subdued">缺失参数：</Text>
+                                      <Text as="span" variant="bodySm" tone="subdued">
+                                        缺失参数：
+                                      </Text>
                                       {missingParams.map((param) => (
-                                        <Badge key={param} tone="warning">{param}</Badge>
+                                        <Badge key={param} tone="warning">
+                                          {param}
+                                        </Badge>
                                       ))}
                                     </InlineStack>
                                   )}

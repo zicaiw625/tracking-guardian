@@ -1,4 +1,16 @@
-import { Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Box, Divider, Icon, Banner } from "@shopify/polaris";
+import {
+  Layout,
+  Card,
+  Text,
+  BlockStack,
+  InlineStack,
+  Badge,
+  Button,
+  Box,
+  Divider,
+  Icon,
+  Banner,
+} from "@shopify/polaris";
 import { CheckCircleIcon } from "~/components/icons";
 import { getPlatformName } from "~/components/scan/utils";
 import { safeFormatDate, validateRiskItemsArray } from "~/utils/scan-data-validation";
@@ -37,7 +49,12 @@ export function ScanSummaryCards({
   const estimatedTime = calculateEstimatedTime(riskItems);
   const riskBackground = getRiskLevelBackground(riskScore);
   const riskBadgeTone = getRiskLevelBadgeTone(riskScore);
-  const riskLevelText = riskScore > 60 ? t("scan.summary.riskScore.levels.high") : riskScore > 30 ? t("scan.summary.riskScore.levels.med") : t("scan.summary.riskScore.levels.low");
+  const riskLevelText =
+    riskScore > 60
+      ? t("scan.summary.riskScore.levels.high")
+      : riskScore > 30
+        ? t("scan.summary.riskScore.levels.med")
+        : t("scan.summary.riskScore.levels.low");
 
   return (
     <Layout>
@@ -61,9 +78,7 @@ export function ScanSummaryCards({
               <Text as="span" variant="bodySm" tone="subdued">
                 {t("scan.summary.riskScore.level")}
               </Text>
-              <Badge tone={riskBadgeTone}>
-                {riskLevelText}
-              </Badge>
+              <Badge tone={riskBadgeTone}>{riskLevelText}</Badge>
             </InlineStack>
             {estimatedTime.totalMinutes > 0 && (
               <InlineStack align="space-between" blockAlign="center">
@@ -71,7 +86,10 @@ export function ScanSummaryCards({
                   {t("scan.summary.riskScore.estimatedTime")}
                 </Text>
                 <Text as="span" variant="bodySm" fontWeight="semibold">
-                  {estimatedTime.hours > 0 ? t("scan.summary.riskScore.hours", { count: estimatedTime.hours }) : ""}{estimatedTime.minutes > 0 ? t("scan.summary.riskScore.minutes", { count: estimatedTime.minutes }) : ""}
+                  {estimatedTime.hours > 0 ? t("scan.summary.riskScore.hours", { count: estimatedTime.hours }) : ""}
+                  {estimatedTime.minutes > 0
+                    ? t("scan.summary.riskScore.minutes", { count: estimatedTime.minutes })
+                    : ""}
                 </Text>
               </InlineStack>
             )}
@@ -91,11 +109,7 @@ export function ScanSummaryCards({
                   : t("scan.summary.cta.upgrade")}
               </Button>
               {!isPlanAtLeast(planIdSafe, "growth") && (
-                <Button
-                  url="/app/billing"
-                  variant="secondary"
-                  fullWidth
-                >
+                <Button url="/app/billing" variant="secondary" fullWidth>
                   {t("scan.summary.cta.fullFunnel")}
                 </Button>
               )}

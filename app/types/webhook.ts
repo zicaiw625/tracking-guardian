@@ -83,10 +83,7 @@ export interface TelegramAlertSettings {
   chatId: string;
 }
 
-export type AlertSettings =
-  | EmailAlertSettings
-  | SlackAlertSettings
-  | TelegramAlertSettings;
+export type AlertSettings = EmailAlertSettings | SlackAlertSettings | TelegramAlertSettings;
 
 export interface AlertConfig {
   id: string;

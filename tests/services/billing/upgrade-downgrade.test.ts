@@ -41,15 +41,9 @@ describe("Plan Upgrade/Downgrade", () => {
       expect(BILLING_PLANS.growth.price).toBeLessThanOrEqual(BILLING_PLANS.agency.price);
     });
     it("should have increasing order limits", () => {
-      expect(BILLING_PLANS.free.monthlyOrderLimit).toBeLessThan(
-        BILLING_PLANS.starter.monthlyOrderLimit
-      );
-      expect(BILLING_PLANS.starter.monthlyOrderLimit).toBeLessThan(
-        BILLING_PLANS.growth.monthlyOrderLimit
-      );
-      expect(BILLING_PLANS.growth.monthlyOrderLimit).toBeLessThan(
-        BILLING_PLANS.agency.monthlyOrderLimit
-      );
+      expect(BILLING_PLANS.free.monthlyOrderLimit).toBeLessThan(BILLING_PLANS.starter.monthlyOrderLimit);
+      expect(BILLING_PLANS.starter.monthlyOrderLimit).toBeLessThan(BILLING_PLANS.growth.monthlyOrderLimit);
+      expect(BILLING_PLANS.growth.monthlyOrderLimit).toBeLessThan(BILLING_PLANS.agency.monthlyOrderLimit);
     });
     it("should have required features in each plan", () => {
       for (const plan of Object.values(BILLING_PLANS)) {
@@ -64,7 +58,7 @@ describe("Plan Upgrade/Downgrade", () => {
     it("should detect starter plan from price", () => {
       expect(detectPlanFromPrice(29)).toBe("starter");
       expect(detectPlanFromPrice(49)).toBe("starter");
-      expect(detectPlanFromPrice(49.00)).toBe("starter");
+      expect(detectPlanFromPrice(49.0)).toBe("starter");
       expect(detectPlanFromPrice(78)).toBe("starter");
     });
     it("should detect growth plan from price", () => {
@@ -74,7 +68,7 @@ describe("Plan Upgrade/Downgrade", () => {
     });
     it("should detect agency plan from price (growth and agency both use 199)", () => {
       expect(detectPlanFromPrice(199)).toBe("agency");
-      expect(detectPlanFromPrice(199.00)).toBe("agency");
+      expect(detectPlanFromPrice(199.0)).toBe("agency");
     });
     it("should default to free for prices below starter threshold", () => {
       expect(detectPlanFromPrice(0)).toBe("free");
@@ -198,10 +192,7 @@ describe("Plan Upgrade/Downgrade", () => {
       newLimit: number;
       overage: number;
     }
-    function calculateDowngradeImpact(
-      currentUsage: number,
-      targetPlan: PlanId
-    ): UsageWarning {
+    function calculateDowngradeImpact(currentUsage: number, targetPlan: PlanId): UsageWarning {
       const newLimit = BILLING_PLANS[targetPlan].monthlyOrderLimit;
       const willExceedLimit = currentUsage > newLimit;
       const overage = Math.max(0, currentUsage - newLimit);
@@ -237,17 +228,11 @@ describe("Plan Upgrade/Downgrade", () => {
       daysRemaining: number;
       trialEndDate: Date;
     }
-    function calculateTrialStatus(
-      startDate: Date,
-      trialDays: number
-    ): TrialStatus {
+    function calculateTrialStatus(startDate: Date, trialDays: number): TrialStatus {
       const trialEndDate = new Date(startDate);
       trialEndDate.setDate(trialEndDate.getDate() + trialDays);
       const now = new Date();
-      const daysRemaining = Math.max(
-        0,
-        Math.ceil((trialEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-      );
+      const daysRemaining = Math.max(0, Math.ceil((trialEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
       return {
         isTrialing: daysRemaining > 0,
         daysRemaining,
@@ -318,16 +303,11 @@ describe("Plan Upgrade/Downgrade", () => {
       limitDifference: number;
       additionalFeatures: string[];
     }
-    function comparePlans(
-      currentPlan: PlanId,
-      targetPlan: PlanId
-    ): PlanComparison {
+    function comparePlans(currentPlan: PlanId, targetPlan: PlanId): PlanComparison {
       const current = BILLING_PLANS[currentPlan];
       const target = BILLING_PLANS[targetPlan];
       const currentFeatureSet = new Set(current.features);
-      const additionalFeatures = [...target.features].filter(
-        (f) => !currentFeatureSet.has(f)
-      );
+      const additionalFeatures = [...target.features].filter((f) => !currentFeatureSet.has(f));
       return {
         currentPlan,
         targetPlan,

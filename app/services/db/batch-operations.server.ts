@@ -8,7 +8,7 @@ export interface JobCompletionData {
   jobId: string;
   shopId: string;
   orderId: string;
-  status: 'completed' | 'failed' | 'limit_exceeded' | 'dead_letter';
+  status: "completed" | "failed" | "limit_exceeded" | "dead_letter";
   platformResults?: Prisma.JsonValue;
   trustMetadata?: Prisma.JsonValue;
   consentEvidence?: Prisma.JsonValue;
@@ -35,15 +35,11 @@ export interface BatchResult<T = unknown> {
   results?: T[];
 }
 
-export async function batchCompleteJobs(
-  _completions: JobCompletionData[]
-): Promise<BatchResult> {
+export async function batchCompleteJobs(_completions: JobCompletionData[]): Promise<BatchResult> {
   return { success: true, processed: 0, failed: 0, errors: [] };
 }
 
-export async function batchInsertReceipts(
-  receipts: PixelReceiptData[]
-): Promise<BatchResult> {
+export async function batchInsertReceipts(receipts: PixelReceiptData[]): Promise<BatchResult> {
   if (receipts.length === 0) {
     return { success: true, processed: 0, failed: 0, errors: [] };
   }
@@ -85,33 +81,33 @@ export async function batchInsertReceipts(
       );
       upsertResults.forEach((result, index) => {
         if (index >= receipts.length || index >= upsertResults.length) {
-          logger.error('Index out of bounds: arrays length mismatch', { 
-            index, 
+          logger.error("Index out of bounds: arrays length mismatch", {
+            index,
             receiptsLength: receipts.length,
-            upsertResultsLength: upsertResults.length 
+            upsertResultsLength: upsertResults.length,
           });
           return;
         }
         const receipt = receipts[index];
-        if (result.status === 'fulfilled') {
+        if (result.status === "fulfilled") {
           processed++;
         } else {
-          const errMsg =
-            result.reason instanceof Error ? result.reason.message : String(result.reason);
+          const errMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
           errors.push({ id: `${receipt.shopId}:${receipt.orderId}`, error: errMsg });
         }
       });
     });
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    logger.error('Batch insert receipts transaction failed', { error: errorMsg, count: receipts.length });
-    const allErrors = errors.length > 0 
-      ? errors 
-      : receipts.map((r) => ({ id: `${r.shopId}:${r.orderId}`, error: `Transaction failed: ${errorMsg}` }));
+    logger.error("Batch insert receipts transaction failed", { error: errorMsg, count: receipts.length });
+    const allErrors =
+      errors.length > 0
+        ? errors
+        : receipts.map((r) => ({ id: `${r.shopId}:${r.orderId}`, error: `Transaction failed: ${errorMsg}` }));
     return {
       success: false,
-      processed: 0, 
-      failed: receipts.length, 
+      processed: 0,
+      failed: receipts.length,
       errors: allErrors,
     };
   }
@@ -150,27 +146,26 @@ export async function batchUpdateShops(
       );
       updateResults.forEach((result, index) => {
         if (index >= updates.length || index >= updateResults.length) {
-          logger.error('Index out of bounds: arrays length mismatch', { 
-            index, 
+          logger.error("Index out of bounds: arrays length mismatch", {
+            index,
             updatesLength: updates.length,
-            updateResultsLength: updateResults.length 
+            updateResultsLength: updateResults.length,
           });
           return;
         }
         const { shopId } = updates[index];
-        if (result.status === 'fulfilled') {
+        if (result.status === "fulfilled") {
           processed++;
         } else {
-          const errorMsg =
-            result.reason instanceof Error ? result.reason.message : String(result.reason);
-          logger.warn('Failed to update shop', { shopId, error: errorMsg });
+          const errorMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
+          logger.warn("Failed to update shop", { shopId, error: errorMsg });
           errors.push({ id: shopId, error: errorMsg });
         }
       });
     });
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    logger.error('Batch update shops transaction failed', { error: errorMsg, count: updates.length });
+    logger.error("Batch update shops transaction failed", { error: errorMsg, count: updates.length });
     const remainingErrors = updates
       .slice(processed)
       .map((u) => ({ id: u.shopId, error: `Transaction failed: ${errorMsg}` }));
@@ -222,12 +217,12 @@ export async function batchCreateAuditLogs(
     };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    logger.error('Batch create audit logs failed', { error: errorMsg, count: entries.length });
+    logger.error("Batch create audit logs failed", { error: errorMsg, count: entries.length });
     return {
       success: false,
       processed: 0,
       failed: entries.length,
-      errors: [{ id: 'batch', error: errorMsg }],
+      errors: [{ id: "batch", error: errorMsg }],
     };
   }
 }
@@ -265,7 +260,7 @@ export async function processInChunks<T, R>(
       allResults.push(...result.results);
     }
     if (i + chunkSize < items.length) {
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }
   return {

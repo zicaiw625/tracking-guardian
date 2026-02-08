@@ -11,10 +11,7 @@ interface GraphQLClientResponse {
 }
 
 interface GraphQLClient {
-  graphql(
-    query: string,
-    options?: { variables?: Record<string, unknown> }
-  ): Promise<GraphQLClientResponse>;
+  graphql(query: string, options?: { variables?: Record<string, unknown> }): Promise<GraphQLClientResponse>;
 }
 
 interface ShopifyGraphQLResponse<T = unknown> {
@@ -73,19 +70,11 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
   backoffMultiplier: 2,
 };
 
-const RETRYABLE_ERROR_CODES = new Set([
-  "THROTTLED",
-  "INTERNAL_SERVER_ERROR",
-  "SERVICE_UNAVAILABLE",
-]);
+const RETRYABLE_ERROR_CODES = new Set(["THROTTLED", "INTERNAL_SERVER_ERROR", "SERVICE_UNAVAILABLE"]);
 
 const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
 
-function calculateRetryDelay(
-  attempt: number,
-  config: RetryConfig,
-  retryAfterHeader?: string | null
-): number {
+function calculateRetryDelay(attempt: number, config: RetryConfig, retryAfterHeader?: string | null): number {
   if (retryAfterHeader) {
     const retryAfterSeconds = parseInt(retryAfterHeader, 10);
     if (!isNaN(retryAfterSeconds)) {
@@ -98,10 +87,7 @@ function calculateRetryDelay(
   return Math.floor(cappedDelay + jitter);
 }
 
-function isRetryableError(
-  statusCode: number,
-  errors?: ShopifyGraphQLResponse["errors"]
-): boolean {
+function isRetryableError(statusCode: number, errors?: ShopifyGraphQLResponse["errors"]): boolean {
   if (RETRYABLE_STATUS_CODES.has(statusCode)) {
     return true;
   }
@@ -125,10 +111,7 @@ function createEnhancedGraphQLClient(
 ): GraphQLClient {
   const apiUrl = `https://${shopDomain}/admin/api/${apiVersion}/graphql.json`;
   return {
-    async graphql(
-      query: string,
-      options?: GraphQLRequestOptions
-    ): Promise<GraphQLClientResponse> {
+    async graphql(query: string, options?: GraphQLRequestOptions): Promise<GraphQLClientResponse> {
       const config = { ...DEFAULT_RETRY_CONFIG, ...options?.retryConfig };
       const timer = createTimer();
       let lastError: Error | null = null;
@@ -156,7 +139,7 @@ function createEnhancedGraphQLClient(
           lastResponse = response;
           let jsonResponse: ShopifyGraphQLResponse;
           try {
-            jsonResponse = await response.clone().json() as ShopifyGraphQLResponse;
+            jsonResponse = (await response.clone().json()) as ShopifyGraphQLResponse;
           } catch {
             const raw = await response.text().catch(() => "");
             const preview = raw.slice(0, 200).replace(/\s+/g, " ");
@@ -299,9 +282,7 @@ function createEnhancedGraphQLClient(
   };
 }
 
-async function getAccessTokenFromSession(
-  shopDomain: string
-): Promise<string | null> {
+async function getAccessTokenFromSession(shopDomain: string): Promise<string | null> {
   const offlineSession = await prisma.session.findFirst({
     where: {
       shop: shopDomain,
@@ -317,18 +298,15 @@ async function getAccessTokenFromSession(
         return accessToken;
       }
     } catch (error) {
-      logger.warn(
-        `[Admin] Failed to decrypt offline session token for ${shopDomain}`,
-        { error: error instanceof Error ? error.message : String(error) }
-      );
+      logger.warn(`[Admin] Failed to decrypt offline session token for ${shopDomain}`, {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
   return null;
 }
 
-async function getAccessTokenFromShop(
-  shopDomain: string
-): Promise<string | null> {
+async function getAccessTokenFromShop(shopDomain: string): Promise<string | null> {
   const shopRecord = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { accessTokenEncrypted: true },
@@ -337,17 +315,13 @@ async function getAccessTokenFromShop(
     try {
       return decryptAccessToken(shopRecord.accessTokenEncrypted);
     } catch {
-      logger.warn(
-        `[Admin] Failed to decrypt shop-level token for ${shopDomain}`
-      );
+      logger.warn(`[Admin] Failed to decrypt shop-level token for ${shopDomain}`);
     }
   }
   return null;
 }
 
-export async function createAdminClientForShop(
-  shopDomain: string
-): Promise<AdminApiContext | null> {
+export async function createAdminClientForShop(shopDomain: string): Promise<AdminApiContext | null> {
   try {
     const validationResult = SecureShopDomainSchema.safeParse(shopDomain);
     if (!validationResult.success) {
@@ -373,9 +347,7 @@ export async function createAdminClientForShop(
   }
 }
 
-export async function hasValidAdminClient(
-  shopDomain: string
-): Promise<boolean> {
+export async function hasValidAdminClient(shopDomain: string): Promise<boolean> {
   const client = await createAdminClientForShop(shopDomain);
   return client !== null;
 }
@@ -392,7 +364,7 @@ export async function executeGraphQL<T = unknown>(
   }
   try {
     const response = await client.graphql(query, options as { variables?: Record<string, unknown> });
-    const json = await response.json() as ShopifyGraphQLResponse<T>;
+    const json = (await response.json()) as ShopifyGraphQLResponse<T>;
     const result: GraphQLResult<T> = {
       data: json.data,
       errors: json.errors,

@@ -29,23 +29,31 @@ export function TestingStep({
   const [isValidating, setIsValidating] = useState(false);
   const [isSwitchingToLive, setIsSwitchingToLive] = useState(false);
   const timeoutRefs = useRef<Array<NodeJS.Timeout>>([]);
-  const [validationResults, setValidationResults] = useState<Record<string, {
-    valid: boolean;
-    message: string;
-    details?: {
-      eventSent?: boolean;
-      responseTime?: number;
-      error?: string;
-      testEventCode?: string;
-      debugViewUrl?: string;
-      verificationInstructions?: string;
-    }
-  }>>({});
+  const [validationResults, setValidationResults] = useState<
+    Record<
+      string,
+      {
+        valid: boolean;
+        message: string;
+        details?: {
+          eventSent?: boolean;
+          responseTime?: number;
+          error?: string;
+          testEventCode?: string;
+          debugViewUrl?: string;
+          verificationInstructions?: string;
+        };
+      }
+    >
+  >({});
   const { showSuccess, showError } = useToastContext();
   const handleValidateTestEnvironment = useCallback(async () => {
     if (!shopId) return;
     setIsValidating(true);
-    const results: Record<string, { valid: boolean; message: string; details?: { eventSent?: boolean; responseTime?: number; error?: string } }> = {};
+    const results: Record<
+      string,
+      { valid: boolean; message: string; details?: { eventSent?: boolean; responseTime?: number; error?: string } }
+    > = {};
     try {
       const validationPromises = Array.from(selectedPlatforms).map(async (platform) => {
         const formData = new FormData();
@@ -152,14 +160,10 @@ export function TestingStep({
     (platform) => platformConfigs[platform]?.environment === "test"
   );
   useEffect(() => {
-    const allValid = Object.keys(validationResults).length > 0 &&
-                     Object.values(validationResults).every(r => r.valid);
+    const allValid =
+      Object.keys(validationResults).length > 0 && Object.values(validationResults).every((r) => r.valid);
     let timer: NodeJS.Timeout | null = null;
-    if (
-      allValid &&
-      !isSwitchingToLive &&
-      !allInTestMode
-    ) {
+    if (allValid && !isSwitchingToLive && !allInTestMode) {
       timer = setTimeout(() => {
         showSuccess(t("migrate.testingStep.success.redirecting"));
         handleGoToVerification();
@@ -216,7 +220,9 @@ export function TestingStep({
                 loading={isValidating}
                 disabled={isValidating}
               >
-                {isValidating ? t("migrate.testingStep.validation.validating") : t("migrate.testingStep.validation.sendEvent")}
+                {isValidating
+                  ? t("migrate.testingStep.validation.validating")
+                  : t("migrate.testingStep.validation.sendEvent")}
               </Button>
             </InlineStack>
             {Object.keys(validationResults).length > 0 && (
@@ -225,10 +231,7 @@ export function TestingStep({
                   const result = validationResults[platform];
                   if (!result) return null;
                   return (
-                    <Banner
-                      key={platform}
-                      tone={result.valid ? "success" : "critical"}
-                    >
+                    <Banner key={platform} tone={result.valid ? "success" : "critical"}>
                       <BlockStack gap="200">
                         <InlineStack gap="200" blockAlign="center">
                           <Icon
@@ -252,7 +255,9 @@ export function TestingStep({
                                   </InlineStack>
                                   {result.details.responseTime && (
                                     <Text as="span" variant="bodySm" tone="subdued">
-                                      {t("migrate.testingStep.validation.responseTime", { time: result.details.responseTime })}
+                                      {t("migrate.testingStep.validation.responseTime", {
+                                        time: result.details.responseTime,
+                                      })}
                                     </Text>
                                   )}
                                 </BlockStack>
@@ -262,15 +267,14 @@ export function TestingStep({
                               <Banner tone="info">
                                 <BlockStack gap="200">
                                   <Text as="span" variant="bodySm" fontWeight="semibold">
-                                    {t("migrate.testingStep.validation.metaCode", { code: result.details.testEventCode })}
+                                    {t("migrate.testingStep.validation.metaCode", {
+                                      code: result.details.testEventCode,
+                                    })}
                                   </Text>
                                   <Text as="span" variant="bodySm">
                                     {t("migrate.testingStep.validation.metaDesc")}
                                   </Text>
-                                  <Link
-                                    url="https://business.facebook.com/events_manager2"
-                                    external
-                                  >
+                                  <Link url="https://business.facebook.com/events_manager2" external>
                                     {t("migrate.testingStep.validation.openMeta")}
                                   </Link>
                                 </BlockStack>
@@ -328,7 +332,9 @@ export function TestingStep({
                                     {t("migrate.testingStep.validation.eventId", { id: `test-order-${Date.now()}` })}
                                   </Text>
                                   <Text as="span" variant="bodySm" tone="subdued">
-                                    {t("migrate.testingStep.validation.eventType", { type: platformConfigs[platform]?.eventMappings?.checkout_completed || "purchase" })}
+                                    {t("migrate.testingStep.validation.eventType", {
+                                      type: platformConfigs[platform]?.eventMappings?.checkout_completed || "purchase",
+                                    })}
                                   </Text>
                                   <Text as="span" variant="bodySm" tone="subdued">
                                     {t("migrate.testingStep.validation.amount")}
@@ -347,72 +353,70 @@ export function TestingStep({
           </BlockStack>
         </Card>
       )}
-      {allInTestMode && Object.keys(validationResults).length > 0 &&
-       Object.values(validationResults).every(r => r.valid) && (
-        <Card>
-          <BlockStack gap="400">
-            <Text as="h4" variant="headingSm">
-              {t("migrate.testingStep.production.title")}
-            </Text>
-            <Banner tone="info">
-              <BlockStack gap="300">
-                <Text as="p" variant="bodySm" fontWeight="semibold">
-                  {t("migrate.testingStep.production.successTitle")}
-                </Text>
-                <Text as="p" variant="bodySm">
-                  {t("migrate.testingStep.production.desc")}
-                </Text>
-                <BlockStack gap="200">
+      {allInTestMode &&
+        Object.keys(validationResults).length > 0 &&
+        Object.values(validationResults).every((r) => r.valid) && (
+          <Card>
+            <BlockStack gap="400">
+              <Text as="h4" variant="headingSm">
+                {t("migrate.testingStep.production.title")}
+              </Text>
+              <Banner tone="info">
+                <BlockStack gap="300">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    {t("migrate.testingStep.production.confirmTitle")}
+                    {t("migrate.testingStep.production.successTitle")}
                   </Text>
-                  <List type="bullet">
-                    <List.Item>{t("migrate.testingStep.production.confirmItems.credentials")}</List.Item>
-                    <List.Item>{t("migrate.testingStep.production.confirmItems.eventSent")}</List.Item>
-                    <List.Item>{t("migrate.testingStep.production.confirmItems.mapping")}</List.Item>
-                    <List.Item>{t("migrate.testingStep.production.confirmItems.monitor")}</List.Item>
-                  </List>
-                </BlockStack>
-                <Banner tone="warning">
                   <Text as="p" variant="bodySm">
-                    {t("migrate.testingStep.production.tip")}
+                    {t("migrate.testingStep.production.desc")}
                   </Text>
-                </Banner>
-              </BlockStack>
-            </Banner>
-            <Button
-              variant="primary"
-              onClick={handleSwitchToLive}
-              loading={isSwitchingToLive}
-              disabled={isSwitchingToLive}
-            >
-              {t("migrate.testingStep.production.action")}
-            </Button>
-            <Text as="p" variant="bodySm" tone="subdued">
-              {t("migrate.testingStep.production.note")}
-            </Text>
-          </BlockStack>
-        </Card>
-      )}
-      {!allInTestMode && Object.keys(validationResults).length > 0 &&
-       Object.values(validationResults).every(r => r.valid) && (
-        <Banner tone="success">
-          <BlockStack gap="200">
-            <Text as="p" fontWeight="semibold">
-              {t("migrate.testingStep.production.validatedTitle")}
-            </Text>
-            <Text as="p" variant="bodySm">
-              {t("migrate.testingStep.production.redirectNote")}
-            </Text>
-          </BlockStack>
-        </Banner>
-      )}
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      {t("migrate.testingStep.production.confirmTitle")}
+                    </Text>
+                    <List type="bullet">
+                      <List.Item>{t("migrate.testingStep.production.confirmItems.credentials")}</List.Item>
+                      <List.Item>{t("migrate.testingStep.production.confirmItems.eventSent")}</List.Item>
+                      <List.Item>{t("migrate.testingStep.production.confirmItems.mapping")}</List.Item>
+                      <List.Item>{t("migrate.testingStep.production.confirmItems.monitor")}</List.Item>
+                    </List>
+                  </BlockStack>
+                  <Banner tone="warning">
+                    <Text as="p" variant="bodySm">
+                      {t("migrate.testingStep.production.tip")}
+                    </Text>
+                  </Banner>
+                </BlockStack>
+              </Banner>
+              <Button
+                variant="primary"
+                onClick={handleSwitchToLive}
+                loading={isSwitchingToLive}
+                disabled={isSwitchingToLive}
+              >
+                {t("migrate.testingStep.production.action")}
+              </Button>
+              <Text as="p" variant="bodySm" tone="subdued">
+                {t("migrate.testingStep.production.note")}
+              </Text>
+            </BlockStack>
+          </Card>
+        )}
+      {!allInTestMode &&
+        Object.keys(validationResults).length > 0 &&
+        Object.values(validationResults).every((r) => r.valid) && (
+          <Banner tone="success">
+            <BlockStack gap="200">
+              <Text as="p" fontWeight="semibold">
+                {t("migrate.testingStep.production.validatedTitle")}
+              </Text>
+              <Text as="p" variant="bodySm">
+                {t("migrate.testingStep.production.redirectNote")}
+              </Text>
+            </BlockStack>
+          </Banner>
+        )}
       <InlineStack gap="200">
-        <Button
-          url="/app/verification"
-          variant="primary"
-          onClick={handleGoToVerification}
-        >
+        <Button url="/app/verification" variant="primary" onClick={handleGoToVerification}>
           {t("migrate.testingStep.actions.runVerification")}
         </Button>
         {!allInTestMode && (

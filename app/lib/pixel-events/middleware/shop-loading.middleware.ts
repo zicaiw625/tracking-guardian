@@ -6,9 +6,7 @@ import { rejectionTracker } from "../rejection-tracker.server";
 import { shouldRecordRejection } from "../stats-sampling";
 import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types";
 
-export const shopLoadingMiddleware: IngestMiddleware = async (
-  context: IngestContext
-): Promise<MiddlewareResult> => {
+export const shopLoadingMiddleware: IngestMiddleware = async (context: IngestContext): Promise<MiddlewareResult> => {
   if (!context.shopDomain) {
     return {
       continue: false,
@@ -62,7 +60,6 @@ export const shopLoadingMiddleware: IngestMiddleware = async (
     shop.previousIngestionSecret = null;
   }
 
-
   const shopAllowedDomains = buildShopAllowedDomains({
     shopDomain: shop.shopDomain,
     primaryDomain: shop.primaryDomain,
@@ -72,19 +69,21 @@ export const shopLoadingMiddleware: IngestMiddleware = async (
   const pixelConfigs = shop.pixelConfigs;
   let mode: "purchase_only" | "full_funnel" = "purchase_only";
   for (const config of pixelConfigs) {
-    if (config.clientConfig && typeof config.clientConfig === 'object') {
-      if ('mode' in config.clientConfig) {
+    if (config.clientConfig && typeof config.clientConfig === "object") {
+      if ("mode" in config.clientConfig) {
         const configMode = config.clientConfig.mode;
-        if (configMode === 'full_funnel') {
+        if (configMode === "full_funnel") {
           mode = "full_funnel";
           break;
-        } else if (configMode === 'purchase_only') {
+        } else if (configMode === "purchase_only") {
           mode = "purchase_only";
         }
       }
     }
   }
-  const enabledConfigs = pixelConfigs.filter((config: { clientSideEnabled?: boolean | null }) => config.clientSideEnabled === true);
+  const enabledConfigs = pixelConfigs.filter(
+    (config: { clientSideEnabled?: boolean | null }) => config.clientSideEnabled === true
+  );
 
   return {
     continue: true,

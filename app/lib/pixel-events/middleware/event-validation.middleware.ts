@@ -126,11 +126,14 @@ export const eventValidationMiddleware: IngestMiddleware = async (
     // Fix P1-4: Filter events by individual timestamp to prevent queue waste
     const nowForEvent = Date.now();
     if (Math.abs(nowForEvent - eventValidation.payload.timestamp) > TIMESTAMP_WINDOW_MS) {
-      logger.debug(`Event at index ${i} timestamp outside window: diff=${Math.abs(nowForEvent - eventValidation.payload.timestamp)}ms, skipping`, {
-        requestId: context.requestId,
-        shopDomain: context.shopDomainHeader,
-        eventTimestamp: eventValidation.payload.timestamp,
-      });
+      logger.debug(
+        `Event at index ${i} timestamp outside window: diff=${Math.abs(nowForEvent - eventValidation.payload.timestamp)}ms, skipping`,
+        {
+          requestId: context.requestId,
+          shopDomain: context.shopDomainHeader,
+          eventTimestamp: eventValidation.payload.timestamp,
+        }
+      );
       continue;
     }
 
@@ -170,13 +173,13 @@ export const eventValidationMiddleware: IngestMiddleware = async (
 
   // Double check if empty after filtering (Fix P1-4: Prevent empty enqueue)
   if (validatedEvents.length === 0) {
-     return {
-        continue: false,
-        response: jsonWithCors(
-          { error: "No valid events found" },
-          { status: 204, request: context.request, requestId: context.requestId }
-        ),
-      };
+    return {
+      continue: false,
+      response: jsonWithCors(
+        { error: "No valid events found" },
+        { status: 204, request: context.request, requestId: context.requestId }
+      ),
+    };
   }
 
   const firstPayload = validatedEvents[0].payload;
@@ -184,8 +187,8 @@ export const eventValidationMiddleware: IngestMiddleware = async (
   // Fix P0-3: Use header timestamp if available to satisfy HMAC validation, otherwise fall back to payload
   // This ensures top-level array bodies (which lack batch timestamp) validate against the header timestamp
   const headerTimestampVal = context.timestampHeader ? parseInt(context.timestampHeader, 10) : NaN;
-  const timestamp = !isNaN(headerTimestampVal) 
-    ? headerTimestampVal 
+  const timestamp = !isNaN(headerTimestampVal)
+    ? headerTimestampVal
     : (context.batchTimestamp ?? firstPayload.timestamp);
 
   for (const { payload } of validatedEvents) {
@@ -251,28 +254,28 @@ export const eventValidationMiddleware: IngestMiddleware = async (
   // We can skip this block or make it just a warning.
   // However, for HMAC/replay attack prevention, we might still care about the "request" timestamp.
   // But since HMAC usually signs the body, and the body contains timestamps...
-  // Let's rely on the individual filtering we added above. 
+  // Let's rely on the individual filtering we added above.
   // If all events were skipped, we return early (validatedEvents.length === 0 check above).
-  
+
   /* 
   if (Math.abs(nowForWindow - timestamp) > TIMESTAMP_WINDOW_MS) {
      ...
   }
   */
-  
+
   // We remove the batch-level rejection because we filtered individually.
-  // If the batch timestamp (first event) was bad, it was skipped, so 'timestamp' here 
-  // would be from the first VALID event (if we update logic to pick it) OR 
+  // If the batch timestamp (first event) was bad, it was skipped, so 'timestamp' here
+  // would be from the first VALID event (if we update logic to pick it) OR
   // context.batchTimestamp might still be the first one.
-  
+
   // Actually, 'timestamp' variable is defined as:
   // const timestamp = context.batchTimestamp ?? firstPayload.timestamp;
-  // If context.batchTimestamp comes from the first event in RAW array (which we did in the loop), 
+  // If context.batchTimestamp comes from the first event in RAW array (which we did in the loop),
   // it might be invalid.
-  
+
   // But we don't want to reject the whole request if one event is old, we just want to process valid ones.
   // So we should remove this block.
-  
+
   return {
     continue: true,
     context: {

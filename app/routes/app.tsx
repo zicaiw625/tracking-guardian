@@ -18,45 +18,48 @@ import { useTranslation } from "react-i18next";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-    try {
-        const { session } = await authenticate.admin(request);
-        const shopDomain = session.shop;
-        const shop = await prisma.shop.findUnique({
-            where: { shopDomain },
-            select: {
-                id: true,
-                plan: true,
-                shopTier: true,
-                shopTierLastCheckedAt: true,
-            },
-        });
-        
-        const planIdNormalized = normalizePlanId(shop?.plan || "free") as PlanId;
-        
-        return json({
-            apiKey: process.env.SHOPIFY_API_KEY || "",
-            shopDomain,
-            planId: planIdNormalized,
-            currentShopId: shop?.id,
-        });
-    } catch (error) {
-        if (error instanceof Response) {
-            throw error;
-        }
-        console.error("[App Loader] Failed to load app data:", error);
-        throw error;
+  try {
+    const { session } = await authenticate.admin(request);
+    const shopDomain = session.shop;
+    const shop = await prisma.shop.findUnique({
+      where: { shopDomain },
+      select: {
+        id: true,
+        plan: true,
+        shopTier: true,
+        shopTierLastCheckedAt: true,
+      },
+    });
+
+    const planIdNormalized = normalizePlanId(shop?.plan || "free") as PlanId;
+
+    return json({
+      apiKey: process.env.SHOPIFY_API_KEY || "",
+      shopDomain,
+      planId: planIdNormalized,
+      currentShopId: shop?.id,
+    });
+  } catch (error) {
+    if (error instanceof Response) {
+      throw error;
     }
+    console.error("[App Loader] Failed to load app data:", error);
+    throw error;
+  }
 };
 export default function App() {
-    const { apiKey, shopDomain, planId, currentShopId } = useLoaderData<typeof loader>();
-    const { t, i18n } = useTranslation();
-    
-    const polarisTranslations = i18n.language?.startsWith("zh") ? polarisTranslationsZh : polarisTranslationsEn;
-    const polarisI18n = getPolarisTranslations(polarisTranslations);
+  const { apiKey, shopDomain, planId, currentShopId } = useLoaderData<typeof loader>();
+  const { t, i18n } = useTranslation();
 
-    return (<AppProvider isEmbeddedApp apiKey={apiKey} i18n={polarisI18n as any} key={i18n.language}>
+  const polarisTranslations = i18n.language?.startsWith("zh") ? polarisTranslationsZh : polarisTranslationsEn;
+  const polarisI18n = getPolarisTranslations(polarisTranslations);
+
+  return (
+    <AppProvider isEmbeddedApp apiKey={apiKey} i18n={polarisI18n as any} key={i18n.language}>
       <NavMenu>
-        <a href="/app" rel="home">{t("nav.dashboard")}</a>
+        <a href="/app" rel="home">
+          {t("nav.dashboard")}
+        </a>
         <a href="/app/scan">{t("nav.audit")}</a>
         <a href="/app/pixels">{t("nav.pixels")}</a>
         <a href="/app/verification">{t("nav.verification")}</a>
@@ -73,19 +76,16 @@ export default function App() {
       <ToastProvider>
         <Outlet />
       </ToastProvider>
-    </AppProvider>);
+    </AppProvider>
+  );
 }
 export const headers: HeadersFunction = (headersArgs) => {
-    return boundary.headers(headersArgs);
+  return boundary.headers(headersArgs);
 };
 export function ErrorBoundary() {
-    const { i18n } = useTranslation();
-    const polarisTranslations = i18n.language?.startsWith("zh") ? polarisTranslationsZh : polarisTranslationsEn;
-    const polarisI18n = getPolarisTranslations(polarisTranslations);
+  const { i18n } = useTranslation();
+  const polarisTranslations = i18n.language?.startsWith("zh") ? polarisTranslationsZh : polarisTranslationsEn;
+  const polarisI18n = getPolarisTranslations(polarisTranslations);
 
-    return (
-        <PolarisAppProvider i18n={polarisI18n as any}>
-            {boundary.error(useRouteError())}
-        </PolarisAppProvider>
-    );
+  return <PolarisAppProvider i18n={polarisI18n as any}>{boundary.error(useRouteError())}</PolarisAppProvider>;
 }

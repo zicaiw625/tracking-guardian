@@ -54,11 +54,7 @@ function fromFormValues(platform: SupportedPlatform, values: PlatformCredentials
   return { pixelId: v.pixelId ?? "", accessToken: v.accessToken ?? "" };
 }
 
-export function CredentialsStep({
-  selectedPlatforms,
-  platformConfigs,
-  onCredentialsChange,
-}: CredentialsStepProps) {
+export function CredentialsStep({ selectedPlatforms, platformConfigs, onCredentialsChange }: CredentialsStepProps) {
   return (
     <Card>
       <BlockStack gap="400">

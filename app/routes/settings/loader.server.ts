@@ -64,8 +64,15 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
         },
       });
     } catch (error) {
-      if (error instanceof Error && (error.message.includes("settings") && (error.message.includes("does not exist") || error.message.includes("P2022")))) {
-        logger.error("Shop.settings column does not exist. Database migration required. Please run: ALTER TABLE \"Shop\" ADD COLUMN IF NOT EXISTS \"settings\" JSONB;", { shopDomain, error: error.message });
+      if (
+        error instanceof Error &&
+        error.message.includes("settings") &&
+        (error.message.includes("does not exist") || error.message.includes("P2022"))
+      ) {
+        logger.error(
+          'Shop.settings column does not exist. Database migration required. Please run: ALTER TABLE "Shop" ADD COLUMN IF NOT EXISTS "settings" JSONB;',
+          { shopDomain, error: error.message }
+        );
         shop = (await prisma.shop.findUnique({
           where: { shopDomain },
           select: {
@@ -110,14 +117,10 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
     }
     const now = new Date();
     const hasActiveGraceWindow =
-      shop?.previousIngestionSecret &&
-      shop?.previousSecretExpiry &&
-      now < shop.previousSecretExpiry;
+      shop?.previousIngestionSecret && shop?.previousSecretExpiry && now < shop.previousSecretExpiry;
     const hasExpiredPreviousSecret =
-      shop?.previousIngestionSecret &&
-      shop?.previousSecretExpiry &&
-      now >= shop.previousSecretExpiry;
-    
+      shop?.previousIngestionSecret && shop?.previousSecretExpiry && now >= shop.previousSecretExpiry;
+
     if (shop && hasExpiredPreviousSecret) {
       try {
         await prisma.shop.update({
@@ -133,29 +136,32 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
         logger.error("Failed to cleanup expired previous ingestion secret", { shopId: shop.id, error });
       }
     }
-    const pixelConfigs: PixelConfigDisplay[] = shop?.pixelConfigs?.map((config: {
-      id: string;
-      platform: string;
-      platformId: string | null;
-      serverSideEnabled: boolean;
-      clientSideEnabled: boolean;
-      isActive: boolean;
-      updatedAt: Date;
-      environment: string;
-      configVersion: number;
-      rollbackAllowed: boolean;
-    }) => ({
-      id: config.id,
-      platform: config.platform,
-      platformId: config.platformId,
-      serverSideEnabled: config.serverSideEnabled,
-      clientSideEnabled: config.clientSideEnabled,
-      isActive: config.isActive,
-      environment: config.environment as "test" | "live" | undefined,
-      configVersion: config.configVersion,
-      rollbackAllowed: config.rollbackAllowed,
-      lastTestedAt: config.updatedAt,
-    })) ?? [];
+    const pixelConfigs: PixelConfigDisplay[] =
+      shop?.pixelConfigs?.map(
+        (config: {
+          id: string;
+          platform: string;
+          platformId: string | null;
+          serverSideEnabled: boolean;
+          clientSideEnabled: boolean;
+          isActive: boolean;
+          updatedAt: Date;
+          environment: string;
+          configVersion: number;
+          rollbackAllowed: boolean;
+        }) => ({
+          id: config.id,
+          platform: config.platform,
+          platformId: config.platformId,
+          serverSideEnabled: config.serverSideEnabled,
+          clientSideEnabled: config.clientSideEnabled,
+          isActive: config.isActive,
+          environment: config.environment as "test" | "live" | undefined,
+          configVersion: config.configVersion,
+          rollbackAllowed: config.rollbackAllowed,
+          lastTestedAt: config.updatedAt,
+        })
+      ) ?? [];
     let currentMonitoringData: {
       failureRate: number;
       volumeDrop: number;
@@ -190,7 +196,7 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
           typOspStatus = {
             typOspPagesEnabled: result.typOspPagesEnabled,
             status: result.status,
-            unknownReason: result.status === "unknown" ? result.unknownReason ?? null : null,
+            unknownReason: result.status === "unknown" ? (result.unknownReason ?? null) : null,
           };
         } else {
           typOspStatus = {
@@ -203,14 +209,19 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
         logger.error("Failed to get typOsp status for settings", { shopId: shop.id, error });
       }
     }
-    const rawSettings = (shop && "settings" in shop && shop.settings && typeof shop.settings === "object") ? shop.settings as Record<string, unknown> : null;
-    const rawAlertConfigs = rawSettings?.alertConfigs && Array.isArray(rawSettings.alertConfigs) ? rawSettings.alertConfigs : [];
+    const rawSettings =
+      shop && "settings" in shop && shop.settings && typeof shop.settings === "object"
+        ? (shop.settings as Record<string, unknown>)
+        : null;
+    const rawAlertConfigs =
+      rawSettings?.alertConfigs && Array.isArray(rawSettings.alertConfigs) ? rawSettings.alertConfigs : [];
     const alertConfigs: AlertConfigDisplay[] = rawAlertConfigs.map((c: unknown, i: number) => {
-      const item = c && typeof c === "object" ? c as Record<string, unknown> : {};
+      const item = c && typeof c === "object" ? (c as Record<string, unknown>) : {};
       return {
         id: typeof item.id === "string" ? item.id : `alert-${i}`,
         channel: typeof item.channel === "string" ? item.channel : "email",
-        settings: item.settings && typeof item.settings === "object" ? item.settings as Record<string, unknown> : null,
+        settings:
+          item.settings && typeof item.settings === "object" ? (item.settings as Record<string, unknown>) : null,
         frequency: typeof item.frequency === "string" ? item.frequency : undefined,
         discrepancyThreshold: typeof item.discrepancyThreshold === "number" ? item.discrepancyThreshold : 10,
         isEnabled: typeof item.isEnabled === "boolean" ? item.isEnabled : true,
@@ -224,20 +235,18 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
             plan: shop.plan || "free",
             alertConfigs,
             pixelConfigs,
-            hasIngestionSecret:
-              !!shop.ingestionSecret && shop.ingestionSecret.length > 0,
+            hasIngestionSecret: !!shop.ingestionSecret && shop.ingestionSecret.length > 0,
             hasActiveGraceWindow: !!hasActiveGraceWindow,
             hasExpiredPreviousSecret: !!hasExpiredPreviousSecret,
-            graceWindowExpiry: hasActiveGraceWindow && shop.previousSecretExpiry
-              ? shop.previousSecretExpiry
-              : null,
+            graceWindowExpiry: hasActiveGraceWindow && shop.previousSecretExpiry ? shop.previousSecretExpiry : null,
             consentStrategy: shop.consentStrategy || "strict",
             dataRetentionDays: shop.dataRetentionDays,
           }
         : null,
       tokenIssues,
       pcdApproved: false,
-      pcdStatusMessage: "我们不收集终端客户 PII，当前公开上架版本不会从 Shopify 读取订单明细或访问 PCD，不申请 read_orders、不订阅订单 webhook。未来如引入基于订单的验收/对账或再购等功能，将在获得 PCD 审批后单独启用并更新隐私文档。",
+      pcdStatusMessage:
+        "我们不收集终端客户 PII，当前公开上架版本不会从 Shopify 读取订单明细或访问 PCD，不申请 read_orders、不订阅订单 webhook。未来如引入基于订单的验收/对账或再购等功能，将在获得 PCD 审批后单独启用并更新隐私文档。",
       typOspStatus,
       pixelStrictOrigin,
       alertChannelsEnabled,

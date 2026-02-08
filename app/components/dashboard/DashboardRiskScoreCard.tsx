@@ -27,13 +27,14 @@ export const DashboardRiskScoreCard = memo(function DashboardRiskScoreCard({
     const mins = minutes % 60;
     return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
   };
-  const riskColor = riskLevel === "high"
-    ? "bg-fill-critical"
-    : riskLevel === "medium"
-      ? "bg-fill-caution"
-      : riskLevel === "low"
-        ? "bg-fill-success"
-        : "bg-surface-secondary";
+  const riskColor =
+    riskLevel === "high"
+      ? "bg-fill-critical"
+      : riskLevel === "medium"
+        ? "bg-fill-caution"
+        : riskLevel === "low"
+          ? "bg-fill-success"
+          : "bg-surface-secondary";
   return (
     <Card>
       <BlockStack gap="400">
@@ -47,7 +48,9 @@ export const DashboardRiskScoreCard = memo(function DashboardRiskScoreCard({
                 <Text as="p" variant="heading3xl" fontWeight="bold">
                   {riskScore}
                 </Text>
-                <Text as="p" variant="bodySm">/ 100</Text>
+                <Text as="p" variant="bodySm">
+                  / 100
+                </Text>
               </>
             ) : (
               <>

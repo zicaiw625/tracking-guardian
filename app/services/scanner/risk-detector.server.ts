@@ -16,18 +16,19 @@ export interface RiskDetectionResult {
 export function detectRisksInContent(content: string): RiskDetectionResult {
   const analysis = analyzeScriptContent(content);
   const detectedIssues = {
-    piiAccess: analysis.risks.some(r => r.id === "pii_access"),
-    windowDocumentAccess: analysis.risks.some(r => r.id === "window_document_access"),
-    blockingLoad: analysis.risks.some(r => r.id === "blocking_load"),
-    duplicateTriggers: analysis.risks.some(r => r.id === "duplicate_triggers"),
+    piiAccess: analysis.risks.some((r) => r.id === "pii_access"),
+    windowDocumentAccess: analysis.risks.some((r) => r.id === "window_document_access"),
+    blockingLoad: analysis.risks.some((r) => r.id === "blocking_load"),
+    duplicateTriggers: analysis.risks.some((r) => r.id === "duplicate_triggers"),
   };
-  const keyRisks = analysis.risks.filter(r =>
-    r.id === "pii_access" ||
-    r.id === "window_document_access" ||
-    r.id === "blocking_load" ||
-    r.id === "duplicate_triggers"
+  const keyRisks = analysis.risks.filter(
+    (r) =>
+      r.id === "pii_access" ||
+      r.id === "window_document_access" ||
+      r.id === "blocking_load" ||
+      r.id === "duplicate_triggers"
   );
-  const enhancedRisks = keyRisks.map(risk => enhanceRiskDescription(risk, content));
+  const enhancedRisks = keyRisks.map((risk) => enhanceRiskDescription(risk, content));
   return {
     risks: enhancedRisks,
     riskScore: analysis.riskScore,
@@ -39,26 +40,33 @@ export function detectRisksInContent(content: string): RiskDetectionResult {
 export function detectRisksInUrl(url: string): RiskDetectionResult {
   const risks: RiskItem[] = [];
   const lowerUrl = url.toLowerCase();
-  
+
   // Known tracking domains usually imply window/document access when loaded as ScriptTag
   const knownTrackingDomains = [
-    "facebook.net", "connect.facebook.net", 
-    "google-analytics.com", "googletagmanager.com", 
-    "tiktok.com", "analytics.tiktok.com",
-    "pinterest.com", "pinimg.com",
-    "snapchat.com", "sc-static.net",
-    "clarity.ms", "hotjar.com"
+    "facebook.net",
+    "connect.facebook.net",
+    "google-analytics.com",
+    "googletagmanager.com",
+    "tiktok.com",
+    "analytics.tiktok.com",
+    "pinterest.com",
+    "pinimg.com",
+    "snapchat.com",
+    "sc-static.net",
+    "clarity.ms",
+    "hotjar.com",
   ];
-  
-  const isKnownTracker = knownTrackingDomains.some(d => lowerUrl.includes(d));
-  
+
+  const isKnownTracker = knownTrackingDomains.some((d) => lowerUrl.includes(d));
+
   if (isKnownTracker) {
     risks.push({
       id: "window_document_access", // Inferred
       name: "Window/Document Object Access",
       severity: "medium",
       points: 20,
-      description: "External tracking script detected via URL. These scripts typically access window/document objects which is restricted in Checkout Extensibility.",
+      description:
+        "External tracking script detected via URL. These scripts typically access window/document objects which is restricted in Checkout Extensibility.",
       recommendation: "Migrate to Web Pixel App Extension",
     });
   }
@@ -80,8 +88,8 @@ export function detectRisksInUrl(url: string): RiskDetectionResult {
       piiAccess: false, // Cannot detect from URL
       windowDocumentAccess: isKnownTracker,
       blockingLoad: true,
-      duplicateTriggers: false
-    }
+      duplicateTriggers: false,
+    },
   };
 }
 
@@ -90,7 +98,8 @@ function enhanceRiskDescription(risk: RiskItem, _content: string): RiskItem {
     case "pii_access":
       return {
         ...risk,
-        description: `${risk.description}\n\n💡 迁移建议：\n` +
+        description:
+          `${risk.description}\n\n💡 迁移建议：\n` +
           `1. 避免在结账页脚本中读取/上传客户敏感信息\n` +
           `2. 如确需处理敏感字段，请按 Shopify 官方路径（PCD/权限）与合规要求实施\n` +
           `3. 使用哈希后的数据而非明文\n` +
@@ -100,7 +109,8 @@ function enhanceRiskDescription(risk: RiskItem, _content: string): RiskItem {
     case "window_document_access":
       return {
         ...risk,
-        description: `${risk.description}\n\n💡 迁移建议：\n` +
+        description:
+          `${risk.description}\n\n💡 迁移建议：\n` +
           `1. 使用 Shopify Web Pixel API 替代：\n` +
           `   - analytics.subscribe() 替代 window 事件监听\n` +
           `   - settings 对象替代 document 配置读取\n` +
@@ -112,7 +122,8 @@ function enhanceRiskDescription(risk: RiskItem, _content: string): RiskItem {
     case "blocking_load":
       return {
         ...risk,
-        description: `${risk.description}\n\n💡 迁移建议：\n` +
+        description:
+          `${risk.description}\n\n💡 迁移建议：\n` +
           `1. 移除 document.write() 和同步脚本\n` +
           `2. 使用异步加载的 Web Pixel\n` +
           `3. 避免在关键渲染路径上执行阻塞操作\n` +
@@ -122,7 +133,8 @@ function enhanceRiskDescription(risk: RiskItem, _content: string): RiskItem {
     case "duplicate_triggers":
       return {
         ...risk,
-        description: `${risk.description}\n\n💡 迁移建议：\n` +
+        description:
+          `${risk.description}\n\n💡 迁移建议：\n` +
           `1. 使用事件去重机制（event_id）\n` +
           `2. 确保每个事件只触发一次\n` +
           `3. 使用 Shopify 标准事件而非自定义事件\n` +
@@ -153,15 +165,15 @@ export function detectRisksInScripts(scripts: Array<{ content: string; id?: stri
     byScript.set(scriptId, result);
     allRisks.push(...result.risks);
   }
-  const highRiskCount = allRisks.filter(r => r.severity === "high").length;
-  const mediumRiskCount = allRisks.filter(r => r.severity === "medium").length;
-  const lowRiskCount = allRisks.filter(r => r.severity === "low").length;
+  const highRiskCount = allRisks.filter((r) => r.severity === "high").length;
+  const mediumRiskCount = allRisks.filter((r) => r.severity === "medium").length;
+  const lowRiskCount = allRisks.filter((r) => r.severity === "low").length;
   return {
     totalRisks: allRisks,
     byScript,
     summary: {
       totalScripts: scripts.length,
-      scriptsWithRisks: Array.from(byScript.values()).filter(r => r.risks.length > 0).length,
+      scriptsWithRisks: Array.from(byScript.values()).filter((r) => r.risks.length > 0).length,
       highRiskCount,
       mediumRiskCount,
       lowRiskCount,
@@ -182,8 +194,8 @@ export function generateRiskSummary(detectionResult: RiskDetectionResult): {
       recommendations: [],
     };
   }
-  const highRisks = risks.filter(r => r.severity === "high");
-  const mediumRisks = risks.filter(r => r.severity === "medium");
+  const highRisks = risks.filter((r) => r.severity === "high");
+  const mediumRisks = risks.filter((r) => r.severity === "medium");
   let level: "high" | "medium" | "low";
   let message: string;
   if (highRisks.length > 0) {
@@ -201,8 +213,8 @@ export function generateRiskSummary(detectionResult: RiskDetectionResult): {
     message = `检测到 ${risks.length} 个低风险项，建议优化`;
   }
   const recommendations = risks
-    .filter(r => r.recommendation)
-    .map(r => r.recommendation!)
+    .filter((r) => r.recommendation)
+    .map((r) => r.recommendation!)
     .filter((rec, index, self) => self.indexOf(rec) === index);
   return {
     level,

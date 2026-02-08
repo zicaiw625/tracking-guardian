@@ -15,7 +15,12 @@ function consentFromReceiptPayload(payloadJson: unknown): ConsentState | null {
   const c = raw as Record<string, unknown>;
   const marketing = typeof c.marketing === "boolean" ? c.marketing : undefined;
   const analytics = typeof c.analytics === "boolean" ? c.analytics : undefined;
-  const saleOfDataAllowed = typeof c.saleOfDataAllowed === "boolean" ? c.saleOfDataAllowed : typeof c.saleOfData === "boolean" ? c.saleOfData : undefined;
+  const saleOfDataAllowed =
+    typeof c.saleOfDataAllowed === "boolean"
+      ? c.saleOfDataAllowed
+      : typeof c.saleOfData === "boolean"
+        ? c.saleOfData
+        : undefined;
   if (marketing === undefined && analytics === undefined && saleOfDataAllowed === undefined) return null;
   return { marketing, analytics, saleOfDataAllowed };
 }
@@ -146,10 +151,7 @@ export async function handleOrdersPaid(
       where: {
         shopId,
         eventType: "purchase",
-        OR: [
-          { orderKey: normalizedOrderIdForReceipt },
-          { altOrderKey: normalizedOrderIdForReceipt },
-        ],
+        OR: [{ orderKey: normalizedOrderIdForReceipt }, { altOrderKey: normalizedOrderIdForReceipt }],
       },
       orderBy: { pixelTimestamp: "desc" },
       select: { payloadJson: true },
@@ -170,9 +172,11 @@ export async function handleOrdersPaid(
       meta: "META",
       tiktok: "TIKTOK",
     };
-    const allS2sDestinations = s2sConfigs
-      .map((c) => destinationsByPlatform[c.platform])
-      .filter(Boolean) as ("GA4" | "META" | "TIKTOK")[];
+    const allS2sDestinations = s2sConfigs.map((c) => destinationsByPlatform[c.platform]).filter(Boolean) as (
+      | "GA4"
+      | "META"
+      | "TIKTOK"
+    )[];
     const s2sDestinations: ("GA4" | "META" | "TIKTOK")[] = [];
     for (const dest of allS2sDestinations) {
       // P0-2: TikTok requires IP/UA. If missing, skip.
@@ -184,18 +188,18 @@ export async function handleOrdersPaid(
       // P0-1: Google (GA4) is dual-use, but treating as marketing forces marketing consent.
       // We should pass false for google, or rely on platform config logic if updated.
       // Here we explicitly set treatAsMarketing = false for google to allow analytics-only consent.
-      const treatAsMarketing = platform !== "google"; 
-      
+      const treatAsMarketing = platform !== "google";
+
       // P0-3: Use evaluatePlatformConsentWithStrategy to support weak/balanced modes
       // This ensures we don't drop orders just because pixel receipt is missing (e.g. adblocker)
       const decision = evaluatePlatformConsentWithStrategy(
-        platform, 
+        platform,
         shopRecord.consentStrategy ?? "strict", // fallback to strict if undefined
-        consentState, 
+        consentState,
         receipt != null, // hasPixelReceipt
         treatAsMarketing
       );
-      
+
       if (decision.allowed) s2sDestinations.push(dest);
     }
 
@@ -210,7 +214,11 @@ export async function handleOrdersPaid(
 
     const consentPurposes =
       consentState != null
-        ? { marketing: consentState.marketing, analytics: consentState.analytics, saleOfDataAllowed: consentState.saleOfDataAllowed }
+        ? {
+            marketing: consentState.marketing,
+            analytics: consentState.analytics,
+            saleOfDataAllowed: consentState.saleOfDataAllowed,
+          }
         : Prisma.JsonNull;
 
     // Process IP/UA

@@ -42,23 +42,29 @@ export function withPlanGate(config: PlanGateConfig): Middleware {
           return { continue: false, response: redirect(redirectUrl) };
         }
         if (config.showUpgradePrompt) {
-          return { continue: false, response: json(
+          return {
+            continue: false,
+            response: json(
+              {
+                error: "Feature requires upgrade",
+                gateResult,
+                currentPlan: planId,
+                requiredFeature: config.feature,
+              },
+              { status: 403 }
+            ),
+          };
+        }
+        return {
+          continue: false,
+          response: json(
             {
-              error: "Feature requires upgrade",
+              error: gateResult.reason || "Feature not available in current plan",
               gateResult,
-              currentPlan: planId,
-              requiredFeature: config.feature,
             },
             { status: 403 }
-          ) };
-        }
-        return { continue: false, response: json(
-          {
-            error: gateResult.reason || "Feature not available in current plan",
-            gateResult,
-          },
-          { status: 403 }
-        ) };
+          ),
+        };
       }
       return { continue: true, context };
     } catch (error) {
@@ -68,10 +74,7 @@ export function withPlanGate(config: PlanGateConfig): Middleware {
       });
       return {
         continue: false,
-        response: json(
-          { error: "Unauthorized or plan check failed" },
-          { status: 401 }
-        ),
+        response: json({ error: "Unauthorized or plan check failed" }, { status: 401 }),
       };
     }
   };

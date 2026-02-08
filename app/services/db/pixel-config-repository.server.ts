@@ -114,17 +114,13 @@ export async function getPixelConfigByPlatform(
   });
 }
 
-export async function getPixelConfigById(
-  configId: string
-): Promise<PixelConfigFull | null> {
+export async function getPixelConfigById(configId: string): Promise<PixelConfigFull | null> {
   return prisma.pixelConfig.findUnique({
     where: { id: configId },
   });
 }
 
-export async function getPixelConfigSummaries(
-  shopId: string
-): Promise<PixelConfigSummary[]> {
+export async function getPixelConfigSummaries(shopId: string): Promise<PixelConfigSummary[]> {
   const configs = await prisma.pixelConfig.findMany({
     where: { shopId },
     select: SUMMARY_SELECT,
@@ -138,15 +134,12 @@ function validatePlatformSupport(platform: string): void {
   if (!v1SupportedPlatforms.includes(platform)) {
     throw new Error(
       `平台 ${platform} 在 v1.0 版本中不支持。v1.0 仅支持: ${v1SupportedPlatforms.join(", ")}。` +
-      `其他平台（如 Snapchat、Twitter、Pinterest）将在 v1.1+ 版本中提供支持。`
+        `其他平台（如 Snapchat、Twitter、Pinterest）将在 v1.1+ 版本中提供支持。`
     );
   }
 }
 
-async function validateFeatureGates(
-  shopId: string,
-  input: PixelConfigInput
-): Promise<void> {
+async function validateFeatureGates(shopId: string, input: PixelConfigInput): Promise<void> {
   const { checkV1FeatureBoundary } = await import("../../utils/version-gate");
   const { requireEntitlementOrThrow } = await import("../billing/entitlement.server");
   if (input.serverSideEnabled) {
@@ -156,9 +149,9 @@ async function validateFeatureGates(
     }
     await requireEntitlementOrThrow(shopId, "pixel_destinations");
   }
-  if (input.clientConfig && typeof input.clientConfig === 'object' && 'mode' in input.clientConfig) {
+  if (input.clientConfig && typeof input.clientConfig === "object" && "mode" in input.clientConfig) {
     const mode = (input.clientConfig as { mode?: string }).mode;
-    if (mode === 'full_funnel') {
+    if (mode === "full_funnel") {
       await requireEntitlementOrThrow(shopId, "full_funnel");
     }
   }
@@ -205,7 +198,7 @@ async function executeUpsertWithPlatformId(
   platform: PlatformType,
   environment: string,
   platformId: string,
-  data: Omit<PixelConfigInput, 'platform'>
+  data: Omit<PixelConfigInput, "platform">
 ): Promise<PixelConfigFull> {
   return prisma.pixelConfig.upsert({
     where: {
@@ -247,7 +240,7 @@ async function executeUpsertWithoutPlatformId(
   shopId: string,
   platform: PlatformType,
   environment: string,
-  data: Omit<PixelConfigInput, 'platform'>
+  data: Omit<PixelConfigInput, "platform">
 ): Promise<PixelConfigFull> {
   const existing = await prisma.pixelConfig.findFirst({
     where: {
@@ -267,7 +260,9 @@ async function executeUpsertWithoutPlatformId(
         serverSideEnabled: data.serverSideEnabled ?? false,
         eventMappings: data.eventMappings ?? undefined,
         isActive: data.isActive ?? true,
-        ...(("migrationStatus" in data && data.migrationStatus) ? { migrationStatus: data.migrationStatus as string } : {}),
+        ...("migrationStatus" in data && data.migrationStatus
+          ? { migrationStatus: data.migrationStatus as string }
+          : {}),
         updatedAt: new Date(),
       },
     });
@@ -285,7 +280,8 @@ async function executeUpsertWithoutPlatformId(
       serverSideEnabled: data.serverSideEnabled ?? false,
       eventMappings: data.eventMappings ?? undefined,
       isActive: data.isActive ?? true,
-      migrationStatus: ("migrationStatus" in data && data.migrationStatus) ? (data.migrationStatus as string) : "not_started",
+      migrationStatus:
+        "migrationStatus" in data && data.migrationStatus ? (data.migrationStatus as string) : "not_started",
       updatedAt: new Date(),
     },
   });
@@ -321,10 +317,7 @@ export async function upsertPixelConfig(
   return config;
 }
 
-export async function deactivatePixelConfig(
-  shopId: string,
-  platform: PlatformType
-): Promise<boolean> {
+export async function deactivatePixelConfig(shopId: string, platform: PlatformType): Promise<boolean> {
   try {
     await prisma.pixelConfig.updateMany({
       where: {
@@ -342,10 +335,7 @@ export async function deactivatePixelConfig(
   }
 }
 
-export async function deletePixelConfig(
-  shopId: string,
-  platform: PlatformType
-): Promise<boolean> {
+export async function deletePixelConfig(shopId: string, platform: PlatformType): Promise<boolean> {
   try {
     await prisma.pixelConfig.deleteMany({
       where: {
@@ -406,12 +396,18 @@ export async function hasEnabledPixelConfigs(shopId: string): Promise<boolean> {
 }
 
 function isPlatformType(value: string): value is PlatformType {
-  return value === "google" || value === "meta" || value === "tiktok" || value === "snapchat" || value === "twitter" || value === "pinterest" || value === "webhook";
+  return (
+    value === "google" ||
+    value === "meta" ||
+    value === "tiktok" ||
+    value === "snapchat" ||
+    value === "twitter" ||
+    value === "pinterest" ||
+    value === "webhook"
+  );
 }
 
-export async function getConfiguredPlatforms(
-  shopId: string
-): Promise<PlatformType[]> {
+export async function getConfiguredPlatforms(shopId: string): Promise<PlatformType[]> {
   const configs = await prisma.pixelConfig.findMany({
     where: {
       shopId,
@@ -419,9 +415,7 @@ export async function getConfiguredPlatforms(
     },
     select: { platform: true },
   });
-  return configs
-    .map((c) => c.platform)
-    .filter((platform): platform is PlatformType => isPlatformType(platform));
+  return configs.map((c) => c.platform).filter((platform): platform is PlatformType => isPlatformType(platform));
 }
 
 const CACHE_KEY_PREFIX = "configs";

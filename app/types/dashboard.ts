@@ -20,7 +20,7 @@ export interface MigrationProgress {
     inProgress: boolean;
   }>;
   progressPercentage: number;
-    auditCompletion?: {
+  auditCompletion?: {
     completed: boolean;
     status: "completed" | "in_progress" | "pending";
   };
@@ -64,7 +64,7 @@ export interface DashboardData {
   migrationProgress?: MigrationProgress;
   riskScore?: number | null;
   riskLevel?: "high" | "medium" | "low" | null;
-    topRiskSources?: Array<{
+  topRiskSources?: Array<{
     source: string;
     count: number;
     category: string;
@@ -94,12 +94,12 @@ export interface DashboardData {
     byCategory: Record<string, number>;
     byPlatform: Record<string, number>;
   } | null;
-    healthMetrics24h?: {
+  healthMetrics24h?: {
     successRate: number;
     failureRate: number;
     totalEvents: number;
   } | null;
-    activeAlerts?: Array<{
+  activeAlerts?: Array<{
     id: string;
     type: string;
     severity: "critical" | "warning" | "info";

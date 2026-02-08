@@ -82,10 +82,7 @@ function calculateComplexity(asset: AuditAsset): number {
   return Math.max(0, Math.min(20, complexity));
 }
 
-async function calculateDependencyScore(
-  asset: AuditAsset,
-  allAssets: AuditAsset[]
-): Promise<number> {
+async function calculateDependencyScore(asset: AuditAsset, allAssets: AuditAsset[]): Promise<number> {
   let dependencyScore = 0;
   const dependentAssets = allAssets.filter((a) => {
     if (a.id === asset.id) return false;
@@ -178,10 +175,7 @@ function estimateMigrationTime(asset: AuditAsset, complexity: number): number {
   return Math.max(5, Math.min(120, baseTime));
 }
 
-export async function calculatePriority(
-  asset: AuditAsset,
-  allAssets: AuditAsset[] = []
-): Promise<PriorityScore> {
+export async function calculatePriority(asset: AuditAsset, allAssets: AuditAsset[] = []): Promise<PriorityScore> {
   if (asset.migrationStatus === "completed" || asset.migrationStatus === "skipped") {
     return {
       assetId: asset.id,
@@ -220,9 +214,7 @@ export async function calculatePriority(
   if (migrationStatus >= 10) reasons.push("待迁移状态");
   if (dependency >= 10) reasons.push("有依赖关系");
   if (complexity <= 8) reasons.push("迁移简单");
-  const reason = reasons.length > 0
-    ? reasons.join("、")
-    : "标准优先级";
+  const reason = reasons.length > 0 ? reasons.join("、") : "标准优先级";
   return {
     assetId: asset.id,
     priority,
@@ -239,9 +231,7 @@ export async function calculatePriority(
   };
 }
 
-export async function calculatePrioritiesForShop(
-  shopId: string
-): Promise<PriorityScore[]> {
+export async function calculatePrioritiesForShop(shopId: string): Promise<PriorityScore[]> {
   const assets = await prisma.auditAsset.findMany({
     where: {
       shopId,
@@ -251,16 +241,11 @@ export async function calculatePrioritiesForShop(
       createdAt: "desc",
     },
   });
-  const priorities = await Promise.all(
-    assets.map((asset) => calculatePriority(asset, assets))
-  );
+  const priorities = await Promise.all(assets.map((asset) => calculatePriority(asset, assets)));
   return priorities.sort((a, b) => b.priority - a.priority);
 }
 
-export async function updateAssetPriority(
-  assetId: string,
-  priority: PriorityScore
-): Promise<void> {
+export async function updateAssetPriority(assetId: string, priority: PriorityScore): Promise<void> {
   const asset = await prisma.auditAsset.findUnique({
     where: { id: assetId },
   });

@@ -137,7 +137,14 @@ describe("Usage Tracking Service", () => {
     });
     it("should use provided year-month", async () => {
       vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue(null);
-      vi.mocked(prisma.monthlyUsage.create).mockResolvedValue({ id: "1", shopId: "shop-123", yearMonth: "2025-03", sentCount: 0, createdAt: new Date(), updatedAt: new Date() } as any);
+      vi.mocked(prisma.monthlyUsage.create).mockResolvedValue({
+        id: "1",
+        shopId: "shop-123",
+        yearMonth: "2025-03",
+        sentCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any);
       await getOrCreateMonthlyUsage("shop-123", "2025-03");
       expect(prisma.monthlyUsage.create).toHaveBeenCalledWith(
         expect.objectContaining({

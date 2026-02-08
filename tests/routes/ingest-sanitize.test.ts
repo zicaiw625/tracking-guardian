@@ -39,7 +39,7 @@ vi.mock("../../app/utils/logger.server", () => ({
 }));
 
 import prisma from "../../app/db.server";
-import { generateOrderMatchKey , createEventNonce } from "../../app/lib/pixel-events/receipt-handler";
+import { generateOrderMatchKey, createEventNonce } from "../../app/lib/pixel-events/receipt-handler";
 import { validateRequest } from "../../app/lib/pixel-events/validation";
 import { getRedisClientStrict } from "../../app/utils/redis-client.server";
 
@@ -89,7 +89,7 @@ describe("P0 Fix: checkoutToken and nonce preservation after sanitizePII removal
         data: {
           orderId: null,
           checkoutToken: "checkout_token_xyz789",
-          value: 50.00,
+          value: 50.0,
           currency: "USD",
         },
       };
@@ -196,7 +196,7 @@ describe("P0 Fix: checkoutToken and nonce preservation after sanitizePII removal
       // We expect createEventNonce to catch the error, log it, and return isReplay: false
       // It should NOT call prisma.eventNonce.create
       const result = await createEventNonce(shopId, orderId, timestamp, nonce, eventType);
-      
+
       expect(result.isReplay).toBe(false);
       expect(prisma.eventNonce.create).not.toHaveBeenCalled();
     });
@@ -232,7 +232,7 @@ describe("P0 Fix: checkoutToken and nonce preservation after sanitizePII removal
         data: {
           orderId: null,
           checkoutToken: "integration-token-99999",
-          value: 75.00,
+          value: 75.0,
           currency: "USD",
         },
       };

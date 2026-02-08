@@ -18,11 +18,14 @@ export interface EventMonitoringStats {
   pendingCount: number;
   retryingCount: number;
   deadLetterCount: number;
-  byPlatform: Record<string, {
-    total: number;
-    success: number;
-    failure: number;
-  }>;
+  byPlatform: Record<
+    string,
+    {
+      total: number;
+      success: number;
+      failure: number;
+    }
+  >;
 }
 
 export interface EventVolumeStats {

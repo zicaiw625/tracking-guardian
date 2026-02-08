@@ -15,10 +15,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
     const url = new URL(request.url);
     const hoursParam = url.searchParams.get("hours");
-    const hours = Math.min(
-      168,
-      Math.max(1, hoursParam ? parseInt(hoursParam, 10) || 24 : 24)
-    );
+    const hours = Math.min(168, Math.max(1, hoursParam ? parseInt(hoursParam, 10) || 24 : 24));
 
     const { session } = await authenticate.admin(request);
     const shopDomain = session.shop;
@@ -31,10 +28,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       return new Response("Shop not found", { status: 404 });
     }
 
-    const reconciliation = await performPixelVsOrderReconciliation(
-      shop.id,
-      hours
-    );
+    const reconciliation = await performPixelVsOrderReconciliation(shop.id, hours);
 
     const csvLines: string[] = [];
     csvLines.push("订单层验收对账报告");
@@ -48,22 +42,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     csvLines.push("有订单无像素（丢单）");
     csvLines.push("订单ID,金额,币种");
     for (const r of reconciliation.missingOrderIds) {
-      csvLines.push(
-        [r.orderId, String(r.totalPrice), r.currency].map(escapeCSV).join(",")
-      );
+      csvLines.push([r.orderId, String(r.totalPrice), r.currency].map(escapeCSV).join(","));
     }
     csvLines.push("");
     csvLines.push("金额/币种不一致");
     csvLines.push("订单ID,订单金额,订单币种,像素金额,像素币种");
     for (const r of reconciliation.valueMismatches) {
       csvLines.push(
-        [
-          r.orderId,
-          String(r.orderValue),
-          r.orderCurrency,
-          String(r.pixelValue),
-          r.pixelCurrency,
-        ]
+        [r.orderId, String(r.orderValue), r.orderCurrency, String(r.pixelValue), r.pixelCurrency]
           .map(escapeCSV)
           .join(",")
       );
@@ -83,9 +69,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       error,
       hours: new URL(request.url).searchParams.get("hours"),
     });
-    return new Response(
-      error instanceof Error ? error.message : "Failed to export verification orders CSV",
-      { status: 500 }
-    );
+    return new Response(error instanceof Error ? error.message : "Failed to export verification orders CSV", {
+      status: 500,
+    });
   }
 };

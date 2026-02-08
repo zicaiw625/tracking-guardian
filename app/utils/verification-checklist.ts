@@ -61,17 +61,7 @@ export function generateChecklistMarkdown(checklist: TestChecklistInput): string
 }
 
 export function generateChecklistCSV(checklist: TestChecklistInput): string {
-  const headers = [
-    "ID",
-    "名称",
-    "描述",
-    "事件类型",
-    "必需",
-    "平台",
-    "预计时间（分钟）",
-    "类别",
-    "状态",
-  ];
+  const headers = ["ID", "名称", "描述", "事件类型", "必需", "平台", "预计时间（分钟）", "类别", "状态"];
   const rows = checklist.items.map((item) => [
     item.id,
     item.name,
@@ -83,8 +73,6 @@ export function generateChecklistCSV(checklist: TestChecklistInput): string {
     item.category,
     "未测试",
   ]);
-  const csv = [headers, ...rows]
-    .map((row) => row.map((cell) => escapeCSV(String(cell))).join(","))
-    .join("\n");
+  const csv = [headers, ...rows].map((row) => row.map((cell) => escapeCSV(String(cell))).join(",")).join("\n");
   return csv;
 }

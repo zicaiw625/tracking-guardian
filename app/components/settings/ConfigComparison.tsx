@@ -1,13 +1,4 @@
-import {
-  Card,
-  Text,
-  BlockStack,
-  InlineStack,
-  Badge,
-  Box,
-  Divider,
-  DataTable,
-} from "@shopify/polaris";
+import { Card, Text, BlockStack, InlineStack, Badge, Box, Divider, DataTable } from "@shopify/polaris";
 import type { PixelConfigSnapshot } from "../../services/pixel-rollback.server";
 
 interface ConfigComparisonProps {
@@ -42,12 +33,7 @@ function formatValue(value: unknown): string {
   return String(value);
 }
 
-export function ConfigComparison({
-  current,
-  previous,
-  differences,
-  platform: _platform,
-}: ConfigComparisonProps) {
+export function ConfigComparison({ current, previous, differences, platform: _platform }: ConfigComparisonProps) {
   if (!previous) {
     return (
       <Card>
@@ -71,9 +57,7 @@ export function ConfigComparison({
           <Text as="h3" variant="headingMd">
             配置对比
           </Text>
-          <Badge tone={changedFields.length > 0 ? undefined : "success"}>
-            {`${changedFields.length} 项变更`}
-          </Badge>
+          <Badge tone={changedFields.length > 0 ? undefined : "success"}>{`${changedFields.length} 项变更`}</Badge>
         </InlineStack>
         <Divider />
         {changedFields.length > 0 && (
@@ -87,20 +71,12 @@ export function ConfigComparison({
               rows={changedFields.map((diff) => [
                 FIELD_LABELS[diff.field] || diff.field,
                 <Box key="current" padding="200">
-                  <Text
-                    as="span"
-                    variant="bodySm"
-                    tone={diff.changed ? "critical" : undefined}
-                  >
+                  <Text as="span" variant="bodySm" tone={diff.changed ? "critical" : undefined}>
                     {formatValue(diff.current)}
                   </Text>
                 </Box>,
                 <Box key="previous" padding="200">
-                  <Text
-                    as="span"
-                    variant="bodySm"
-                    tone={diff.changed ? "subdued" : undefined}
-                  >
+                  <Text as="span" variant="bodySm" tone={diff.changed ? "subdued" : undefined}>
                     {formatValue(diff.previous)}
                   </Text>
                 </Box>,

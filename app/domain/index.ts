@@ -29,7 +29,6 @@ export {
   type ShopDomainEvent,
 } from "./shop";
 
-
 export {
   type Platform,
   type GoogleCredentials,

@@ -1,5 +1,1 @@
-export {
-  tryAcquireWebhookLock,
-  updateWebhookStatus,
-  withIdempotency,
-} from "./idempotency";
+export { tryAcquireWebhookLock, updateWebhookStatus, withIdempotency } from "./idempotency";

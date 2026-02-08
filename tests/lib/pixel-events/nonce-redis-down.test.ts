@@ -34,16 +34,9 @@ describe("createEventNonce Redis down", () => {
   });
 
   it("fails open when Redis strict fails (no DB fallback)", async () => {
-    const result = await createEventNonce(
-      "shop_1",
-      "order_1",
-      Date.now(),
-      "nonce_1",
-      "purchase"
-    );
+    const result = await createEventNonce("shop_1", "order_1", Date.now(), "nonce_1", "purchase");
     expect(getRedisClientStrict).toHaveBeenCalled();
     expect(prisma.eventNonce.create).not.toHaveBeenCalled();
     expect(result.isReplay).toBe(false);
   });
 });
-

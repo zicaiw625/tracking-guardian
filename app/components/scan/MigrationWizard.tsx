@@ -1,14 +1,4 @@
-import {
-  Card,
-  BlockStack,
-  Box,
-  InlineStack,
-  Text,
-  Badge,
-  Button,
-  Divider,
-  List,
-} from "@shopify/polaris";
+import { Card, BlockStack, Box, InlineStack, Text, Badge, Button, Divider, List } from "@shopify/polaris";
 import { ShareIcon, ArrowRightIcon, ClipboardIcon, ExportIcon } from "~/components/icons";
 import type { MigrationAction } from "../../services/scanner/types";
 import { getPlatformName } from "./utils";
@@ -35,7 +25,9 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
       ) || ["无"]),
       "",
       "## 快速链接",
-      shopDomain ? `- Pixels 管理: ${getShopifyAdminUrl(shopDomain, "/settings/notifications")}` : "- Pixels 管理: (需要店铺域名)",
+      shopDomain
+        ? `- Pixels 管理: ${getShopifyAdminUrl(shopDomain, "/settings/notifications")}`
+        : "- Pixels 管理: (需要店铺域名)",
       "- 应用迁移工具: /app/migrate",
     ].join("\n");
     navigator.clipboard.writeText(checklist);

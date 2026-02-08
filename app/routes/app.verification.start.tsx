@@ -1,19 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
-import {
-  Page,
-  Card,
-  Text,
-  BlockStack,
-  InlineStack,
-  Button,
-  Banner,
-  List,
-  Divider,
-  Badge,
-  Box,
-} from "@shopify/polaris";
+import { Page, Card, Text, BlockStack, InlineStack, Button, Banner, List, Divider, Badge, Box } from "@shopify/polaris";
 import { ClipboardIcon } from "~/components/icons";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { useToastContext } from "~/components/ui";
@@ -24,10 +12,7 @@ import {
   type PixelLayerItem,
   type OrderLayerItem,
 } from "../services/verification-checklist.server";
-import {
-  generateChecklistMarkdown,
-  generateChecklistCSV,
-} from "../utils/verification-checklist";
+import { generateChecklistMarkdown, generateChecklistCSV } from "../utils/verification-checklist";
 import { VERIFICATION_TEST_ITEMS } from "../services/verification.server";
 import { useTranslation } from "react-i18next";
 
@@ -115,11 +100,7 @@ export default function VerificationStartPage() {
                 {t("verification.start.checklist.title")}
               </Text>
               <InlineStack gap="200">
-                <Button
-                  icon={ClipboardIcon}
-                  onClick={handleCopyChecklist}
-                  size="slim"
-                >
+                <Button icon={ClipboardIcon} onClick={handleCopyChecklist} size="slim">
                   {t("verification.start.checklist.copy")}
                 </Button>
                 <Button onClick={handleDownloadCSV} size="slim">
@@ -141,7 +122,9 @@ export default function VerificationStartPage() {
                           {item.eventName}
                         </Text>
                         <Badge tone={item.required ? "critical" : "info"}>
-                          {item.required ? t("verification.start.checklist.required") : t("verification.start.checklist.optional")}
+                          {item.required
+                            ? t("verification.start.checklist.required")
+                            : t("verification.start.checklist.optional")}
                         </Badge>
                       </InlineStack>
                       <Text as="p" variant="bodySm" tone="subdued">
@@ -152,11 +135,7 @@ export default function VerificationStartPage() {
                         {item.verificationPoints.join("、")}
                       </Text>
                       {item.expectedParams && (
-                        <Box
-                          padding="300"
-                          borderRadius="200"
-                          background="bg-surface-secondary"
-                        >
+                        <Box padding="300" borderRadius="200" background="bg-surface-secondary">
                           <Text as="p" variant="bodySm" fontWeight="semibold">
                             {t("verification.start.checklist.expectedParams")}
                           </Text>
@@ -198,7 +177,9 @@ export default function VerificationStartPage() {
                             {item.eventType}
                           </Text>
                           <Badge tone={item.required ? "critical" : "info"}>
-                            {item.required ? t("verification.start.checklist.required") : t("verification.start.checklist.optional")}
+                            {item.required
+                              ? t("verification.start.checklist.required")
+                              : t("verification.start.checklist.optional")}
                           </Badge>
                         </InlineStack>
                         <Text as="p" variant="bodySm" tone="subdued">
@@ -209,11 +190,7 @@ export default function VerificationStartPage() {
                           {item.verificationPoints.join("、")}
                         </Text>
                         {item.expectedFields && (
-                          <Box
-                            padding="300"
-                            borderRadius="200"
-                            background="bg-surface-secondary"
-                          >
+                          <Box padding="300" borderRadius="200" background="bg-surface-secondary">
                             <Text as="p" variant="bodySm" fontWeight="semibold">
                               {t("verification.start.checklist.expectedFields")}
                             </Text>

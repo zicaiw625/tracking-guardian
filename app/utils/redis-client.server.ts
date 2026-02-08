@@ -99,7 +99,7 @@ class InMemoryFallback implements RedisClientWrapper {
     return entry.value;
   }
   async mGet(keys: string[]): Promise<(string | null)[]> {
-    return Promise.all(keys.map(key => this.get(key)));
+    return Promise.all(keys.map((key) => this.get(key)));
   }
   async set(key: string, value: string, options?: { EX?: number }): Promise<void> {
     if (this.stringStore.size >= this.maxSize) {
@@ -388,10 +388,14 @@ class RedisClientFactory {
     const redisUrl = process.env.REDIS_URL;
     if (!redisUrl) {
       if (process.env.NODE_ENV === "production" && process.env.ALLOW_MEMORY_REDIS_IN_PROD !== "true") {
-        throw new Error("REDIS_URL is required in production (rate-limit/locks need shared storage). Set ALLOW_MEMORY_REDIS_IN_PROD=true to bypass.");
+        throw new Error(
+          "REDIS_URL is required in production (rate-limit/locks need shared storage). Set ALLOW_MEMORY_REDIS_IN_PROD=true to bypass."
+        );
       }
       if (process.env.NODE_ENV === "production") {
-        logger.warn("[REDIS] Using in-memory store in production (ALLOW_MEMORY_REDIS_IN_PROD=true). Multi-instance deployments will have inconsistent state.");
+        logger.warn(
+          "[REDIS] Using in-memory store in production (ALLOW_MEMORY_REDIS_IN_PROD=true). Multi-instance deployments will have inconsistent state."
+        );
       }
       logger.info("[REDIS] No REDIS_URL configured, using in-memory store");
       this.client = this.fallback;
@@ -410,7 +414,7 @@ class RedisClientFactory {
       const connectTimeoutMs = Math.max(1000, parseInt(process.env.REDIS_CONNECT_TIMEOUT_MS || "5000", 10) || 5000);
       const initTimeoutMs = Math.max(
         1000,
-        parseInt(process.env.REDIS_INIT_TIMEOUT_MS || String(connectTimeoutMs + 3000), 10) || (connectTimeoutMs + 3000)
+        parseInt(process.env.REDIS_INIT_TIMEOUT_MS || String(connectTimeoutMs + 3000), 10) || connectTimeoutMs + 3000
       );
 
       const client = createClient({
@@ -444,7 +448,8 @@ class RedisClientFactory {
             : typeof err === "object" && err && "message" in err
               ? String((err as { message?: unknown }).message)
               : String(err);
-        const normalizedError = err instanceof Error ? err : Object.assign(new Error(errMsg), { cause: err as unknown });
+        const normalizedError =
+          err instanceof Error ? err : Object.assign(new Error(errMsg), { cause: err as unknown });
         logger.error("[REDIS] Client error", normalizedError, {
           redisErrorType: typeof err,
         });
@@ -735,7 +740,8 @@ class RedisClientFactory {
       hMSet: async (key: string, fields: Record<string, string>): Promise<void> => {
         await client.hSet(key, fields);
       },
-      hIncrBy: async (key: string, field: string, increment: number): Promise<number> => client.hIncrBy(key, field, increment),
+      hIncrBy: async (key: string, field: string, increment: number): Promise<number> =>
+        client.hIncrBy(key, field, increment),
       keys: async (pattern: string): Promise<string[]> => client.keys(pattern),
       scan: async (
         cursor: string,
@@ -853,4 +859,3 @@ export async function closeRedisConnection(): Promise<void> {
 }
 
 export { RedisClientFactory };
-

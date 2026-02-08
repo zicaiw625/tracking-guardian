@@ -34,7 +34,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     headers.set(key, value);
   });
   addSecurityHeadersToHeaders(headers, PUBLIC_PAGE_HEADERS);
-  
+
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -49,17 +49,11 @@ function SupportContent() {
 
   return (
     <AppProvider i18n={i18n as any}>
-      <Page
-        title={t("PublicSupport.Title")}
-        subtitle={t("PublicSupport.Subtitle")}
-        fullWidth
-      >
+      <Page title={t("PublicSupport.Title")} subtitle={t("PublicSupport.Subtitle")} fullWidth>
         <Layout>
           <Layout.Section>
             <Banner tone="info">
-              <p>
-                {t("PublicSupport.Contact.Content")}
-              </p>
+              <p>{t("PublicSupport.Contact.Content")}</p>
             </Banner>
           </Layout.Section>
 
@@ -77,7 +71,10 @@ function SupportContent() {
                     {t("PublicSupport.Contact.DataRights")}
                   </Text>
                   <Text as="p" variant="bodyMd">
-                    {t("PublicSupport.Contact.StatusPage")} <Link url={statusPage} external>{statusPage}</Link>
+                    {t("PublicSupport.Contact.StatusPage")}{" "}
+                    <Link url={statusPage} external>
+                      {statusPage}
+                    </Link>
                   </Text>
                 </BlockStack>
                 <InlineStack gap="200">
@@ -95,33 +92,49 @@ function SupportContent() {
                   <Text as="h2" variant="headingMd">
                     {t("PublicSupport.FAQ.Title")}
                   </Text>
-                  
+
                   <BlockStack gap="300">
                     <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                       <BlockStack gap="200">
-                        <Text as="h3" variant="headingSm">{t("PublicSupport.FAQ.PII.Q")}</Text>
-                        <Text as="p" variant="bodyMd">{t("PublicSupport.FAQ.PII.A")}</Text>
+                        <Text as="h3" variant="headingSm">
+                          {t("PublicSupport.FAQ.PII.Q")}
+                        </Text>
+                        <Text as="p" variant="bodyMd">
+                          {t("PublicSupport.FAQ.PII.A")}
+                        </Text>
                       </BlockStack>
                     </Box>
 
                     <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                       <BlockStack gap="200">
-                        <Text as="h3" variant="headingSm">{t("PublicSupport.FAQ.Events.Q")}</Text>
-                        <Text as="p" variant="bodyMd">{t("PublicSupport.FAQ.Events.A")}</Text>
+                        <Text as="h3" variant="headingSm">
+                          {t("PublicSupport.FAQ.Events.Q")}
+                        </Text>
+                        <Text as="p" variant="bodyMd">
+                          {t("PublicSupport.FAQ.Events.A")}
+                        </Text>
                       </BlockStack>
                     </Box>
 
                     <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                       <BlockStack gap="200">
-                        <Text as="h3" variant="headingSm">{t("PublicSupport.FAQ.Consent.Q")}</Text>
-                        <Text as="p" variant="bodyMd">{t("PublicSupport.FAQ.Consent.A")}</Text>
+                        <Text as="h3" variant="headingSm">
+                          {t("PublicSupport.FAQ.Consent.Q")}
+                        </Text>
+                        <Text as="p" variant="bodyMd">
+                          {t("PublicSupport.FAQ.Consent.A")}
+                        </Text>
                       </BlockStack>
                     </Box>
 
                     <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                       <BlockStack gap="200">
-                        <Text as="h3" variant="headingSm">{t("PublicSupport.FAQ.Retention.Q")}</Text>
-                        <Text as="p" variant="bodyMd">{t("PublicSupport.FAQ.Retention.A")}</Text>
+                        <Text as="h3" variant="headingSm">
+                          {t("PublicSupport.FAQ.Retention.Q")}
+                        </Text>
+                        <Text as="p" variant="bodyMd">
+                          {t("PublicSupport.FAQ.Retention.A")}
+                        </Text>
                       </BlockStack>
                     </Box>
                   </BlockStack>

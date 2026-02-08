@@ -31,11 +31,7 @@ describe("hasAnalyticsConsent - unified consent strategy", () => {
 });
 
 describe("Backend platform filtering with consent", () => {
-  function shouldRecordForPlatform(
-    platform: string,
-    marketingConsent: boolean,
-    analyticsConsent: boolean
-  ): boolean {
+  function shouldRecordForPlatform(platform: string, marketingConsent: boolean, analyticsConsent: boolean): boolean {
     const marketingPlatforms = ["meta", "tiktok", "google"];
     const analyticsPlatforms = ["clarity"];
     if (marketingPlatforms.includes(platform)) {

@@ -99,10 +99,6 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const body = JSON.stringify(safeJob);
   const headers = new Headers();
   headers.set("Content-Type", "application/json");
-  headers.set(
-    "Content-Disposition",
-    `attachment; filename="gdpr_${job.jobType}_${job.id}.json"`
-  );
+  headers.set("Content-Disposition", `attachment; filename="gdpr_${job.jobType}_${job.id}.json"`);
   return addSecurityHeaders(new Response(body, { status: 200, headers }));
 };
-

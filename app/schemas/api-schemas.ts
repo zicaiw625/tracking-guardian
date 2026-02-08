@@ -6,17 +6,11 @@ export const ShopDomainSchema = z
   .string()
   .min(1, "Shop domain is required")
   .max(255, "Shop domain too long")
-  .regex(
-    /^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/,
-    "Invalid Shopify domain format"
-  );
+  .regex(/^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/, "Invalid Shopify domain format");
 
 export { OrderIdSchema };
 
-export const CheckoutTokenSchema = z
-  .string()
-  .min(1, "Checkout token is required")
-  .max(100, "Checkout token too long");
+export const CheckoutTokenSchema = z.string().min(1, "Checkout token is required").max(100, "Checkout token too long");
 
 export const PlatformSchema = z.enum(["google", "meta", "tiktok"]);
 
@@ -42,20 +36,9 @@ export const PhoneSchema = z
 export const SurveyInputSchema = z.object({
   orderId: OrderIdSchema,
   orderNumber: z.string().max(50).optional(),
-  feedback: z
-    .string()
-    .min(1, "Feedback is required")
-    .max(2000, "Feedback too long (max 2000 characters)"),
+  feedback: z.string().min(1, "Feedback is required").max(2000, "Feedback too long (max 2000 characters)"),
   rating: z.number().int().min(1).max(5).optional(),
-  category: z
-    .enum([
-      "product_quality",
-      "delivery",
-      "customer_service",
-      "website_experience",
-      "other",
-    ])
-    .optional(),
+  category: z.enum(["product_quality", "delivery", "customer_service", "website_experience", "other"]).optional(),
   email: EmailSchema.optional(),
   name: z.string().max(100).optional(),
   anonymous: z.boolean().optional(),
@@ -81,12 +64,7 @@ export const LineItemSchema = z.object({
 
 export const PixelEventBaseSchema = z.object({
   shopDomain: ShopDomainSchema,
-  eventType: z.enum([
-    "checkout_completed",
-    "page_viewed",
-    "add_to_cart",
-    "checkout_started",
-  ]),
+  eventType: z.enum(["checkout_completed", "page_viewed", "add_to_cart", "checkout_started"]),
   timestamp: z.number().int().positive(),
 });
 
@@ -143,35 +121,25 @@ export const TrackingEventSchema = z.object({
 export type TrackingEvent = z.infer<typeof TrackingEventSchema>;
 
 export const GoogleCredentialsSchema = z.object({
-  measurementId: z
-    .string()
-    .regex(/^G-[A-Z0-9]+$/, "Invalid GA4 Measurement ID format"),
+  measurementId: z.string().regex(/^G-[A-Z0-9]+$/, "Invalid GA4 Measurement ID format"),
   apiSecret: z.string().min(1, "API secret is required"),
 });
 
 export const MetaCredentialsSchema = z.object({
-  pixelId: z
-    .string()
-    .regex(/^\d{15,16}$/, "Invalid Meta Pixel ID format"),
+  pixelId: z.string().regex(/^\d{15,16}$/, "Invalid Meta Pixel ID format"),
   accessToken: z.string().min(1, "Access token is required"),
   testEventCode: z.string().optional(),
 });
 
 export const TikTokCredentialsSchema = z.object({
-  pixelId: z
-    .string()
-    .regex(/^[A-Z0-9]{20,}$/i, "Invalid TikTok Pixel ID format"),
+  pixelId: z.string().regex(/^[A-Z0-9]{20,}$/i, "Invalid TikTok Pixel ID format"),
   accessToken: z.string().min(1, "Access token is required"),
   testEventCode: z.string().optional(),
 });
 
 export const PixelConfigUpdateSchema = z.object({
   platform: PlatformSchema,
-  credentials: z.union([
-    GoogleCredentialsSchema,
-    MetaCredentialsSchema,
-    TikTokCredentialsSchema,
-  ]),
+  credentials: z.union([GoogleCredentialsSchema, MetaCredentialsSchema, TikTokCredentialsSchema]),
   isActive: z.boolean().optional(),
   serverSideEnabled: z.boolean().optional(),
 });

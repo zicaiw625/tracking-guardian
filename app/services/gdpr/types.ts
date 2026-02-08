@@ -169,7 +169,9 @@ export function isCustomerRedactResult(result: GDPRJobResult): result is Custome
 }
 
 export function isShopRedactResult(result: GDPRJobResult): result is ShopRedactResult {
-  return "shopDomain" in result && "deletedCounts" in result && "sessions" in (result as ShopRedactResult).deletedCounts;
+  return (
+    "shopDomain" in result && "deletedCounts" in result && "sessions" in (result as ShopRedactResult).deletedCounts
+  );
 }
 
 export function parseDataRequestPayload(payload: unknown): DataRequestPayload {
@@ -195,10 +197,7 @@ export function parseGDPRPayload(jobType: GDPRJobType, payload: unknown): GDPRPa
   }
 }
 
-export function createEmptyDataRequestResult(
-  dataRequestId?: number,
-  customerId?: number
-): DataRequestResult {
+export function createEmptyDataRequestResult(dataRequestId?: number, customerId?: number): DataRequestResult {
   return {
     dataRequestId,
     customerId,

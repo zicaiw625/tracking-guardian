@@ -15,16 +15,14 @@ function sanitizeUrl(urlStr: string | null): string | null {
     // Only keep protocol, hostname, and path. Remove search/hash to strip PII.
     return `${url.protocol}//${url.hostname}${url.pathname}`;
   } catch {
-    // If invalid URL, return clamped raw string or null? 
+    // If invalid URL, return clamped raw string or null?
     // Return clamped raw string but truncated to avoid issues, or just null.
     // Review suggests "hostname + path", so if we can't parse, it's safer to drop or return minimal.
-    return clampString(urlStr, 100); 
+    return clampString(urlStr, 100);
   }
 }
 
-export const enqueueMiddleware: IngestMiddleware = async (
-  context: IngestContext
-): Promise<MiddlewareResult> => {
+export const enqueueMiddleware: IngestMiddleware = async (context: IngestContext): Promise<MiddlewareResult> => {
   if (!context.shop || !context.shopDomain) {
     return {
       continue: false,
@@ -35,12 +33,11 @@ export const enqueueMiddleware: IngestMiddleware = async (
     };
   }
 
-
   const firstPayload = context.validatedEvents[0]?.payload;
   const pageUrlRaw = typeof firstPayload?.data?.url === "string" ? firstPayload.data.url : null;
   const requestContext = {
     // Keep raw IP for queue/distribution (S2S requirements), will be handled/hashed at storage time if needed
-    ip: ipKeyExtractor(context.request), 
+    ip: ipKeyExtractor(context.request),
     user_agent: clampString(context.request.headers.get("user-agent"), 512),
     page_url: sanitizeUrl(pageUrlRaw),
     referrer: null as string | null,
@@ -64,8 +61,22 @@ export const enqueueMiddleware: IngestMiddleware = async (
     })),
   };
 
-  const ok = await enqueueIngestBatch(entry);
-  if (!ok) {
+  const enqueueResult = await enqueueIngestBatch(entry);
+  if (!enqueueResult.ok) {
+    if (enqueueResult.reason === "overloaded") {
+      return {
+        continue: false,
+        response: jsonWithCors(
+          { error: "Too Many Requests", accepted_count: 0, retryAfter: 5 },
+          {
+            status: 429,
+            request: context.request,
+            requestId: context.requestId,
+            headers: { "Retry-After": "5" },
+          }
+        ),
+      };
+    }
     return {
       continue: false,
       response: jsonWithCors(

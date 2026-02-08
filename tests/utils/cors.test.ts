@@ -54,4 +54,3 @@ describe("CORS: Origin null requires signature in production", () => {
     expect(headers["Access-Control-Allow-Origin"]).toBeUndefined();
   });
 });
-

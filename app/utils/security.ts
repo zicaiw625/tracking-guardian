@@ -32,9 +32,7 @@ export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
     }
     visited.add(value);
     if (Array.isArray(value)) {
-      const items = value.slice(0, MAX_ARRAY_ITEMS).map((item) =>
-        sanitizeValue(item, depth + 1)
-      );
+      const items = value.slice(0, MAX_ARRAY_ITEMS).map((item) => sanitizeValue(item, depth + 1));
       if (value.length > MAX_ARRAY_ITEMS) {
         items.push(`...(${value.length - MAX_ARRAY_ITEMS} more)`);
       }
@@ -48,10 +46,7 @@ export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
         continue;
       }
       if (processed < MAX_OBJECT_KEYS) {
-        sanitized[key] = sanitizeValue(
-          (value as Record<string, unknown>)[key],
-          depth + 1
-        );
+        sanitized[key] = sanitizeValue((value as Record<string, unknown>)[key], depth + 1);
         processed += 1;
       } else {
         truncated = true;
@@ -93,10 +88,7 @@ export function sanitizeUrl(url: string): string | null {
   }
 }
 
-export function validateBodySize(
-  contentLength: string | null,
-  maxSize: number
-): { valid: boolean; error?: string } {
+export function validateBodySize(contentLength: string | null, maxSize: number): { valid: boolean; error?: string } {
   if (!contentLength) {
     return { valid: true };
   }
@@ -129,7 +121,6 @@ export function validateContentType(
   }
   return { valid: true };
 }
-
 
 export { API_SECURITY_HEADERS, addSecurityHeaders as applySecurityHeaders } from "./security-headers";
 
@@ -198,16 +189,19 @@ export const SecureUrlSchema = z
   .string()
   .url()
   .max(2000)
-  .refine((url) => {
-    try {
-      const parsed = new URL(url);
-      return ["http:", "https:"].includes(parsed.protocol);
-    } catch {
-      return false;
+  .refine(
+    (url) => {
+      try {
+        const parsed = new URL(url);
+        return ["http:", "https:"].includes(parsed.protocol);
+      } catch {
+        return false;
+      }
+    },
+    {
+      message: "Only HTTP and HTTPS URLs are allowed",
     }
-  }, {
-    message: "Only HTTP and HTTPS URLs are allowed",
-  })
+  )
   .refine((url) => isPublicUrl(url), {
     message: "Internal or private URLs are not allowed",
   });
@@ -222,33 +216,48 @@ function isPrivateIPv4(ip: string): boolean {
 }
 
 function isPrivateIPv6(ip: string): boolean {
-  if (!ip.startsWith('[') || !ip.endsWith(']')) {
+  if (!ip.startsWith("[") || !ip.endsWith("]")) {
     return false;
   }
   const ipv6 = ip.slice(1, -1).toLowerCase();
-  if (ipv6 === '::1' || ipv6 === '::') {
+  if (ipv6 === "::1" || ipv6 === "::") {
     return true;
   }
-  if (ipv6.startsWith('fc00:') || ipv6.startsWith('fc01:') || ipv6.startsWith('fd00:')) {
+  if (ipv6.startsWith("fc00:") || ipv6.startsWith("fc01:") || ipv6.startsWith("fd00:")) {
     return true;
   }
-  if (ipv6.startsWith('fe80:') || ipv6.startsWith('fe90:') || ipv6.startsWith('fea0:') || ipv6.startsWith('feb0:')) {
+  if (ipv6.startsWith("fe80:") || ipv6.startsWith("fe90:") || ipv6.startsWith("fea0:") || ipv6.startsWith("feb0:")) {
     return true;
   }
-  if (ipv6.startsWith('ff00:') || ipv6.startsWith('ff01:') || ipv6.startsWith('ff02:') || ipv6.startsWith('ff03:') || 
-      ipv6.startsWith('ff04:') || ipv6.startsWith('ff05:') || ipv6.startsWith('ff08:') || ipv6.startsWith('ff0e:')) {
+  if (
+    ipv6.startsWith("ff00:") ||
+    ipv6.startsWith("ff01:") ||
+    ipv6.startsWith("ff02:") ||
+    ipv6.startsWith("ff03:") ||
+    ipv6.startsWith("ff04:") ||
+    ipv6.startsWith("ff05:") ||
+    ipv6.startsWith("ff08:") ||
+    ipv6.startsWith("ff0e:")
+  ) {
     return true;
   }
-  if (ipv6.startsWith('2001:db8:')) {
+  if (ipv6.startsWith("2001:db8:")) {
     return true;
   }
-  if (ipv6.startsWith('::ffff:')) {
+  if (ipv6.startsWith("::ffff:")) {
     const ipv4 = ipv6.substring(7);
-    if (/^10\./.test(ipv4) || /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ipv4) || /^192\.168\./.test(ipv4) || /^127\./.test(ipv4) || /^169\.254\./.test(ipv4) || /^0\./.test(ipv4)) {
+    if (
+      /^10\./.test(ipv4) ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ipv4) ||
+      /^192\.168\./.test(ipv4) ||
+      /^127\./.test(ipv4) ||
+      /^169\.254\./.test(ipv4) ||
+      /^0\./.test(ipv4)
+    ) {
       return true;
     }
   }
-  if (ipv6.startsWith('2001:10:') || ipv6.startsWith('2001:20:')) {
+  if (ipv6.startsWith("2001:10:") || ipv6.startsWith("2001:20:")) {
     return true;
   }
   return false;
@@ -266,7 +275,7 @@ export function isPublicUrl(urlStr: string): boolean {
     const hostname = url.hostname.toLowerCase();
     if (hostname === "localhost") return false;
     if (hostname === "::1" || hostname === "[::1]") return false;
-    
+
     const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
     const match = hostname.match(ipv4Regex);
     if (match) {
@@ -279,9 +288,12 @@ export function isPublicUrl(urlStr: string): boolean {
       if (octet1 === 169 && octet2 === 254) return false;
       if (octet1 === 0) return false;
     }
-    
+
     if (hostname.includes(":")) {
-      const ipv6 = hostname.replace(/^\[|\]$/g, "").split("%")[0].toLowerCase();
+      const ipv6 = hostname
+        .replace(/^\[|\]$/g, "")
+        .split("%")[0]
+        .toLowerCase();
       if (ipv6 === "::1") return false;
       if (ipv6.startsWith("fc") || ipv6.startsWith("fd")) return false;
       if (ipv6.startsWith("fe80:")) return false;
@@ -299,17 +311,26 @@ export function isPublicUrl(urlStr: string): boolean {
           const hi = parseInt(hexParts[0], 16);
           const lo = parseInt(hexParts[1], 16);
           if (!isNaN(hi) && !isNaN(lo)) {
-            const o1 = (hi >> 8) & 0xff, o2 = hi & 0xff;
-            if (o1 === 127 || o1 === 10 || (o1 === 172 && o2 >= 16 && o2 <= 31) || (o1 === 192 && o2 === 168) || (o1 === 169 && o2 === 254) || o1 === 0) return false;
+            const o1 = (hi >> 8) & 0xff,
+              o2 = hi & 0xff;
+            if (
+              o1 === 127 ||
+              o1 === 10 ||
+              (o1 === 172 && o2 >= 16 && o2 <= 31) ||
+              (o1 === 192 && o2 === 168) ||
+              (o1 === 169 && o2 === 254) ||
+              o1 === 0
+            )
+              return false;
           }
         }
       }
     }
-    
+
     if (hostname.endsWith(".local") || hostname.endsWith(".internal") || hostname.endsWith(".lan")) {
       return false;
     }
-    
+
     return true;
   } catch {
     return false;
@@ -330,12 +351,12 @@ export async function isPublicUrlWithDNS(urlStr: string): Promise<boolean> {
     const cacheKey = hostname.toLowerCase();
     const now = Date.now();
     const cached = dnsValidationCache.get(cacheKey);
-    if (cached && (now - cached.checkedAt) < DNS_VALIDATION_CACHE_TTL_MS) {
+    if (cached && now - cached.checkedAt < DNS_VALIDATION_CACHE_TTL_MS) {
       return cached.valid;
     }
     try {
-      const dns = await import('dns');
-      const { promisify } = await import('util');
+      const dns = await import("dns");
+      const { promisify } = await import("util");
       const lookup = promisify(dns.lookup);
       const resolved = await lookup(hostname, { family: 0, all: true });
       const records = Array.isArray(resolved) ? resolved : [resolved];
@@ -346,14 +367,14 @@ export async function isPublicUrlWithDNS(urlStr: string): Promise<boolean> {
             dnsValidationCache.set(cacheKey, { valid: false, checkedAt: now });
             return false;
           }
-        } else if (resolvedIp.includes(':')) {
-          const ipv6Formatted = resolvedIp.startsWith('[') && resolvedIp.endsWith(']') ? resolvedIp : `[${resolvedIp}]`;
+        } else if (resolvedIp.includes(":")) {
+          const ipv6Formatted = resolvedIp.startsWith("[") && resolvedIp.endsWith("]") ? resolvedIp : `[${resolvedIp}]`;
           if (isPrivateIPv6(ipv6Formatted)) {
             dnsValidationCache.set(cacheKey, { valid: false, checkedAt: now });
             return false;
           }
         }
-        if (resolvedIp === '127.0.0.1' || resolvedIp === '::1' || resolvedIp === 'localhost') {
+        if (resolvedIp === "127.0.0.1" || resolvedIp === "::1" || resolvedIp === "localhost") {
           dnsValidationCache.set(cacheKey, { valid: false, checkedAt: now });
           return false;
         }

@@ -91,33 +91,17 @@ export interface AuditLogFull extends AuditLogSummary {
   metadata: unknown;
 }
 
-const SENSITIVE_PATTERNS = [
-  /password/i,
-  /secret/i,
-  /token/i,
-  /credential/i,
-  /key/i,
-  /auth/i,
-];
+const SENSITIVE_PATTERNS = [/password/i, /secret/i, /token/i, /credential/i, /key/i, /auth/i];
 
-const SAFE_SUFFIXES = [
-  "_at", "At",
-  "_id", "Id",
-  "_count", "Count",
-  "_num", "Num",
-  "_type", "Type",
-  "_by", "By",
-];
+const SAFE_SUFFIXES = ["_at", "At", "_id", "Id", "_count", "Count", "_num", "Num", "_type", "Type", "_by", "By"];
 
-function redactSensitiveFields(
-  obj: Record<string, unknown> | undefined
-): Record<string, unknown> | undefined {
+function redactSensitiveFields(obj: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
   if (!obj) return obj;
   const redacted: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj)) {
     // 1. Check if the key ends with a safe suffix (e.g. created_at, user_id, token_count)
     const isSafeSuffix = SAFE_SUFFIXES.some((suffix) => key.endsWith(suffix));
-    
+
     // 2. Check if the key matches a sensitive pattern
     const isSensitivePattern = !isSafeSuffix && SENSITIVE_PATTERNS.some((pattern) => pattern.test(key));
 
@@ -152,10 +136,7 @@ export function extractRequestContext(request: Request): Record<string, string |
   };
 }
 
-export async function createAuditLogEntry(
-  shopId: string,
-  entry: AuditLogEntry
-): Promise<void> {
+export async function createAuditLogEntry(shopId: string, entry: AuditLogEntry): Promise<void> {
   try {
     await prisma.auditLog.create({
       data: {
@@ -166,7 +147,9 @@ export async function createAuditLogEntry(
         action: entry.action,
         resourceType: entry.resourceType,
         resourceId: entry.resourceId || null,
-        previousValue: entry.previousValue ? (redactSensitiveFields(entry.previousValue) as Prisma.InputJsonValue) : Prisma.JsonNull,
+        previousValue: entry.previousValue
+          ? (redactSensitiveFields(entry.previousValue) as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
         newValue: entry.newValue ? (redactSensitiveFields(entry.newValue) as Prisma.InputJsonValue) : Prisma.JsonNull,
         metadata: entry.metadata ? (entry.metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
       },
@@ -182,12 +165,10 @@ export async function createAuditLogEntry(
   }
 }
 
-export async function batchCreateAuditLogs(
-  entries: Array<AuditLogEntry & { shopId: string }>
-): Promise<number> {
+export async function batchCreateAuditLogs(entries: Array<AuditLogEntry & { shopId: string }>): Promise<number> {
   if (entries.length === 0) return 0;
   try {
-    const data = entries.map(entry => ({
+    const data = entries.map((entry) => ({
       id: randomUUID(),
       shopId: entry.shopId,
       actorType: entry.actorType,
@@ -195,7 +176,9 @@ export async function batchCreateAuditLogs(
       action: entry.action,
       resourceType: entry.resourceType,
       resourceId: entry.resourceId || null,
-      previousValue: entry.previousValue ? (redactSensitiveFields(entry.previousValue) as Prisma.InputJsonValue) : Prisma.JsonNull,
+      previousValue: entry.previousValue
+        ? (redactSensitiveFields(entry.previousValue) as Prisma.InputJsonValue)
+        : Prisma.JsonNull,
       newValue: entry.newValue ? (redactSensitiveFields(entry.newValue) as Prisma.InputJsonValue) : Prisma.JsonNull,
       metadata: entry.metadata ? (entry.metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
     }));
@@ -250,7 +233,7 @@ export async function getAuditLogsForShop(
         createdAt: true,
       },
     });
-    return logs.map(log => ({
+    return logs.map((log) => ({
       id: log.id,
       actorType: log.actorType,
       actorId: log.actorId,
@@ -324,10 +307,7 @@ export async function cleanupOldAuditLogs(retentionDays = 90): Promise<number> {
   }
 }
 
-export async function countAuditLogsByAction(
-  shopId: string,
-  fromDate?: Date
-): Promise<Record<string, number>> {
+export async function countAuditLogsByAction(shopId: string, fromDate?: Date): Promise<Record<string, number>> {
   try {
     const where: Prisma.AuditLogWhereInput = {
       shopId,
@@ -364,9 +344,7 @@ export const auditLog = {
   cleanup: cleanupOldAuditLogs,
 };
 
-export async function createAuditLog(
-  entry: AuditLogEntry & { shopId: string }
-): Promise<void> {
+export async function createAuditLog(entry: AuditLogEntry & { shopId: string }): Promise<void> {
   const { shopId, ...logEntry } = entry;
   return createAuditLogEntry(shopId, logEntry);
 }

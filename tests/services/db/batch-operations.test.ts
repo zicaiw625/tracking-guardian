@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { batchCompleteJobs, batchInsertReceipts, batchUpdateShops } from "../../../app/services/db/batch-operations.server";
+import {
+  batchCompleteJobs,
+  batchInsertReceipts,
+  batchUpdateShops,
+} from "../../../app/services/db/batch-operations.server";
 
 vi.mock("../../../app/container", () => ({
   getDb: vi.fn(() => mockDb),
@@ -59,9 +63,7 @@ describe("Batch Operations", () => {
       mockDb.$transaction.mockImplementation(async (callback) => {
         const tx = {
           pixelEventReceipt: {
-            upsert: vi.fn()
-              .mockResolvedValueOnce({ id: "receipt1" })
-              .mockRejectedValueOnce(new Error("Insert failed")),
+            upsert: vi.fn().mockResolvedValueOnce({ id: "receipt1" }).mockRejectedValueOnce(new Error("Insert failed")),
           },
         };
         return callback(tx);
@@ -73,9 +75,7 @@ describe("Batch Operations", () => {
       expect(result.errors[0].id).toContain("shop2:order2");
     });
     it("should handle transaction failure correctly", async () => {
-      const receipts = [
-        { shopId: "shop1", eventId: "evt1", orderId: "order1", eventType: "purchase" },
-      ];
+      const receipts = [{ shopId: "shop1", eventId: "evt1", orderId: "order1", eventType: "purchase" }];
       mockDb.$transaction.mockRejectedValue(new Error("Transaction failed"));
       const result = await batchInsertReceipts(receipts);
       expect(result.success).toBe(false);
@@ -94,7 +94,8 @@ describe("Batch Operations", () => {
       mockDb.$transaction.mockImplementation(async (callback) => {
         const tx = {
           shop: {
-            update: vi.fn()
+            update: vi
+              .fn()
               .mockResolvedValueOnce({ id: "shop1" })
               .mockRejectedValueOnce(new Error("Shop not found"))
               .mockResolvedValueOnce({ id: "shop3" }),
@@ -110,9 +111,7 @@ describe("Batch Operations", () => {
       expect(result.errors[0].error).toContain("Shop not found");
     });
     it("should handle all shops failing", async () => {
-      const updates = [
-        { shopId: "shop1", data: { isActive: true } },
-      ];
+      const updates = [{ shopId: "shop1", data: { isActive: true } }];
       mockDb.$transaction.mockImplementation(async (callback) => {
         const tx = {
           shop: {
@@ -122,7 +121,7 @@ describe("Batch Operations", () => {
         return callback(tx);
       });
       const result = await batchUpdateShops(updates);
-      expect(result.success).toBe(true); 
+      expect(result.success).toBe(true);
       expect(result.processed).toBe(0);
       expect(result.failed).toBe(1);
       expect(result.errors).toHaveLength(1);

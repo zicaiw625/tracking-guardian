@@ -1,15 +1,7 @@
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
-import {
-  type PlanId,
-  getPlanOrDefault,
-  planSupportsFeature,
-} from "./plans";
-import {
-  checkPixelDestinationsLimit,
-  checkUiModulesLimit,
-  checkFeatureAccess,
-} from "./feature-gates.server";
+import { type PlanId, getPlanOrDefault, planSupportsFeature } from "./plans";
+import { checkPixelDestinationsLimit, checkUiModulesLimit, checkFeatureAccess } from "./feature-gates.server";
 
 export type Entitlement =
   | "full_funnel"
@@ -48,10 +40,7 @@ async function getShopPlan(shopId: string): Promise<PlanId> {
   return (shop.plan || "free") as PlanId;
 }
 
-export async function checkEntitlement(
-  shopId: string,
-  entitlement: Entitlement
-): Promise<EntitlementCheckResult> {
+export async function checkEntitlement(shopId: string, entitlement: Entitlement): Promise<EntitlementCheckResult> {
   const shopPlan = await getShopPlan(shopId);
   switch (entitlement) {
     case "full_funnel":
@@ -119,10 +108,7 @@ export async function checkEntitlement(
   }
 }
 
-export async function requireEntitlementOrThrow(
-  shopId: string,
-  entitlement: Entitlement
-): Promise<void> {
+export async function requireEntitlementOrThrow(shopId: string, entitlement: Entitlement): Promise<void> {
   const result = await checkEntitlement(shopId, entitlement);
   if (!result.allowed) {
     const shopPlan = await getShopPlan(shopId);
@@ -163,10 +149,7 @@ export async function checkMultipleEntitlements(
   return { allowed: true };
 }
 
-export async function requireMultipleEntitlementsOrThrow(
-  shopId: string,
-  entitlements: Entitlement[]
-): Promise<void> {
+export async function requireMultipleEntitlementsOrThrow(shopId: string, entitlements: Entitlement[]): Promise<void> {
   const result = await checkMultipleEntitlements(shopId, entitlements);
   if (!result.allowed) {
     await requireEntitlementOrThrow(shopId, entitlements[0]);

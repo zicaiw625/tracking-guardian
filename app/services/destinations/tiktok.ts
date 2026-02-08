@@ -19,7 +19,9 @@ function tiktokEventName(name: string): string {
   return EVENT_NAME_MAP[name] ?? name;
 }
 
-function toTiktokContents(items: unknown): Array<{ content_id: string; content_type: string; price: number; quantity: number }> {
+function toTiktokContents(
+  items: unknown
+): Array<{ content_id: string; content_type: string; price: number; quantity: number }> {
   if (!Array.isArray(items)) return [];
   return items
     .filter((i): i is Record<string, unknown> => i != null && typeof i === "object")
@@ -27,7 +29,10 @@ function toTiktokContents(items: unknown): Array<{ content_id: string; content_t
       content_id: String(i.id ?? i.variant_id ?? i.product_id ?? "").trim(),
       content_type: "product",
       price: typeof i.price === "number" ? i.price : parseFloat(String(i.price ?? 0)) || 0,
-      quantity: typeof i.quantity === "number" ? Math.max(1, i.quantity) : Math.max(1, parseInt(String(i.quantity ?? 1), 10) || 1),
+      quantity:
+        typeof i.quantity === "number"
+          ? Math.max(1, i.quantity)
+          : Math.max(1, parseInt(String(i.quantity ?? 1), 10) || 1),
     }))
     .filter((i) => i.content_id);
 }
@@ -38,10 +43,7 @@ function numericValue(v: unknown): number {
   return Number.isNaN(n) ? 0 : n;
 }
 
-export async function sendEvent(
-  event: InternalEventPayload,
-  credentials: TikTokCredentials
-): Promise<SendEventResult> {
+export async function sendEvent(event: InternalEventPayload, credentials: TikTokCredentials): Promise<SendEventResult> {
   const pixelCode = credentials.pixelId;
   const { accessToken, testEventCode } = credentials;
 

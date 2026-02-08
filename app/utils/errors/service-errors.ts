@@ -16,33 +16,23 @@ export abstract class ServiceError extends AppError {
 }
 
 export class BillingError extends ServiceError {
-  constructor(
-    code: ErrorCodeType,
-    message: string,
-    metadata: ErrorMetadata = {}
-  ) {
+  constructor(code: ErrorCodeType, message: string, metadata: ErrorMetadata = {}) {
     super("billing", code, message, false, metadata);
   }
   static limitExceeded(current: number, limit: number, shopDomain?: string): BillingError {
-    return new BillingError(
-      ErrorCode.BILLING_LIMIT_EXCEEDED,
-      `Monthly order limit exceeded: ${current}/${limit}`,
-      { current, limit, shopDomain }
-    );
+    return new BillingError(ErrorCode.BILLING_LIMIT_EXCEEDED, `Monthly order limit exceeded: ${current}/${limit}`, {
+      current,
+      limit,
+      shopDomain,
+    });
   }
   static subscriptionRequired(feature: string): BillingError {
-    return new BillingError(
-      ErrorCode.BILLING_PLAN_REQUIRED,
-      `Subscription required for feature: ${feature}`,
-      { feature }
-    );
+    return new BillingError(ErrorCode.BILLING_PLAN_REQUIRED, `Subscription required for feature: ${feature}`, {
+      feature,
+    });
   }
   static subscriptionInactive(shopDomain: string): BillingError {
-    return new BillingError(
-      ErrorCode.BILLING_SUBSCRIPTION_INACTIVE,
-      "Subscription is not active",
-      { shopDomain }
-    );
+    return new BillingError(ErrorCode.BILLING_SUBSCRIPTION_INACTIVE, "Subscription is not active", { shopDomain });
   }
 }
 
@@ -114,133 +104,79 @@ export class PlatformServiceError extends ServiceError {
 export class WebhookError extends ServiceError {
   public readonly webhookId?: string;
   public readonly topic?: string;
-  constructor(
-    code: ErrorCodeType,
-    message: string,
-    metadata: ErrorMetadata = {}
-  ) {
+  constructor(code: ErrorCodeType, message: string, metadata: ErrorMetadata = {}) {
     super("webhook", code, message, false, metadata);
     this.webhookId = metadata.webhookId as string | undefined;
     this.topic = metadata.webhookTopic as string | undefined;
   }
   static duplicate(webhookId: string, topic: string): WebhookError {
-    return new WebhookError(
-      ErrorCode.WEBHOOK_DUPLICATE,
-      `Webhook ${webhookId} for topic ${topic} already processed`,
-      { webhookId, webhookTopic: topic }
-    );
+    return new WebhookError(ErrorCode.WEBHOOK_DUPLICATE, `Webhook ${webhookId} for topic ${topic} already processed`, {
+      webhookId,
+      webhookTopic: topic,
+    });
   }
   static invalidPayload(reason: string, topic?: string): WebhookError {
-    return new WebhookError(
-      ErrorCode.WEBHOOK_INVALID_PAYLOAD,
-      `Invalid webhook payload: ${reason}`,
-      { webhookTopic: topic }
-    );
+    return new WebhookError(ErrorCode.WEBHOOK_INVALID_PAYLOAD, `Invalid webhook payload: ${reason}`, {
+      webhookTopic: topic,
+    });
   }
   static unsupportedTopic(topic: string): WebhookError {
-    return new WebhookError(
-      ErrorCode.WEBHOOK_TOPIC_UNSUPPORTED,
-      `Unsupported webhook topic: ${topic}`,
-      { webhookTopic: topic }
-    );
+    return new WebhookError(ErrorCode.WEBHOOK_TOPIC_UNSUPPORTED, `Unsupported webhook topic: ${topic}`, {
+      webhookTopic: topic,
+    });
   }
   static processingFailed(reason: string, webhookId?: string): WebhookError {
-    return new WebhookError(
-      ErrorCode.WEBHOOK_PROCESSING_FAILED,
-      `Webhook processing failed: ${reason}`,
-      { webhookId }
-    );
+    return new WebhookError(ErrorCode.WEBHOOK_PROCESSING_FAILED, `Webhook processing failed: ${reason}`, { webhookId });
   }
 }
 
 export class DatabaseError extends ServiceError {
-  constructor(
-    code: ErrorCodeType,
-    message: string,
-    isRetryable: boolean = false,
-    metadata: ErrorMetadata = {}
-  ) {
+  constructor(code: ErrorCodeType, message: string, isRetryable: boolean = false, metadata: ErrorMetadata = {}) {
     super("database", code, message, isRetryable, metadata);
   }
   static connectionError(message: string): DatabaseError {
-    return new DatabaseError(
-      ErrorCode.DB_CONNECTION_ERROR,
-      `Database connection error: ${message}`,
-      true
-    );
+    return new DatabaseError(ErrorCode.DB_CONNECTION_ERROR, `Database connection error: ${message}`, true);
   }
   static queryError(query: string, message: string, cause?: Error): DatabaseError {
-    const error = new DatabaseError(
-      ErrorCode.DB_QUERY_ERROR,
-      `Query failed: ${message}`,
-      false,
-      { query: query.substring(0, 100) }
-    );
+    const error = new DatabaseError(ErrorCode.DB_QUERY_ERROR, `Query failed: ${message}`, false, {
+      query: query.substring(0, 100),
+    });
     if (cause) {
       const wrapped = AppError.wrap(cause, ErrorCode.DB_QUERY_ERROR, error.message, error.metadata);
-      return new DatabaseError(
-        ErrorCode.DB_QUERY_ERROR,
-        wrapped.message,
-        wrapped.isRetryable,
-        { ...wrapped.metadata, query: query.substring(0, 100) }
-      );
+      return new DatabaseError(ErrorCode.DB_QUERY_ERROR, wrapped.message, wrapped.isRetryable, {
+        ...wrapped.metadata,
+        query: query.substring(0, 100),
+      });
     }
     return error;
   }
   static transactionFailed(message: string): DatabaseError {
-    return new DatabaseError(
-      ErrorCode.DB_TRANSACTION_FAILED,
-      `Transaction failed: ${message}`,
-      true
-    );
+    return new DatabaseError(ErrorCode.DB_TRANSACTION_FAILED, `Transaction failed: ${message}`, true);
   }
   static uniqueConstraint(field: string, value?: string): DatabaseError {
-    const msg = value
-      ? `Unique constraint violation: ${field} = ${value}`
-      : `Unique constraint violation on ${field}`;
-    return new DatabaseError(
-      ErrorCode.DB_UNIQUE_CONSTRAINT,
-      msg,
-      false,
-      { field, value }
-    );
+    const msg = value ? `Unique constraint violation: ${field} = ${value}` : `Unique constraint violation on ${field}`;
+    return new DatabaseError(ErrorCode.DB_UNIQUE_CONSTRAINT, msg, false, { field, value });
   }
 }
 
 export class ConsentError extends ServiceError {
-  constructor(
-    code: ErrorCodeType,
-    message: string,
-    metadata: ErrorMetadata = {}
-  ) {
+  constructor(code: ErrorCodeType, message: string, metadata: ErrorMetadata = {}) {
     super("consent", code, message, false, metadata);
   }
   static notGranted(
     reason: string,
     context?: { shopDomain?: string; orderId?: string; platform?: string }
   ): ConsentError {
-    return new ConsentError(
-      ErrorCode.CONSENT_NOT_GRANTED,
-      `Consent not granted: ${reason}`,
-      context
-    );
+    return new ConsentError(ErrorCode.CONSENT_NOT_GRANTED, `Consent not granted: ${reason}`, context);
   }
   static receiptNotFound(orderId: string, shopDomain?: string): ConsentError {
-    return new ConsentError(
-      ErrorCode.CONSENT_RECEIPT_NOT_FOUND,
-      `Pixel event receipt not found for order ${orderId}`,
-      { orderId, shopDomain }
-    );
+    return new ConsentError(ErrorCode.CONSENT_RECEIPT_NOT_FOUND, `Pixel event receipt not found for order ${orderId}`, {
+      orderId,
+      shopDomain,
+    });
   }
-  static trustVerificationFailed(
-    reason: string,
-    context?: { shopDomain?: string; orderId?: string }
-  ): ConsentError {
-    return new ConsentError(
-      ErrorCode.TRUST_VERIFICATION_FAILED,
-      `Trust verification failed: ${reason}`,
-      context
-    );
+  static trustVerificationFailed(reason: string, context?: { shopDomain?: string; orderId?: string }): ConsentError {
+    return new ConsentError(ErrorCode.TRUST_VERIFICATION_FAILED, `Trust verification failed: ${reason}`, context);
   }
 }
 
@@ -263,11 +199,7 @@ export class ValidationError extends ServiceError {
     this.received = metadata.received;
   }
   static missingField(field: string): ValidationError {
-    return new ValidationError(
-      ErrorCode.VALIDATION_MISSING_FIELD,
-      `Missing required field: ${field}`,
-      { field }
-    );
+    return new ValidationError(ErrorCode.VALIDATION_MISSING_FIELD, `Missing required field: ${field}`, { field });
   }
   static invalidFormat(field: string, expected: string, received?: string): ValidationError {
     return new ValidationError(
@@ -291,73 +223,41 @@ export class ValidationError extends ServiceError {
     );
   }
   static custom(message: string, field?: string): ValidationError {
-    return new ValidationError(
-      ErrorCode.VALIDATION_ERROR,
-      message,
-      { field }
-    );
+    return new ValidationError(ErrorCode.VALIDATION_ERROR, message, { field });
   }
 }
 
 export class AuthError extends ServiceError {
-  constructor(
-    code: ErrorCodeType,
-    message: string,
-    metadata: ErrorMetadata = {}
-  ) {
+  constructor(code: ErrorCodeType, message: string, metadata: ErrorMetadata = {}) {
     super("auth", code, message, false, metadata);
   }
   static invalidToken(reason?: string): AuthError {
-    return new AuthError(
-      ErrorCode.AUTH_INVALID_TOKEN,
-      reason || "Invalid authentication token"
-    );
+    return new AuthError(ErrorCode.AUTH_INVALID_TOKEN, reason || "Invalid authentication token");
   }
   static tokenExpired(): AuthError {
-    return new AuthError(
-      ErrorCode.AUTH_TOKEN_EXPIRED,
-      "Authentication token has expired"
-    );
+    return new AuthError(ErrorCode.AUTH_TOKEN_EXPIRED, "Authentication token has expired");
   }
   static shopNotFound(shopDomain: string): AuthError {
-    return new AuthError(
-      ErrorCode.AUTH_SHOP_NOT_FOUND,
-      `Shop ${shopDomain} not found`,
-      { shopDomain }
-    );
+    return new AuthError(ErrorCode.AUTH_SHOP_NOT_FOUND, `Shop ${shopDomain} not found`, { shopDomain });
   }
   static signatureInvalid(reason?: string): AuthError {
-    return new AuthError(
-      ErrorCode.AUTH_SIGNATURE_INVALID,
-      reason || "Request signature is invalid"
-    );
+    return new AuthError(ErrorCode.AUTH_SIGNATURE_INVALID, reason || "Request signature is invalid");
   }
   static hmacMismatch(): AuthError {
-    return new AuthError(
-      ErrorCode.AUTH_HMAC_MISMATCH,
-      "HMAC signature verification failed"
-    );
+    return new AuthError(ErrorCode.AUTH_HMAC_MISMATCH, "HMAC signature verification failed");
   }
   static insufficientPermissions(required: string): AuthError {
-    return new AuthError(
-      ErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
-      `Insufficient permissions: ${required} required`,
-      { requiredPermission: required }
-    );
+    return new AuthError(ErrorCode.AUTH_INSUFFICIENT_PERMISSIONS, `Insufficient permissions: ${required} required`, {
+      requiredPermission: required,
+    });
   }
 }
 
 export class NotFoundError extends ServiceError {
   public readonly resource: string;
   public readonly resourceId?: string;
-  constructor(
-    resource: string,
-    resourceId?: string,
-    metadata: ErrorMetadata = {}
-  ) {
-    const message = resourceId
-      ? `${resource} with id '${resourceId}' not found`
-      : `${resource} not found`;
+  constructor(resource: string, resourceId?: string, metadata: ErrorMetadata = {}) {
+    const message = resourceId ? `${resource} with id '${resourceId}' not found` : `${resource} not found`;
     const code = getNotFoundCodeForResource(resource);
     super("resource", code, message, false, {
       resource,

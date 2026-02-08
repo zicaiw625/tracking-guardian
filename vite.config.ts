@@ -4,8 +4,7 @@ import tsconfigPaths from "vite-tsconfig-paths";
 
 if (
   process.env.HOST &&
-  (!process.env.SHOPIFY_APP_URL ||
-    process.env.SHOPIFY_APP_URL.match(/https?:\/\/localhost:\d+$/))
+  (!process.env.SHOPIFY_APP_URL || process.env.SHOPIFY_APP_URL.match(/https?:\/\/localhost:\d+$/))
 ) {
   process.env.SHOPIFY_APP_URL = process.env.HOST;
 }
@@ -38,7 +37,7 @@ function suppressUndiciWarnings(): Plugin {
   ];
   const shouldSuppress = (message: unknown): boolean => {
     if (typeof message !== "string") return false;
-    return suppressPatterns.some(pattern => message.includes(pattern));
+    return suppressPatterns.some((pattern) => message.includes(pattern));
   };
   return {
     name: "suppress-undici-warnings",
@@ -105,10 +104,7 @@ export default defineConfig({
     rollupOptions: {
       external: ["html-pdf-node"],
       onwarn(warning, warn) {
-        if (
-          warning.code === "INCONSISTENT_IMPORT_ATTRIBUTES" &&
-          warning.message?.includes("en.json")
-        ) {
+        if (warning.code === "INCONSISTENT_IMPORT_ATTRIBUTES" && warning.message?.includes("en.json")) {
           return;
         }
         if (

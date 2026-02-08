@@ -1,4 +1,3 @@
-
 export interface PlanFeatures {
   id: string;
   name: string;
@@ -161,11 +160,11 @@ export function isValidPlanIdCompat(planId: string): boolean {
   return planId in BILLING_PLANS_COMPAT;
 }
 
-export function getPlanConfig(planId: PlanId): typeof BILLING_PLANS[PlanId] {
+export function getPlanConfig(planId: PlanId): (typeof BILLING_PLANS)[PlanId] {
   return BILLING_PLANS[planId];
 }
 
-export function getPlanOrDefault(planId: string | null | undefined): typeof BILLING_PLANS[PlanId] {
+export function getPlanOrDefault(planId: string | null | undefined): (typeof BILLING_PLANS)[PlanId] {
   if (!planId) return BILLING_PLANS.free;
   const normalizedId = normalizePlanId(planId);
   if (isValidPlanId(normalizedId)) {
@@ -241,7 +240,7 @@ export function getMaxShops(planId: PlanId): number {
       return 50;
     case "growth":
       return 1;
-      case "starter":
+    case "starter":
       return 1;
     case "free":
     default:

@@ -26,9 +26,9 @@ i18next
       escapeValue: false, // react already safes from xss => https://www.i18next.com/translation-function/interpolation#unescape
     },
     detection: {
-        order: ['localStorage', 'navigator'],
-        caches: ['localStorage'],
-    }
+      order: ["localStorage", "navigator"],
+      caches: ["localStorage"],
+    },
   });
 
 export default i18next;

@@ -124,13 +124,9 @@ export function SecurityTab({
                 <Trans i18nKey="Settings.Security.IngestionKey.SecurityLayers" />
               </Text>
               <Text as="p" variant="bodySm" tone="caution">
-                 <Trans i18nKey="Settings.Security.IngestionKey.BoundaryNote" />
+                <Trans i18nKey="Settings.Security.IngestionKey.BoundaryNote" />
               </Text>
-              <Box
-                background="bg-surface-secondary"
-                padding="300"
-                borderRadius="200"
-              >
+              <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                 <InlineStack align="space-between" blockAlign="center">
                   <BlockStack gap="100">
                     <Text as="span" fontWeight="semibold">
@@ -154,34 +150,26 @@ export function SecurityTab({
                       )}
                     </InlineStack>
                   </BlockStack>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setShowRotateModal(true)}
-                    loading={isSubmitting}
-                  >
-                    {shop?.hasIngestionSecret 
+                  <Button variant="secondary" onClick={() => setShowRotateModal(true)} loading={isSubmitting}>
+                    {shop?.hasIngestionSecret
                       ? t("Settings.Security.IngestionKey.RotateToken")
                       : t("Settings.Security.IngestionKey.GenerateToken")}
                   </Button>
                 </InlineStack>
               </Box>
-              <Box
-                background="bg-surface-secondary"
-                padding="300"
-                borderRadius="200"
-              >
+              <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                 <BlockStack gap="100">
                   <Text as="span" fontWeight="semibold">
                     {t("Settings.Security.IngestionKey.EventMode")}
                   </Text>
                   <InlineStack gap="200" blockAlign="center">
                     <Badge tone={pixelStrictOrigin ? "success" : "warning"}>
-                      {pixelStrictOrigin 
+                      {pixelStrictOrigin
                         ? t("Settings.Security.IngestionKey.Strict")
                         : t("Settings.Security.IngestionKey.Lax")}
                     </Badge>
                     <Text as="span" variant="bodySm" tone="subdued">
-                      {pixelStrictOrigin 
+                      {pixelStrictOrigin
                         ? t("Settings.Security.IngestionKey.StrictDesc")
                         : t("Settings.Security.IngestionKey.LaxDesc")}
                     </Text>
@@ -197,9 +185,9 @@ export function SecurityTab({
                 <Banner tone="warning">
                   <BlockStack gap="200">
                     <Text as="p" variant="bodySm" fontWeight="semibold">
-                      <Trans 
-                        i18nKey="Settings.Security.IngestionKey.GraceWindow" 
-                        values={{ date: new Date(shop.graceWindowExpiry).toLocaleString() }} 
+                      <Trans
+                        i18nKey="Settings.Security.IngestionKey.GraceWindow"
+                        values={{ date: new Date(shop.graceWindowExpiry).toLocaleString() }}
                       />
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
@@ -249,7 +237,7 @@ export function SecurityTab({
                               {t("Settings.Security.HMAC.LastRotation")}
                             </Text>
                             <Text as="span" variant="bodySm" fontWeight="semibold">
-                              {hmacSecurityStats.lastRotationAt 
+                              {hmacSecurityStats.lastRotationAt
                                 ? new Date(hmacSecurityStats.lastRotationAt).toLocaleString()
                                 : t("Settings.Security.HMAC.NeverRotated")}
                             </Text>
@@ -265,7 +253,9 @@ export function SecurityTab({
                           {hmacSecurityStats.graceWindowActive && hmacSecurityStats.graceWindowExpiry && (
                             <Banner tone="info">
                               <Text as="p" variant="bodySm">
-                                {t("Settings.Security.HMAC.GraceWindowActive", { date: new Date(hmacSecurityStats.graceWindowExpiry).toLocaleString() })}
+                                {t("Settings.Security.HMAC.GraceWindowActive", {
+                                  date: new Date(hmacSecurityStats.graceWindowExpiry).toLocaleString(),
+                                })}
                               </Text>
                             </Banner>
                           )}
@@ -287,30 +277,34 @@ export function SecurityTab({
                               </BlockStack>
                             </Banner>
                           )}
-                          {hmacSecurityStats.lastRotationAt && (() => {
-                            const daysSinceRotation = Math.floor((Date.now() - new Date(hmacSecurityStats.lastRotationAt).getTime()) / (1000 * 60 * 60 * 24));
-                            if (daysSinceRotation >= 90) {
-                              return (
-                                <Banner tone="warning">
-                                  <BlockStack gap="200">
-                                    <Text as="p" variant="bodySm" fontWeight="semibold">
-                                      {t("Settings.Security.HMAC.OverdueWarningTitle")}
-                                    </Text>
-                                    <Text as="p" variant="bodySm">
-                                      {t("Settings.Security.HMAC.OverdueWarningDesc", { 
-                                        date: new Date(hmacSecurityStats.lastRotationAt).toLocaleString(),
-                                        days: daysSinceRotation
-                                      })}
-                                    </Text>
-                                    <Text as="p" variant="bodySm" tone="critical">
-                                      <Trans i18nKey="Settings.Security.HMAC.RotationWarning" />
-                                    </Text>
-                                  </BlockStack>
-                                </Banner>
+                          {hmacSecurityStats.lastRotationAt &&
+                            (() => {
+                              const daysSinceRotation = Math.floor(
+                                (Date.now() - new Date(hmacSecurityStats.lastRotationAt).getTime()) /
+                                  (1000 * 60 * 60 * 24)
                               );
-                            }
-                            return null;
-                          })()}
+                              if (daysSinceRotation >= 90) {
+                                return (
+                                  <Banner tone="warning">
+                                    <BlockStack gap="200">
+                                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                                        {t("Settings.Security.HMAC.OverdueWarningTitle")}
+                                      </Text>
+                                      <Text as="p" variant="bodySm">
+                                        {t("Settings.Security.HMAC.OverdueWarningDesc", {
+                                          date: new Date(hmacSecurityStats.lastRotationAt).toLocaleString(),
+                                          days: daysSinceRotation,
+                                        })}
+                                      </Text>
+                                      <Text as="p" variant="bodySm" tone="critical">
+                                        <Trans i18nKey="Settings.Security.HMAC.RotationWarning" />
+                                      </Text>
+                                    </BlockStack>
+                                  </Banner>
+                                );
+                              }
+                              return null;
+                            })()}
                         </BlockStack>
                       </Box>
                       <Divider />
@@ -328,11 +322,12 @@ export function SecurityTab({
                               <Badge tone={hmacSecurityStats.invalidSignatureCount > 0 ? "critical" : "success"}>
                                 {String(hmacSecurityStats.invalidSignatureCount)}
                               </Badge>
-                              {hmacSecurityStats.invalidSignatureCount > 0 && hmacSecurityStats.lastInvalidSignature && (
-                                <Text as="span" variant="bodySm" tone="subdued">
-                                  (Recent: {new Date(hmacSecurityStats.lastInvalidSignature).toLocaleString()})
-                                </Text>
-                              )}
+                              {hmacSecurityStats.invalidSignatureCount > 0 &&
+                                hmacSecurityStats.lastInvalidSignature && (
+                                  <Text as="span" variant="bodySm" tone="subdued">
+                                    (Recent: {new Date(hmacSecurityStats.lastInvalidSignature).toLocaleString()})
+                                  </Text>
+                                )}
                             </InlineStack>
                           </InlineStack>
                           <InlineStack align="space-between" blockAlign="center">
@@ -348,15 +343,26 @@ export function SecurityTab({
                             <Text as="span" variant="bodySm" fontWeight="semibold">
                               {t("Settings.Security.HMAC.SuspiciousTotal")}
                             </Text>
-                            <Badge tone={hmacSecurityStats.suspiciousActivityCount > 10 ? "critical" : hmacSecurityStats.suspiciousActivityCount > 0 ? "warning" : "success"}>
+                            <Badge
+                              tone={
+                                hmacSecurityStats.suspiciousActivityCount > 10
+                                  ? "critical"
+                                  : hmacSecurityStats.suspiciousActivityCount > 0
+                                    ? "warning"
+                                    : "success"
+                              }
+                            >
                               {String(hmacSecurityStats.suspiciousActivityCount)}
                             </Badge>
                           </InlineStack>
-                          {hmacSecurityStats.suspiciousActivityCount > 0 && hmacSecurityStats.lastSuspiciousActivity && (
-                            <Text as="p" variant="bodySm" tone="subdued">
-                              {t("Settings.Security.HMAC.LastSuspicious", { date: new Date(hmacSecurityStats.lastSuspiciousActivity).toLocaleString() })}
-                            </Text>
-                          )}
+                          {hmacSecurityStats.suspiciousActivityCount > 0 &&
+                            hmacSecurityStats.lastSuspiciousActivity && (
+                              <Text as="p" variant="bodySm" tone="subdued">
+                                {t("Settings.Security.HMAC.LastSuspicious", {
+                                  date: new Date(hmacSecurityStats.lastSuspiciousActivity).toLocaleString(),
+                                })}
+                              </Text>
+                            )}
                         </BlockStack>
                       </Box>
                       {hmacSecurityStats.suspiciousActivityCount > 10 && (
@@ -366,36 +372,61 @@ export function SecurityTab({
                               {t("Settings.Security.HMAC.HighSuspiciousAlert")}
                             </Text>
                             <Text as="p" variant="bodySm">
-                              {t("Settings.Security.HMAC.HighSuspiciousDesc", { count: hmacSecurityStats.suspiciousActivityCount })}
+                              {t("Settings.Security.HMAC.HighSuspiciousDesc", {
+                                count: hmacSecurityStats.suspiciousActivityCount,
+                              })}
                             </Text>
                             <Text as="p" variant="bodySm" fontWeight="semibold">
                               {t("Settings.Security.HMAC.ImmediateActions")}
                             </Text>
                             <List type="bullet">
-                              <List.Item><Text as="span" variant="bodySm">{t("Settings.Security.HMAC.ActionRotate")}</Text></List.Item>
-                              <List.Item><Text as="span" variant="bodySm">{t("Settings.Security.HMAC.ActionCheckLogs")}</Text></List.Item>
-                              <List.Item><Text as="span" variant="bodySm">{t("Settings.Security.HMAC.ActionLeakage")}</Text></List.Item>
-                              <List.Item><Text as="span" variant="bodySm">{t("Settings.Security.HMAC.ActionReview")}</Text></List.Item>
-                              <List.Item><Text as="span" variant="bodySm">{t("Settings.Security.HMAC.ActionMetrics")}</Text></List.Item>
+                              <List.Item>
+                                <Text as="span" variant="bodySm">
+                                  {t("Settings.Security.HMAC.ActionRotate")}
+                                </Text>
+                              </List.Item>
+                              <List.Item>
+                                <Text as="span" variant="bodySm">
+                                  {t("Settings.Security.HMAC.ActionCheckLogs")}
+                                </Text>
+                              </List.Item>
+                              <List.Item>
+                                <Text as="span" variant="bodySm">
+                                  {t("Settings.Security.HMAC.ActionLeakage")}
+                                </Text>
+                              </List.Item>
+                              <List.Item>
+                                <Text as="span" variant="bodySm">
+                                  {t("Settings.Security.HMAC.ActionReview")}
+                                </Text>
+                              </List.Item>
+                              <List.Item>
+                                <Text as="span" variant="bodySm">
+                                  {t("Settings.Security.HMAC.ActionMetrics")}
+                                </Text>
+                              </List.Item>
                             </List>
                           </BlockStack>
                         </Banner>
                       )}
-                      {hmacSecurityStats.suspiciousActivityCount > 0 && hmacSecurityStats.suspiciousActivityCount <= 10 && (
-                        <Banner tone="warning">
-                          <BlockStack gap="200">
-                            <Text as="p" variant="bodySm" fontWeight="semibold">
-                              {t("Settings.Security.HMAC.MediumSuspiciousAlert")}
-                            </Text>
-                            <Text as="p" variant="bodySm">
-                              {t("Settings.Security.HMAC.MediumSuspiciousDesc", { count: hmacSecurityStats.suspiciousActivityCount })}
-                            </Text>
-                            <Text as="p" variant="bodySm">
-                              {t("Settings.Security.HMAC.MediumSuspiciousDesc2")}
-                            </Text>
-                          </BlockStack>
-                        </Banner>
-                      )}
+                      {hmacSecurityStats.suspiciousActivityCount > 0 &&
+                        hmacSecurityStats.suspiciousActivityCount <= 10 && (
+                          <Banner tone="warning">
+                            <BlockStack gap="200">
+                              <Text as="p" variant="bodySm" fontWeight="semibold">
+                                {t("Settings.Security.HMAC.MediumSuspiciousAlert")}
+                              </Text>
+                              <Text as="p" variant="bodySm">
+                                {t("Settings.Security.HMAC.MediumSuspiciousDesc", {
+                                  count: hmacSecurityStats.suspiciousActivityCount,
+                                })}
+                              </Text>
+                              <Text as="p" variant="bodySm">
+                                {t("Settings.Security.HMAC.MediumSuspiciousDesc2")}
+                              </Text>
+                            </BlockStack>
+                          </Banner>
+                        )}
                       {hmacSecurityStats.suspiciousActivityCount === 0 && (
                         <Banner tone="success">
                           <Text as="p" variant="bodySm">
@@ -598,11 +629,7 @@ export function SecurityTab({
                     : t("Settings.Security.ConsentStrategy.HelpTextBalanced")
                 }
               />
-              <Banner
-                tone={
-                  shop?.consentStrategy === "strict" ? "success" : "info"
-                }
-              >
+              <Banner tone={shop?.consentStrategy === "strict" ? "success" : "info"}>
                 {shop?.consentStrategy === "strict" && (
                   <BlockStack gap="100">
                     <Text as="span" fontWeight="semibold">
@@ -626,17 +653,16 @@ export function SecurityTab({
                     </Text>
                   </BlockStack>
                 )}
-                {shop?.consentStrategy !== "strict" &&
-                  shop?.consentStrategy !== "balanced" && (
-                    <BlockStack gap="100">
-                      <Text as="span" fontWeight="semibold">
-                        {t("Settings.Security.ConsentStrategy.UnknownStrategy")}
-                      </Text>
-                      <Text as="p" variant="bodySm">
-                        {t("Settings.Security.ConsentStrategy.UnknownStrategyDesc")}
-                      </Text>
-                    </BlockStack>
-                  )}
+                {shop?.consentStrategy !== "strict" && shop?.consentStrategy !== "balanced" && (
+                  <BlockStack gap="100">
+                    <Text as="span" fontWeight="semibold">
+                      {t("Settings.Security.ConsentStrategy.UnknownStrategy")}
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      {t("Settings.Security.ConsentStrategy.UnknownStrategyDesc")}
+                    </Text>
+                  </BlockStack>
+                )}
               </Banner>
             </BlockStack>
           </BlockStack>
@@ -666,9 +692,7 @@ export function SecurityTab({
       >
         <Modal.Section>
           <BlockStack gap="200">
-            <Text as="p">
-              {t("Settings.Security.ConsentStrategy.ModalContent")}
-            </Text>
+            <Text as="p">{t("Settings.Security.ConsentStrategy.ModalContent")}</Text>
             <Text as="p" tone="subdued">
               {t("Settings.Security.ConsentStrategy.ModalConfirm")}
             </Text>
@@ -678,12 +702,14 @@ export function SecurityTab({
       <Modal
         open={showRotateModal}
         onClose={() => setShowRotateModal(false)}
-        title={shop?.hasIngestionSecret 
-          ? t("Settings.Security.Modals.RotateTitle") 
-          : t("Settings.Security.Modals.GenerateTitle")}
+        title={
+          shop?.hasIngestionSecret
+            ? t("Settings.Security.Modals.RotateTitle")
+            : t("Settings.Security.Modals.GenerateTitle")
+        }
         primaryAction={{
-          content: shop?.hasIngestionSecret 
-            ? t("Settings.Security.Modals.RotateAction") 
+          content: shop?.hasIngestionSecret
+            ? t("Settings.Security.Modals.RotateAction")
             : t("Settings.Security.Modals.GenerateAction"),
           destructive: true,
           onAction: () => {

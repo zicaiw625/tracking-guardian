@@ -111,69 +111,44 @@ export interface SafeParseResult<T> {
 
 export function safeParseCapiInput(json: unknown): SafeParseResult<CapiInput> {
   const result = CapiInputSchema.safeParse(json);
-  return result.success
-    ? { success: true, data: result.data }
-    : { success: false, error: result.error };
+  return result.success ? { success: true, data: result.data } : { success: false, error: result.error };
 }
 
 export function safeParseConsentState(json: unknown): SafeParseResult<ConsentState> {
   const result = ConsentStateSchema.safeParse(json);
-  return result.success
-    ? { success: true, data: result.data }
-    : { success: false, error: result.error };
+  return result.success ? { success: true, data: result.data } : { success: false, error: result.error };
 }
 
-export function safeParseConsentEvidence(
-  json: unknown
-): SafeParseResult<ConsentEvidence> {
+export function safeParseConsentEvidence(json: unknown): SafeParseResult<ConsentEvidence> {
   const result = ConsentEvidenceSchema.safeParse(json);
-  return result.success
-    ? { success: true, data: result.data }
-    : { success: false, error: result.error };
+  return result.success ? { success: true, data: result.data } : { success: false, error: result.error };
 }
 
-export function safeParseTrustMetadata(
-  json: unknown
-): SafeParseResult<TrustMetadata> {
+export function safeParseTrustMetadata(json: unknown): SafeParseResult<TrustMetadata> {
   const result = TrustMetadataSchema.safeParse(json);
-  return result.success
-    ? { success: true, data: result.data }
-    : { success: false, error: result.error };
+  return result.success ? { success: true, data: result.data } : { success: false, error: result.error };
 }
 
 export function safeParseRiskItems(json: unknown): SafeParseResult<RiskItem[]> {
   const result = z.array(RiskItemSchema).safeParse(json);
-  return result.success
-    ? { success: true, data: result.data }
-    : { success: false, error: result.error };
+  return result.success ? { success: true, data: result.data } : { success: false, error: result.error };
 }
 
-export function safeParsePixelClientConfig(
-  json: unknown
-): SafeParseResult<PixelClientConfig> {
+export function safeParsePixelClientConfig(json: unknown): SafeParseResult<PixelClientConfig> {
   const result = PixelClientConfigSchema.safeParse(json);
-  return result.success
-    ? { success: true, data: result.data }
-    : { success: false, error: result.error };
+  return result.success ? { success: true, data: result.data } : { success: false, error: result.error };
 }
 
 export function toJsonInput<T>(data: T): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(data)) as Prisma.InputJsonValue;
 }
 
-export function parseJsonWithFallback<T>(
-  json: unknown,
-  schema: z.ZodType<T>,
-  fallback: T
-): T {
+export function parseJsonWithFallback<T>(json: unknown, schema: z.ZodType<T>, fallback: T): T {
   const result = schema.safeParse(json);
   return result.success ? result.data : fallback;
 }
 
-export function parseJsonOrNull<T>(
-  json: unknown,
-  schema: z.ZodType<T>
-): T | null {
+export function parseJsonOrNull<T>(json: unknown, schema: z.ZodType<T>): T | null {
   const result = schema.safeParse(json);
   return result.success ? result.data : null;
 }
@@ -225,10 +200,7 @@ export function createDefaultTrustMetadata(): TrustMetadata {
   };
 }
 
-export function mergeConsentStates(
-  base: ConsentState | null,
-  override: ConsentState | null
-): ConsentState {
+export function mergeConsentStates(base: ConsentState | null, override: ConsentState | null): ConsentState {
   return {
     marketing: override?.marketing ?? base?.marketing,
     analytics: override?.analytics ?? base?.analytics,

@@ -17,7 +17,8 @@ function loadEnv() {
     if (!m) continue;
     const key = m[1].trim();
     let val = m[2].trim();
-    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) val = val.slice(1, -1);
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'")))
+      val = val.slice(1, -1);
     if (key in process.env) continue;
     process.env[key] = val;
   }

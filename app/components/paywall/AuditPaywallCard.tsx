@@ -16,9 +16,7 @@ export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
   const starterPlan = getPlanOrDefault("starter");
   const growthPlan = getPlanOrDefault("growth");
   const agencyPlan = getPlanOrDefault("agency");
-  const migrationLabel = isStarter
-    ? "迁移像素"
-    : `迁移像素（${starterPlan.name} ${priceLabel(starterPlan.price)}）`;
+  const migrationLabel = isStarter ? "迁移像素" : `迁移像素（${starterPlan.name} ${priceLabel(starterPlan.price)}）`;
   const moduleLabel = isStarter
     ? "页面侧自定义指引"
     : `页面侧自定义指引（${starterPlan.name} ${priceLabel(starterPlan.price)}）`;
@@ -70,13 +68,7 @@ export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
       },
     ];
   })();
-  const upgradeTarget = !isStarter
-    ? "starter"
-    : !isGrowth
-      ? "growth"
-      : !isAgency
-        ? "agency"
-        : null;
+  const upgradeTarget = !isStarter ? "starter" : !isGrowth ? "growth" : !isAgency ? "agency" : null;
   const upgradePlan = upgradeTarget ? getPlanOrDefault(upgradeTarget) : null;
   return (
     <Card>
@@ -88,8 +80,7 @@ export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
           <BlockStack gap="200">
             {bannerLines.map((line) => (
               <Text key={line.label} as="p" variant="bodySm">
-                <strong>{line.label}</strong>{" "}
-                {line.text}
+                <strong>{line.label}</strong> {line.text}
               </Text>
             ))}
           </BlockStack>
@@ -110,11 +101,7 @@ export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
             {moduleLabel}
           </Button>
           {upgradePlan && isStarter && (
-            <Button
-              variant="secondary"
-              url={`/app/billing?upgrade=${upgradePlan.id}`}
-              size="large"
-            >
+            <Button variant="secondary" url={`/app/billing?upgrade=${upgradePlan.id}`} size="large">
               {`升级到 ${upgradePlan.name} ${priceLabel(upgradePlan.price)}`}
             </Button>
           )}

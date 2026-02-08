@@ -76,14 +76,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     csvLines.push("风险项目");
     csvLines.push("ID,名称,严重程度,平台,描述,建议");
     for (const item of riskItems) {
-      csvLines.push([
-        item.id,
-        item.name,
-        item.severity,
-        item.platform || "",
-        item.description || "",
-        item.recommendation || "",
-      ].map(escapeCSV).join(","));
+      csvLines.push(
+        [item.id, item.name, item.severity, item.platform || "", item.description || "", item.recommendation || ""]
+          .map(escapeCSV)
+          .join(",")
+      );
     }
 
     const csvContent = csvLines.join("\n");
@@ -100,9 +97,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       error,
       reportId: new URL(request.url).searchParams.get("reportId"),
     });
-    return new Response(
-      error instanceof Error ? error.message : "Failed to export scan report CSV",
-      { status: 500 }
-    );
+    return new Response(error instanceof Error ? error.message : "Failed to export scan report CSV", { status: 500 });
   }
 };

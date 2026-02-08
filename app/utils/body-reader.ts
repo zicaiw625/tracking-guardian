@@ -1,7 +1,4 @@
-export async function readTextWithLimit(
-  request: Request,
-  maxSize: number
-): Promise<string> {
+export async function readTextWithLimit(request: Request, maxSize: number): Promise<string> {
   if (!request.body) return "";
   const reader = request.body.getReader();
   const decoder = new TextDecoder();
@@ -36,10 +33,7 @@ export async function readTextWithLimit(
   return parts.join("");
 }
 
-export async function readJsonWithLimit<T = unknown>(
-  request: Request,
-  maxSize: number
-): Promise<T> {
+export async function readJsonWithLimit<T = unknown>(request: Request, maxSize: number): Promise<T> {
   const text = await readTextWithLimit(request, maxSize);
   try {
     return JSON.parse(text) as T;

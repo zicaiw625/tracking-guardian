@@ -42,7 +42,7 @@ interface GraphQLResponse {
 
 function parseTypOspFromResponse(response: GraphQLResponse): TypOspStatusResult {
   if (response.errors) {
-    const errorMessages = response.errors.map(e => e.message || "").join(" ");
+    const errorMessages = response.errors.map((e) => e.message || "").join(" ");
     if (errorMessages.includes("access") || errorMessages.includes("permission")) {
       return {
         status: "unknown",
@@ -90,7 +90,7 @@ function parseTypOspFromResponse(response: GraphQLResponse): TypOspStatusResult 
       error: "No checkout profiles returned",
     };
   }
-  const hasTypOspField = profiles.some(node => node.typOspPagesActive !== undefined);
+  const hasTypOspField = profiles.some((node) => node.typOspPagesActive !== undefined);
   if (!hasTypOspField) {
     const checkoutApiSupported = shop?.checkoutApiSupported === true;
     return {
@@ -100,8 +100,8 @@ function parseTypOspFromResponse(response: GraphQLResponse): TypOspStatusResult 
       confidence: "medium",
     };
   }
-  const publishedProfiles = profiles.filter(p => p.isPublished === true);
-  const hasTypOspActive = publishedProfiles.some(p => p.typOspPagesActive === true);
+  const publishedProfiles = profiles.filter((p) => p.isPublished === true);
+  const hasTypOspActive = publishedProfiles.some((p) => p.typOspPagesActive === true);
   return {
     status: hasTypOspActive ? "enabled" : "disabled",
     typOspPagesEnabled: hasTypOspActive,
@@ -224,9 +224,7 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
   describe("权限不足场景", () => {
     it("NO_EDITOR_ACCESS - 权限错误", () => {
       const response: GraphQLResponse = {
-        errors: [
-          { message: "You do not have access to checkout and accounts editor" },
-        ],
+        errors: [{ message: "You do not have access to checkout and accounts editor" }],
       };
       const result = parseTypOspFromResponse(response);
       expect(result.status).toBe("unknown");
@@ -255,9 +253,7 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
   describe("API 错误场景", () => {
     it("RATE_LIMIT - API 限流", () => {
       const response: GraphQLResponse = {
-        errors: [
-          { message: "rate limit exceeded, throttle request" },
-        ],
+        errors: [{ message: "rate limit exceeded, throttle request" }],
       };
       const result = parseTypOspFromResponse(response);
       expect(result.status).toBe("unknown");
@@ -266,9 +262,7 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
     });
     it("API_ERROR - 一般 API 错误", () => {
       const response: GraphQLResponse = {
-        errors: [
-          { message: "Internal server error" },
-        ],
+        errors: [{ message: "Internal server error" }],
       };
       const result = parseTypOspFromResponse(response);
       expect(result.status).toBe("unknown");
@@ -310,9 +304,7 @@ describe("状态变更检测", () => {
     const newResult = parseTypOspFromResponse({
       data: {
         checkoutProfiles: {
-          nodes: [
-            { id: "1", name: "Default", isPublished: true, typOspPagesActive: true },
-          ],
+          nodes: [{ id: "1", name: "Default", isPublished: true, typOspPagesActive: true }],
         },
         shop: { checkoutApiSupported: true, plan: { shopifyPlus: true } },
       },

@@ -5,13 +5,29 @@ import { withCronLock } from "../../utils/cron-lock";
 import { cronSuccessResponse, cronSkippedResponse, cronErrorResponse } from "../../utils/responses";
 import { logger } from "../../utils/logger.server";
 import { cleanupExpiredData } from "../../cron/tasks/cleanup";
-import { validateInput , CronRequestSchema } from "../../schemas/api-schemas";
+import { validateInput, CronRequestSchema } from "../../schemas/api-schemas";
 import { readTextWithLimit } from "../../utils/body-reader";
 import prisma from "../../db.server";
 import { processIngestQueue, recoverStuckProcessingItems } from "../../lib/pixel-events/ingest-queue.server";
 import { runDispatchWorker } from "../../services/dispatch/run-worker.server";
 import { batchAggregateMetrics } from "../../services/dashboard-aggregation.server";
 import { runAlertDetectionForAllShops } from "../../services/alert-detection.server";
+
+async function* activeShopIdBatches(batchSize = 500): AsyncGenerator<string[]> {
+  let cursor: string | undefined;
+  for (;;) {
+    const shops = await prisma.shop.findMany({
+      where: { isActive: true },
+      select: { id: true },
+      orderBy: { id: "asc" },
+      take: batchSize,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    });
+    if (shops.length === 0) return;
+    yield shops.map((s) => s.id);
+    cursor = shops[shops.length - 1]!.id;
+  }
+}
 
 async function runCronTasks(task: string, requestId: string): Promise<Record<string, unknown>> {
   const results: Record<string, unknown> = {
@@ -56,13 +72,17 @@ async function runCronTasks(task: string, requestId: string): Promise<Record<str
     const yesterday = new Date();
     yesterday.setUTCDate(yesterday.getUTCDate() - 1);
     yesterday.setUTCHours(0, 0, 0, 0);
-    const shops = await prisma.shop.findMany({
-      where: { isActive: true },
-      select: { id: true },
-    });
-    const shopIds = shops.map((s) => s.id);
-    const successCount = await batchAggregateMetrics(shopIds, yesterday);
-    results.aggregate_daily = { shops: shopIds.length, successCount, date: yesterday.toISOString().split("T")[0] };
+    let shopsProcessed = 0;
+    let successCount = 0;
+    for await (const shopIds of activeShopIdBatches(500)) {
+      shopsProcessed += shopIds.length;
+      successCount += await batchAggregateMetrics(shopIds, yesterday, { concurrency: 5 });
+    }
+    results.aggregate_daily = {
+      shops: shopsProcessed,
+      successCount,
+      date: yesterday.toISOString().split("T")[0],
+    };
   }
 
   if (task === "all" || task === "alerts") {
@@ -96,12 +116,7 @@ async function handleCron(request: Request): Promise<Response> {
       requestId,
       error: replayCheck.error,
     });
-    return cronErrorResponse(
-      requestId,
-      Date.now() - startTime,
-      replayCheck.error || "Replay protection failed",
-      403
-    );
+    return cronErrorResponse(requestId, Date.now() - startTime, replayCheck.error || "Replay protection failed", 403);
   }
 
   // 默认使用空对象，避免 application/json 但空 body 时被 schema 判为 null
@@ -109,7 +124,7 @@ async function handleCron(request: Request): Promise<Response> {
   const contentType = request.headers.get("Content-Type");
   const contentLength = request.headers.get("Content-Length");
   const maxBodySize = 64 * 1024;
-  
+
   if (contentType?.includes("application/json")) {
     try {
       const bodyText = await readTextWithLimit(request, maxBodySize);
@@ -140,12 +155,7 @@ async function handleCron(request: Request): Promise<Response> {
           contentType,
           contentLength,
         });
-        return cronErrorResponse(
-          requestId,
-          Date.now() - startTime,
-          "Invalid JSON body",
-          400
-        );
+        return cronErrorResponse(requestId, Date.now() - startTime, "Invalid JSON body", 400);
       }
       logger.warn("Failed to parse cron request body", {
         requestId,
@@ -193,12 +203,7 @@ async function handleCron(request: Request): Promise<Response> {
         task,
         reason: lockResult.reason,
       });
-      return cronErrorResponse(
-        requestId,
-        durationMs,
-        lockResult.reason || "Unable to acquire cron lock",
-        503
-      );
+      return cronErrorResponse(requestId, durationMs, lockResult.reason || "Unable to acquire cron lock", 503);
     }
     logger.info("Cron task skipped - lock held by another instance", {
       requestId,
@@ -221,12 +226,7 @@ async function handleCron(request: Request): Promise<Response> {
     });
   }
 
-  return cronErrorResponse(
-    requestId,
-    durationMs,
-    "Task execution completed but no result returned",
-    500
-  );
+  return cronErrorResponse(requestId, durationMs, "Task execution completed but no result returned", 500);
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => handleCron(request);

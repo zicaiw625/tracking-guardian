@@ -124,7 +124,7 @@ describe("Crypto Utils", () => {
       const result = validateEncryptionConfig();
       expect(result.valid).toBe(true);
       expect(result.secretSource).toBe("fallback");
-      expect(result.warnings.some(w => w.includes("No encryption secret configured"))).toBe(true);
+      expect(result.warnings.some((w) => w.includes("No encryption secret configured"))).toBe(true);
     });
     it("should return warning for short ENCRYPTION_SECRET", () => {
       process.env.NODE_ENV = "development";
@@ -132,7 +132,7 @@ describe("Crypto Utils", () => {
       const result = validateEncryptionConfig();
       expect(result.valid).toBe(true);
       expect(result.secretSource).toBe("ENCRYPTION_SECRET");
-      expect(result.warnings.some(w => w.includes("shorter than recommended"))).toBe(true);
+      expect(result.warnings.some((w) => w.includes("shorter than recommended"))).toBe(true);
     });
     it("should use DEV_ENCRYPTION_SECRET in development when ENCRYPTION_SECRET not set", () => {
       process.env.NODE_ENV = "development";
@@ -165,7 +165,7 @@ describe("Crypto Utils", () => {
       const result = validateEncryptionConfig();
       expect(result.valid).toBe(true);
       expect(result.secretSource).toBe("DEV_ENCRYPTION_SECRET");
-      expect(result.warnings.some(w => w.includes("DEV_ENCRYPTION_SECRET") && w.includes("shorter"))).toBe(true);
+      expect(result.warnings.some((w) => w.includes("DEV_ENCRYPTION_SECRET") && w.includes("shorter"))).toBe(true);
     });
     it("should not use DEV_ENCRYPTION_SECRET in production", () => {
       process.env.NODE_ENV = "production";
@@ -244,7 +244,7 @@ describe("Crypto Utils", () => {
     it("should normalize GID orderId", () => {
       const result = generateMatchKey({
         orderId: "gid://shopify/Order/123456",
-        checkoutToken: null
+        checkoutToken: null,
       });
       expect(result.matchKey).toBe("123456");
       expect(result.isOrderId).toBe(true);
@@ -262,50 +262,45 @@ describe("Crypto Utils", () => {
       expect(result.isOrderId).toBe(false);
     });
     it("should throw error when both orderId and checkoutToken are null", () => {
-      expect(() => generateMatchKey({ orderId: null, checkoutToken: null }))
-        .toThrow("Cannot generate match key");
+      expect(() => generateMatchKey({ orderId: null, checkoutToken: null })).toThrow("Cannot generate match key");
     });
     it("should throw error when both orderId and checkoutToken are empty", () => {
-      expect(() => generateMatchKey({ orderId: "", checkoutToken: "" }))
-        .toThrow("Cannot generate match key");
+      expect(() => generateMatchKey({ orderId: "", checkoutToken: "" })).toThrow("Cannot generate match key");
     });
   });
   describe("matchKeysEqual (P1-04)", () => {
     it("should match when both have same orderId", () => {
-      expect(matchKeysEqual(
-        { orderId: "12345", checkoutToken: null },
-        { orderId: "12345", checkoutToken: "different" }
-      )).toBe(true);
+      expect(
+        matchKeysEqual({ orderId: "12345", checkoutToken: null }, { orderId: "12345", checkoutToken: "different" })
+      ).toBe(true);
     });
     it("should match normalized orderIds", () => {
-      expect(matchKeysEqual(
-        { orderId: "gid://shopify/Order/12345", checkoutToken: null },
-        { orderId: "12345", checkoutToken: null }
-      )).toBe(true);
+      expect(
+        matchKeysEqual(
+          { orderId: "gid://shopify/Order/12345", checkoutToken: null },
+          { orderId: "12345", checkoutToken: null }
+        )
+      ).toBe(true);
     });
     it("should not match different orderIds", () => {
-      expect(matchKeysEqual(
-        { orderId: "12345", checkoutToken: null },
-        { orderId: "99999", checkoutToken: null }
-      )).toBe(false);
+      expect(matchKeysEqual({ orderId: "12345", checkoutToken: null }, { orderId: "99999", checkoutToken: null })).toBe(
+        false
+      );
     });
     it("should match when both have same checkoutToken", () => {
-      expect(matchKeysEqual(
-        { orderId: null, checkoutToken: "token123" },
-        { orderId: null, checkoutToken: "token123" }
-      )).toBe(true);
+      expect(
+        matchKeysEqual({ orderId: null, checkoutToken: "token123" }, { orderId: null, checkoutToken: "token123" })
+      ).toBe(true);
     });
     it("should not match different checkoutTokens", () => {
-      expect(matchKeysEqual(
-        { orderId: null, checkoutToken: "token123" },
-        { orderId: null, checkoutToken: "token456" }
-      )).toBe(false);
+      expect(
+        matchKeysEqual({ orderId: null, checkoutToken: "token123" }, { orderId: null, checkoutToken: "token456" })
+      ).toBe(false);
     });
     it("should not match when one has orderId and other has only different checkoutToken", () => {
-      expect(matchKeysEqual(
-        { orderId: "12345", checkoutToken: null },
-        { orderId: null, checkoutToken: "unrelated_token" }
-      )).toBe(false);
+      expect(
+        matchKeysEqual({ orderId: "12345", checkoutToken: null }, { orderId: null, checkoutToken: "unrelated_token" })
+      ).toBe(false);
     });
   });
   describe("generateDeduplicationFingerprint (P1-04)", () => {

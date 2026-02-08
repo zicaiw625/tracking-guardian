@@ -135,7 +135,8 @@ export function ProgressMetricCard({
             {current.toLocaleString()}
           </Text>
           <Text as="span" tone="subdued">
-            {" "}/ {total.toLocaleString()} {unit}
+            {" "}
+            / {total.toLocaleString()} {unit}
           </Text>
         </Text>
         {description && (
@@ -184,7 +185,12 @@ export function ComparisonMetricCard({
             </Text>
             <Text as="p" variant="headingLg" fontWeight="bold">
               {typeof leftValue === "number" ? leftValue.toLocaleString() : leftValue}
-              {unit && <Text as="span" variant="bodySm" tone="subdued"> {unit}</Text>}
+              {unit && (
+                <Text as="span" variant="bodySm" tone="subdued">
+                  {" "}
+                  {unit}
+                </Text>
+              )}
             </Text>
           </BlockStack>
           <BlockStack gap="100">
@@ -193,17 +199,19 @@ export function ComparisonMetricCard({
             </Text>
             <Text as="p" variant="headingLg" fontWeight="bold">
               {typeof rightValue === "number" ? rightValue.toLocaleString() : rightValue}
-              {unit && <Text as="span" variant="bodySm" tone="subdued"> {unit}</Text>}
+              {unit && (
+                <Text as="span" variant="bodySm" tone="subdued">
+                  {" "}
+                  {unit}
+                </Text>
+              )}
             </Text>
           </BlockStack>
         </InlineStack>
         {highlightDifference && (
-          <Text
-            as="p"
-            variant="bodySm"
-            tone={difference >= 0 ? "success" : "critical"}
-          >
-            差异: {difference >= 0 ? "+" : ""}{difference.toLocaleString()} ({differencePercent}%)
+          <Text as="p" variant="bodySm" tone={difference >= 0 ? "success" : "critical"}>
+            差异: {difference >= 0 ? "+" : ""}
+            {difference.toLocaleString()} ({differencePercent}%)
           </Text>
         )}
       </BlockStack>

@@ -9,6 +9,8 @@ const MAX_QUEUE_SIZE = 100_000;
 const MAX_BATCHES_PER_RUN = 50;
 const MAX_RETRIES = 5;
 
+export type EnqueueIngestResult = { ok: true } | { ok: false; reason: "overloaded" | "redis_error" };
+
 export interface IngestRequestContext {
   ip?: string | null;
   user_agent?: string | null;
@@ -38,29 +40,51 @@ export interface IngestQueueEntry {
   }>;
 }
 
-export async function enqueueIngestBatch(entry: IngestQueueEntry): Promise<boolean> {
+const ENQUEUE_LUA = `
+local q = KEYS[1]
+local max = tonumber(ARGV[1])
+local val = ARGV[2]
+local len = redis.call('LLEN', q)
+if len >= max then
+  return 0
+end
+redis.call('LPUSH', q, val)
+return 1
+`;
+
+export async function enqueueIngestBatch(entry: IngestQueueEntry): Promise<EnqueueIngestResult> {
   try {
     const redis = await getRedisClient();
     entry.enqueuedAt = Date.now();
     const serialized = JSON.stringify(entry);
-    
-    await redis.lPush(QUEUE_KEY, serialized);
-    await redis.lTrim(QUEUE_KEY, 0, MAX_QUEUE_SIZE - 1);
-    
-    return true;
+
+    // P0: Fail-fast on overload to avoid silently dropping old queue items.
+    // Use Lua for atomic check+push under concurrency.
+    const result = await redis.eval(ENQUEUE_LUA, [QUEUE_KEY], [String(MAX_QUEUE_SIZE), serialized]);
+    const pushed = typeof result === "number" ? result === 1 : result === 1 || result === "1";
+    if (!pushed) {
+      logger.warn("Ingest queue overloaded - rejecting new batch", {
+        requestId: entry.requestId,
+        shopDomain: entry.shopDomain,
+        maxQueueSize: MAX_QUEUE_SIZE,
+      });
+      return { ok: false, reason: "overloaded" };
+    }
+
+    return { ok: true };
   } catch (e) {
     logger.error("Failed to enqueue ingest batch", {
       requestId: entry.requestId,
       shopDomain: entry.shopDomain,
       error: e instanceof Error ? e.message : String(e),
     });
-    return false;
+    return { ok: false, reason: "redis_error" };
   }
 }
 
-export async function processIngestQueue(
-  options?: { maxBatches?: number }
-): Promise<{ processed: number; errors: number }> {
+export async function processIngestQueue(options?: {
+  maxBatches?: number;
+}): Promise<{ processed: number; errors: number }> {
   const maxBatches = options?.maxBatches ?? MAX_BATCHES_PER_RUN;
   const { normalizeEvents, deduplicateEvents, distributeEvents } = await import("./ingest-pipeline.server");
   const { API_CONFIG } = await import("~/utils/config.server");
@@ -99,11 +123,7 @@ export async function processIngestQueue(
         entry.shopDomain,
         entry.mode
       );
-      const deduplicated = await deduplicateEvents(
-        normalized,
-        entry.shopId,
-        entry.shopDomain
-      );
+      const deduplicated = await deduplicateEvents(normalized, entry.shopId, entry.shopDomain);
       const rawConfigs = entry.enabledPixelConfigs ?? [];
       const configs = rawConfigs.map((c) => ({
         ...c,
@@ -121,7 +141,8 @@ export async function processIngestQueue(
       );
 
       try {
-        const { persistInternalEventsAndDispatchJobs } = await import("~/services/dispatch/internal-event-write.server");
+        const { persistInternalEventsAndDispatchJobs } =
+          await import("~/services/dispatch/internal-event-write.server");
         await persistInternalEventsAndDispatchJobs(
           entry.shopId,
           processedEvents,
@@ -134,11 +155,11 @@ export async function processIngestQueue(
           shopDomain: entry.shopDomain,
           error: e instanceof Error ? e.message : String(e),
         });
-        // If persistence fails, we might want to retry. 
+        // If persistence fails, we might want to retry.
         // For now, we throw so it stays in processing queue (or we could rely on this catch to NOT acknowledge).
-        throw e; 
+        throw e;
       }
-      
+
       // Success - remove from processing queue (ACK)
       await redis.lRem(PROCESSING_KEY, 1, raw);
       processed++;
@@ -151,12 +172,12 @@ export async function processIngestQueue(
         retryCount: currentRetry,
         error: e instanceof Error ? e.message : String(e),
       });
-      
+
       try {
         if (currentRetry >= MAX_RETRIES) {
           logger.warn(`Ingest batch exceeded max retries (${MAX_RETRIES}), moving to DLQ`, {
             requestId: entry.requestId,
-            shopDomain: entry.shopDomain
+            shopDomain: entry.shopDomain,
           });
           entry.retryCount = currentRetry + 1;
           await redis.lPush(DLQ_KEY, JSON.stringify(entry));
@@ -171,14 +192,14 @@ export async function processIngestQueue(
       } catch (queueError) {
         logger.error("Failed to handle failed ingest batch (DLQ/Retry)", {
           requestId: entry.requestId,
-          error: queueError instanceof Error ? queueError.message : String(queueError)
+          error: queueError instanceof Error ? queueError.message : String(queueError),
         });
-        // If we fail here, we leave it in PROCESSING_KEY. 
-        // It will be picked up by recoverStuckProcessingItems later, 
+        // If we fail here, we leave it in PROCESSING_KEY.
+        // It will be picked up by recoverStuckProcessingItems later,
         // effectively resetting its retry loop (since we couldn't update the JSON).
         // This is a safe fallback.
       }
-      
+
       errors++;
     }
   }
@@ -189,16 +210,16 @@ export async function processIngestQueue(
 export async function recoverStuckProcessingItems(limit = 100, maxAgeMs = 15 * 60 * 1000): Promise<number> {
   const redis = await getRedisClient();
   let recovered = 0;
-  
+
   // Check items at the tail of the processing list (oldest items)
   while (recovered < limit) {
     const lastItem = await redis.lIndex(PROCESSING_KEY, -1);
     if (!lastItem) break;
-    
+
     let shouldRecover = false;
     try {
       const entry = JSON.parse(lastItem) as IngestQueueEntry;
-      if (entry.enqueuedAt && (Date.now() - entry.enqueuedAt > maxAgeMs)) {
+      if (entry.enqueuedAt && Date.now() - entry.enqueuedAt > maxAgeMs) {
         shouldRecover = true;
       } else if (!entry.enqueuedAt) {
         // Legacy item without timestamp, treat as stuck if it's at the tail
@@ -208,7 +229,7 @@ export async function recoverStuckProcessingItems(limit = 100, maxAgeMs = 15 * 6
       // Invalid JSON, move it out to avoid blocking
       shouldRecover = true;
     }
-    
+
     if (shouldRecover) {
       // Move from Tail of Processing to Head of Queue
       const moved = await redis.rPopLPush(PROCESSING_KEY, QUEUE_KEY);

@@ -13,9 +13,7 @@ export async function tryAcquireWebhookLock(
   orderId?: string
 ): Promise<WebhookLockResult> {
   if (!webhookId) {
-    logger.warn(
-      `[Webhook] Missing X-Shopify-Webhook-Id for topic ${topic} from ${shopDomain}`
-    );
+    logger.warn(`[Webhook] Missing X-Shopify-Webhook-Id for topic ${topic} from ${shopDomain}`);
     return { acquired: true };
   }
   try {
@@ -73,19 +71,17 @@ export async function tryAcquireWebhookLock(
                 },
                 select: { receivedAt: true, status: true },
               });
-              const verifyNow = new Date(); 
-              const toleranceMs = 5000; 
+              const verifyNow = new Date();
+              const toleranceMs = 5000;
               const timeDiff = verify ? Math.abs(verify.receivedAt.getTime() - now.getTime()) : Infinity;
               if (
                 verify &&
                 verify.status === WebhookStatus.PROCESSING &&
-                verify.receivedAt >= fiveMinutesAgo && 
-                verify.receivedAt <= verifyNow && 
-                timeDiff <= toleranceMs 
+                verify.receivedAt >= fiveMinutesAgo &&
+                verify.receivedAt <= verifyNow &&
+                timeDiff <= toleranceMs
               ) {
-                logger.warn(
-                  `[Webhook Idempotency] Dead lock detected for ${topic}/${webhookId}. Taking over.`
-                );
+                logger.warn(`[Webhook Idempotency] Dead lock detected for ${topic}/${webhookId}. Taking over.`);
                 return { acquired: true };
               } else {
                 logger.info(
@@ -164,9 +160,7 @@ export async function updateWebhookStatus(
         },
       });
       if (attempt > 0) {
-        logger.info(
-          `[Webhook] Successfully updated status after ${attempt} retry(ies) for ${topic}/${webhookId}`
-        );
+        logger.info(`[Webhook] Successfully updated status after ${attempt} retry(ies) for ${topic}/${webhookId}`);
       }
       return;
     } catch (error) {
@@ -175,24 +169,21 @@ export async function updateWebhookStatus(
       const isPrismaErr = isPrismaError(error);
       const errorCode = isPrismaErr ? getPrismaErrorCode(error) : null;
       if (errorCode === "P2025") {
-        logger.warn(
-          `[Webhook] Webhook log not found when updating status: ${topic}/${webhookId} for ${shopDomain}`,
-          { status, orderId }
-        );
+        logger.warn(`[Webhook] Webhook log not found when updating status: ${topic}/${webhookId} for ${shopDomain}`, {
+          status,
+          orderId,
+        });
         return;
       }
       if (attempt === retries) {
-        logger.error(
-          `[Webhook] Failed to update status after ${retries + 1} attempt(s) for ${topic}/${webhookId}`,
-          {
-            error: error instanceof Error ? error.message : String(error),
-            errorCode,
-            shopDomain,
-            status,
-            orderId,
-            stack: error instanceof Error ? error.stack : undefined,
-          }
-        );
+        logger.error(`[Webhook] Failed to update status after ${retries + 1} attempt(s) for ${topic}/${webhookId}`, {
+          error: error instanceof Error ? error.message : String(error),
+          errorCode,
+          shopDomain,
+          status,
+          orderId,
+          stack: error instanceof Error ? error.stack : undefined,
+        });
       } else {
         logger.warn(
           `[Webhook] Status update failed (attempt ${attempt + 1}/${retries + 1}) for ${topic}/${webhookId}, retrying...`,
@@ -208,20 +199,13 @@ export async function updateWebhookStatus(
 }
 
 export function withIdempotency<T>(
-  handler: (
-    context: { shopDomain: string; webhookId: string | null; topic: string },
-    ...args: unknown[]
-  ) => Promise<T>
+  handler: (context: { shopDomain: string; webhookId: string | null; topic: string }, ...args: unknown[]) => Promise<T>
 ) {
   return async (
     context: { shopDomain: string; webhookId: string | null; topic: string },
     ...args: unknown[]
   ): Promise<T | { skipped: true; reason: string }> => {
-    const lock = await tryAcquireWebhookLock(
-      context.shopDomain,
-      context.webhookId,
-      context.topic
-    );
+    const lock = await tryAcquireWebhookLock(context.shopDomain, context.webhookId, context.topic);
     if (!lock.acquired) {
       return { skipped: true, reason: "duplicate_webhook" };
     }
@@ -243,12 +227,7 @@ export function withIdempotency<T>(
         }
       );
       try {
-        await updateWebhookStatus(
-          context.shopDomain,
-          context.webhookId,
-          context.topic,
-          WebhookStatus.FAILED
-        );
+        await updateWebhookStatus(context.shopDomain, context.webhookId, context.topic, WebhookStatus.FAILED);
       } catch (statusUpdateError) {
         logger.error(
           `[Webhook Idempotency] Failed to update status to FAILED after handler error for ${context.topic}/${context.webhookId}:`,

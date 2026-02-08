@@ -45,11 +45,7 @@ export const SetupProgressCard = memo(function SetupProgressCard({
                     )}
                   </Box>
                   <BlockStack gap="100">
-                    <Text
-                      as="span"
-                      fontWeight="semibold"
-                      tone={step.done ? "success" : undefined}
-                    >
+                    <Text as="span" fontWeight="semibold" tone={step.done ? "success" : undefined}>
                       {step.label}
                     </Text>
                     <Text as="span" variant="bodySm" tone="subdued">
@@ -58,11 +54,7 @@ export const SetupProgressCard = memo(function SetupProgressCard({
                   </BlockStack>
                 </InlineStack>
                 {!step.done && (
-                  <Button
-                    url={step.url}
-                    size="slim"
-                    variant={step.id === nextStep?.id ? "primary" : undefined}
-                  >
+                  <Button url={step.url} size="slim" variant={step.id === nextStep?.id ? "primary" : undefined}>
                     {step.cta}
                   </Button>
                 )}

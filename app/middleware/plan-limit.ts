@@ -1,5 +1,9 @@
 import type { Middleware, MiddlewareContext, MiddlewareResult } from "./types";
-import { checkPixelDestinationsLimit, checkUiModulesLimit, checkMultiShopLimit } from "../services/billing/limits.server";
+import {
+  checkPixelDestinationsLimit,
+  checkUiModulesLimit,
+  checkMultiShopLimit,
+} from "../services/billing/limits.server";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
 import prisma from "../db.server";
 import { json, redirect } from "@remix-run/node";
@@ -50,23 +54,29 @@ export function withPlanLimit(config: PlanLimitConfig): Middleware {
           return { continue: false, response: redirect(redirectUrl) };
         }
         if (config.showUpgradePrompt) {
-          return { continue: false, response: json(
+          return {
+            continue: false,
+            response: json(
+              {
+                error: "Plan limit exceeded",
+                limitResult,
+                currentPlan: planId,
+                limitType: config.limitType,
+              },
+              { status: 403 }
+            ),
+          };
+        }
+        return {
+          continue: false,
+          response: json(
             {
-              error: "Plan limit exceeded",
+              error: limitResult.reason || "Plan limit exceeded",
               limitResult,
-              currentPlan: planId,
-              limitType: config.limitType,
             },
             { status: 403 }
-          ) };
-        }
-        return { continue: false, response: json(
-          {
-            error: limitResult.reason || "Plan limit exceeded",
-            limitResult,
-          },
-          { status: 403 }
-        ) };
+          ),
+        };
       }
       return { continue: true, context };
     } catch (error) {

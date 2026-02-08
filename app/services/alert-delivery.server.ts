@@ -22,11 +22,7 @@ export interface AlertConfigItem {
 }
 
 function buildAlertText(shopDomain: string | null, alert: AlertPayload): string {
-  const lines = [
-    `[Tracking Guardian] ${alert.alertType}`,
-    `严重程度: ${alert.severity}`,
-    alert.message,
-  ];
+  const lines = [`[Tracking Guardian] ${alert.alertType}`, `严重程度: ${alert.severity}`, alert.message];
   if (shopDomain) {
     lines.push(`店铺: ${shopDomain}`);
   }
@@ -74,14 +70,18 @@ async function sendEmail(to: string, subject: string, text: string): Promise<voi
     logger.warn("[AlertDelivery] Email skipped: RESEND_API_KEY or ALERT_EMAIL_FROM not set");
     return;
   }
-  const res = await postJson("https://api.resend.com/emails", {
-    from,
-    to: [to],
-    subject,
-    text,
-  }, {
-    headers: { Authorization: `Bearer ${apiKey}` }
-  });
+  const res = await postJson(
+    "https://api.resend.com/emails",
+    {
+      from,
+      to: [to],
+      subject,
+      text,
+    },
+    {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    }
+  );
   if (!res.ok) {
     throw new Error(`Resend ${res.status}: ${JSON.stringify(res.data)}`);
   }
@@ -120,16 +120,27 @@ export async function sendAlertToChannels(
     try {
       if (config.channel === "slack") {
         const webhookUrl = config.webhookUrl ?? (config.settings?.webhookUrl as string | undefined);
-        const validation = webhookUrl ? validateSlackWebhookUrl(webhookUrl) : { ok: false, reason: "Missing webhookUrl" };
+        const validation = webhookUrl
+          ? validateSlackWebhookUrl(webhookUrl)
+          : { ok: false, reason: "Missing webhookUrl" };
         if (!webhookUrl || typeof webhookUrl !== "string" || !webhookUrl.trim() || !validation.ok) {
-          logger.warn(`[AlertDelivery] Slack config invalid: ${validation.reason || "missing or invalid webhookUrl"}`, { shopId });
+          logger.warn(`[AlertDelivery] Slack config invalid: ${validation.reason || "missing or invalid webhookUrl"}`, {
+            shopId,
+          });
           continue;
         }
         await sendSlack(webhookUrl.trim(), text);
       } else if (config.channel === "telegram") {
         const botToken = config.botToken ?? (config.settings?.botToken as string | undefined);
         const chatId = config.chatId ?? (config.settings?.chatId as string | undefined);
-        if (!botToken || !chatId || typeof botToken !== "string" || typeof chatId !== "string" || !botToken.trim() || !chatId.trim()) {
+        if (
+          !botToken ||
+          !chatId ||
+          typeof botToken !== "string" ||
+          typeof chatId !== "string" ||
+          !botToken.trim() ||
+          !chatId.trim()
+        ) {
           logger.warn("[AlertDelivery] Telegram config invalid: missing botToken or chatId", { shopId });
           continue;
         }

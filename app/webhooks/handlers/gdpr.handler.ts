@@ -28,7 +28,8 @@ function summarizeGdprResult(jobType: string, result: GDPRJobResult | unknown): 
   if (!result || typeof result !== "object") return undefined;
   const r = result as Record<string, unknown>;
   if (jobType === "data_request") {
-    const dataLocated = (r.dataLocated && typeof r.dataLocated === "object") ? (r.dataLocated as Record<string, unknown>) : undefined;
+    const dataLocated =
+      r.dataLocated && typeof r.dataLocated === "object" ? (r.dataLocated as Record<string, unknown>) : undefined;
     const summarizeLocated = (v: unknown) => {
       if (!v || typeof v !== "object") return { count: 0 };
       const o = v as Record<string, unknown>;
@@ -49,14 +50,16 @@ function summarizeGdprResult(jobType: string, result: GDPRJobResult | unknown): 
     };
   }
   if (jobType === "customer_redact") {
-    const deletedCounts = (r.deletedCounts && typeof r.deletedCounts === "object") ? (r.deletedCounts as Record<string, unknown>) : undefined;
+    const deletedCounts =
+      r.deletedCounts && typeof r.deletedCounts === "object" ? (r.deletedCounts as Record<string, unknown>) : undefined;
     return {
       ordersRedactedCount: Array.isArray(r.ordersRedacted) ? r.ordersRedacted.length : 0,
       deletedCounts,
     };
   }
   if (jobType === "shop_redact") {
-    const deletedCounts = (r.deletedCounts && typeof r.deletedCounts === "object") ? (r.deletedCounts as Record<string, unknown>) : undefined;
+    const deletedCounts =
+      r.deletedCounts && typeof r.deletedCounts === "object" ? (r.deletedCounts as Record<string, unknown>) : undefined;
     return {
       deletedCounts,
     };
@@ -133,13 +136,9 @@ async function upsertGdprJob(options: {
   });
 }
 
-export async function handleCustomersDataRequest(
-  context: WebhookContext
-): Promise<WebhookHandlerResult> {
+export async function handleCustomersDataRequest(context: WebhookContext): Promise<WebhookHandlerResult> {
   const { shop, payload, webhookId } = context;
-  const requestId = typeof payload === "object" && payload !== null && "id" in payload
-    ? String(payload.id)
-    : webhookId;
+  const requestId = typeof payload === "object" && payload !== null && "id" in payload ? String(payload.id) : webhookId;
   const jobId = buildGdprJobId(webhookId, "customers/data_request");
   logger.info(`GDPR data request received for shop ${shop}`, {
     requestId,
@@ -277,13 +276,9 @@ export async function handleCustomersDataRequest(
   }
 }
 
-export async function handleCustomersRedact(
-  context: WebhookContext
-): Promise<WebhookHandlerResult> {
+export async function handleCustomersRedact(context: WebhookContext): Promise<WebhookHandlerResult> {
   const { shop, payload, webhookId } = context;
-  const requestId = typeof payload === "object" && payload !== null && "id" in payload
-    ? String(payload.id)
-    : webhookId;
+  const requestId = typeof payload === "object" && payload !== null && "id" in payload ? String(payload.id) : webhookId;
   const jobId = buildGdprJobId(webhookId, "customers/redact");
   logger.info(`GDPR customer redact request for shop ${shop}`, {
     requestId,
@@ -421,13 +416,9 @@ export async function handleCustomersRedact(
   }
 }
 
-export async function handleShopRedact(
-  context: WebhookContext
-): Promise<WebhookHandlerResult> {
+export async function handleShopRedact(context: WebhookContext): Promise<WebhookHandlerResult> {
   const { shop, payload, webhookId } = context;
-  const requestId = typeof payload === "object" && payload !== null && "id" in payload
-    ? String(payload.id)
-    : webhookId;
+  const requestId = typeof payload === "object" && payload !== null && "id" in payload ? String(payload.id) : webhookId;
   const jobId = buildGdprJobId(webhookId, "shop/redact");
   logger.info(`GDPR shop redact request for shop ${shop}`, {
     requestId,

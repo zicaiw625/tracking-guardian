@@ -41,10 +41,7 @@ export function useFormState<T extends Record<string, unknown>>(
   const initialValuesRef = useRef<T>(initialValues);
   const [values, setValuesInternal] = useState<T>(initialValues);
   const [savedInitialValues, setSavedInitialValues] = useState<T>(initialValues);
-  const isDirty = useMemo(
-    () => !isEqual(values, savedInitialValues),
-    [values, savedInitialValues, isEqual]
-  );
+  const isDirty = useMemo(() => !isEqual(values, savedInitialValues), [values, savedInitialValues, isEqual]);
   const prevIsDirtyRef = useRef(isDirty);
   useEffect(() => {
     if (prevIsDirtyRef.current !== isDirty) {
@@ -52,15 +49,12 @@ export function useFormState<T extends Record<string, unknown>>(
       onDirtyChange?.(isDirty);
     }
   }, [isDirty, onDirtyChange]);
-  const setField = useCallback(
-    <K extends keyof T>(field: K, value: T[K]) => {
-      setValuesInternal((prev) => ({
-        ...prev,
-        [field]: value,
-      }));
-    },
-    []
-  );
+  const setField = useCallback(<K extends keyof T>(field: K, value: T[K]) => {
+    setValuesInternal((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  }, []);
   const setFields = useCallback((updates: Partial<T>) => {
     setValuesInternal((prev) => ({
       ...prev,

@@ -1,4 +1,3 @@
-
 export type RejectionReason =
   | "invalid_timestamp"
   | "timestamp_missing"
@@ -38,9 +37,7 @@ class RejectionTracker {
 
   private cleanup(): void {
     const now = Date.now();
-    this.records = this.records.filter(
-      (r) => now - r.timestamp < this.retentionMs
-    );
+    this.records = this.records.filter((r) => now - r.timestamp < this.retentionMs);
   }
 
   getRecentRejections(shopDomain?: string, limit = 100): RejectionRecord[] {
@@ -49,12 +46,13 @@ class RejectionTracker {
     if (shopDomain) {
       filtered = filtered.filter((r) => r.shopDomain === shopDomain);
     }
-    return filtered
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, limit);
+    return filtered.sort((a, b) => b.timestamp - a.timestamp).slice(0, limit);
   }
 
-  getRejectionStats(shopDomain?: string, hours = 24): {
+  getRejectionStats(
+    shopDomain?: string,
+    hours = 24
+  ): {
     reason: RejectionReason;
     count: number;
     percentage: number;
@@ -68,10 +66,7 @@ class RejectionTracker {
 
     const reasonCounts = new Map<RejectionReason, number>();
     for (const record of filtered) {
-      reasonCounts.set(
-        record.reason,
-        (reasonCounts.get(record.reason) || 0) + 1
-      );
+      reasonCounts.set(record.reason, (reasonCounts.get(record.reason) || 0) + 1);
     }
 
     const total = filtered.length;
@@ -84,16 +79,10 @@ class RejectionTracker {
       .sort((a, b) => b.count - a.count);
   }
 
-  getRejectionRate(
-    reason: RejectionReason,
-    shopDomain?: string,
-    windowMs = 60000
-  ): number {
+  getRejectionRate(reason: RejectionReason, shopDomain?: string, windowMs = 60000): number {
     this.cleanup();
     const cutoff = Date.now() - windowMs;
-    let filtered = this.records.filter(
-      (r) => r.timestamp >= cutoff && r.reason === reason
-    );
+    let filtered = this.records.filter((r) => r.timestamp >= cutoff && r.reason === reason);
     if (shopDomain) {
       filtered = filtered.filter((r) => r.shopDomain === shopDomain);
     }

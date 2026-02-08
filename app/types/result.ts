@@ -44,40 +44,28 @@ export function unwrapOr<T, E>(result: Result<T, E>, defaultValue: T): T {
   return defaultValue;
 }
 
-export function unwrapOrElse<T, E>(
-  result: Result<T, E>,
-  defaultFn: (error: E) => T
-): T {
+export function unwrapOrElse<T, E>(result: Result<T, E>, defaultFn: (error: E) => T): T {
   if (result.ok) {
     return result.value;
   }
   return defaultFn(result.error);
 }
 
-export function map<T, U, E>(
-  result: Result<T, E>,
-  fn: (value: T) => U
-): Result<U, E> {
+export function map<T, U, E>(result: Result<T, E>, fn: (value: T) => U): Result<U, E> {
   if (result.ok) {
     return ok(fn(result.value));
   }
   return result;
 }
 
-export function mapErr<T, E, F>(
-  result: Result<T, E>,
-  fn: (error: E) => F
-): Result<T, F> {
+export function mapErr<T, E, F>(result: Result<T, E>, fn: (error: E) => F): Result<T, F> {
   if (result.ok) {
     return result;
   }
   return err(fn(result.error));
 }
 
-export function flatMap<T, U, E>(
-  result: Result<T, E>,
-  fn: (value: T) => Result<U, E>
-): Result<U, E> {
+export function flatMap<T, U, E>(result: Result<T, E>, fn: (value: T) => Result<U, E>): Result<U, E> {
   if (result.ok) {
     return fn(result.value);
   }
@@ -126,10 +114,7 @@ export async function fromPromise<T, E = Error>(
   }
 }
 
-export function fromThrowable<T, E = Error>(
-  fn: () => T,
-  errorMapper?: (error: unknown) => E
-): Result<T, E> {
+export function fromThrowable<T, E = Error>(fn: () => T, errorMapper?: (error: unknown) => E): Result<T, E> {
   try {
     const value = fn();
     return ok(value);
@@ -141,10 +126,7 @@ export function fromThrowable<T, E = Error>(
   }
 }
 
-export async function mapAsync<T, U, E>(
-  result: Result<T, E>,
-  fn: (value: T) => Promise<U>
-): AsyncResult<U, E> {
+export async function mapAsync<T, U, E>(result: Result<T, E>, fn: (value: T) => Promise<U>): AsyncResult<U, E> {
   if (result.ok) {
     return ok(await fn(result.value));
   }
@@ -174,20 +156,14 @@ export function match<T, E, R>(
   return handlers.err(result.error);
 }
 
-export function tap<T, E>(
-  result: Result<T, E>,
-  fn: (value: T) => void
-): Result<T, E> {
+export function tap<T, E>(result: Result<T, E>, fn: (value: T) => void): Result<T, E> {
   if (result.ok) {
     fn(result.value);
   }
   return result;
 }
 
-export function tapErr<T, E>(
-  result: Result<T, E>,
-  fn: (error: E) => void
-): Result<T, E> {
+export function tapErr<T, E>(result: Result<T, E>, fn: (error: E) => void): Result<T, E> {
   if (!result.ok) {
     fn(result.error);
   }

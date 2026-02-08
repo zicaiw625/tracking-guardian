@@ -5,9 +5,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function extractValueCurrencyFromReceipt(
-  payload: unknown
-): { value: number; currency: string } | null {
+function extractValueCurrencyFromReceipt(payload: unknown): { value: number; currency: string } | null {
   if (!isRecord(payload)) return null;
   const data = payload.data as Record<string, unknown> | undefined;
   let value: number | undefined = data?.value as number | undefined;
@@ -88,12 +86,8 @@ export async function performPixelVsOrderReconciliation(
     }),
   ]);
 
-  const orderMap = new Map(
-    orders.map((o) => [o.orderId, { totalPrice: Number(o.totalPrice), currency: o.currency }])
-  );
-  const receiptOrderKeys = new Set(
-    receipts.map((r) => r.orderKey).filter((k): k is string => !!k)
-  );
+  const orderMap = new Map(orders.map((o) => [o.orderId, { totalPrice: Number(o.totalPrice), currency: o.currency }]));
+  const receiptOrderKeys = new Set(receipts.map((r) => r.orderKey).filter((k): k is string => !!k));
   const ordersWithPixel = receiptOrderKeys.size;
   const missingOrderIds = orders
     .filter((o) => !receiptOrderKeys.has(o.orderId))
@@ -116,8 +110,7 @@ export async function performPixelVsOrderReconciliation(
     const orderValue = orderRow.totalPrice;
     const orderCurrency = orderRow.currency;
     const valueMatch = Math.abs(vc.value - orderValue) < 0.01;
-    const currencyMatch =
-      (vc.currency || "").toUpperCase() === (orderCurrency || "").toUpperCase();
+    const currencyMatch = (vc.currency || "").toUpperCase() === (orderCurrency || "").toUpperCase();
     if (!valueMatch || !currencyMatch) {
       valueMismatches.push({
         orderId: orderKey,
@@ -130,8 +123,7 @@ export async function performPixelVsOrderReconciliation(
   }
 
   const totalOrders = orders.length;
-  const discrepancyRate =
-    totalOrders > 0 ? (missingOrderIds.length / totalOrders) * 100 : 0;
+  const discrepancyRate = totalOrders > 0 ? (missingOrderIds.length / totalOrders) * 100 : 0;
 
   return {
     totalOrders,

@@ -27,10 +27,7 @@ export interface PixelConfigForCredentials {
   platform?: string;
 }
 
-function tryDecryptEncrypted(
-  encrypted: string,
-  platform: string
-): Result<PlatformCredentials, CredentialError> {
+function tryDecryptEncrypted(encrypted: string, platform: string): Result<PlatformCredentials, CredentialError> {
   const result = fromThrowable(
     () => decryptJson<PlatformCredentials>(encrypted),
     (e): CredentialError => ({
@@ -45,10 +42,7 @@ function tryDecryptEncrypted(
   return result;
 }
 
-function tryReadLegacy(
-  legacyCredentials: unknown,
-  platform: string
-): Result<PlatformCredentials, CredentialError> {
+function tryReadLegacy(legacyCredentials: unknown, platform: string): Result<PlatformCredentials, CredentialError> {
   if (typeof legacyCredentials === "string") {
     const result = fromThrowable(
       () => decryptJson<PlatformCredentials>(legacyCredentials),
@@ -156,10 +150,7 @@ export function getValidCredentials(
   if (!decryptResult.ok) {
     return decryptResult;
   }
-  const validationResult = validatePlatformCredentials(
-    decryptResult.value.credentials,
-    platform
-  );
+  const validationResult = validatePlatformCredentials(decryptResult.value.credentials, platform);
   if (!validationResult.ok) {
     return validationResult;
   }

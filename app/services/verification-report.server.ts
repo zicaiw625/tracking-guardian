@@ -26,65 +26,80 @@ function getEventSandboxLimitations(result: VerificationEventResult): string[] {
   const limitations: string[] = [];
   const eventType = result.eventType;
   const knownLimitations = STRICT_SANDBOX_FIELD_LIMITATIONS[eventType] || [];
-  
+
   if (STRICT_SANDBOX_UNAVAILABLE_EVENTS.includes(eventType)) {
-    limitations.push(`Strict sandbox 限制：${eventType} 事件在 Web Pixel strict sandbox 环境中不可用，需要通过订单 webhooks 获取`);
+    limitations.push(
+      `Strict sandbox 限制：${eventType} 事件在 Web Pixel strict sandbox 环境中不可用，需要通过订单 webhooks 获取`
+    );
     return limitations;
   }
-  
+
   if (knownLimitations.length > 0) {
-    const missingKnownFields = knownLimitations.filter(field => {
+    const missingKnownFields = knownLimitations.filter((field) => {
       if (!result.discrepancies) {
         if (result.status === "missing_params" || result.status === "failed") {
           return true;
         }
         return false;
       }
-      return result.discrepancies.some(d => 
-        d.toLowerCase().includes(field.toLowerCase()) && 
-        (d.includes("missing") || d.includes("null") || d.includes("undefined"))
+      return result.discrepancies.some(
+        (d) =>
+          d.toLowerCase().includes(field.toLowerCase()) &&
+          (d.includes("missing") || d.includes("null") || d.includes("undefined"))
       );
     });
-    
+
     if (missingKnownFields.length > 0) {
-      limitations.push(`Strict sandbox 已知限制：${eventType} 事件在 Web Worker 环境中无法获取以下字段：${missingKnownFields.join(", ")}。这是平台限制，不是故障。`);
+      limitations.push(
+        `Strict sandbox 已知限制：${eventType} 事件在 Web Worker 环境中无法获取以下字段：${missingKnownFields.join(", ")}。这是平台限制，不是故障。`
+      );
     } else if (result.status === "missing_params" || result.status === "failed") {
-      limitations.push(`Strict sandbox 已知限制：${eventType} 事件在 Web Worker 环境中可能无法获取以下字段（可能为 null）：${knownLimitations.join(", ")}。这是平台限制，不是故障。`);
+      limitations.push(
+        `Strict sandbox 已知限制：${eventType} 事件在 Web Worker 环境中可能无法获取以下字段（可能为 null）：${knownLimitations.join(", ")}。这是平台限制，不是故障。`
+      );
     } else {
-      limitations.push(`Strict sandbox 已知限制：${eventType} 事件在 Web Worker 环境中以下字段可能为 null（这是平台限制，不是故障）：${knownLimitations.join(", ")}。已自动标注。`);
+      limitations.push(
+        `Strict sandbox 已知限制：${eventType} 事件在 Web Worker 环境中以下字段可能为 null（这是平台限制，不是故障）：${knownLimitations.join(", ")}。已自动标注。`
+      );
     }
   }
-  
+
   if (result.status === "missing_params" && result.discrepancies) {
-    const missingFields = result.discrepancies.filter(d => 
-      d.includes("missing") || d.includes("null") || d.includes("undefined")
+    const missingFields = result.discrepancies.filter(
+      (d) => d.includes("missing") || d.includes("null") || d.includes("undefined")
     );
     if (missingFields.length > 0) {
-      const fieldNames = missingFields.map(d => {
-        const match = d.match(/(?:missing|null|undefined)\s+([a-zA-Z_][a-zA-Z0-9_.]*)/i);
-        return match ? match[1] : d;
-      }).filter(f => f.length > 0);
-      const knownFields = fieldNames.filter(f => knownLimitations.some(kl => f.includes(kl) || kl.includes(f)));
-      const unknownFields = fieldNames.filter(f => !knownFields.includes(f));
+      const fieldNames = missingFields
+        .map((d) => {
+          const match = d.match(/(?:missing|null|undefined)\s+([a-zA-Z_][a-zA-Z0-9_.]*)/i);
+          return match ? match[1] : d;
+        })
+        .filter((f) => f.length > 0);
+      const knownFields = fieldNames.filter((f) => knownLimitations.some((kl) => f.includes(kl) || kl.includes(f)));
+      const unknownFields = fieldNames.filter((f) => !knownFields.includes(f));
       if (knownFields.length > 0) {
-        limitations.push(`Strict sandbox 限制：以下字段在 Web Worker 环境中不可用（已知限制）：${knownFields.join(", ")}`);
+        limitations.push(
+          `Strict sandbox 限制：以下字段在 Web Worker 环境中不可用（已知限制）：${knownFields.join(", ")}`
+        );
       }
       if (unknownFields.length > 0) {
         limitations.push(`Strict sandbox 限制：以下字段在 Web Worker 环境中不可用：${unknownFields.join(", ")}`);
       }
     }
   }
-  
+
   if (result.eventType === "checkout_completed" || result.eventType === "checkout_started") {
     if (!result.params?.value && result.status !== "success") {
       limitations.push("Strict sandbox 限制：某些 checkout 事件在 Web Worker 环境中可能无法获取完整的 value 字段");
     }
   }
-  
+
   if (knownLimitations.length > 0 && result.status === "success") {
-    limitations.push(`Strict sandbox 已知限制：${eventType} 事件在 Web Worker 环境中以下字段可能为 null（这是平台限制，不是故障）：${knownLimitations.join(", ")}。已自动标注。`);
+    limitations.push(
+      `Strict sandbox 已知限制：${eventType} 事件在 Web Worker 环境中以下字段可能为 null（这是平台限制，不是故障）：${knownLimitations.join(", ")}。已自动标注。`
+    );
   }
-  
+
   return limitations;
 }
 
@@ -101,7 +116,7 @@ function analyzeSandboxLimitations(results: VerificationEventResult[]): {
   const unavailableEvents: string[] = [];
   const notes: string[] = [];
   const eventTypes = new Set<string>();
-  
+
   for (const result of results) {
     eventTypes.add(result.eventType);
     if (result.status === "missing_params" || result.status === "failed") {
@@ -111,13 +126,19 @@ function analyzeSandboxLimitations(results: VerificationEventResult[]): {
           missingFieldsMap.set(eventType, new Set());
         }
         const fields = result.discrepancies
-          .filter(d => d.includes("missing") || d.includes("null") || d.includes("undefined"))
-          .map(d => {
+          .filter((d) => d.includes("missing") || d.includes("null") || d.includes("undefined"))
+          .map((d) => {
             const match = d.match(/(?:missing|null|undefined)\s+([a-zA-Z_][a-zA-Z0-9_.]*)/i);
-            return match ? match[1] : d.replace(/.*missing\s+/i, "").replace(/.*null\s+/i, "").replace(/.*undefined\s+/i, "").trim();
+            return match
+              ? match[1]
+              : d
+                  .replace(/.*missing\s+/i, "")
+                  .replace(/.*null\s+/i, "")
+                  .replace(/.*undefined\s+/i, "")
+                  .trim();
           })
-          .filter(f => f.length > 0);
-        fields.forEach(f => missingFieldsMap.get(eventType)!.add(f));
+          .filter((f) => f.length > 0);
+        fields.forEach((f) => missingFieldsMap.get(eventType)!.add(f));
       }
     }
     if (STRICT_SANDBOX_UNAVAILABLE_EVENTS.includes(result.eventType)) {
@@ -126,11 +147,14 @@ function analyzeSandboxLimitations(results: VerificationEventResult[]): {
       }
     }
   }
-  
+
   const missingFields = Array.from(missingFieldsMap.entries()).map(([eventType, fields]) => {
     const knownLimitations = STRICT_SANDBOX_FIELD_LIMITATIONS[eventType] || [];
-    const knownFields = Array.from(fields).filter(f => knownLimitations.some(kl => f.includes(kl) || kl.includes(f)));
-    let reason = "Web Pixel 运行在 strict sandbox (Web Worker) 环境中，无法访问 DOM、localStorage、第三方 cookie 等，部分字段可能不可用";
+    const knownFields = Array.from(fields).filter((f) =>
+      knownLimitations.some((kl) => f.includes(kl) || kl.includes(f))
+    );
+    let reason =
+      "Web Pixel 运行在 strict sandbox (Web Worker) 环境中，无法访问 DOM、localStorage、第三方 cookie 等，部分字段可能不可用";
     if (knownFields.length > 0) {
       reason += `。已知限制字段：${knownFields.join(", ")}`;
     }
@@ -140,17 +164,21 @@ function analyzeSandboxLimitations(results: VerificationEventResult[]): {
       reason,
     };
   });
-  
+
   for (const eventType of eventTypes) {
     const knownLimitations = STRICT_SANDBOX_FIELD_LIMITATIONS[eventType];
     if (knownLimitations && knownLimitations.length > 0) {
-      const hasMissing = missingFields.some(mf => mf.eventType === eventType);
+      const hasMissing = missingFields.some((mf) => mf.eventType === eventType);
       if (!hasMissing) {
-        notes.push(`${eventType} 事件已知限制字段（可能为 null，这是平台限制，不是故障）：${knownLimitations.join(", ")}。已自动标注。`);
+        notes.push(
+          `${eventType} 事件已知限制字段（可能为 null，这是平台限制，不是故障）：${knownLimitations.join(", ")}。已自动标注。`
+        );
       } else {
-        const missingForEvent = missingFields.find(mf => mf.eventType === eventType);
+        const missingForEvent = missingFields.find((mf) => mf.eventType === eventType);
         if (missingForEvent) {
-          notes.push(`${eventType} 事件已知限制字段（已检测到缺失，这是平台限制，不是故障）：${missingForEvent.fields.join(", ")}。已自动标注。`);
+          notes.push(
+            `${eventType} 事件已知限制字段（已检测到缺失，这是平台限制，不是故障）：${missingForEvent.fields.join(", ")}。已自动标注。`
+          );
         }
       }
     }
@@ -158,7 +186,7 @@ function analyzeSandboxLimitations(results: VerificationEventResult[]): {
       notes.push(`${eventType} 事件在 strict sandbox 中不可用，需要通过订单 webhooks 获取。已自动标注。`);
     }
   }
-  
+
   notes.push("Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限：");
   notes.push("- 无法访问 DOM 元素");
   notes.push("- 无法使用 localStorage/sessionStorage");
@@ -166,9 +194,11 @@ function analyzeSandboxLimitations(results: VerificationEventResult[]): {
   notes.push("- 无法执行某些浏览器 API");
   notes.push("- 部分事件字段可能为 null 或 undefined，这是平台限制，不是故障");
   if (STRICT_SANDBOX_UNAVAILABLE_EVENTS.length > 0) {
-    notes.push(`- 以下事件类型在 strict sandbox 中不可用，需要通过订单 webhooks 获取：${STRICT_SANDBOX_UNAVAILABLE_EVENTS.join(", ")}`);
+    notes.push(
+      `- 以下事件类型在 strict sandbox 中不可用，需要通过订单 webhooks 获取：${STRICT_SANDBOX_UNAVAILABLE_EVENTS.join(", ")}`
+    );
   }
-  
+
   if (missingFields.length > 0 || unavailableEvents.length > 0) {
     notes.push("");
     notes.push("自动标注说明：");
@@ -176,7 +206,7 @@ function analyzeSandboxLimitations(results: VerificationEventResult[]): {
     notes.push("- 这些限制是 Shopify 平台的设计限制，不是故障");
     notes.push("- 如需获取这些字段或事件，请使用订单 webhooks 或其他 Shopify API");
   }
-  
+
   return {
     missingFields,
     unavailableEvents,
@@ -230,10 +260,7 @@ export interface VerificationReportData {
   createdAt: Date;
 }
 
-export async function generateVerificationReportData(
-  shopId: string,
-  runId: string
-): Promise<VerificationReportData> {
+export async function generateVerificationReportData(shopId: string, runId: string): Promise<VerificationReportData> {
   const verificationSummary = await getVerificationRun(runId);
   if (!verificationSummary) {
     throw new Error("Verification run not found");
@@ -294,7 +321,9 @@ export async function generateVerificationReportData(
 
 export function generateVerificationReportCSV(data: VerificationReportData): string {
   const lines: string[] = [];
-  lines.push("Run ID,Run Name,Shop Domain,Run Type,Status,Platforms,Total Tests,Passed Tests,Failed Tests,Missing Param Tests,Parameter Completeness,Value Accuracy");
+  lines.push(
+    "Run ID,Run Name,Shop Domain,Run Type,Status,Platforms,Total Tests,Passed Tests,Failed Tests,Missing Param Tests,Parameter Completeness,Value Accuracy"
+  );
   lines.push(
     [
       escapeCSV(data.runId),
@@ -314,16 +343,12 @@ export function generateVerificationReportCSV(data: VerificationReportData): str
   lines.push("");
   lines.push("Platform,Sent,Failed");
   for (const [platform, stats] of Object.entries(data.platformResults)) {
-    lines.push(
-      [
-        escapeCSV(platform),
-        String(stats.sent),
-        String(stats.failed),
-      ].join(",")
-    );
+    lines.push([escapeCSV(platform), String(stats.sent), String(stats.failed)].join(","));
   }
   lines.push("");
-  lines.push("Test Item ID,Event Type,Platform,Order ID,Status,Value,Currency,Discrepancies,Errors,Sandbox Limitations");
+  lines.push(
+    "Test Item ID,Event Type,Platform,Order ID,Status,Value,Currency,Discrepancies,Errors,Sandbox Limitations"
+  );
   for (const event of data.events) {
     lines.push(
       [
@@ -353,9 +378,7 @@ export function generateVerificationReportCSV(data: VerificationReportData): str
       lines.push("");
       lines.push("缺失字段（由于 strict sandbox 限制，已自动标注）：");
       for (const item of data.sandboxLimitations.missingFields) {
-        lines.push(
-          escapeCSV(`事件类型: ${item.eventType}, 缺失字段: ${item.fields.join(", ")}, 原因: ${item.reason}`)
-        );
+        lines.push(escapeCSV(`事件类型: ${item.eventType}, 缺失字段: ${item.fields.join(", ")}, 原因: ${item.reason}`));
       }
     }
     if (data.sandboxLimitations.unavailableEvents.length > 0) {
@@ -371,8 +394,9 @@ export function generateVerificationReportCSV(data: VerificationReportData): str
       }
     }
     lines.push("");
-    lines.push("重要提示：报告中已自动标注所有因 strict sandbox 限制而无法获取的字段和事件。这些限制是 Shopify 平台的设计限制，不是故障。如需获取这些字段或事件，请使用订单 webhooks 或其他 Shopify API。");
+    lines.push(
+      "重要提示：报告中已自动标注所有因 strict sandbox 限制而无法获取的字段和事件。这些限制是 Shopify 平台的设计限制，不是故障。如需获取这些字段或事件，请使用订单 webhooks 或其他 Shopify API。"
+    );
   }
   return lines.join("\n");
 }
-

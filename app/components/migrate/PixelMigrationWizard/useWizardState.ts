@@ -66,7 +66,7 @@ export function useWizardState({
     wizardDraft ? new Set(wizardDraft.selectedPlatforms) : new Set(initialPlatforms)
   );
   const [platformConfigs, setPlatformConfigs] = useState<Partial<Record<PlatformType, PlatformConfig>>>(
-    wizardDraft?.configs as Partial<Record<PlatformType, PlatformConfig>> || defaultConfigs
+    (wizardDraft?.configs as Partial<Record<PlatformType, PlatformConfig>>) || defaultConfigs
   );
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -103,31 +103,31 @@ export function useWizardState({
             ...currentConfig.credentials,
             [field]: value,
           },
-          platformId:
-            field === "measurementId" || field === "pixelId"
-              ? value
-              : currentConfig.platformId,
+          platformId: field === "measurementId" || field === "pixelId" ? value : currentConfig.platformId,
         },
       };
     });
   }, []);
 
-  const handleEventMappingUpdate = useCallback((platform: PlatformType, shopifyEvent: string, platformEvent: string) => {
-    setPlatformConfigs((prev) => {
-      const currentConfig = prev[platform];
-      if (!currentConfig) return prev;
-      return {
-        ...prev,
-        [platform]: {
-          ...currentConfig,
-          eventMappings: {
-            ...currentConfig.eventMappings,
-            [shopifyEvent]: platformEvent,
+  const handleEventMappingUpdate = useCallback(
+    (platform: PlatformType, shopifyEvent: string, platformEvent: string) => {
+      setPlatformConfigs((prev) => {
+        const currentConfig = prev[platform];
+        if (!currentConfig) return prev;
+        return {
+          ...prev,
+          [platform]: {
+            ...currentConfig,
+            eventMappings: {
+              ...currentConfig.eventMappings,
+              [shopifyEvent]: platformEvent,
+            },
           },
-        },
-      };
-    });
-  }, []);
+        };
+      });
+    },
+    []
+  );
 
   const handleEnvironmentToggle = useCallback((platform: PlatformType, environment: "test" | "live") => {
     setPlatformConfigs((prev) => ({

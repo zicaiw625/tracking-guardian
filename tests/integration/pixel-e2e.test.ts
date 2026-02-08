@@ -35,7 +35,7 @@ import prisma from "../../app/db.server";
 import {
   validatePixelOriginPreBody,
   validatePixelOriginForShop,
-  buildShopAllowedDomains
+  buildShopAllowedDomains,
 } from "../../app/utils/origin-validation.server";
 
 describe("Web Pixel E2E Flow", () => {
@@ -65,9 +65,7 @@ describe("Web Pixel E2E Flow", () => {
         checkoutToken: "abc123-checkout-token",
         value: 149.99,
         currency: "USD",
-        items: [
-          { id: "item-1", name: "Test Product", price: 149.99, quantity: 1 },
-        ],
+        items: [{ id: "item-1", name: "Test Product", price: 149.99, quantity: 1 }],
       },
     };
     it("should accept valid pixel event from Web Pixel sandbox (null origin)", () => {
@@ -106,20 +104,11 @@ describe("Web Pixel E2E Flow", () => {
         primaryDomain: mockShop.primaryDomain,
         storefrontDomains: mockShop.storefrontDomains,
       });
-      const shopifyResult = validatePixelOriginForShop(
-        "https://test-store.myshopify.com",
-        allowedDomains
-      );
+      const shopifyResult = validatePixelOriginForShop("https://test-store.myshopify.com", allowedDomains);
       expect(shopifyResult.valid).toBe(true);
-      const primaryResult = validatePixelOriginForShop(
-        `https://${mockShop.primaryDomain}`,
-        allowedDomains
-      );
+      const primaryResult = validatePixelOriginForShop(`https://${mockShop.primaryDomain}`, allowedDomains);
       expect(primaryResult.valid).toBe(true);
-      const externalResult = validatePixelOriginForShop(
-        "https://external-domain.com",
-        allowedDomains
-      );
+      const externalResult = validatePixelOriginForShop("https://external-domain.com", allowedDomains);
       expect(externalResult.valid).toBe(false);
       expect(externalResult.reason).toMatch(/^origin_not_allowlisted:/);
     });

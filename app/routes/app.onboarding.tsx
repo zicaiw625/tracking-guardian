@@ -20,12 +20,7 @@ import {
   List,
   Checkbox,
 } from "@shopify/polaris";
-import {
-  CheckCircleIcon,
-  AlertCircleIcon,
-  ArrowRightIcon,
-  ClockIcon,
-} from "~/components/icons";
+import { CheckCircleIcon, AlertCircleIcon, ArrowRightIcon, ClockIcon } from "~/components/icons";
 import { CardSkeleton, useToastContext } from "~/components/ui";
 import { getPlatformName } from "~/components/scan/utils";
 
@@ -51,9 +46,9 @@ function estimateMigrationTime(
   riskItems?: RiskItem[]
 ): { hours: number; labelKey: string; descriptionKey: string } {
   const baseTime = 0.25;
-  const highRiskScriptTags = riskItems?.filter(item => item.severity === "high").length || 0;
-  const mediumRiskScriptTags = riskItems?.filter(item => item.severity === "medium").length || 0;
-  const lowRiskScriptTags = (scriptTagCount - highRiskScriptTags - mediumRiskScriptTags) || 0;
+  const highRiskScriptTags = riskItems?.filter((item) => item.severity === "high").length || 0;
+  const mediumRiskScriptTags = riskItems?.filter((item) => item.severity === "medium").length || 0;
+  const lowRiskScriptTags = scriptTagCount - highRiskScriptTags - mediumRiskScriptTags || 0;
   const perHighRiskScriptTag = 0.4;
   const perMediumRiskScriptTag = 0.25;
   const perLowRiskScriptTag = 0.15;
@@ -75,7 +70,7 @@ function estimateMigrationTime(
   }
   const parallelFactor = platformCount > 1 ? 0.7 : 1.0;
   const sequentialTime = baseTime + scriptTagTime + platformTime;
-  const parallelTime = baseTime + scriptTagTime + (platformTime * parallelFactor);
+  const parallelTime = baseTime + scriptTagTime + platformTime * parallelFactor;
   const totalHours = Math.max(sequentialTime, parallelTime) * riskMultiplier;
   let descriptionKey = "";
   if (totalHours <= 0.5) {
@@ -102,7 +97,7 @@ function estimateMigrationTime(
   return {
     hours: Math.round(totalHours * 100) / 100,
     labelKey,
-    descriptionKey
+    descriptionKey,
   };
 }
 
@@ -175,9 +170,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (skipOnboarding) {
     return redirect("/app");
   }
-    const planId = normalizePlanId(shop.plan ?? "free");
+  const planId = normalizePlanId(shop.plan ?? "free");
   const isAgency = isPlanAtLeast(planId, "agency");
-    safeFireAndForget(
+  safeFireAndForget(
     trackEvent({
       shopId: shop.id,
       shopDomain: shop.shopDomain,
@@ -186,7 +181,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       metadata: {
         plan: shop.plan ?? "free",
         role: isAgency ? "agency" : "merchant",
-              },
+      },
     })
   );
   const latestScan = shop.ScanReports?.[0];
@@ -208,7 +203,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const scriptTags = (latestScan.scriptTags as ScriptTag[] | null) || [];
     const platforms = (latestScan.identifiedPlatforms as string[] | null) || [];
     const riskItems = (latestScan.riskItems as RiskItem[] | null) || [];
-    const hasOrderStatusScripts = scriptTags.some(tag => tag.display_scope === "order_status");
+    const hasOrderStatusScripts = scriptTags.some((tag) => tag.display_scope === "order_status");
     scanResult = {
       riskScore: latestScan.riskScore,
       scriptTagCount: scriptTags.length,
@@ -392,12 +387,7 @@ function StepIndicator({ currentStep, totalSteps }: { currentStep: number; total
               padding="200"
               minWidth="32px"
             >
-              <Text
-                as="span"
-                variant="bodySm"
-                fontWeight="bold"
-                alignment="center"
-              >
+              <Text as="span" variant="bodySm" fontWeight="bold" alignment="center">
                 {step < currentStep ? "✓" : step}
               </Text>
             </Box>
@@ -447,7 +437,7 @@ export default function OnboardingPage() {
     if (autoScan && !data.scanComplete && !isScanning) {
       handleStartScan();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoScan]);
 
   const handleStartScan = useCallback(() => {
@@ -475,10 +465,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <Page
-      title={t("onboarding.welcome.title")}
-      subtitle={t("onboarding.welcome.subtitle")}
-    >
+    <Page title={t("onboarding.welcome.title")} subtitle={t("onboarding.welcome.subtitle")}>
       <BlockStack gap="500">
         <Card>
           <StepIndicator currentStep={data.step} totalSteps={3} />
@@ -486,19 +473,25 @@ export default function OnboardingPage() {
           <Box padding="400">
             <InlineStack gap="400" align="space-between">
               <BlockStack gap="100">
-                <Text as="span" variant="bodySm" tone="subdued">{t("onboarding.steps.step1")}</Text>
+                <Text as="span" variant="bodySm" tone="subdued">
+                  {t("onboarding.steps.step1")}
+                </Text>
                 <Text as="span" fontWeight={data.step >= 1 ? "bold" : "regular"}>
                   {t("onboarding.steps.step1")}
                 </Text>
               </BlockStack>
               <BlockStack gap="100">
-                <Text as="span" variant="bodySm" tone="subdued">{t("onboarding.steps.step2")}</Text>
+                <Text as="span" variant="bodySm" tone="subdued">
+                  {t("onboarding.steps.step2")}
+                </Text>
                 <Text as="span" fontWeight={data.step >= 2 ? "bold" : "regular"}>
                   {t("onboarding.steps.step2")}
                 </Text>
               </BlockStack>
               <BlockStack gap="100">
-                <Text as="span" variant="bodySm" tone="subdued">{t("onboarding.steps.step3")}</Text>
+                <Text as="span" variant="bodySm" tone="subdued">
+                  {t("onboarding.steps.step3")}
+                </Text>
                 <Text as="span" fontWeight={data.step >= 3 ? "bold" : "regular"}>
                   {t("onboarding.steps.step3")}
                 </Text>
@@ -521,18 +514,11 @@ export default function OnboardingPage() {
               <Layout.Section variant="oneThird">
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200">
-                    <Text as="p" variant="bodySm" tone="subdued">{t("onboarding.shopStatus.domain")}</Text>
-                    <Text as="p" fontWeight="semibold">{data.shop.domain}</Text>
-                  </BlockStack>
-                </Box>
-              </Layout.Section>
-              <Layout.Section variant="oneThird">
-                <Box background="bg-surface-secondary" padding="400" borderRadius="200">
-                  <BlockStack gap="200">
-                    <Text as="p" variant="bodySm" tone="subdued">{t("onboarding.shopStatus.tier")}</Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      {t("onboarding.shopStatus.domain")}
+                    </Text>
                     <Text as="p" fontWeight="semibold">
-                      {data.shop.tier === "plus" ? t("onboarding.shopStatus.tierPlus") :
-                       data.shop.tier === "non_plus" ? t("onboarding.shopStatus.tierStandard") : t("onboarding.shopStatus.tierUnknown")}
+                      {data.shop.domain}
                     </Text>
                   </BlockStack>
                 </Box>
@@ -540,10 +526,31 @@ export default function OnboardingPage() {
               <Layout.Section variant="oneThird">
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200">
-                    <Text as="p" variant="bodySm" tone="subdued">{t("onboarding.shopStatus.thankYouPage")}</Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      {t("onboarding.shopStatus.tier")}
+                    </Text>
                     <Text as="p" fontWeight="semibold">
-                      {data.shop.typOspEnabled === null ? t("onboarding.shopStatus.thankYouUnknown") :
-                       data.shop.typOspEnabled ? t("onboarding.shopStatus.thankYouNew") : t("onboarding.shopStatus.thankYouOld")}
+                      {data.shop.tier === "plus"
+                        ? t("onboarding.shopStatus.tierPlus")
+                        : data.shop.tier === "non_plus"
+                          ? t("onboarding.shopStatus.tierStandard")
+                          : t("onboarding.shopStatus.tierUnknown")}
+                    </Text>
+                  </BlockStack>
+                </Box>
+              </Layout.Section>
+              <Layout.Section variant="oneThird">
+                <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      {t("onboarding.shopStatus.thankYouPage")}
+                    </Text>
+                    <Text as="p" fontWeight="semibold">
+                      {data.shop.typOspEnabled === null
+                        ? t("onboarding.shopStatus.thankYouUnknown")
+                        : data.shop.typOspEnabled
+                          ? t("onboarding.shopStatus.thankYouNew")
+                          : t("onboarding.shopStatus.thankYouOld")}
                     </Text>
                   </BlockStack>
                 </Box>
@@ -585,7 +592,9 @@ export default function OnboardingPage() {
                 <BlockStack gap="300">
                   <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                     <BlockStack gap="200">
-                      <Text as="p" fontWeight="semibold">{t("onboarding.autoScan.includes")}</Text>
+                      <Text as="p" fontWeight="semibold">
+                        {t("onboarding.autoScan.includes")}
+                      </Text>
                       <List type="bullet">
                         <List.Item>{t("onboarding.autoScan.itemScriptTags")}</List.Item>
                         <List.Item>{t("onboarding.autoScan.itemWebPixels")}</List.Item>
@@ -624,7 +633,9 @@ export default function OnboardingPage() {
               <Layout.Section variant="oneThird">
                 <Card>
                   <BlockStack gap="400">
-                    <Text as="h2" variant="headingMd">{t("onboarding.riskScore.title")}</Text>
+                    <Text as="h2" variant="headingMd">
+                      {t("onboarding.riskScore.title")}
+                    </Text>
                     <Box
                       background={
                         data.scanResult.riskScore > 60
@@ -640,7 +651,9 @@ export default function OnboardingPage() {
                         <Text as="p" variant="heading3xl" fontWeight="bold">
                           {data.scanResult.riskScore}
                         </Text>
-                        <Text as="p" variant="bodySm">/100</Text>
+                        <Text as="p" variant="bodySm">
+                          /100
+                        </Text>
                       </BlockStack>
                     </Box>
                     <Text as="p" variant="bodySm" tone="subdued">
@@ -656,17 +669,23 @@ export default function OnboardingPage() {
               <Layout.Section variant="oneThird">
                 <Card>
                   <BlockStack gap="400">
-                    <Text as="h2" variant="headingMd">{t("onboarding.estimate.title")}</Text>
+                    <Text as="h2" variant="headingMd">
+                      {t("onboarding.estimate.title")}
+                    </Text>
                     <Box background="bg-surface-secondary" padding="600" borderRadius="200">
                       <BlockStack gap="200" align="center">
                         <Icon source={ClockIcon} tone="base" />
                         <Text as="p" variant="headingLg" fontWeight="bold">
-                          {data.migrationEstimate?.labelKey ? t(data.migrationEstimate.labelKey) : t("onboarding.estimate.pending")}
+                          {data.migrationEstimate?.labelKey
+                            ? t(data.migrationEstimate.labelKey)
+                            : t("onboarding.estimate.pending")}
                         </Text>
                       </BlockStack>
                     </Box>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      {data.migrationEstimate?.descriptionKey ? t(data.migrationEstimate.descriptionKey) : t("onboarding.estimate.pendingDesc")}
+                      {data.migrationEstimate?.descriptionKey
+                        ? t(data.migrationEstimate.descriptionKey)
+                        : t("onboarding.estimate.pendingDesc")}
                     </Text>
                   </BlockStack>
                 </Card>
@@ -674,7 +693,9 @@ export default function OnboardingPage() {
               <Layout.Section variant="oneThird">
                 <Card>
                   <BlockStack gap="400">
-                    <Text as="h2" variant="headingMd">{t("onboarding.urgency.title")}</Text>
+                    <Text as="h2" variant="headingMd">
+                      {t("onboarding.urgency.title")}
+                    </Text>
                     <Box
                       background={
                         data.urgency?.level === "critical"
@@ -694,7 +715,9 @@ export default function OnboardingPage() {
                       </BlockStack>
                     </Box>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      {data.urgency?.descriptionKey ? t(data.urgency.descriptionKey, data.urgency.descriptionParams) : ""}
+                      {data.urgency?.descriptionKey
+                        ? t(data.urgency.descriptionKey, data.urgency.descriptionParams)
+                        : ""}
                     </Text>
                   </BlockStack>
                 </Card>
@@ -702,7 +725,9 @@ export default function OnboardingPage() {
             </Layout>
             <Card>
               <BlockStack gap="400">
-                <Text as="h2" variant="headingMd">{t("onboarding.summary.title")}</Text>
+                <Text as="h2" variant="headingMd">
+                  {t("onboarding.summary.title")}
+                </Text>
                 <Divider />
                 <Layout>
                   <Layout.Section variant="oneHalf">
@@ -716,7 +741,9 @@ export default function OnboardingPage() {
                       <InlineStack align="space-between">
                         <Text as="span">{t("onboarding.summary.orderStatus")}</Text>
                         <Badge tone={data.scanResult.hasOrderStatusScripts ? "critical" : "success"}>
-                          {data.scanResult.hasOrderStatusScripts ? t("onboarding.summary.has") : t("onboarding.summary.none")}
+                          {data.scanResult.hasOrderStatusScripts
+                            ? t("onboarding.summary.has")
+                            : t("onboarding.summary.none")}
                         </Badge>
                       </InlineStack>
                       <InlineStack align="space-between">
@@ -729,7 +756,9 @@ export default function OnboardingPage() {
                   </Layout.Section>
                   <Layout.Section variant="oneHalf">
                     <BlockStack gap="200">
-                      <Text as="p" fontWeight="semibold">{t("onboarding.summary.detected")}</Text>
+                      <Text as="p" fontWeight="semibold">
+                        {t("onboarding.summary.detected")}
+                      </Text>
                       {data.scanResult.platforms.length > 0 ? (
                         <InlineStack gap="100" wrap>
                           {data.scanResult.platforms.map((platform) => (
@@ -737,7 +766,9 @@ export default function OnboardingPage() {
                           ))}
                         </InlineStack>
                       ) : (
-                        <Text as="p" tone="subdued">{t("onboarding.summary.noDetected")}</Text>
+                        <Text as="p" tone="subdued">
+                          {t("onboarding.summary.noDetected")}
+                        </Text>
                       )}
                     </BlockStack>
                   </Layout.Section>
@@ -747,16 +778,13 @@ export default function OnboardingPage() {
             {data.scanResult.riskItems.length > 0 && (
               <Card>
                 <BlockStack gap="400">
-                  <Text as="h2" variant="headingMd">{t("onboarding.risks.title")}</Text>
+                  <Text as="h2" variant="headingMd">
+                    {t("onboarding.risks.title")}
+                  </Text>
                   <Divider />
                   <BlockStack gap="300">
                     {data.scanResult.riskItems.slice(0, 5).map((item, index) => (
-                      <Box
-                        key={index}
-                        background="bg-surface-secondary"
-                        padding="400"
-                        borderRadius="200"
-                      >
+                      <Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
                         <InlineStack align="space-between" blockAlign="start">
                           <BlockStack gap="100">
                             <InlineStack gap="200">
@@ -770,7 +798,9 @@ export default function OnboardingPage() {
                                       : "info"
                                 }
                               />
-                              <Text as="span" fontWeight="semibold">{item.name}</Text>
+                              <Text as="span" fontWeight="semibold">
+                                {item.name}
+                              </Text>
                             </InlineStack>
                             <Text as="p" variant="bodySm" tone="subdued">
                               {item.description}
@@ -778,15 +808,14 @@ export default function OnboardingPage() {
                           </BlockStack>
                           <Badge
                             tone={
-                              item.severity === "high"
-                                ? "critical"
-                                : item.severity === "medium"
-                                  ? "warning"
-                                  : "info"
+                              item.severity === "high" ? "critical" : item.severity === "medium" ? "warning" : "info"
                             }
                           >
-                            {item.severity === "high" ? t("onboarding.riskScore.high") :
-                             item.severity === "medium" ? t("onboarding.riskScore.medium") : t("onboarding.riskScore.low")}
+                            {item.severity === "high"
+                              ? t("onboarding.riskScore.high")
+                              : item.severity === "medium"
+                                ? t("onboarding.riskScore.medium")
+                                : t("onboarding.riskScore.low")}
                           </Badge>
                         </InlineStack>
                       </Box>
@@ -802,7 +831,9 @@ export default function OnboardingPage() {
             )}
             <Card>
               <BlockStack gap="400">
-                <Text as="h2" variant="headingMd">{t("onboarding.nextSteps.title")}</Text>
+                <Text as="h2" variant="headingMd">
+                  {t("onboarding.nextSteps.title")}
+                </Text>
                 <Divider />
                 <BlockStack gap="300">
                   <Box background="bg-surface-secondary" padding="400" borderRadius="200">
@@ -810,7 +841,9 @@ export default function OnboardingPage() {
                       <BlockStack gap="100">
                         <InlineStack gap="200">
                           <Icon source={CheckCircleIcon} tone="success" />
-                          <Text as="span" fontWeight="semibold">{t("onboarding.nextSteps.step1")}</Text>
+                          <Text as="span" fontWeight="semibold">
+                            {t("onboarding.nextSteps.step1")}
+                          </Text>
                         </InlineStack>
                         <Text as="p" variant="bodySm" tone="subdued">
                           {t("onboarding.nextSteps.step1Desc")}
@@ -825,45 +858,45 @@ export default function OnboardingPage() {
                     <InlineStack align="space-between" blockAlign="center">
                       <BlockStack gap="100">
                         <InlineStack gap="200">
-                          <Text as="span" fontWeight="semibold">{t("onboarding.nextSteps.step2")}</Text>
+                          <Text as="span" fontWeight="semibold">
+                            {t("onboarding.nextSteps.step2")}
+                          </Text>
                         </InlineStack>
                         <Text as="p" variant="bodySm" tone="subdued">
                           {t("onboarding.nextSteps.step2Desc")}
                         </Text>
                       </BlockStack>
-                      <Button url="/app/settings">
-                        {t("onboarding.nextSteps.actionSettings")}
-                      </Button>
+                      <Button url="/app/settings">{t("onboarding.nextSteps.actionSettings")}</Button>
                     </InlineStack>
                   </Box>
                   <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                     <InlineStack align="space-between" blockAlign="center">
                       <BlockStack gap="100">
                         <InlineStack gap="200">
-                          <Text as="span" fontWeight="semibold">{t("onboarding.nextSteps.step3")}</Text>
+                          <Text as="span" fontWeight="semibold">
+                            {t("onboarding.nextSteps.step3")}
+                          </Text>
                         </InlineStack>
                         <Text as="p" variant="bodySm" tone="subdued">
                           {t("onboarding.nextSteps.step3Desc")}
                         </Text>
                       </BlockStack>
-                      <Button url="/app/migrate">
-                        {t("onboarding.nextSteps.actionMigrate")}
-                      </Button>
+                      <Button url="/app/migrate">{t("onboarding.nextSteps.actionMigrate")}</Button>
                     </InlineStack>
                   </Box>
                   <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                     <InlineStack align="space-between" blockAlign="center">
                       <BlockStack gap="100">
                         <InlineStack gap="200">
-                          <Text as="span" fontWeight="semibold">{t("onboarding.nextSteps.step4")}</Text>
+                          <Text as="span" fontWeight="semibold">
+                            {t("onboarding.nextSteps.step4")}
+                          </Text>
                         </InlineStack>
                         <Text as="p" variant="bodySm" tone="subdued">
                           {t("onboarding.nextSteps.step4Desc")}
                         </Text>
                       </BlockStack>
-                      <Button url="/app/verification">
-                        {t("onboarding.nextSteps.actionVerify")}
-                      </Button>
+                      <Button url="/app/verification">{t("onboarding.nextSteps.actionVerify")}</Button>
                     </InlineStack>
                   </Box>
                 </BlockStack>
@@ -879,12 +912,7 @@ export default function OnboardingPage() {
                 </Banner>
                 <Divider />
                 <InlineStack align="end">
-                  <Button
-                    variant="primary"
-                    onClick={handleCompleteOnboarding}
-                    size="large"
-                    icon={ArrowRightIcon}
-                  >
+                  <Button variant="primary" onClick={handleCompleteOnboarding} size="large" icon={ArrowRightIcon}>
                     {t("onboarding.nextSteps.startJourney")}
                   </Button>
                 </InlineStack>
@@ -894,7 +922,9 @@ export default function OnboardingPage() {
         )}
         <Card>
           <BlockStack gap="300">
-            <Text as="h2" variant="headingMd">{t("onboarding.help.title")}</Text>
+            <Text as="h2" variant="headingMd">
+              {t("onboarding.help.title")}
+            </Text>
             <Text as="p" tone="subdued">
               {t("onboarding.help.desc")}
             </Text>
@@ -902,9 +932,7 @@ export default function OnboardingPage() {
               <Button url="https://shopify.dev/docs/apps/online-store/checkout-extensibility" external>
                 {t("onboarding.help.docs")}
               </Button>
-              <Button url="/support">
-                {t("onboarding.help.contact")}
-              </Button>
+              <Button url="/support">{t("onboarding.help.contact")}</Button>
             </InlineStack>
           </BlockStack>
         </Card>

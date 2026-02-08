@@ -324,17 +324,9 @@ function generateRoute(config) {
   let outputPath;
   if (config.type === "settings") {
     const settingsName = config.name.replace(/^settings\./, "");
-    outputPath = path.join(
-      process.cwd(),
-      "app/routes/settings",
-      `${settingsName}.tsx`
-    );
+    outputPath = path.join(process.cwd(), "app/routes/settings", `${settingsName}.tsx`);
   } else {
-    outputPath = path.join(
-      process.cwd(),
-      "app/routes",
-      `${config.name}.tsx`
-    );
+    outputPath = path.join(process.cwd(), "app/routes", `${config.name}.tsx`);
   }
   const dir = path.dirname(outputPath);
   if (!fs.existsSync(dir)) {

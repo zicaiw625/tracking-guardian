@@ -72,7 +72,11 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const actionType = formData.get("_action");
   if (actionType === "getConfigVersionHistory") {
     try {
-      const platform = (pixelConfig.platform && ["meta", "google", "tiktok"].includes(pixelConfig.platform) ? pixelConfig.platform : "meta") as Platform;
+      const platform = (
+        pixelConfig.platform && ["meta", "google", "tiktok"].includes(pixelConfig.platform)
+          ? pixelConfig.platform
+          : "meta"
+      ) as Platform;
       const history = await getConfigVersionHistory(shop.id, platform, pixelConfig.environment as "test" | "live");
       if (!history) {
         return json({ success: false, error: "配置不存在" }, { status: 404 });
@@ -80,23 +84,33 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       return json({ success: true, history });
     } catch (error) {
       logger.error("Failed to get config version history", error);
-      return json({
-        success: false,
-        error: error instanceof Error ? error.message : "获取版本历史失败",
-      }, { status: 500 });
+      return json(
+        {
+          success: false,
+          error: error instanceof Error ? error.message : "获取版本历史失败",
+        },
+        { status: 500 }
+      );
     }
   }
   if (actionType === "rollbackConfig") {
     try {
-      const platform = (pixelConfig.platform && ["meta", "google", "tiktok"].includes(pixelConfig.platform) ? pixelConfig.platform : "meta") as Platform;
+      const platform = (
+        pixelConfig.platform && ["meta", "google", "tiktok"].includes(pixelConfig.platform)
+          ? pixelConfig.platform
+          : "meta"
+      ) as Platform;
       const result = await rollbackConfig(shop.id, platform, pixelConfig.environment as "test" | "live");
       return json(result);
     } catch (error) {
       logger.error("Failed to rollback config", error);
-      return json({
-        success: false,
-        error: error instanceof Error ? error.message : "回滚失败",
-      }, { status: 500 });
+      return json(
+        {
+          success: false,
+          error: error instanceof Error ? error.message : "回滚失败",
+        },
+        { status: 500 }
+      );
     }
   }
   return json({ success: false, error: "Unknown action" }, { status: 400 });
@@ -117,18 +131,11 @@ export default function PixelVersionsPage() {
     );
   }
   return (
-    <Page
-      title="版本历史"
-      subtitle="查看配置版本并回滚"
-      backAction={{ content: "返回 Pixels", url: "/app/pixels" }}
-    >
+    <Page title="版本历史" subtitle="查看配置版本并回滚" backAction={{ content: "返回 Pixels", url: "/app/pixels" }}>
       <PageIntroCard
         title="版本管理"
         description="查看历史配置并在必要时回滚，确保 Live 环境可恢复。"
-        items={[
-          "每次回滚会生成新的版本快照",
-          "建议先在 Test 环境验证",
-        ]}
+        items={["每次回滚会生成新的版本快照", "建议先在 Test 环境验证"]}
         primaryAction={{ content: "返回 Pixels", url: "/app/pixels" }}
       />
       <Card>
@@ -143,7 +150,11 @@ export default function PixelVersionsPage() {
       </Card>
       <ConfigVersionManager
         shopId={shop.id}
-        platform={(pixelConfig.platform && ["meta", "google", "tiktok"].includes(pixelConfig.platform) ? pixelConfig.platform : "meta") as PlatformType}
+        platform={
+          (pixelConfig.platform && ["meta", "google", "tiktok"].includes(pixelConfig.platform)
+            ? pixelConfig.platform
+            : "meta") as PlatformType
+        }
         currentVersion={pixelConfig.configVersion}
         historyEndpoint={`/app/pixels/${pixelConfig.id}/versions`}
       />

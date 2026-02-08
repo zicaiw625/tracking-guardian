@@ -67,12 +67,9 @@ function createLoggerAdapter(logger: typeof baseLogger): ILogger {
     debug: (message: string, context?: LogContext) => logger.debug(message, context),
     info: (message: string, context?: LogContext) => logger.info(message, context),
     warn: (message: string, context?: LogContext) => logger.warn(message, context),
-    error: (message: string, error?: Error | unknown, context?: LogContext) =>
-      logger.error(message, error, context),
-    log: (level: LogLevel, message: string, context?: LogContext) =>
-      logger.log(level, message, context),
-    child: (additionalContext: LogContext) =>
-      createLoggerAdapter(logger.child(additionalContext)),
+    error: (message: string, error?: Error | unknown, context?: LogContext) => logger.error(message, error, context),
+    log: (level: LogLevel, message: string, context?: LogContext) => logger.log(level, message, context),
+    child: (additionalContext: LogContext) => createLoggerAdapter(logger.child(additionalContext)),
   };
 }
 
@@ -124,11 +121,7 @@ class Container implements IContainer {
   private singletons = new Map<string, unknown>();
   private singletonFactories = new Map<string, ServiceFactory<unknown>>();
   private scopedFactories = new Map<string, ScopedServiceFactory<unknown>>();
-  initialize(
-    db: PrismaClient,
-    logger: ILogger,
-    config: IAppConfig
-  ): void {
+  initialize(db: PrismaClient, logger: ILogger, config: IAppConfig): void {
     this.appContext = createAppContext(db, logger, config);
   }
   getContext(): IAppContext {
@@ -178,11 +171,7 @@ class Container implements IContainer {
 
 export const container = new Container();
 
-container.initialize(
-  prisma,
-  createLoggerAdapter(baseLogger),
-  createConfigAdapter()
-);
+container.initialize(prisma, createLoggerAdapter(baseLogger), createConfigAdapter());
 
 export function getAppContext(): IAppContext {
   return container.getContext();
@@ -227,17 +216,11 @@ export function withContext<T>(
   };
 }
 
-export function registerService<T>(
-  key: string,
-  factory: ServiceFactory<T>
-): void {
+export function registerService<T>(key: string, factory: ServiceFactory<T>): void {
   container.registerSingleton(key, factory);
 }
 
-export function registerScopedService<T>(
-  key: string,
-  factory: ScopedServiceFactory<T>
-): void {
+export function registerScopedService<T>(key: string, factory: ScopedServiceFactory<T>): void {
   container.registerScoped(key, factory);
 }
 
@@ -263,8 +246,23 @@ export function createMockContext(overrides?: {
     env: { nodeEnv: "test", isProduction: false, isDevelopment: false },
     api: { maxBodySize: 32768, timestampWindowMs: 600000, defaultTimeoutMs: 30000, jwtExpiryBufferMs: 300000 },
     retry: { maxAttempts: 5, initialBackoffMs: 1000, maxBackoffMs: 300000, backoffMultiplier: 2, jitterFactor: 0.1 },
-    retention: { minDays: 30, maxDays: 365, defaultDays: 90, auditLogDays: 365, nonceExpiryMs: 3600000, webhookLogDays: 7, receiptDays: 90 },
-    features: { funnelEvents: false, debugLogging: false, extendedPayload: false, trackingApi: false, piiHashing: false, checkoutBlocks: false },
+    retention: {
+      minDays: 30,
+      maxDays: 365,
+      defaultDays: 90,
+      auditLogDays: 365,
+      nonceExpiryMs: 3600000,
+      webhookLogDays: 7,
+      receiptDays: 90,
+    },
+    features: {
+      funnelEvents: false,
+      debugLogging: false,
+      extendedPayload: false,
+      trackingApi: false,
+      piiHashing: false,
+      checkoutBlocks: false,
+    },
     getEnv: () => "",
     getRequiredEnv: () => "",
     getBoolEnv: () => false,

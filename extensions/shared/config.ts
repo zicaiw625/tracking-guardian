@@ -29,18 +29,13 @@ function getAllowedHosts(): string[] {
 
 export const ALLOWED_BACKEND_HOSTS = getAllowedHosts();
 
-export const DEV_HOSTS = [
-  "localhost",
-  "127.0.0.1",
-] as const;
+export const DEV_HOSTS = ["localhost", "127.0.0.1"] as const;
 
 function matchesWildcard(hostname: string, pattern: string): boolean {
   if (!pattern.includes("*")) {
     return hostname === pattern;
   }
-  const regexPattern = pattern
-    .replace(/\./g, "\\.")
-    .replace(/\*/g, ".*");
+  const regexPattern = pattern.replace(/\./g, "\\.").replace(/\*/g, ".*");
   const regex = new RegExp(`^${regexPattern}$`);
   return regex.test(hostname);
 }
@@ -57,7 +52,7 @@ export function isAllowedBackendUrl(
     if (!isDev && parsed.protocol !== "https:") {
       return false;
     }
-    if (DEV_HOSTS.includes(host as typeof DEV_HOSTS[number])) {
+    if (DEV_HOSTS.includes(host as (typeof DEV_HOSTS)[number])) {
       return isDev;
     }
     for (const allowedHost of ALLOWED_BACKEND_HOSTS) {
@@ -97,7 +92,12 @@ export function isDevMode(context?: { shopDomain?: string | null; hostname?: str
     if (!hostname) {
       return false;
     }
-    if (hostname === "localhost" || hostname === "127.0.0.1" || hostname.includes(".myshopify.dev") || /-(dev|staging|test)\./i.test(hostname)) {
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname.includes(".myshopify.dev") ||
+      /-(dev|staging|test)\./i.test(hostname)
+    ) {
       return true;
     }
   } catch {

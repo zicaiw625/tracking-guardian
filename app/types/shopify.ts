@@ -71,10 +71,7 @@ export interface GraphQLResponse<T = unknown> {
 }
 
 export interface SimpleGraphQLClient {
-  graphql(
-    query: string,
-    options?: { variables?: Record<string, unknown> }
-  ): Promise<GraphQLResponse>;
+  graphql(query: string, options?: { variables?: Record<string, unknown> }): Promise<GraphQLResponse>;
 }
 
 export type NullableAdminContext = AdminApiContext | null;
@@ -268,17 +265,11 @@ export function isShopTierValue(value: unknown): value is ShopTierValue {
   return value === "plus" || value === "non_plus" || value === "unknown";
 }
 
-export function hasGraphQLErrors(
-  response: { errors?: Array<{ message?: string }> } | undefined
-): boolean {
+export function hasGraphQLErrors(response: { errors?: Array<{ message?: string }> } | undefined): boolean {
   return !!(response?.errors && response.errors.length > 0);
 }
 
-export function extractGraphQLErrors(
-  response: { errors?: Array<{ message?: string }> } | undefined
-): string[] {
+export function extractGraphQLErrors(response: { errors?: Array<{ message?: string }> } | undefined): string[] {
   if (!response?.errors) return [];
-  return response.errors
-    .map((e) => e.message)
-    .filter((m): m is string => typeof m === "string");
+  return response.errors.map((e) => e.message).filter((m): m is string => typeof m === "string");
 }

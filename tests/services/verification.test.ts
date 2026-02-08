@@ -117,10 +117,7 @@ describe("Verification Service", () => {
         platforms: ["google", "meta"],
         createdAt: new Date(),
       };
-      vi.mocked(prisma.pixelConfig.findMany).mockResolvedValue([
-        { platform: "google" },
-        { platform: "meta" },
-      ] as any);
+      vi.mocked(prisma.pixelConfig.findMany).mockResolvedValue([{ platform: "google" }, { platform: "meta" }] as any);
       vi.mocked(prisma.verificationRun.create).mockResolvedValue(mockRun as any);
       await createVerificationRun("shop-1", {});
       expect(prisma.pixelConfig.findMany).toHaveBeenCalledWith({
@@ -219,9 +216,7 @@ describe("Verification Service", () => {
   describe("analyzeRecentEvents", () => {
     it("should throw error when run not found", async () => {
       vi.mocked(prisma.verificationRun.findUnique).mockResolvedValue(null);
-      await expect(
-        analyzeRecentEvents("shop-1", "non-existent", {})
-      ).rejects.toThrow("Verification run not found");
+      await expect(analyzeRecentEvents("shop-1", "non-existent", {})).rejects.toThrow("Verification run not found");
     });
     it("should analyze conversion logs and generate summary", async () => {
       const mockRun = {
@@ -393,9 +388,7 @@ describe("Verification Service", () => {
   describe("exportVerificationReport", () => {
     it("should throw error when run not found", async () => {
       vi.mocked(prisma.verificationRun.findUnique).mockResolvedValue(null);
-      await expect(exportVerificationReport("non-existent", "json")).rejects.toThrow(
-        "Verification run not found"
-      );
+      await expect(exportVerificationReport("non-existent", "json")).rejects.toThrow("Verification run not found");
     });
     it("should export JSON report", async () => {
       const mockRun = {

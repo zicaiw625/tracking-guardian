@@ -8,10 +8,7 @@ export interface FeatureGateResult {
   limit?: number;
 }
 
-export async function checkPixelDestinationsLimit(
-  shopId: string,
-  shopPlan: PlanId
-): Promise<FeatureGateResult> {
+export async function checkPixelDestinationsLimit(shopId: string, shopPlan: PlanId): Promise<FeatureGateResult> {
   const limit = getPixelDestinationsLimit(shopPlan);
   if (limit === -1) {
     return { allowed: true };
@@ -38,10 +35,7 @@ export async function checkPixelDestinationsLimit(
   };
 }
 
-export async function checkUiModulesLimit(
-  _shopId: string,
-  _shopPlan: PlanId
-): Promise<FeatureGateResult> {
+export async function checkUiModulesLimit(_shopId: string, _shopPlan: PlanId): Promise<FeatureGateResult> {
   const hasAccess = isPlanAtLeast(_shopPlan, "starter");
   if (!hasAccess) {
     const planConfig = getPlanOrDefault(_shopPlan);
@@ -61,7 +55,15 @@ export async function checkUiModulesLimit(
 
 export function checkFeatureAccess(
   shopPlan: PlanId,
-  feature: "verification" | "alerts" | "reconciliation" | "agency" | "pixel_migration" | "ui_modules" | "audit" | "report_export"
+  feature:
+    | "verification"
+    | "alerts"
+    | "reconciliation"
+    | "agency"
+    | "pixel_migration"
+    | "ui_modules"
+    | "audit"
+    | "report_export"
 ): FeatureGateResult {
   if (feature === "audit") {
     return { allowed: true };
@@ -78,12 +80,27 @@ export function checkFeatureAccess(
     return { allowed: true };
   }
   let hasAccess = false;
-  const standardFeatures: readonly ("verification" | "alerts" | "reconciliation" | "agency" | "report_export")[] = ["verification", "alerts", "reconciliation", "agency", "report_export"] as const;
-  const alwaysAvailableFeatures: readonly ("pixel_migration" | "ui_modules" | "audit")[] = ["pixel_migration", "ui_modules", "audit"] as const;
+  const standardFeatures: readonly ("verification" | "alerts" | "reconciliation" | "agency" | "report_export")[] = [
+    "verification",
+    "alerts",
+    "reconciliation",
+    "agency",
+    "report_export",
+  ] as const;
+  const alwaysAvailableFeatures: readonly ("pixel_migration" | "ui_modules" | "audit")[] = [
+    "pixel_migration",
+    "ui_modules",
+    "audit",
+  ] as const;
   if (alwaysAvailableFeatures.includes(feature as "pixel_migration" | "ui_modules" | "audit")) {
     hasAccess = true;
-  } else if (standardFeatures.includes(feature as "verification" | "alerts" | "reconciliation" | "agency" | "report_export")) {
-    hasAccess = planSupportsFeature(shopPlan, feature as "verification" | "alerts" | "reconciliation" | "agency" | "report_export");
+  } else if (
+    standardFeatures.includes(feature as "verification" | "alerts" | "reconciliation" | "agency" | "report_export")
+  ) {
+    hasAccess = planSupportsFeature(
+      shopPlan,
+      feature as "verification" | "alerts" | "reconciliation" | "agency" | "report_export"
+    );
   }
   if (!hasAccess) {
     const planConfig = getPlanOrDefault(shopPlan);
@@ -105,7 +122,17 @@ export function checkFeatureAccess(
   return { allowed: true };
 }
 
-function getRequiredPlanName(feature: "verification" | "alerts" | "reconciliation" | "agency" | "pixel_migration" | "ui_modules" | "audit" | "report_export"): string {
+function getRequiredPlanName(
+  feature:
+    | "verification"
+    | "alerts"
+    | "reconciliation"
+    | "agency"
+    | "pixel_migration"
+    | "ui_modules"
+    | "audit"
+    | "report_export"
+): string {
   switch (feature) {
     case "audit":
       return "Free";
@@ -137,10 +164,7 @@ function isPlanAtLeast(current: PlanId, target: PlanId): boolean {
   return tierOrder[current as Exclude<PlanId, "monitor">] >= tierOrder[target as Exclude<PlanId, "monitor">];
 }
 
-export async function canCreatePixelConfig(
-  shopId: string,
-  shopPlan: PlanId
-): Promise<FeatureGateResult> {
+export async function canCreatePixelConfig(shopId: string, shopPlan: PlanId): Promise<FeatureGateResult> {
   const pixelLimitCheck = await checkPixelDestinationsLimit(shopId, shopPlan);
   if (!pixelLimitCheck.allowed) {
     return pixelLimitCheck;
@@ -155,10 +179,7 @@ export async function canCreatePixelConfig(
   return { allowed: true };
 }
 
-export async function canCreateUiModule(
-  _shopId: string,
-  _shopPlan: PlanId
-): Promise<FeatureGateResult> {
+export async function canCreateUiModule(_shopId: string, _shopPlan: PlanId): Promise<FeatureGateResult> {
   const hasAccess = isPlanAtLeast(_shopPlan, "starter");
   if (!hasAccess) {
     const planConfig = getPlanOrDefault(_shopPlan);

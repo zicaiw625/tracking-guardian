@@ -1,5 +1,18 @@
 import { useState, useCallback } from "react";
-import { BlockStack, Text, Banner, List, Card, InlineStack, Badge, Divider, Button, Modal, TextField, Checkbox } from "@shopify/polaris";
+import {
+  BlockStack,
+  Text,
+  Banner,
+  List,
+  Card,
+  InlineStack,
+  Badge,
+  Divider,
+  Button,
+  Modal,
+  TextField,
+  Checkbox,
+} from "@shopify/polaris";
 import { useSubmit } from "@remix-run/react";
 import { useToastContext } from "~/components/ui";
 import type { PlatformType } from "~/types/enums";
@@ -77,7 +90,17 @@ export function ReviewStep({
     } finally {
       setIsSavingTemplate(false);
     }
-  }, [shopId, templateName, templateDescription, isPublic, selectedPlatforms, platformConfigs, submit, showSuccess, showError]);
+  }, [
+    shopId,
+    templateName,
+    templateDescription,
+    isPublic,
+    selectedPlatforms,
+    platformConfigs,
+    submit,
+    showSuccess,
+    showError,
+  ]);
   return (
     <BlockStack gap="500">
       <Text as="h3" variant="headingMd">
@@ -149,27 +172,27 @@ export function ReviewStep({
           </Card>
         );
       })}
-      {shopId && Array.from(selectedPlatforms).map((platform) => {
-        const existingConfig = platformConfigs[platform];
-        let currentVersion = existingConfig?.configVersion;
-        if (currentVersion === undefined && pixelConfigs) {
-          const pixelConfig = pixelConfigs.find(
-            (config: { platform: string; configVersion: number }) => config.platform === platform
+      {shopId &&
+        Array.from(selectedPlatforms).map((platform) => {
+          const existingConfig = platformConfigs[platform];
+          let currentVersion = existingConfig?.configVersion;
+          if (currentVersion === undefined && pixelConfigs) {
+            const pixelConfig = pixelConfigs.find(
+              (config: { platform: string; configVersion: number }) => config.platform === platform
+            );
+            currentVersion = pixelConfig?.configVersion;
+          }
+          currentVersion = currentVersion ?? 1;
+          return (
+            <ConfigVersionManager
+              key={platform}
+              shopId={shopId}
+              platform={platform}
+              currentVersion={currentVersion}
+              onRollbackComplete={() => {}}
+            />
           );
-          currentVersion = pixelConfig?.configVersion;
-        }
-        currentVersion = currentVersion ?? 1;
-        return (
-          <ConfigVersionManager
-            key={platform}
-            shopId={shopId}
-            platform={platform}
-            currentVersion={currentVersion}
-            onRollbackComplete={() => {
-            }}
-          />
-        );
-      })}
+        })}
       {shopId && (
         <Card>
           <BlockStack gap="300">
@@ -179,10 +202,7 @@ export function ReviewStep({
             <Text as="p" variant="bodySm" tone="subdued">
               将当前配置保存为模板，方便后续快速应用到其他店铺或分享给团队成员。
             </Text>
-            <Button
-              size="slim"
-              onClick={() => setShowSaveTemplateModal(true)}
-            >
+            <Button size="slim" onClick={() => setShowSaveTemplateModal(true)}>
               保存为模板
             </Button>
           </BlockStack>
@@ -234,11 +254,20 @@ export function ReviewStep({
                 模板将保存以下配置：
               </Text>
               <List type="bullet">
-                <List.Item>平台：{Array.from(selectedPlatforms).map(p => PLATFORM_INFO[p]?.name || p).join(", ")}</List.Item>
-                <List.Item>事件映射：{Array.from(selectedPlatforms).reduce((acc, p) => {
-                  const config = platformConfigs[p];
-                  return acc + (config?.eventMappings ? Object.keys(config.eventMappings).length : 0);
-                }, 0)} 个事件</List.Item>
+                <List.Item>
+                  平台：
+                  {Array.from(selectedPlatforms)
+                    .map((p) => PLATFORM_INFO[p]?.name || p)
+                    .join(", ")}
+                </List.Item>
+                <List.Item>
+                  事件映射：
+                  {Array.from(selectedPlatforms).reduce((acc, p) => {
+                    const config = platformConfigs[p];
+                    return acc + (config?.eventMappings ? Object.keys(config.eventMappings).length : 0);
+                  }, 0)}{" "}
+                  个事件
+                </List.Item>
               </List>
               <Text as="p" variant="bodySm" tone="subdued">
                 注意：模板不会保存凭证信息，仅保存事件映射配置。

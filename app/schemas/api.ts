@@ -2,12 +2,7 @@ import { z } from "zod";
 
 import { OrderIdSchema } from "./pixel-event";
 
-export const ConsentStateSchema = z.enum([
-  "granted",
-  "denied",
-  "pending",
-  "unknown",
-]);
+export const ConsentStateSchema = z.enum(["granted", "denied", "pending", "unknown"]);
 
 export type ConsentState = z.infer<typeof ConsentStateSchema>;
 
@@ -83,14 +78,9 @@ export const ShopifyDomainSchema = z
   .string()
   .min(1)
   .max(255)
-  .regex(
-    /^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/,
-    "Invalid Shopify domain format"
-  );
+  .regex(/^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/, "Invalid Shopify domain format");
 
-export const ShopifyGidSchema = z
-  .string()
-  .regex(/^gid:\/\/shopify\/\w+\/\d+$/, "Invalid Shopify GID format");
+export const ShopifyGidSchema = z.string().regex(/^gid:\/\/shopify\/\w+\/\d+$/, "Invalid Shopify GID format");
 
 export { OrderIdSchema };
 

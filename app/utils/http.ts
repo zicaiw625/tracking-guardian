@@ -261,11 +261,7 @@ export async function httpRequest<T = unknown>(
       let currentFetchOptions: RequestInit = { ...fetchOptions };
 
       for (;;) {
-        const response = await fetchWithTimeout(
-          currentUrl,
-          { ...currentFetchOptions, redirect: "manual" },
-          timeout
-        );
+        const response = await fetchWithTimeout(currentUrl, { ...currentFetchOptions, redirect: "manual" }, timeout);
 
         if (response.status >= 300 && response.status < 400) {
           const location = response.headers.get("location");
@@ -274,7 +270,7 @@ export async function httpRequest<T = unknown>(
             let data: T;
             const contentType = response.headers.get("content-type");
             if (contentType?.includes("application/json")) {
-              data = await response.json() as T;
+              data = (await response.json()) as T;
             } else {
               const text = await response.text();
               data = (typeof text === "string" ? text : { type: "text", content: text }) as T;
@@ -381,7 +377,7 @@ export async function httpRequest<T = unknown>(
         let data: T;
         const contentType = response.headers.get("content-type");
         if (contentType?.includes("application/json")) {
-          data = await response.json() as T;
+          data = (await response.json()) as T;
         } else {
           const text = await response.text();
           data = (typeof text === "string" ? text : { type: "text", content: text }) as T;
@@ -404,8 +400,7 @@ export async function httpRequest<T = unknown>(
       const isTimeout = lastError.name === "AbortError";
       const isNetwork = lastError.message.includes("fetch") || lastError.message.includes("network");
       const shouldRetry =
-        attempt < retries &&
-        ((isTimeout && retryOn.includes("timeout")) || (isNetwork && retryOn.includes("network")));
+        attempt < retries && ((isTimeout && retryOn.includes("timeout")) || (isNetwork && retryOn.includes("network")));
       if (shouldRetry) {
         const delay = calculateBackoffDelay(attempt + 1, baseDelayMs, maxDelayMs);
         logger.debug(`HTTP error: ${lastError.message}, retrying in ${delay}ms`, {

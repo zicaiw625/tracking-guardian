@@ -188,12 +188,7 @@ export function ROIEstimator({
             迁移前后对比
           </Text>
           <InlineStack gap="400" align="space-between" wrap={false}>
-            <Box
-              background="bg-surface-critical"
-              padding="300"
-              borderRadius="200"
-              minWidth="200px"
-            >
+            <Box background="bg-surface-critical" padding="300" borderRadius="200" minWidth="200px">
               <BlockStack gap="100">
                 <Text as="p" variant="bodySm" tone="subdued">
                   当前（不迁移）
@@ -209,12 +204,7 @@ export function ROIEstimator({
             <Box padding="300">
               <Icon source={ArrowRightIcon} tone="subdued" />
             </Box>
-            <Box
-              background="bg-surface-success"
-              padding="300"
-              borderRadius="200"
-              minWidth="200px"
-            >
+            <Box background="bg-surface-success" padding="300" borderRadius="200" minWidth="200px">
               <BlockStack gap="100">
                 <Text as="p" variant="bodySm" tone="subdued">
                   迁移后
@@ -230,12 +220,7 @@ export function ROIEstimator({
             <Box padding="300">
               <Icon source={ArrowRightIcon} tone="subdued" />
             </Box>
-            <Box
-              background="bg-surface-success"
-              padding="300"
-              borderRadius="200"
-              minWidth="200px"
-            >
+            <Box background="bg-surface-success" padding="300" borderRadius="200" minWidth="200px">
               <BlockStack gap="100">
                 <Text as="p" variant="bodySm" tone="subdued">
                   额外收益

@@ -8,7 +8,9 @@ import { MigrationChecklistPreviewCard } from "./MigrationChecklistPreviewCard";
 import type { DashboardData } from "~/types/dashboard";
 import { useTranslation } from "react-i18next";
 
-const DependencyGraphPreview = lazy(() => import("./DependencyGraphPreview").then(module => ({ default: module.DependencyGraphPreview })));
+const DependencyGraphPreview = lazy(() =>
+  import("./DependencyGraphPreview").then((module) => ({ default: module.DependencyGraphPreview }))
+);
 
 interface DashboardMetricsProps {
   data: DashboardData;
@@ -20,21 +22,14 @@ interface DashboardMetricsProps {
   } | null;
 }
 
-export const DashboardMetrics = memo(function DashboardMetrics({
-  data,
-  latestScan,
-}: DashboardMetricsProps) {
+export const DashboardMetrics = memo(function DashboardMetrics({ data, latestScan }: DashboardMetricsProps) {
   const { t } = useTranslation();
 
   return (
     <>
       <Layout>
         <Layout.Section variant="oneThird">
-          <HealthScoreCard 
-            score={data.healthScore} 
-            status={data.healthStatus} 
-            rejectionStats={data.rejectionStats}
-          />
+          <HealthScoreCard score={data.healthScore} status={data.healthStatus} rejectionStats={data.rejectionStats} />
         </Layout.Section>
         <Layout.Section variant="oneThird">
           <QuickStatsCard
@@ -73,10 +68,15 @@ export const DashboardMetrics = memo(function DashboardMetrics({
             <Layout.Section variant="oneHalf">
               <Card>
                 <BlockStack gap="300">
-                  <Text as="h3" variant="headingMd">{t("dashboard.metrics.riskDistribution.title")}</Text>
+                  <Text as="h3" variant="headingMd">
+                    {t("dashboard.metrics.riskDistribution.title")}
+                  </Text>
                   <DataTable
                     columnContentTypes={["text", "numeric"]}
-                    headings={[t("dashboard.metrics.riskDistribution.riskLevel"), t("dashboard.metrics.riskDistribution.count")]}
+                    headings={[
+                      t("dashboard.metrics.riskDistribution.riskLevel"),
+                      t("dashboard.metrics.riskDistribution.count"),
+                    ]}
                     rows={Object.entries(data.riskDistribution.byRiskLevel).map(([level, count]) => [
                       t(`dashboard.metrics.riskDistribution.levels.${level}`) || level,
                       String(count),

@@ -6,10 +6,7 @@ import {
   getRateLimitStats,
 } from "../../app/utils/rate-limiter";
 
-function createMockRequest(
-  url: string = "http://localhost",
-  headers: Record<string, string> = {}
-): Request {
+function createMockRequest(url: string = "http://localhost", headers: Record<string, string> = {}): Request {
   return new Request(url, {
     headers: new Headers({
       "x-forwarded-for": "127.0.0.1",

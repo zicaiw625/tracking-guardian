@@ -92,10 +92,8 @@ export const PLATFORM_ENDPOINTS = {
     `https://www.google-analytics.com/mp/collect?measurement_id=${measurementId}&api_secret=${apiSecret}`,
   META_GRAPH_API: (pixelId: string, version: string = "v21.0"): string =>
     `https://graph.facebook.com/${version}/${pixelId}/events`,
-  TELEGRAM_BOT: (botToken: string): string =>
-    `https://api.telegram.org/bot${botToken}/sendMessage`,
+  TELEGRAM_BOT: (botToken: string): string => `https://api.telegram.org/bot${botToken}/sendMessage`,
 } as const;
-
 
 export const WEBHOOK_CONFIG = {
   PROCESSING_TIMEOUT_MS: 25 * 1000,

@@ -37,9 +37,7 @@ export function VerificationWizard({
       return next;
     });
   }, []);
-  const progress = testChecklist.items.length > 0
-    ? (completedItems.size / testChecklist.items.length) * 100
-    : 0;
+  const progress = testChecklist.items.length > 0 ? (completedItems.size / testChecklist.items.length) * 100 : 0;
   const allCompleted = completedItems.size === testChecklist.items.length;
   return (
     <BlockStack gap="400">
@@ -83,16 +81,22 @@ export function VerificationWizard({
                 <List.Item>✅ page_viewed（页面浏览）</List.Item>
               </List>
               <Text variant="bodySm" as="p" tone="critical">
-                <strong>⚠️ v1.0 不支持的事件类型：</strong>退款（refund）、订单取消（cancel）、订单编辑（order_edit）、订阅（subscription）等事件在 v1.0 中不可验收。
+                <strong>⚠️ v1.0 不支持的事件类型：</strong>
+                退款（refund）、订单取消（cancel）、订单编辑（order_edit）、订阅（subscription）等事件在 v1.0
+                中不可验收。
               </Text>
               <Text variant="bodySm" as="p">
-                <strong>原因：</strong>Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件。退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取，将在 v1.1+ 版本中通过订单相关 webhooks（orders/updated, refunds/create 等）实现。
+                <strong>原因：</strong>Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout
+                漏斗事件。退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取，将在 v1.1+
+                版本中通过订单相关 webhooks（orders/updated, refunds/create 等）实现。
               </Text>
               <Text variant="bodySm" as="p">
-                <strong>checkout_completed 事件触发位置：</strong>在有 upsell/post-purchase 时，该事件可能在第一个 upsell 页触发，而不是在 Thank you 页。如果触发页加载失败，则可能完全不触发。
+                <strong>checkout_completed 事件触发位置：</strong>在有 upsell/post-purchase 时，该事件可能在第一个
+                upsell 页触发，而不是在 Thank you 页。如果触发页加载失败，则可能完全不触发。
               </Text>
               <Text variant="bodySm" as="p">
-                <strong>Web Pixel 隐私与 consent：</strong>在需要 consent 的地区，回调会在 consent 后执行，之前注册的事件会 replay。
+                <strong>Web Pixel 隐私与 consent：</strong>在需要 consent 的地区，回调会在 consent
+                后执行，之前注册的事件会 replay。
               </Text>
             </BlockStack>
           </Banner>
@@ -109,16 +113,8 @@ export function VerificationWizard({
                     <BlockStack gap="200">
                       <InlineStack align="space-between">
                         <InlineStack gap="200" blockAlign="center">
-                          {isCompleted ? (
-                            <CheckCircleIcon />
-                          ) : (
-                            <Box minWidth="20px" />
-                          )}
-                          <Text
-                            variant="bodyMd"
-                            as="span"
-                            fontWeight={isCompleted ? "regular" : "semibold"}
-                          >
+                          {isCompleted ? <CheckCircleIcon /> : <Box minWidth="20px" />}
+                          <Text variant="bodyMd" as="span" fontWeight={isCompleted ? "regular" : "semibold"}>
                             {index + 1}. {item.name}
                           </Text>
                         </InlineStack>
@@ -144,10 +140,7 @@ export function VerificationWizard({
                         </Box>
                       )}
                       {!isCompleted && (
-                        <Button
-                          size="slim"
-                          onClick={() => handleItemComplete(item.id)}
-                        >
+                        <Button size="slim" onClick={() => handleItemComplete(item.id)}>
                           标记为已完成
                         </Button>
                       )}

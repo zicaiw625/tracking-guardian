@@ -12,11 +12,7 @@ import {
   Icon,
   List,
 } from "@shopify/polaris";
-import {
-  CheckCircleIcon,
-  AlertCircleIcon,
-  ArrowRightIcon,
-} from "~/components/icons";
+import { CheckCircleIcon, AlertCircleIcon, ArrowRightIcon } from "~/components/icons";
 import { useTranslation } from "react-i18next";
 
 export interface UpgradeHealthCheckProps {
@@ -40,7 +36,9 @@ export function UpgradeHealthCheck({
 }: UpgradeHealthCheckProps) {
   const { t } = useTranslation();
 
-  const getRiskLevel = (score: number): {
+  const getRiskLevel = (
+    score: number
+  ): {
     level: "low" | "medium" | "high";
     label: string;
     tone: "success" | "critical" | undefined;
@@ -110,11 +108,7 @@ export function UpgradeHealthCheck({
               {riskScore}/100
             </Text>
           </InlineStack>
-          <ProgressBar
-            progress={riskScore}
-            tone={riskLevel.tone}
-            size="large"
-          />
+          <ProgressBar progress={riskScore} tone={riskLevel.tone} size="large" />
           <Text as="p" variant="bodySm" tone="subdued">
             {riskScore >= 70
               ? t("onboarding.upgradeHealthCheck.riskScore.high")
@@ -143,11 +137,11 @@ export function UpgradeHealthCheck({
                 </Text>
                 <InlineStack gap="100">
                   {identifiedPlatforms.length > 0 ? (
-                    identifiedPlatforms.map((platform) => (
-                      <Badge key={platform}>{platform}</Badge>
-                    ))
+                    identifiedPlatforms.map((platform) => <Badge key={platform}>{platform}</Badge>)
                   ) : (
-                    <Text as="span" variant="bodySm">{t("common.none")}</Text>
+                    <Text as="span" variant="bodySm">
+                      {t("common.none")}
+                    </Text>
                   )}
                 </InlineStack>
               </InlineStack>
@@ -157,7 +151,9 @@ export function UpgradeHealthCheck({
                 </Text>
                 <Text as="span" fontWeight="semibold">
                   {estimatedHours > 0
-                    ? t("common.hours", { count: estimatedHours }) + " " + t("common.minutes", { count: estimatedMigrationTimeMinutes % 60 })
+                    ? t("common.hours", { count: estimatedHours }) +
+                      " " +
+                      t("common.minutes", { count: estimatedMigrationTimeMinutes % 60 })
                     : t("common.minutes", { count: estimatedMigrationTimeMinutes })}
                 </Text>
               </InlineStack>

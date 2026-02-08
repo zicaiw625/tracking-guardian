@@ -1,12 +1,6 @@
 import { Badge, InlineStack, Text, Tooltip } from "@shopify/polaris";
 
-export type StatusType =
-  | "success"
-  | "warning"
-  | "critical"
-  | "info"
-  | "attention"
-  | "new";
+export type StatusType = "success" | "warning" | "critical" | "info" | "attention" | "new";
 
 export type JobStatus =
   | "queued"
@@ -56,13 +50,7 @@ const JOB_STATUS_CONFIG: Record<JobStatus, { label: string; tone: StatusType; to
 
 export function JobStatusBadge({ status, showTooltip = true }: JobStatusBadgeProps) {
   const config = JOB_STATUS_CONFIG[status] || JOB_STATUS_CONFIG.pending;
-  return (
-    <StatusBadge
-      status={config.tone}
-      label={config.label}
-      tooltip={showTooltip ? config.tooltip : undefined}
-    />
-  );
+  return <StatusBadge status={config.tone} label={config.label} tooltip={showTooltip ? config.tooltip : undefined} />;
 }
 
 export interface HealthStatusBadgeProps {
@@ -81,13 +69,7 @@ const HEALTH_STATUS_CONFIG: Record<HealthStatus, { label: string; tone: StatusTy
 export function HealthStatusBadge({ status, score, showTooltip = true }: HealthStatusBadgeProps) {
   const config = HEALTH_STATUS_CONFIG[status] || HEALTH_STATUS_CONFIG.unknown;
   const label = score !== undefined ? `${config.label} (${score}分)` : config.label;
-  return (
-    <StatusBadge
-      status={config.tone}
-      label={label}
-      tooltip={showTooltip ? config.tooltip : undefined}
-    />
-  );
+  return <StatusBadge status={config.tone} label={label} tooltip={showTooltip ? config.tooltip : undefined} />;
 }
 
 export interface PlatformStatusBadgeProps {
@@ -105,16 +87,8 @@ const PLATFORM_STATUS_CONFIG: Record<PlatformStatus, { label: string; tone: Stat
 
 export function PlatformStatusBadge({ status, platform, showTooltip = true }: PlatformStatusBadgeProps) {
   const config = PLATFORM_STATUS_CONFIG[status] || PLATFORM_STATUS_CONFIG.inactive;
-  const tooltip = platform
-    ? `${platform}: ${config.tooltip}`
-    : config.tooltip;
-  return (
-    <StatusBadge
-      status={config.tone}
-      label={config.label}
-      tooltip={showTooltip ? tooltip : undefined}
-    />
-  );
+  const tooltip = platform ? `${platform}: ${config.tooltip}` : config.tooltip;
+  return <StatusBadge status={config.tone} label={config.label} tooltip={showTooltip ? tooltip : undefined} />;
 }
 
 export interface RiskScoreBadgeProps {
@@ -135,13 +109,7 @@ export function RiskScoreBadge({ score, showTooltip = true }: RiskScoreBadgeProp
     tone = "success";
     tooltip = "低风险：状态良好";
   }
-  return (
-    <StatusBadge
-      status={tone}
-      label={`风险分 ${score}`}
-      tooltip={showTooltip ? tooltip : undefined}
-    />
-  );
+  return <StatusBadge status={tone} label={`风险分 ${score}`} tooltip={showTooltip ? tooltip : undefined} />;
 }
 
 export interface PlanBadgeProps {
@@ -166,16 +134,8 @@ export interface BooleanStatusProps {
   falseLabel?: string;
 }
 
-export function BooleanStatus({
-  value,
-  trueLabel = "是",
-  falseLabel = "否",
-}: BooleanStatusProps) {
-  return (
-    <Badge tone={value ? "success" : "info"}>
-      {value ? trueLabel : falseLabel}
-    </Badge>
-  );
+export function BooleanStatus({ value, trueLabel = "是", falseLabel = "否" }: BooleanStatusProps) {
+  return <Badge tone={value ? "success" : "info"}>{value ? trueLabel : falseLabel}</Badge>;
 }
 
 export interface StatusWithCountProps {

@@ -14,15 +14,9 @@ describe("evaluatePlatformConsentWithStrategy", () => {
       const consent: ConsentState = {
         marketing: true,
         analytics: true,
-        saleOfDataAllowed: false
+        saleOfDataAllowed: false,
       };
-      const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        "strict",
-        consent,
-        true,
-        false
-      );
+      const result = evaluatePlatformConsentWithStrategy("meta", "strict", consent, true, false);
       expect(result.allowed).toBe(false);
       expect(result.reason).toContain("sale_of_data_not_allowed");
     });
@@ -30,15 +24,9 @@ describe("evaluatePlatformConsentWithStrategy", () => {
       const consent: ConsentState = {
         marketing: true,
         analytics: true,
-        saleOfDataAllowed: false
+        saleOfDataAllowed: false,
       };
-      const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        "balanced",
-        consent,
-        true,
-        false
-      );
+      const result = evaluatePlatformConsentWithStrategy("meta", "balanced", consent, true, false);
       expect(result.allowed).toBe(false);
       expect(result.reason).toContain("sale_of_data_not_allowed");
     });
@@ -46,15 +34,9 @@ describe("evaluatePlatformConsentWithStrategy", () => {
       const consent: ConsentState = {
         marketing: true,
         analytics: true,
-        saleOfDataAllowed: false
+        saleOfDataAllowed: false,
       };
-      const result = evaluatePlatformConsentWithStrategy(
-        "google",
-        "balanced",
-        consent,
-        true,
-        false
-      );
+      const result = evaluatePlatformConsentWithStrategy("google", "balanced", consent, true, false);
       expect(result.allowed).toBe(true);
     });
     it("allows marketing platforms when saleOfDataAllowed is undefined (opt-out only)", () => {
@@ -62,13 +44,7 @@ describe("evaluatePlatformConsentWithStrategy", () => {
         marketing: true,
         analytics: true,
       };
-      const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        "strict",
-        consent,
-        true,
-        false
-      );
+      const result = evaluatePlatformConsentWithStrategy("meta", "strict", consent, true, false);
       expect(result.allowed).toBe(true);
       expect(result.usedConsent).toBe("marketing");
     });
@@ -76,15 +52,9 @@ describe("evaluatePlatformConsentWithStrategy", () => {
       const consent: ConsentState = {
         marketing: true,
         analytics: true,
-        saleOfDataAllowed: true
+        saleOfDataAllowed: true,
       };
-      const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        "strict",
-        consent,
-        true,
-        false
-      );
+      const result = evaluatePlatformConsentWithStrategy("meta", "strict", consent, true, false);
       expect(result.allowed).toBe(true);
     });
   });
@@ -93,15 +63,9 @@ describe("evaluatePlatformConsentWithStrategy", () => {
       const consent: ConsentState = {
         marketing: true,
         analytics: true,
-        saleOfDataAllowed: true
+        saleOfDataAllowed: true,
       };
-      const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        "strict",
-        consent,
-        false,
-        false
-      );
+      const result = evaluatePlatformConsentWithStrategy("meta", "strict", consent, false, false);
       expect(result.allowed).toBe(false);
       expect(result.reason).toBe("no_receipt_strict_mode");
     });
@@ -109,15 +73,9 @@ describe("evaluatePlatformConsentWithStrategy", () => {
       const consent: ConsentState = {
         marketing: false,
         analytics: true,
-        saleOfDataAllowed: true
+        saleOfDataAllowed: true,
       };
-      const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        "strict",
-        consent,
-        true,
-        false
-      );
+      const result = evaluatePlatformConsentWithStrategy("meta", "strict", consent, true, false);
       expect(result.allowed).toBe(false);
       expect(result.usedConsent).toBe("marketing");
     });
@@ -125,15 +83,9 @@ describe("evaluatePlatformConsentWithStrategy", () => {
       const consent: ConsentState = {
         marketing: true,
         analytics: false,
-        saleOfDataAllowed: true
+        saleOfDataAllowed: true,
       };
-      const result = evaluatePlatformConsentWithStrategy(
-        "google",
-        "strict",
-        consent,
-        true,
-        false
-      );
+      const result = evaluatePlatformConsentWithStrategy("google", "strict", consent, true, false);
       expect(result.allowed).toBe(false);
       expect(result.usedConsent).toBe("analytics");
     });
@@ -141,26 +93,14 @@ describe("evaluatePlatformConsentWithStrategy", () => {
       const consent: ConsentState = {
         marketing: true,
         analytics: false,
-        saleOfDataAllowed: true
+        saleOfDataAllowed: true,
       };
-      const result = evaluatePlatformConsentWithStrategy(
-        "google",
-        "strict",
-        consent,
-        true,
-        true
-      );
+      const result = evaluatePlatformConsentWithStrategy("google", "strict", consent, true, true);
       expect(result.allowed).toBe(true);
       expect(result.usedConsent).toBe("marketing");
     });
     it("blocks when consent is null", () => {
-      const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        "strict",
-        null,
-        true,
-        false
-      );
+      const result = evaluatePlatformConsentWithStrategy("meta", "strict", null, true, false);
       expect(result.allowed).toBe(false);
     });
   });
@@ -169,15 +109,9 @@ describe("evaluatePlatformConsentWithStrategy", () => {
       const consent: ConsentState = {
         marketing: true,
         analytics: true,
-        saleOfDataAllowed: true
+        saleOfDataAllowed: true,
       };
-      const result = evaluatePlatformConsentWithStrategy(
-        "google",
-        "balanced",
-        consent,
-        false,
-        false
-      );
+      const result = evaluatePlatformConsentWithStrategy("google", "balanced", consent, false, false);
       expect(result.allowed).toBe(false);
       expect(result.reason).toBe("no_receipt_balanced_mode");
     });
@@ -185,42 +119,24 @@ describe("evaluatePlatformConsentWithStrategy", () => {
       const consent: ConsentState = {
         marketing: true,
         analytics: true,
-        saleOfDataAllowed: true
+        saleOfDataAllowed: true,
       };
-      const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        "balanced",
-        consent,
-        true,
-        false
-      );
+      const result = evaluatePlatformConsentWithStrategy("meta", "balanced", consent, true, false);
       expect(result.allowed).toBe(true);
     });
     it("blocks when consent is explicitly false", () => {
       const consent: ConsentState = {
         marketing: false,
         analytics: true,
-        saleOfDataAllowed: true
+        saleOfDataAllowed: true,
       };
-      const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        "balanced",
-        consent,
-        true,
-        false
-      );
+      const result = evaluatePlatformConsentWithStrategy("meta", "balanced", consent, true, false);
       expect(result.allowed).toBe(false);
     });
   });
   describe("weak mode (deprecated - falls through to default/strict)", () => {
     it("weak mode blocks when consent is null for marketing platforms", () => {
-      const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        "weak",
-        null,
-        false,
-        false
-      );
+      const result = evaluatePlatformConsentWithStrategy("meta", "weak", null, false, false);
       expect(result.allowed).toBe(false);
       expect(result.reason).toContain("No consent state available");
     });
@@ -228,15 +144,9 @@ describe("evaluatePlatformConsentWithStrategy", () => {
       const consent: ConsentState = {
         marketing: true,
         analytics: true,
-        saleOfDataAllowed: true
+        saleOfDataAllowed: true,
       };
-      const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        "weak",
-        consent,
-        true,
-        false
-      );
+      const result = evaluatePlatformConsentWithStrategy("meta", "weak", consent, true, false);
       expect(result.allowed).toBe(true);
     });
   });

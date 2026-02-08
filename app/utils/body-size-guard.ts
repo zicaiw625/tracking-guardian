@@ -28,13 +28,10 @@ export async function readJsonWithSizeLimit<T = unknown>(
     return JSON.parse(bodyText) as T;
   } catch (error) {
     if (error instanceof SyntaxError) {
-      throw new Response(
-        JSON.stringify({ error: "Invalid JSON body" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      throw new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
     throw error;
   }

@@ -80,7 +80,11 @@ export async function saveMigrationDraft(
     if (error && typeof error === "object" && "code" in error) {
       const prismaError = error as { code: string; meta?: { table?: string } };
       if (prismaError.code === "P2022" || prismaError.code === "P2021") {
-        logger.warn("MigrationDraft table not found, migration may be pending", { shopId, step, code: prismaError.code });
+        logger.warn("MigrationDraft table not found, migration may be pending", {
+          shopId,
+          step,
+          code: prismaError.code,
+        });
         return {
           success: false,
           error: "Migration draft table not available. Please run database migrations.",

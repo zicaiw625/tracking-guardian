@@ -1,8 +1,4 @@
-import {
-  DEPRECATION_DATES as DEPRECATION_DATES_IMPORT,
-  getDateDisplayLabel,
-  type ShopTier,
-} from "./deprecation-dates";
+import { DEPRECATION_DATES as DEPRECATION_DATES_IMPORT, getDateDisplayLabel, type ShopTier } from "./deprecation-dates";
 
 export const DEPRECATION_DATES = DEPRECATION_DATES_IMPORT;
 
@@ -36,6 +32,7 @@ export function formatDeadlineDate(date: Date, format: "exact" | "month" = "exac
 }
 
 export const SHOPIFY_HELP_LINKS = {
-  UPGRADE_GUIDE: "https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status/upgrade-guide",
+  UPGRADE_GUIDE:
+    "https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status/upgrade-guide",
   CHECKOUT_EXTENSIBILITY: "https://help.shopify.com/en/manual/checkout-settings/checkout-extensibility",
 } as const;

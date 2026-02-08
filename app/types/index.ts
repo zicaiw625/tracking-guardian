@@ -194,11 +194,7 @@ export type {
   ShopifyOrder,
 } from "./shopify";
 
-export {
-  isShopTierValue,
-  hasGraphQLErrors,
-  extractGraphQLErrors,
-} from "./shopify";
+export { isShopTierValue, hasGraphQLErrors, extractGraphQLErrors } from "./shopify";
 
 export {
   type Result,

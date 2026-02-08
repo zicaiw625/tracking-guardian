@@ -1,10 +1,6 @@
 import prisma from "../../../db.server";
 import { logger } from "../../../utils/logger.server";
-import type {
-  DataRequestPayload,
-  DataRequestResult,
-  ExportedPixelEventReceipt,
-} from "../types";
+import type { DataRequestPayload, DataRequestResult, ExportedPixelEventReceipt } from "../types";
 import { createEmptyDataRequestResult } from "../types";
 
 const BATCH_SIZE = 100;
@@ -19,20 +15,21 @@ function batchArray<T>(array: T[], size: number): T[][] {
   return batches;
 }
 
-
 async function fetchPixelReceiptsBatch(
   shopId: string,
   orderIds: string[]
-): Promise<Array<{
-  id: string;
-  orderId: string;
-  eventType: string;
-  eventId: string | null;
-  consentState: unknown;
-  isTrusted: boolean;
-  pixelTimestamp: Date;
-  createdAt: Date;
-}>> {
+): Promise<
+  Array<{
+    id: string;
+    orderId: string;
+    eventType: string;
+    eventId: string | null;
+    consentState: unknown;
+    isTrusted: boolean;
+    pixelTimestamp: Date;
+    createdAt: Date;
+  }>
+> {
   const receipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
@@ -60,10 +57,7 @@ async function fetchPixelReceiptsBatch(
   }));
 }
 
-export async function processDataRequest(
-  shopDomain: string,
-  payload: DataRequestPayload
-): Promise<DataRequestResult> {
+export async function processDataRequest(shopDomain: string, payload: DataRequestPayload): Promise<DataRequestResult> {
   const customerId = payload.customer_id;
   const ordersRequested = payload.orders_requested || [];
   const dataRequestId = payload.data_request_id;
@@ -89,13 +83,9 @@ export async function processDataRequest(
   });
   const allPixelReceipts: Awaited<ReturnType<typeof fetchPixelReceiptsBatch>> = [];
   for (const batch of orderBatches) {
-    const [pixelReceipts] = await Promise.all([
-      fetchPixelReceiptsBatch(shop.id, batch),
-    ]);
+    const [pixelReceipts] = await Promise.all([fetchPixelReceiptsBatch(shop.id, batch)]);
     allPixelReceipts.push(...pixelReceipts);
-    if (
-      allPixelReceipts.length >= MAX_RECORDS_PER_TABLE
-    ) {
+    if (allPixelReceipts.length >= MAX_RECORDS_PER_TABLE) {
       logger.warn(`[GDPR] Reached max records limit for data export`, {
         shopDomain,
         pixelReceipts: allPixelReceipts.length,

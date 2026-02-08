@@ -83,7 +83,16 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
     }
   }
 
-  const configsMap = new Map<string, { shopId: string; platform: string; credentialsEncrypted: string | null; credentials_legacy: any; environment: string }>();
+  const configsMap = new Map<
+    string,
+    {
+      shopId: string;
+      platform: string;
+      credentialsEncrypted: string | null;
+      credentials_legacy: any;
+      environment: string;
+    }
+  >();
   if (uniquePairs.size > 0) {
     const configs = await prisma.pixelConfig.findMany({
       where: {
@@ -156,12 +165,7 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
       await markSent(job.id);
       sent++;
     } else {
-      await markFailed(
-        job.id,
-        result.error ?? "Unknown error",
-        result.statusCode ?? null,
-        job.attempts + 1
-      );
+      await markFailed(job.id, result.error ?? "Unknown error", result.statusCode ?? null, job.attempts + 1);
       failed++;
     }
   }

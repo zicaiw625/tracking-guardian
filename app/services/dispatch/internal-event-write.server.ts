@@ -67,7 +67,7 @@ export async function persistInternalEventsAndDispatchJobs(
       ip = createHash("sha256").update(ip).digest("hex");
     }
   }
-  
+
   // Hash user agent
   const rawUa = requestContext?.user_agent ?? null;
   const user_agent_encrypted = rawUa ? encrypt(rawUa) : null;
@@ -82,7 +82,7 @@ export async function persistInternalEventsAndDispatchJobs(
       // Reuse the consent filtering logic from ingestion pipeline
       // event.platformsToRecord contains platforms that passed consent and config checks
       const allowedDestinations: DispatchDestination[] = [];
-      
+
       for (const platformName of event.destinations) {
         const dest = destinationsByPlatform[platformName];
         if (dest && s2sDestinations.includes(dest)) {
@@ -95,8 +95,11 @@ export async function persistInternalEventsAndDispatchJobs(
       const value = numericValue(event.payload.data?.value ?? 0);
       const currency = event.payload.data?.currency ?? "USD";
       const items = event.payload.data?.items ?? [];
-      const transactionId = event.payload.eventName === "checkout_completed" ? (event.payload.data?.orderId ?? event.orderId ?? null) : null;
-      
+      const transactionId =
+        event.payload.eventName === "checkout_completed"
+          ? (event.payload.data?.orderId ?? event.orderId ?? null)
+          : null;
+
       // P0-4: Unify event_id for purchase events to match webhook (orderId)
       // This prevents duplicate events/dispatch jobs for the same order
       let eventId = event.eventId ?? randomUUID();
@@ -118,7 +121,7 @@ export async function persistInternalEventsAndDispatchJobs(
             shopId,
             event_id: eventId,
             event_name: internalEventName,
-          }
+          },
         },
         update: {}, // Do nothing if exists
         create: {
@@ -148,14 +151,14 @@ export async function persistInternalEventsAndDispatchJobs(
       });
 
       // Only create dispatch jobs if we actually created a new event (or if we want to retry, but usually we don't want duplicate jobs)
-      // However, upsert returns the object whether created or updated. 
-      // If it was updated (already existed), we might already have jobs. 
+      // However, upsert returns the object whether created or updated.
+      // If it was updated (already existed), we might already have jobs.
       // To avoid duplicate jobs, we should check if jobs exist or just assume if the event existed, jobs were handled.
-      // A simple heuristic: check if occurred_at matches (unlikely to be exact same ms if different source) 
+      // A simple heuristic: check if occurred_at matches (unlikely to be exact same ms if different source)
       // or just check if we can check if it was created. Prisma upsert doesn't tell us.
       // But since we did update: {}, if it existed, nothing changed.
       // If we want to strictly avoid duplicate jobs for the SAME event_id, we should check if jobs exist.
-      
+
       // P1-2: Fix race condition using createMany with skipDuplicates
       if (allowedDestinations.length > 0) {
         await tx.eventDispatchJob.createMany({

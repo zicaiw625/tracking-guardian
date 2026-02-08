@@ -57,9 +57,7 @@ export function CredentialsStep({
                       { label: "🔴 生产环境 (Live)", value: "live" },
                     ]}
                     value={config.environment}
-                    onChange={(value) =>
-                      onEnvironmentToggle(platform, value as "test" | "live")
-                    }
+                    onChange={(value) => onEnvironmentToggle(platform, value as "test" | "live")}
                     helpText={
                       config.environment === "test"
                         ? "测试模式：用于验证映射与验收"
@@ -76,14 +74,8 @@ export function CredentialsStep({
                       key={field.key}
                       label={field.label}
                       type={field.type}
-                      value={
-                        config.credentials[
-                          field.key as keyof typeof config.credentials
-                        ] || ""
-                      }
-                      onChange={(value) =>
-                        onCredentialUpdate(platform, field.key, value)
-                      }
+                      value={config.credentials[field.key as keyof typeof config.credentials] || ""}
+                      onChange={(value) => onCredentialUpdate(platform, field.key, value)}
                       placeholder={field.placeholder}
                       helpText={field.helpText}
                       autoComplete="off"

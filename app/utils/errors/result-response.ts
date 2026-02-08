@@ -32,21 +32,13 @@ export function resultToResponse<T>(
   const headers = options?.headers;
   const successStatus = options?.successStatus ?? 200;
   if (isOk(result)) {
-    const data = options?.transform
-      ? options.transform(result.value)
-      : result.value;
-    return jsonApi<ApiSuccessResponse<typeof data>>(
-      { success: true, data },
-      { status: successStatus, headers }
-    );
+    const data = options?.transform ? options.transform(result.value) : result.value;
+    return jsonApi<ApiSuccessResponse<typeof data>>({ success: true, data }, { status: successStatus, headers });
   }
   return errorToResponse(result.error, { headers });
 }
 
-export function errorToResponse(
-  error: AppError,
-  options?: { headers?: HeadersInit }
-): Response {
+export function errorToResponse(error: AppError, options?: { headers?: HeadersInit }): Response {
   const status = error.getHttpStatus();
   const clientResponse = error.toClientResponse();
   if (error.isInternalError()) {
@@ -124,9 +116,7 @@ export function throwErrorResponse(error: AppError): never {
   throw errorToResponse(error);
 }
 
-export async function unwrapOrThrow<T>(
-  resultPromise: AsyncResult<T, AppError>
-): Promise<T> {
+export async function unwrapOrThrow<T>(resultPromise: AsyncResult<T, AppError>): Promise<T> {
   const result = await resultPromise;
   if (isOk(result)) {
     return result.value;
@@ -165,62 +155,32 @@ export function tryCatchSync<T>(
   }
 }
 
-export function validationError(
-  field: string,
-  message: string
-): Result<never, AppError> {
-  return err(
-    new AppError(
-      ErrorCode.VALIDATION_ERROR,
-      `${field}: ${message}`,
-      false,
-      { field }
-    )
-  );
+export function validationError(field: string, message: string): Result<never, AppError> {
+  return err(new AppError(ErrorCode.VALIDATION_ERROR, `${field}: ${message}`, false, { field }));
 }
 
-export function requireField<T>(
-  value: T | null | undefined,
-  fieldName: string
-): Result<T, AppError> {
+export function requireField<T>(value: T | null | undefined, fieldName: string): Result<T, AppError> {
   if (value === null || value === undefined) {
     return err(
-      new AppError(
-        ErrorCode.VALIDATION_MISSING_FIELD,
-        `Missing required field: ${fieldName}`,
-        false,
-        { field: fieldName }
-      )
+      new AppError(ErrorCode.VALIDATION_MISSING_FIELD, `Missing required field: ${fieldName}`, false, {
+        field: fieldName,
+      })
     );
   }
   return { ok: true, value };
 }
 
-export function requireNonEmpty(
-  value: string | null | undefined,
-  fieldName: string
-): Result<string, AppError> {
+export function requireNonEmpty(value: string | null | undefined, fieldName: string): Result<string, AppError> {
   if (!value || value.trim() === "") {
     return err(
-      new AppError(
-        ErrorCode.VALIDATION_MISSING_FIELD,
-        `${fieldName} cannot be empty`,
-        false,
-        { field: fieldName }
-      )
+      new AppError(ErrorCode.VALIDATION_MISSING_FIELD, `${fieldName} cannot be empty`, false, { field: fieldName })
     );
   }
   return { ok: true, value: value.trim() };
 }
 
-export function successResponse<T>(
-  data: T,
-  status: number = 200
-): Response {
-  return jsonApi<ApiSuccessResponse<T>>(
-    { success: true, data },
-    { status }
-  );
+export function successResponse<T>(data: T, status: number = 200): Response {
+  return jsonApi<ApiSuccessResponse<T>>({ success: true, data }, { status });
 }
 
 export function errorResponse(

@@ -3,11 +3,7 @@ import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { isIP } from "net";
 import { RATE_LIMIT_CONFIG } from "../utils/config.server";
 import { logger } from "../utils/logger.server";
-import {
-  getRedisClient,
-  getRedisConnectionInfo,
-  type RedisClientWrapper,
-} from "../utils/redis-client.server";
+import { getRedisClient, getRedisConnectionInfo, type RedisClientWrapper } from "../utils/redis-client.server";
 
 export interface RateLimitConfig {
   maxRequests: number;
@@ -25,9 +21,7 @@ export interface RateLimitResult {
   usingFallback?: boolean;
 }
 
-export type RateLimitedHandler<T> = (
-  args: LoaderFunctionArgs | ActionFunctionArgs
-) => Promise<T>;
+export type RateLimitedHandler<T> = (args: LoaderFunctionArgs | ActionFunctionArgs) => Promise<T>;
 
 interface MemoryRateLimitEntry {
   count: number;
@@ -64,8 +58,7 @@ class InMemoryRateLimitStore {
       }
     }
     if (this.store.size > this.maxKeys) {
-      const entries = Array.from(this.store.entries())
-        .sort((a, b) => a[1].expiresAt - b[1].expiresAt);
+      const entries = Array.from(this.store.entries()).sort((a, b) => a[1].expiresAt - b[1].expiresAt);
       const toRemove = entries.slice(0, this.store.size - this.maxKeys);
       for (const [key] of toRemove) {
         this.store.delete(key);
@@ -349,7 +342,7 @@ function getTrustedIpHeaders(): string[] {
   }
   return rawHeaders
     .split(",")
-    .map(header => header.trim().toLowerCase())
+    .map((header) => header.trim().toLowerCase())
     .filter(Boolean);
 }
 
@@ -363,7 +356,11 @@ function resolveIpFromHeader(headers: Headers, headerName: string): string | nul
   }
   let candidate: string;
   if (headerName === "x-forwarded-for") {
-    candidate = (value.split(",").map(s => s.trim()).filter(Boolean))[0] || "";
+    candidate =
+      value
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)[0] || "";
   } else {
     candidate = value;
   }
@@ -381,9 +378,7 @@ export function ipKeyExtractor(request: Request): string {
   }
   const isProduction = process.env.NODE_ENV === "production";
   const trustProxy = process.env.TRUST_PROXY === "true";
-  const headersToCheck = !isProduction ? DEVELOPMENT_IP_HEADERS :
-    trustProxy ? getTrustedIpHeaders() :
-    [];
+  const headersToCheck = !isProduction ? DEVELOPMENT_IP_HEADERS : trustProxy ? getTrustedIpHeaders() : [];
   if (headersToCheck.length === 0) {
     return isProduction ? "untrusted" : "unknown";
   }
@@ -477,13 +472,7 @@ export function withRateLimit<T>(
   config: RateLimitConfig,
   handler?: RateLimitedHandler<T>
 ): RateLimitedHandler<T | Response> | ((handler: RateLimitedHandler<T>) => RateLimitedHandler<T | Response>) {
-  const {
-    maxRequests,
-    windowMs,
-    keyExtractor = ipKeyExtractor,
-    skip,
-    message = "Too many requests",
-  } = config;
+  const { maxRequests, windowMs, keyExtractor = ipKeyExtractor, skip, message = "Too many requests" } = config;
   const createWrappedHandler = (handler: RateLimitedHandler<T>): RateLimitedHandler<T | Response> => {
     return async (args) => {
       enforceTrustedProxy();
@@ -595,11 +584,7 @@ export async function checkRateLimitAsync(
   return rateLimitStore.checkAsync(key, maxRequests, windowMs, failClosed, allowFallback);
 }
 
-export function checkRateLimitSync(
-  key: string,
-  maxRequests: number,
-  windowMs: number
-): RateLimitResult {
+export function checkRateLimitSync(key: string, maxRequests: number, windowMs: number): RateLimitResult {
   enforceTrustedProxy();
   return rateLimitStore.check(key, maxRequests, windowMs);
 }
@@ -623,4 +608,3 @@ export function getRateLimitBackendInfo(): {
 export function getMemoryRateLimitStoreSize(): number {
   return rateLimitStore.getMemoryStoreSize();
 }
-

@@ -1,10 +1,4 @@
-type Jsonish =
-  | null
-  | boolean
-  | number
-  | string
-  | Jsonish[]
-  | { [key: string]: Jsonish };
+type Jsonish = null | boolean | number | string | Jsonish[] | { [key: string]: Jsonish };
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
@@ -84,24 +78,9 @@ const REDACT_EXACT = new Set([
   "signature",
 ]);
 
-const DROP_SUBSTRINGS = [
-  "email",
-  "phone",
-  "address",
-  "ip_address",
-  "ipaddress",
-  "user_agent",
-  "useragent",
-] as const;
+const DROP_SUBSTRINGS = ["email", "phone", "address", "ip_address", "ipaddress", "user_agent", "useragent"] as const;
 
-const REDACT_SUBSTRINGS = [
-  "token",
-  "secret",
-  "password",
-  "passphrase",
-  "authorization",
-  "cookie",
-] as const;
+const REDACT_SUBSTRINGS = ["token", "secret", "password", "passphrase", "authorization", "cookie"] as const;
 
 function shouldDropKey(keyLower: string): boolean {
   if (DROP_EXACT.has(keyLower)) return true;
@@ -283,4 +262,3 @@ export function sanitizePrismaWriteArgs(action: string, args: unknown): void {
     sanitizeCreateManyData(a.data);
   }
 }
-

@@ -6,12 +6,15 @@ export interface EventLossStats {
   totalLost: number;
   lossRate: number;
   byFailureReason: Record<string, number>;
-  byPlatform: Record<string, {
-    attempted: number;
-    received: number;
-    lost: number;
-    lossRate: number;
-  }>;
+  byPlatform: Record<
+    string,
+    {
+      attempted: number;
+      received: number;
+      lost: number;
+      lossRate: number;
+    }
+  >;
 }
 
 function extractPlatformFromPayload(payload: Record<string, unknown> | null): string {
@@ -38,12 +41,15 @@ export async function getEventLossStats(shopId: string, hours: number = 24): Pro
   const totalLost = 0;
   const lossRate = 0;
   const byFailureReason: Record<string, number> = {};
-  const byPlatform: Record<string, {
-    attempted: number;
-    received: number;
-    lost: number;
-    lossRate: number;
-  }> = {};
+  const byPlatform: Record<
+    string,
+    {
+      attempted: number;
+      received: number;
+      lost: number;
+      lossRate: number;
+    }
+  > = {};
   for (const receipt of receipts) {
     const payload = receipt.payloadJson as Record<string, unknown> | null;
     const platform = extractPlatformFromPayload(payload);

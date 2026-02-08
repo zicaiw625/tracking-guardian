@@ -19,9 +19,9 @@ vi.mock("../../../app/db.server", () => {
         findMany: vi.fn(),
         count: vi.fn(),
         deleteMany: vi.fn(),
-      }
-    }
-  }
+      },
+    },
+  };
 });
 
 import prisma from "../../../app/db.server";
@@ -42,7 +42,7 @@ describe("Batch Audit Service", () => {
         groupId: "group-1",
         requesterId: "user-1",
       });
-      
+
       expect("error" in result).toBe(false);
       expect("jobId" in result).toBe(true);
       if (!("error" in result)) {

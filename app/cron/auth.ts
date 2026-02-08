@@ -1,4 +1,4 @@
-import { timingSafeEqual , createHmac, createHash } from "crypto";
+import { timingSafeEqual, createHmac, createHash } from "crypto";
 import { logger } from "../utils/logger.server";
 import { readTextWithLimit } from "../utils/body-reader";
 
@@ -21,9 +21,11 @@ export function validateCronAuth(request: Request): Response | null {
         return true;
       }
     })();
-    
+
     if (isDevelopment && isLocalhost && process.env.LOCAL_DEV === "true") {
-      logger.warn("CRON_SECRET not configured (development + localhost + LOCAL_DEV=true) - allowing unauthenticated access");
+      logger.warn(
+        "CRON_SECRET not configured (development + localhost + LOCAL_DEV=true) - allowing unauthenticated access"
+      );
       return null;
     }
     logger.error("CRON_SECRET not configured - rejecting request");
@@ -141,7 +143,7 @@ export async function verifyReplayProtection(
 
   const signatureContent = `${method}:${pathname}:${timestampHeader}:${bodyHash}`;
   const secrets = Array.isArray(secretOrSecrets) ? secretOrSecrets : [secretOrSecrets];
-  
+
   let validSignatureFound = false;
 
   for (const secret of secrets) {

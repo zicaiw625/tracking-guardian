@@ -40,11 +40,7 @@ export function TestGuidePanel({
             <Button icon={ClipboardIcon} onClick={onCopyGuide} size="slim">
               复制指引
             </Button>
-            <Button
-              onClick={() => onGuideExpandedChange(!guideExpanded)}
-              size="slim"
-              variant="plain"
-            >
+            <Button onClick={() => onGuideExpandedChange(!guideExpanded)} size="slim" variant="plain">
               {guideExpanded ? "收起" : "展开"}
             </Button>
           </InlineStack>
@@ -60,19 +56,9 @@ export function TestGuidePanel({
             <Divider />
             <BlockStack gap="300">
               {testGuide.steps.map((step) => (
-                <Box
-                  key={step.step}
-                  background="bg-surface-secondary"
-                  padding="300"
-                  borderRadius="100"
-                >
+                <Box key={step.step} background="bg-surface-secondary" padding="300" borderRadius="100">
                   <InlineStack gap="300" blockAlign="start">
-                    <Box
-                      background="bg-fill-info"
-                      padding="100"
-                      borderRadius="full"
-                      minWidth="24px"
-                    >
+                    <Box background="bg-fill-info" padding="100" borderRadius="full" minWidth="24px">
                       <Text as="span" variant="bodySm" fontWeight="bold" alignment="center">
                         {step.step}
                       </Text>

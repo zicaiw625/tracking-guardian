@@ -1,12 +1,4 @@
-import {
-  Modal,
-  BlockStack,
-  Text,
-  List,
-  Banner,
-  Button,
-  Divider,
-} from "@shopify/polaris";
+import { Modal, BlockStack, Text, List, Banner, Button, Divider } from "@shopify/polaris";
 import { ManualInputWizard, type ManualInputData } from "~/components/scan/ManualInputWizard";
 import { GuidedSupplement } from "~/components/scan/GuidedSupplement";
 import { getDateDisplayLabel, DEPRECATION_DATES } from "~/utils/deprecation-dates";
@@ -14,7 +6,12 @@ import { useTranslation, Trans } from "react-i18next";
 
 export interface ScanPageModalsProps {
   guidanceModalOpen: boolean;
-  guidanceContent: { title: string; platform?: string; scriptTagId?: number; type?: "upgrade_guide" | "script_tag_guidance" | "import_wizard" } | null;
+  guidanceContent: {
+    title: string;
+    platform?: string;
+    scriptTagId?: number;
+    type?: "upgrade_guide" | "script_tag_guidance" | "import_wizard";
+  } | null;
   closeGuidanceModal: () => void;
   deleteModalOpen: boolean;
   pendingDelete: { type: "webPixel"; id: string; gid: string; title: string } | null;
@@ -79,25 +76,33 @@ export function ScanPageModals({
                 </Text>
                 <List type="number">
                   <List.Item>
-                    <Text as="span" fontWeight="semibold">{t("ScanModals.Guidance.Step1")}</Text>
+                    <Text as="span" fontWeight="semibold">
+                      {t("ScanModals.Guidance.Step1")}
+                    </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
                       {t("ScanModals.Guidance.Step1Desc")}
                     </Text>
                   </List.Item>
                   <List.Item>
-                    <Text as="span" fontWeight="semibold">{t("ScanModals.Guidance.Step2")}</Text>
+                    <Text as="span" fontWeight="semibold">
+                      {t("ScanModals.Guidance.Step2")}
+                    </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
                       {t("ScanModals.Guidance.Step2Desc")}
                     </Text>
                   </List.Item>
                   <List.Item>
-                    <Text as="span" fontWeight="semibold">{t("ScanModals.Guidance.Step3")}</Text>
+                    <Text as="span" fontWeight="semibold">
+                      {t("ScanModals.Guidance.Step3")}
+                    </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
                       {t("ScanModals.Guidance.Step3Desc")}
                     </Text>
                   </List.Item>
                   <List.Item>
-                    <Text as="span" fontWeight="semibold">{t("ScanModals.Guidance.Step4")}</Text>
+                    <Text as="span" fontWeight="semibold">
+                      {t("ScanModals.Guidance.Step4")}
+                    </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
                       {t("ScanModals.Guidance.Step4Desc")}
                     </Text>
@@ -108,11 +113,7 @@ export function ScanPageModals({
                     {t("ScanModals.Guidance.Tip")}
                   </Text>
                 </Banner>
-                <Button
-                  url="https://help.shopify.com/en/manual/pixels/customer-events"
-                  external
-                  variant="primary"
-                >
+                <Button url="https://help.shopify.com/en/manual/pixels/customer-events" external variant="primary">
                   {t("ScanModals.Guidance.OpenDocs")}
                 </Button>
               </>
@@ -124,33 +125,41 @@ export function ScanPageModals({
                   </Text>
                 </Banner>
                 <BlockStack gap="200">
-                  <Text as="p" fontWeight="semibold">{t("ScanModals.Guidance.Steps.Title")}</Text>
+                  <Text as="p" fontWeight="semibold">
+                    {t("ScanModals.Guidance.Steps.Title")}
+                  </Text>
                   <List type="number">
                     <List.Item>
                       <Text as="span">
-                        <strong>{t("ScanModals.Guidance.Steps.Pixel")}</strong>：在「迁移」页面确认 Tracking Guardian Pixel 已安装并正常运行
+                        <strong>{t("ScanModals.Guidance.Steps.Pixel")}</strong>：在「迁移」页面确认 Tracking Guardian
+                        Pixel 已安装并正常运行
                       </Text>
                     </List.Item>
                     <List.Item>
                       <Text as="span">
-                        <strong>{t("ScanModals.Guidance.Steps.Creds")}</strong>：在「迁移」页面配置相应平台的像素 ID（GA4/Meta/TikTok）
+                        <strong>{t("ScanModals.Guidance.Steps.Creds")}</strong>：在「迁移」页面配置相应平台的像素
+                        ID（GA4/Meta/TikTok）
                       </Text>
                     </List.Item>
                     <List.Item>
                       <Text as="span">
-                        <strong>{t("ScanModals.Guidance.Steps.Verify")}</strong>：完成一次测试订单，在「监控」页面确认事件已收到
+                        <strong>{t("ScanModals.Guidance.Steps.Verify")}</strong>
+                        ：完成一次测试订单，在「监控」页面确认事件已收到
                       </Text>
                     </List.Item>
                     <List.Item>
                       <Text as="span">
-                        <strong>{t("ScanModals.Guidance.Steps.Delete")}</strong>：前往 Shopify 后台 → 设置 → 应用和销售渠道，找到创建该 ScriptTag 的应用并卸载
+                        <strong>{t("ScanModals.Guidance.Steps.Delete")}</strong>：前往 Shopify 后台 → 设置 →
+                        应用和销售渠道，找到创建该 ScriptTag 的应用并卸载
                       </Text>
                     </List.Item>
                   </List>
                 </BlockStack>
                 <Divider />
                 <BlockStack gap="200">
-                  <Text as="p" fontWeight="semibold">{t("ScanModals.Guidance.NotFound")}</Text>
+                  <Text as="p" fontWeight="semibold">
+                    {t("ScanModals.Guidance.NotFound")}
+                  </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
                     {t("ScanModals.Guidance.NotFoundDesc")}
                   </Text>
@@ -158,13 +167,11 @@ export function ScanPageModals({
                     <List.Item>
                       {t("ScanModals.Guidance.NotFoundOptions.Contact", { id: guidanceContent?.scriptTagId })}
                     </List.Item>
-                    <List.Item>
-                      {t("ScanModals.Guidance.NotFoundOptions.API")}
-                    </List.Item>
+                    <List.Item>{t("ScanModals.Guidance.NotFoundOptions.API")}</List.Item>
                     <List.Item>
                       {t("ScanModals.Guidance.NotFoundOptions.Expire", {
                         plusDate: getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact"),
-                        nonPlusDate: getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")
+                        nonPlusDate: getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact"),
                       })}
                     </List.Item>
                   </List>
@@ -174,7 +181,7 @@ export function ScanPageModals({
                     <Divider />
                     <Banner tone="success">
                       <Text as="p" variant="bodySm">
-                        <Trans 
+                        <Trans
                           i18nKey="ScanModals.Guidance.SafeDelete"
                           values={{ platform: guidanceContent.platform }}
                         />
@@ -209,10 +216,7 @@ export function ScanPageModals({
         <Modal.Section>
           <BlockStack gap="300">
             <Text as="p">
-              <Trans 
-                i18nKey="ScanModals.Delete.Content"
-                values={{ title: pendingDelete?.title }}
-              />
+              <Trans i18nKey="ScanModals.Delete.Content" values={{ title: pendingDelete?.title }} />
             </Text>
             {deleteError && (
               <Banner tone="critical">

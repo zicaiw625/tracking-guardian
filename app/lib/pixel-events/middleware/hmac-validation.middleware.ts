@@ -11,9 +11,7 @@ import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types"
 
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
 
-export const hmacValidationMiddleware: IngestMiddleware = async (
-  context: IngestContext
-): Promise<MiddlewareResult> => {
+export const hmacValidationMiddleware: IngestMiddleware = async (context: IngestContext): Promise<MiddlewareResult> => {
   if (!context.shop || !context.bodyText) {
     return { continue: true, context };
   }
@@ -45,8 +43,8 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
   }
 
   if (!context.timestamp) {
-     // In non-production or if no secret/signature (though caught above for prod), allow continuation but it won't be verified
-     return { continue: true, context };
+    // In non-production or if no secret/signature (though caught above for prod), allow continuation but it won't be verified
+    return { continue: true, context };
   }
 
   let keyValidation: KeyValidationResult = {
@@ -77,14 +75,18 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
     });
 
     if (graceResult.matched) {
-      const hmacResult = await verifyWithToken(graceResult.usedPreviousSecret ? context.shop.previousIngestionSecret! : context.shop.ingestionSecret!);
+      const hmacResult = await verifyWithToken(
+        graceResult.usedPreviousSecret ? context.shop.previousIngestionSecret! : context.shop.ingestionSecret!
+      );
       keyValidation = {
         matched: true,
         reason: "hmac_verified",
         usedPreviousSecret: graceResult.usedPreviousSecret,
         trustLevel: hmacResult.trustLevel || "trusted",
       };
-      logger.debug(`HMAC signature verified for ${context.shopDomain}${graceResult.usedPreviousSecret ? " (using previous token)" : ""}`);
+      logger.debug(
+        `HMAC signature verified for ${context.shopDomain}${graceResult.usedPreviousSecret ? " (using previous token)" : ""}`
+      );
 
       const totalEvents = context.validatedEvents.length;
       if (totalEvents >= 3) {
@@ -110,17 +112,26 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
         }
 
         const uniqueOrderKeys = orderKeys.size;
-        const duplicateOrderKeyRate = totalEvents > 0 && uniqueOrderKeys > 0 ? 1 - (uniqueOrderKeys / totalEvents) : 0;
+        const duplicateOrderKeyRate = totalEvents > 0 && uniqueOrderKeys > 0 ? 1 - uniqueOrderKeys / totalEvents : 0;
         const invalidOrderKeyRate = totalEvents > 0 ? invalidOrderKeys / totalEvents : 0;
-        const nonStandardEventCount = Array.from(eventTypes.entries()).filter(([name]) =>
-          !["page_viewed", "product_viewed", "collection_viewed", "search_submitted", "cart_viewed", "checkout_started", "checkout_completed", "purchase"].includes(name)
-        ).reduce((sum, [, count]) => sum + count, 0);
+        const nonStandardEventCount = Array.from(eventTypes.entries())
+          .filter(
+            ([name]) =>
+              ![
+                "page_viewed",
+                "product_viewed",
+                "collection_viewed",
+                "search_submitted",
+                "cart_viewed",
+                "checkout_started",
+                "checkout_completed",
+                "purchase",
+              ].includes(name)
+          )
+          .reduce((sum, [, count]) => sum + count, 0);
         const nonStandardEventRate = totalEvents > 0 ? nonStandardEventCount / totalEvents : 0;
 
-        const abuseDetected =
-          duplicateOrderKeyRate > 0.8 ||
-          invalidOrderKeyRate > 0.3 ||
-          nonStandardEventRate > 0.5;
+        const abuseDetected = duplicateOrderKeyRate > 0.8 || invalidOrderKeyRate > 0.3 || nonStandardEventRate > 0.5;
 
         if (abuseDetected) {
           const abuseReasons: string[] = [];
@@ -185,11 +196,16 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
           trustLevel: hmacResult.trustLevel || "untrusted",
         };
         if (isStrictSecurityMode()) {
-          logger.warn(`HMAC verification failed for ${context.shopDomain}: signature did not match current or previous token`);
+          logger.warn(
+            `HMAC verification failed for ${context.shopDomain}: signature did not match current or previous token`
+          );
         } else {
-          logger.warn(`HMAC verification failed for ${context.shopDomain}: signature did not match (non-strict mode, marking as untrusted)`, {
-            trustLevel: keyValidation.trustLevel,
-          });
+          logger.warn(
+            `HMAC verification failed for ${context.shopDomain}: signature did not match (non-strict mode, marking as untrusted)`,
+            {
+              trustLevel: keyValidation.trustLevel,
+            }
+          );
         }
       }
     }
@@ -239,10 +255,7 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
     const error = rejectionReason === "no_ingestion_key" ? "Service unavailable" : "Invalid request";
     return {
       continue: false,
-      response: jsonWithCors(
-        { error },
-        { status, request: context.request, requestId: context.requestId }
-      ),
+      response: jsonWithCors({ error }, { status, request: context.request, requestId: context.requestId }),
     };
   }
 

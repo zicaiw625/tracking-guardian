@@ -31,11 +31,7 @@ vi.mock("../../app/utils/security-headers", () => ({
     "style-src": ["'self'", "'unsafe-inline'", "https://cdn.shopify.com"],
     "img-src": ["'self'", "data:", "https:", "blob:"],
     "font-src": ["'self'", "https://cdn.shopify.com"],
-    "connect-src": [
-      "'self'",
-      "https://cdn.shopify.com",
-      "https://monorail-edge.shopifysvc.com",
-    ],
+    "connect-src": ["'self'", "https://cdn.shopify.com", "https://monorail-edge.shopifysvc.com"],
     "frame-ancestors": ["https://admin.shopify.com", "https://*.shopify.com", "https://*.myshopify.com"],
     "base-uri": ["'self'"],
     "form-action": ["'self'", "https://*.shopify.com", "https://*.myshopify.com"],
@@ -47,8 +43,8 @@ vi.mock("../../app/utils/security-headers", () => ({
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-    "Pragma": "no-cache",
-    "Expires": "0",
+    Pragma: "no-cache",
+    Expires: "0",
     "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
   },
   buildCspHeader: (directives: Record<string, string[]>) =>
@@ -141,4 +137,3 @@ describe("entry.server embedded headers", () => {
     expect(vi.mocked(addDocumentResponseHeaders)).toHaveBeenCalledTimes(1);
   });
 });
-

@@ -1,16 +1,5 @@
 import { Component, type ReactNode } from "react";
-import {
-  Page,
-  Card,
-  Text,
-  BlockStack,
-  InlineStack,
-  Button,
-  Banner,
-  List,
-  Icon,
-  Box,
-} from "@shopify/polaris";
+import { Page, Card, Text, BlockStack, InlineStack, Button, Banner, List, Icon, Box } from "@shopify/polaris";
 import { AlertCircleIcon, RefreshIcon } from "~/components/icons";
 
 interface ErrorBoundaryState {
@@ -104,11 +93,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                     <Text as="h3" variant="headingSm">
                       错误详情（仅开发环境）
                     </Text>
-                    <Box
-                      padding="300"
-                      background="bg-surface-secondary"
-                      borderRadius="100"
-                    >
+                    <Box padding="300" background="bg-surface-secondary" borderRadius="100">
                       <pre
                         style={{
                           margin: 0,
@@ -128,9 +113,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 <Button variant="primary" onClick={this.handleReload} icon={RefreshIcon}>
                   刷新页面
                 </Button>
-                <Button onClick={this.handleReset}>
-                  重试
-                </Button>
+                <Button onClick={this.handleReset}>重试</Button>
                 <Button url="/app" variant="tertiary">
                   返回首页
                 </Button>

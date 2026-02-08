@@ -1,13 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import {
-  Card,
-  BlockStack,
-  InlineStack,
-  Text,
-  Badge,
-  Button,
-  Modal,
-} from "@shopify/polaris";
+import { Card, BlockStack, InlineStack, Text, Badge, Button, Modal } from "@shopify/polaris";
 import { ArrowRightIcon, CheckCircleIcon } from "~/components/icons";
 import type { WizardTemplate } from "~/components/migrate/PixelMigrationWizard";
 import {
@@ -74,17 +66,15 @@ export function NewPixelWizard({
 }: NewPixelWizardProps) {
   const [currentStep, setCurrentStep] = useState<SetupStep>("select");
   const [selectedPlatforms, setSelectedPlatforms] = useState<Set<SupportedPlatform>>(new Set());
-  const [platformConfigs, setPlatformConfigs] = useState<Partial<Record<SupportedPlatform, PlatformConfig>>>(initialConfigs);
+  const [platformConfigs, setPlatformConfigs] =
+    useState<Partial<Record<SupportedPlatform, PlatformConfig>>>(initialConfigs);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   const availableTemplates = useMemo(() => {
     const presetTemplates = templates?.presets?.length ? templates.presets : PRESET_TEMPLATES;
     const customTemplates = templates?.custom || [];
     return [...presetTemplates, ...customTemplates].filter(
-      (t) =>
-        t &&
-        t.platforms &&
-        t.platforms.every((p) => SUPPORTED_PLATFORMS.includes(p as SupportedPlatform))
+      (t) => t && t.platforms && t.platforms.every((p) => SUPPORTED_PLATFORMS.includes(p as SupportedPlatform))
     );
   }, [templates]);
 
@@ -155,19 +145,16 @@ export function NewPixelWizard({
     []
   );
 
-  const handleCredentialsChange = useCallback(
-    (platform: SupportedPlatform, credentials: Record<string, string>) => {
-      setPlatformConfigs((prev) => {
-        const currentConfig = prev[platform];
-        if (!currentConfig) return prev;
-        return {
-          ...prev,
-          [platform]: { ...currentConfig, credentials },
-        };
-      });
-    },
-    []
-  );
+  const handleCredentialsChange = useCallback((platform: SupportedPlatform, credentials: Record<string, string>) => {
+    setPlatformConfigs((prev) => {
+      const currentConfig = prev[platform];
+      if (!currentConfig) return prev;
+      return {
+        ...prev,
+        [platform]: { ...currentConfig, credentials },
+      };
+    });
+  }, []);
 
   const validateStep = useCallback(
     (step: SetupStep) => {
@@ -209,7 +196,10 @@ export function NewPixelWizard({
     const configs = Array.from(selectedPlatforms).map((platform) => {
       const config = platformConfigs[platform] as PlatformConfig;
       const creds = config.credentials ?? {};
-      const serverSideEnabled = areCredentialsComplete(platform, creds as unknown as Parameters<typeof areCredentialsComplete>[1]);
+      const serverSideEnabled = areCredentialsComplete(
+        platform,
+        creds as unknown as Parameters<typeof areCredentialsComplete>[1]
+      );
       return {
         platform,
         platformId: config.platformId,
@@ -241,9 +231,7 @@ export function NewPixelWizard({
             {PIXEL_SETUP_STEPS.map((step, index) => (
               <Badge
                 key={step.id}
-                tone={
-                  index === currentIndex ? "success" : index < currentIndex ? "info" : undefined
-                }
+                tone={index === currentIndex ? "success" : index < currentIndex ? "info" : undefined}
               >
                 {step.label}
               </Badge>
@@ -288,20 +276,12 @@ export function NewPixelWizard({
           </Button>
           <InlineStack gap="200" wrap>
             {currentIndex > 0 && (
-              <Button
-                onClick={() => setCurrentStep(PIXEL_SETUP_STEPS[currentIndex - 1].id)}
-                disabled={isSubmitting}
-              >
+              <Button onClick={() => setCurrentStep(PIXEL_SETUP_STEPS[currentIndex - 1].id)} disabled={isSubmitting}>
                 上一步
               </Button>
             )}
             {currentStep !== "review" ? (
-              <Button
-                variant="primary"
-                onClick={handleNext}
-                disabled={isSubmitting}
-                icon={ArrowRightIcon}
-              >
+              <Button variant="primary" onClick={handleNext} disabled={isSubmitting} icon={ArrowRightIcon}>
                 下一步
               </Button>
             ) : (

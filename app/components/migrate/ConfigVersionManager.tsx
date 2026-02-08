@@ -136,12 +136,7 @@ export function ConfigVersionManager({
               {t("components.configVersionManager.title")}
             </Text>
             {versionHistory.canRollback && (
-              <Button
-                onClick={() => setRollbackModalOpen(true)}
-                variant="secondary"
-                size="slim"
-                icon={ArrowLeftIcon}
-              >
+              <Button onClick={() => setRollbackModalOpen(true)} variant="secondary" size="slim" icon={ArrowLeftIcon}>
                 {t("components.configVersionManager.rollbackToPrev")}
               </Button>
             )}
@@ -149,7 +144,7 @@ export function ConfigVersionManager({
           <Text as="p" variant="bodySm" tone="subdued">
             {t("components.configVersionManager.historyDesc", {
               platform: platformNames[platform],
-              version: versionHistory.currentVersion
+              version: versionHistory.currentVersion,
             })}
           </Text>
           <Divider />
@@ -160,9 +155,7 @@ export function ConfigVersionManager({
               return (
                 <Box
                   key={version.version}
-                  background={
-                    isCurrent ? "bg-surface-success" : "bg-surface-secondary"
-                  }
+                  background={isCurrent ? "bg-surface-success" : "bg-surface-secondary"}
                   padding="400"
                   borderRadius="200"
                 >
@@ -183,7 +176,7 @@ export function ConfigVersionManager({
                         <InlineStack gap="300" blockAlign="center">
                           <Text as="span" variant="bodySm" tone="subdued">
                             <ClockIcon />
-                            {new Date(version.savedAt).toLocaleString(i18n.language === 'zh' ? "zh-CN" : "en-US")}
+                            {new Date(version.savedAt).toLocaleString(i18n.language === "zh" ? "zh-CN" : "en-US")}
                           </Text>
                         </InlineStack>
                       </BlockStack>
@@ -259,8 +252,8 @@ export function ConfigVersionManager({
             </Banner>
             <BlockStack gap="300">
               <Text as="p" variant="bodySm">
-                <Trans 
-                  i18nKey="components.configVersionManager.rollbackMessage" 
+                <Trans
+                  i18nKey="components.configVersionManager.rollbackMessage"
                   values={{ platform: platformNames[platform], version: versionHistory.currentVersion - 1 }}
                   components={{ strong: <strong /> }}
                 />
@@ -269,12 +262,8 @@ export function ConfigVersionManager({
                 <List.Item>
                   {t("components.configVersionManager.rollbackItem1", { version: versionHistory.currentVersion })}
                 </List.Item>
-                <List.Item>
-                  {t("components.configVersionManager.rollbackItem2")}
-                </List.Item>
-                <List.Item>
-                  {t("components.configVersionManager.rollbackItem3")}
-                </List.Item>
+                <List.Item>{t("components.configVersionManager.rollbackItem2")}</List.Item>
+                <List.Item>{t("components.configVersionManager.rollbackItem3")}</List.Item>
               </List>
               {fetcher.data && (fetcher.data as { error?: string }).error ? (
                 <Banner tone="critical">

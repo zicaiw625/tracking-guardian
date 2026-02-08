@@ -102,15 +102,15 @@ export const GoogleCredentialsSchema = z.object({
   measurementId: z
     .string()
     .min(1, "Measurement ID is required")
-    .regex(/^G-[A-Z0-9]+$/i, "Invalid Measurement ID format (should start with G- followed by alphanumeric characters)"),
+    .regex(
+      /^G-[A-Z0-9]+$/i,
+      "Invalid Measurement ID format (should start with G- followed by alphanumeric characters)"
+    ),
   apiSecret: z.string().min(1, "API Secret is required"),
 });
 
 export const MetaCredentialsSchema = z.object({
-  pixelId: z
-    .string()
-    .min(1, "Pixel ID is required")
-    .regex(/^\d+$/, "Pixel ID should be numeric"),
+  pixelId: z.string().min(1, "Pixel ID is required").regex(/^\d+$/, "Pixel ID should be numeric"),
   accessToken: z.string().min(1, "Access Token is required"),
   testEventCode: z.string().optional(),
 });
@@ -122,10 +122,7 @@ export const TikTokCredentialsSchema = z.object({
 });
 
 export const PinterestCredentialsSchema = z.object({
-  adAccountId: z
-    .string()
-    .min(1, "Ad Account ID is required")
-    .regex(/^\d+$/, "Ad Account ID should be numeric"),
+  adAccountId: z.string().min(1, "Ad Account ID is required").regex(/^\d+$/, "Ad Account ID should be numeric"),
   accessToken: z.string().min(1, "Access Token is required"),
   testMode: z.boolean().optional(),
 });
@@ -175,9 +172,7 @@ export const PlatformCredentialsSchema = z.discriminatedUnion("platform", [
   TwitterCredentialsTypedSchema,
 ]);
 
-export function isGoogleCredentials(
-  creds: PlatformCredentials
-): creds is GoogleCredentials {
+export function isGoogleCredentials(creds: PlatformCredentials): creds is GoogleCredentials {
   return (
     "measurementId" in creds &&
     "apiSecret" in creds &&
@@ -186,9 +181,7 @@ export function isGoogleCredentials(
   );
 }
 
-export function isMetaCredentials(
-  creds: PlatformCredentials
-): creds is MetaCredentials {
+export function isMetaCredentials(creds: PlatformCredentials): creds is MetaCredentials {
   return (
     "pixelId" in creds &&
     "accessToken" in creds &&
@@ -198,9 +191,7 @@ export function isMetaCredentials(
   );
 }
 
-export function isTikTokCredentials(
-  creds: PlatformCredentials
-): creds is TikTokCredentials {
+export function isTikTokCredentials(creds: PlatformCredentials): creds is TikTokCredentials {
   return (
     "pixelId" in creds &&
     "accessToken" in creds &&
@@ -209,45 +200,31 @@ export function isTikTokCredentials(
   );
 }
 
-export function isTypedGoogleCredentials(
-  creds: TypedPlatformCredentials
-): creds is GoogleCredentialsTyped {
+export function isTypedGoogleCredentials(creds: TypedPlatformCredentials): creds is GoogleCredentialsTyped {
   return creds.platform === Platform.GOOGLE;
 }
 
-export function isTypedMetaCredentials(
-  creds: TypedPlatformCredentials
-): creds is MetaCredentialsTyped {
+export function isTypedMetaCredentials(creds: TypedPlatformCredentials): creds is MetaCredentialsTyped {
   return creds.platform === Platform.META;
 }
 
-export function isTypedTikTokCredentials(
-  creds: TypedPlatformCredentials
-): creds is TikTokCredentialsTyped {
+export function isTypedTikTokCredentials(creds: TypedPlatformCredentials): creds is TikTokCredentialsTyped {
   return creds.platform === Platform.TIKTOK;
 }
 
-export function isTypedPinterestCredentials(
-  creds: TypedPlatformCredentials
-): creds is PinterestCredentialsTyped {
+export function isTypedPinterestCredentials(creds: TypedPlatformCredentials): creds is PinterestCredentialsTyped {
   return creds.platform === Platform.PINTEREST;
 }
 
-export function isTypedSnapchatCredentials(
-  creds: TypedPlatformCredentials
-): creds is SnapchatCredentialsTyped {
+export function isTypedSnapchatCredentials(creds: TypedPlatformCredentials): creds is SnapchatCredentialsTyped {
   return creds.platform === Platform.SNAPCHAT;
 }
 
-export function isTypedTwitterCredentials(
-  creds: TypedPlatformCredentials
-): creds is TwitterCredentialsTyped {
+export function isTypedTwitterCredentials(creds: TypedPlatformCredentials): creds is TwitterCredentialsTyped {
   return creds.platform === Platform.TWITTER;
 }
 
-export function isPinterestCredentials(
-  creds: PlatformCredentials
-): creds is PinterestCredentials {
+export function isPinterestCredentials(creds: PlatformCredentials): creds is PinterestCredentials {
   return (
     "adAccountId" in creds &&
     "accessToken" in creds &&
@@ -256,9 +233,7 @@ export function isPinterestCredentials(
   );
 }
 
-export function isSnapchatCredentials(
-  creds: PlatformCredentials
-): creds is SnapchatCredentials {
+export function isSnapchatCredentials(creds: PlatformCredentials): creds is SnapchatCredentials {
   return (
     "pixelId" in creds &&
     "accessToken" in creds &&
@@ -267,9 +242,7 @@ export function isSnapchatCredentials(
   );
 }
 
-export function isTwitterCredentials(
-  creds: PlatformCredentials
-): creds is TwitterCredentials {
+export function isTwitterCredentials(creds: PlatformCredentials): creds is TwitterCredentials {
   return (
     "pixelId" in creds &&
     "accessToken" in creds &&
@@ -278,10 +251,7 @@ export function isTwitterCredentials(
   );
 }
 
-export function upgradeCredentials(
-  platform: PlatformType,
-  creds: PlatformCredentials
-): TypedPlatformCredentials {
+export function upgradeCredentials(platform: PlatformType, creds: PlatformCredentials): TypedPlatformCredentials {
   switch (platform) {
     case Platform.GOOGLE:
       return {

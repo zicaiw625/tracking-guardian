@@ -33,7 +33,7 @@ export function getSeverityBadge(severity: string, t?: TFunction) {
 }
 
 export function getUpgradeBannerTone(riskScoreOrUrgency: number | string) {
-  if (typeof riskScoreOrUrgency === 'number') {
+  if (typeof riskScoreOrUrgency === "number") {
     const riskScore = riskScoreOrUrgency;
     if (riskScore >= 80) return "critical";
     if (riskScore >= 50) return "warning";

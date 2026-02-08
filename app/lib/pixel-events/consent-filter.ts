@@ -38,10 +38,7 @@ export function checkInitialConsent(consent: ConsentState | undefined): ConsentC
   };
 }
 
-export function logNoConsentDrop(
-  shopDomain: string,
-  consent: ConsentState | undefined
-): void {
+export function logNoConsentDrop(shopDomain: string, consent: ConsentState | undefined): void {
   metrics.silentDrop({
     shopDomain,
     reason: "no_analytics_consent",
@@ -118,7 +115,7 @@ export function logConsentFilterMetrics(
   consentResult: ConsentCheckResult
 ): void {
   if (skippedPlatforms.length > 0 || recordedPlatforms.length > 0) {
-    const platformNames = recordedPlatforms.map(p => p.platform);
+    const platformNames = recordedPlatforms.map((p) => p.platform);
     metrics.consentFilter({
       shopDomain,
       orderId,

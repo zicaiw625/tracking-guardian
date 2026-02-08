@@ -9,12 +9,7 @@ interface LoadingSpinnerProps {
   style?: React.CSSProperties;
 }
 
-export function LoadingSpinner({
-  size = "large",
-  label,
-  fullScreen = false,
-  style,
-}: LoadingSpinnerProps) {
+export function LoadingSpinner({ size = "large", label, fullScreen = false, style }: LoadingSpinnerProps) {
   const { t } = useTranslation();
   const displayLabel = label || t("common.loading");
   const content = (
@@ -70,11 +65,7 @@ interface SkeletonProps {
   showTitle?: boolean;
 }
 
-export function Skeleton({
-  lines = 3,
-  showAvatar = false,
-  showTitle = true,
-}: SkeletonProps) {
+export function Skeleton({ lines = 3, showAvatar = false, showTitle = true }: SkeletonProps) {
   return (
     <div className="skeleton-container">
       <style>
@@ -164,19 +155,10 @@ interface LazyLoadWrapperProps {
   minHeight?: string | number;
 }
 
-export function LazyLoadWrapper({
-  children,
-  isLoading,
-  loadingComponent,
-  minHeight = "200px",
-}: LazyLoadWrapperProps) {
+export function LazyLoadWrapper({ children, isLoading, loadingComponent, minHeight = "200px" }: LazyLoadWrapperProps) {
   const { t } = useTranslation();
   if (isLoading) {
-    return (
-      <div style={{ minHeight }}>
-        {loadingComponent || <LoadingSpinner label={t("common.loading")} />}
-      </div>
-    );
+    return <div style={{ minHeight }}>{loadingComponent || <LoadingSpinner label={t("common.loading")} />}</div>;
   }
   return <>{children}</>;
 }

@@ -50,9 +50,7 @@ export function useThrottle<T>(value: T, interval: number): T {
     pendingValue.current = value;
     const now = Date.now();
     const timeSinceLastUpdate = now - lastUpdated.current;
-    const delay = lastUpdated.current === 0
-      ? 0
-      : Math.max(0, interval - timeSinceLastUpdate);
+    const delay = lastUpdated.current === 0 ? 0 : Math.max(0, interval - timeSinceLastUpdate);
     const timer = setTimeout(() => {
       lastUpdated.current = Date.now();
       setThrottledValue(pendingValue.current);

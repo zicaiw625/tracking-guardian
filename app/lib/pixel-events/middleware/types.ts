@@ -43,10 +43,6 @@ export interface IngestContext {
   enabledPixelConfigs: Array<{ serverSideEnabled?: boolean | null; clientSideEnabled?: boolean | null }>;
 }
 
-export type MiddlewareResult = 
-  | { continue: true; context: IngestContext }
-  | { continue: false; response: Response };
+export type MiddlewareResult = { continue: true; context: IngestContext } | { continue: false; response: Response };
 
-export type IngestMiddleware = (
-  context: IngestContext
-) => Promise<MiddlewareResult>;
+export type IngestMiddleware = (context: IngestContext) => Promise<MiddlewareResult>;

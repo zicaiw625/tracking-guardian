@@ -88,7 +88,10 @@ export const RETENTION_CONFIG = normalizeRetentionConfig({
   RECEIPT_DAYS: getRetentionDays("RETENTION_RECEIPT_DAYS", 90),
 } as RetentionConfig);
 
-export function getRetentionConfigSummary(): Record<string, { value: number | string; unit: string; source: "default" | "env" }> {
+export function getRetentionConfigSummary(): Record<
+  string,
+  { value: number | string; unit: string; source: "default" | "env" }
+> {
   return {
     minDays: {
       value: RETENTION_CONFIG.MIN_DAYS,
@@ -181,7 +184,9 @@ export function validateConfig(): ConfigValidationResult {
   }
   if (isProduction) {
     if (process.env.ALLOW_MEMORY_REDIS_IN_PROD === "true") {
-      errors.push("ALLOW_MEMORY_REDIS_IN_PROD cannot be true in production. Redis is required for rate-limiting and security.");
+      errors.push(
+        "ALLOW_MEMORY_REDIS_IN_PROD cannot be true in production. Redis is required for rate-limiting and security."
+      );
     }
     if (!process.env.REDIS_URL) {
       errors.push("REDIS_URL is required in production (rate-limit/nonce/idempotency need shared storage).");
@@ -215,12 +220,15 @@ export function validateConfig(): ConfigValidationResult {
     if (!scopesEnv || scopesEnv.trim() === "") {
       errors.push("SCOPES must be set in production");
     } else {
-      const scopes = scopesEnv.split(",").map(s => s.trim()).filter(Boolean);
+      const scopes = scopesEnv
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       if (scopes.length === 0) {
         errors.push("SCOPES must contain at least one scope in production");
       } else {
         const requiredScopes = ["read_script_tags", "read_pixels", "write_pixels", "read_customer_events"];
-        const missingScopes = requiredScopes.filter(required => !scopes.includes(required));
+        const missingScopes = requiredScopes.filter((required) => !scopes.includes(required));
         if (missingScopes.length > 0) {
           errors.push(`SCOPES must include all required scopes in production. Missing: ${missingScopes.join(", ")}`);
         }
@@ -366,7 +374,7 @@ export function getFeatureFlagsSummary(): Record<string, { enabled: boolean; sou
 export function logConfigStatus(): void {
   const result = validateConfig();
   logInfo("\n=== Configuration Status ===");
-  logInfo(`Environment: ${typeof process !== "undefined" ? (process.env.NODE_ENV || "development") : "unknown"}`);
+  logInfo(`Environment: ${typeof process !== "undefined" ? process.env.NODE_ENV || "development" : "unknown"}`);
   if (result.errors.length > 0) {
     logError("\n❌ Configuration Errors:");
     for (const error of result.errors) {
@@ -463,8 +471,7 @@ export function getPixelEventIngestionUrl(): {
       url: "",
       isConfigured: false,
       isLocalhost: false,
-      warning:
-        "SHOPIFY_APP_URL 未配置。如果您运行在自己的服务器上，请确保在环境变量中设置 SHOPIFY_APP_URL。",
+      warning: "SHOPIFY_APP_URL 未配置。如果您运行在自己的服务器上，请确保在环境变量中设置 SHOPIFY_APP_URL。",
     };
   }
   const placeholderDetected =
@@ -493,9 +500,7 @@ export function getPixelEventIngestionUrl(): {
       url: shopifyAppUrl,
       isConfigured: true,
       isLocalhost,
-      warning: isLocalhost
-        ? "当前配置的是本地开发 URL，像素事件将不会发送到生产环境。"
-        : undefined,
+      warning: isLocalhost ? "当前配置的是本地开发 URL，像素事件将不会发送到生产环境。" : undefined,
       pixelExtensionUrl: shopifyAppUrl,
       allowlistStatus: {
         inAllowlist,

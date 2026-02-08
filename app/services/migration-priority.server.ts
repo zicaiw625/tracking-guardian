@@ -1,8 +1,6 @@
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
-import {
-  DEPRECATION_DATES,
-} from "../utils/deprecation-dates";
+import { DEPRECATION_DATES } from "../utils/deprecation-dates";
 
 export interface PriorityFactors {
   riskLevel: "high" | "medium" | "low";
@@ -84,9 +82,7 @@ export function calculatePriority(factors: PriorityFactors): PriorityResult {
   if (factors.shopTier === "plus") {
     const now = new Date();
     const autoUpgradeStart = DEPRECATION_DATES.plusAutoUpgradeStart;
-    const daysUntilAutoUpgrade = Math.ceil(
-      (autoUpgradeStart.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-    );
+    const daysUntilAutoUpgrade = Math.ceil((autoUpgradeStart.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     if (now >= autoUpgradeStart) {
       priorityScore += 2;
       reasoning.push("Plus 商家自动升级已开始：立即处理");
@@ -94,18 +90,22 @@ export function calculatePriority(factors: PriorityFactors): PriorityResult {
     } else if (daysUntilAutoUpgrade <= 30) {
       priorityScore += 2;
       reasoning.push(`Plus 自动升级倒计时：剩余 ${daysUntilAutoUpgrade} 天`);
-      reasoningKeys.push({ key: "scan.priority.reason.plusAutoUpgradeCountdown", params: { days: daysUntilAutoUpgrade } });
+      reasoningKeys.push({
+        key: "scan.priority.reason.plusAutoUpgradeCountdown",
+        params: { days: daysUntilAutoUpgrade },
+      });
     } else if (daysUntilAutoUpgrade <= 90) {
       priorityScore += 1;
       reasoning.push(`Plus 自动升级倒计时：剩余 ${daysUntilAutoUpgrade} 天`);
-      reasoningKeys.push({ key: "scan.priority.reason.plusAutoUpgradeCountdown", params: { days: daysUntilAutoUpgrade } });
+      reasoningKeys.push({
+        key: "scan.priority.reason.plusAutoUpgradeCountdown",
+        params: { days: daysUntilAutoUpgrade },
+      });
     }
   } else if (factors.shopTier === "non_plus") {
     const now = new Date();
     const nonPlusDeadline = DEPRECATION_DATES.scriptTagBlocked;
-    const daysUntilDeadline = Math.ceil(
-      (nonPlusDeadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-    );
+    const daysUntilDeadline = Math.ceil((nonPlusDeadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     if (daysUntilDeadline <= 30) {
       priorityScore += 2;
       reasoning.push(`非 Plus 商家截止日期：剩余 ${daysUntilDeadline} 天`);
@@ -120,7 +120,10 @@ export function calculatePriority(factors: PriorityFactors): PriorityResult {
     if (factors.daysUntilDeadline && factors.daysUntilDeadline <= 30) {
       priorityScore += 1.5;
       reasoning.push(`存在依赖关系但截止日期临近（${factors.daysUntilDeadline} 天）：需要尽快处理`);
-      reasoningKeys.push({ key: "scan.priority.reason.dependenciesUrgent", params: { days: factors.daysUntilDeadline } });
+      reasoningKeys.push({
+        key: "scan.priority.reason.dependenciesUrgent",
+        params: { days: factors.daysUntilDeadline },
+      });
     } else {
       priorityScore += 0.3;
       reasoning.push("存在依赖关系：需要先处理依赖项");
@@ -253,9 +256,7 @@ export async function calculateAssetPriority(
       }
     }
     if (asset.suggestedMigration === "server_side") {
-      const webPixelAssets = relatedAssets.filter(
-        (a) => a.suggestedMigration === "web_pixel"
-      );
+      const webPixelAssets = relatedAssets.filter((a) => a.suggestedMigration === "web_pixel");
       if (webPixelAssets.length > 0) {
         dependencies.push(...webPixelAssets.map((a) => a.id));
       }
@@ -285,10 +286,7 @@ export async function calculateAssetPriority(
   return result;
 }
 
-export async function calculateAllAssetPriorities(
-  shopId: string,
-  shopTier: "plus" | "non_plus" | null
-): Promise<void> {
+export async function calculateAllAssetPriorities(shopId: string, shopTier: "plus" | "non_plus" | null): Promise<void> {
   const assets = await prisma.auditAsset.findMany({
     where: {
       shopId,
@@ -304,10 +302,7 @@ export async function calculateAllAssetPriorities(
       dependencies: true,
       details: true,
     },
-    orderBy: [
-      { riskLevel: "desc" },
-      { createdAt: "asc" },
-    ],
+    orderBy: [{ riskLevel: "desc" }, { createdAt: "asc" }],
   });
   const priorityResults = new Map<string, PriorityResult>();
   for (const asset of assets) {
@@ -342,9 +337,7 @@ export async function calculateAllAssetPriorities(
         data: {
           priority: priorityResult.priority,
           estimatedTimeMinutes: priorityResult.estimatedTimeMinutes,
-          dependencies: priorityResult.dependencies.length > 0
-            ? priorityResult.dependencies
-            : undefined,
+          dependencies: priorityResult.dependencies.length > 0 ? priorityResult.dependencies : undefined,
         },
       });
     } catch (error) {
@@ -384,9 +377,7 @@ export interface MigrationTimeline {
   generatedAt: Date;
 }
 
-export async function generateMigrationTimeline(
-  shopId: string
-): Promise<MigrationTimeline> {
+export async function generateMigrationTimeline(shopId: string): Promise<MigrationTimeline> {
   const shop = await prisma.shop.findUnique({
     where: { id: shopId },
     select: { shopTier: true },
@@ -409,11 +400,7 @@ export async function generateMigrationTimeline(
       estimatedTimeMinutes: true,
       dependencies: true,
     },
-    orderBy: [
-      { priority: "desc" },
-      { riskLevel: "desc" },
-      { createdAt: "asc" },
-    ],
+    orderBy: [{ priority: "desc" }, { riskLevel: "desc" }, { createdAt: "asc" }],
   });
   const dependencyMap = new Map<string, string[]>();
   const dependentsMap = new Map<string, string[]>();
@@ -429,13 +416,15 @@ export async function generateMigrationTimeline(
     }
   });
   const completedAssetIds = new Set(
-    (await prisma.auditAsset.findMany({
-      where: {
-        shopId,
-        migrationStatus: "completed",
-      },
-      select: { id: true },
-    })).map((a: { id: string }) => a.id)
+    (
+      await prisma.auditAsset.findMany({
+        where: {
+          shopId,
+          migrationStatus: "completed",
+        },
+        select: { id: true },
+      })
+    ).map((a: { id: string }) => a.id)
   );
   const timelineAssets: MigrationTimelineAsset[] = assets.map((asset: any) => {
     const dependencies = (asset.dependencies as string[]) || [];
@@ -456,16 +445,18 @@ export async function generateMigrationTimeline(
       priority: {
         priority: asset.priority || 5,
         estimatedTime: asset.estimatedTimeMinutes || 15,
-        reason: dependencies.length > 0
-          ? `依赖 ${blockingDeps.length} 个未完成的迁移项`
-          : asset.riskLevel === "high"
-            ? "高风险项，需要优先处理"
-            : "可开始迁移",
-        reasonKey: dependencies.length > 0
-          ? "scan.priority.reason.blockingDependencies"
-          : asset.riskLevel === "high"
-            ? "scan.priority.reason.highRisk"
-            : "scan.priority.reason.readyToStart",
+        reason:
+          dependencies.length > 0
+            ? `依赖 ${blockingDeps.length} 个未完成的迁移项`
+            : asset.riskLevel === "high"
+              ? "高风险项，需要优先处理"
+              : "可开始迁移",
+        reasonKey:
+          dependencies.length > 0
+            ? "scan.priority.reason.blockingDependencies"
+            : asset.riskLevel === "high"
+              ? "scan.priority.reason.highRisk"
+              : "scan.priority.reason.readyToStart",
         reasonParams: dependencies.length > 0 ? { count: blockingDeps.length } : undefined,
       },
       canStart,
@@ -499,10 +490,7 @@ export async function generateMigrationTimeline(
       findLongestPath(asset.id, []);
     }
   });
-  const totalEstimatedTime = timelineAssets.reduce(
-    (sum, item) => sum + item.priority.estimatedTime,
-    0
-  );
+  const totalEstimatedTime = timelineAssets.reduce((sum, item) => sum + item.priority.estimatedTime, 0);
   return {
     shopId,
     assets: timelineAssets,
@@ -533,9 +521,7 @@ export async function getMigrationProgress(shopId: string): Promise<MigrationPro
   const completed = assets.filter((a: any) => a.migrationStatus === "completed").length;
   const inProgress = assets.filter((a: any) => a.migrationStatus === "in_progress").length;
   const pending = assets.filter((a: any) => a.migrationStatus === "pending").length;
-  const remainingAssets = assets.filter(
-    (a: any) => a.migrationStatus !== "completed"
-  );
+  const remainingAssets = assets.filter((a: any) => a.migrationStatus !== "completed");
   const estimatedRemainingMinutes = remainingAssets.reduce(
     (sum: number, a: any) => sum + (a.estimatedTimeMinutes || 15),
     0

@@ -1,18 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useSearchParams } from "@remix-run/react";
-import {
-  Page,
-  Card,
-  Text,
-  BlockStack,
-  Button,
-  Banner,
-  InlineStack,
-  Box,
-  DataTable,
-  Select,
-} from "@shopify/polaris";
+import { Page, Card, Text, BlockStack, Button, Banner, InlineStack, Box, DataTable, Select } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { performPixelVsOrderReconciliation } from "../services/verification/order-reconciliation.server";
@@ -41,12 +30,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
   const url = new URL(request.url);
   const hoursParam = url.searchParams.get("hours");
-  const hours = Math.min(
-    168,
-    Math.max(1,
-      hoursParam ? parseInt(hoursParam, 10) || 24 : 24
-    )
-  );
+  const hours = Math.min(168, Math.max(1, hoursParam ? parseInt(hoursParam, 10) || 24 : 24));
   const pcdDisabled = !PCD_CONFIG.APPROVED;
   const reconciliation = pcdDisabled ? null : await performPixelVsOrderReconciliation(shop.id, hours);
   return json({
@@ -90,7 +74,8 @@ export default function VerificationOrdersPage() {
                 当前未启用订单对账
               </Text>
               <Text as="p" variant="bodySm">
-                订单层验收依赖 Shopify 订单数据，需获得 PCD（Protected Customer Data）审批后启用。当前版本仅提供像素收据层验收，请在「验收」页使用像素层验收与报告导出。
+                订单层验收依赖 Shopify 订单数据，需获得 PCD（Protected Customer
+                Data）审批后启用。当前版本仅提供像素收据层验收，请在「验收」页使用像素层验收与报告导出。
               </Text>
             </BlockStack>
           </Banner>
@@ -186,7 +171,14 @@ export default function VerificationOrdersPage() {
               </Box>
             </InlineStack>
             <Text as="p" variant="bodySm" tone="subdued">
-              统计区间：{typeof reconciliation.periodStart === "string" ? reconciliation.periodStart : new Date(reconciliation.periodStart).toISOString()} 至 {typeof reconciliation.periodEnd === "string" ? reconciliation.periodEnd : new Date(reconciliation.periodEnd).toISOString()}
+              统计区间：
+              {typeof reconciliation.periodStart === "string"
+                ? reconciliation.periodStart
+                : new Date(reconciliation.periodStart).toISOString()}{" "}
+              至{" "}
+              {typeof reconciliation.periodEnd === "string"
+                ? reconciliation.periodEnd
+                : new Date(reconciliation.periodEnd).toISOString()}
             </Text>
           </BlockStack>
         </Card>
@@ -199,11 +191,9 @@ export default function VerificationOrdersPage() {
               <DataTable
                 columnContentTypes={["text", "numeric", "text"]}
                 headings={["订单 ID", "金额", "币种"]}
-                rows={reconciliation.missingOrderIds.slice(0, 100).map((r) => [
-                  r.orderId,
-                  String(r.totalPrice),
-                  r.currency,
-                ])}
+                rows={reconciliation.missingOrderIds
+                  .slice(0, 100)
+                  .map((r) => [r.orderId, String(r.totalPrice), r.currency])}
               />
               {reconciliation.missingOrderIds.length > 100 && (
                 <Text as="p" variant="bodySm" tone="subdued">
@@ -222,13 +212,15 @@ export default function VerificationOrdersPage() {
               <DataTable
                 columnContentTypes={["text", "numeric", "text", "numeric", "text"]}
                 headings={["订单 ID", "订单金额", "订单币种", "像素金额", "像素币种"]}
-                rows={reconciliation.valueMismatches.slice(0, 50).map((r) => [
-                  r.orderId,
-                  String(r.orderValue),
-                  r.orderCurrency,
-                  String(r.pixelValue),
-                  r.pixelCurrency,
-                ])}
+                rows={reconciliation.valueMismatches
+                  .slice(0, 50)
+                  .map((r) => [
+                    r.orderId,
+                    String(r.orderValue),
+                    r.orderCurrency,
+                    String(r.pixelValue),
+                    r.pixelCurrency,
+                  ])}
               />
               {reconciliation.valueMismatches.length > 50 && (
                 <Text as="p" variant="bodySm" tone="subdued">

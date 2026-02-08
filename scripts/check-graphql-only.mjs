@@ -3,155 +3,147 @@ import * as fs from "fs";
 import * as path from "path";
 
 const FORBIDDEN_PATTERNS = [
-    {
-        pattern: /\/admin\/api\/\d{4}-\d{2}\/(?!graphql\.json)[a-z_]+/i,
-        description: "REST API endpoint detected (use GraphQL instead)",
-    },
-    {
-        pattern: /\/admin\/api\/\d{4}-\d{2}\/[a-z_]+\.json/i,
-        description: "REST .json endpoint detected",
-    },
-    {
-        pattern: /AdminRestApiClient/,
-        description: "AdminRestApiClient import/usage detected (use GraphQL client)",
-    },
-    {
-        pattern: /\.restClient\b/,
-        description: ".restClient property access detected",
-    },
-    {
-        pattern: /rest:\s*true/,
-        description: "REST client option detected",
-    },
-    {
-        pattern: /shopify\.clients\.Rest/,
-        description: "Shopify REST client constructor detected",
-    },
-    {
-        pattern: /\bnew\s+Rest\s*\(|Rest\.create\s*\(/,
-        description: "REST client instantiation detected",
-    },
-    {
-        pattern: /admin\.rest\./i,
-        description: "admin.rest property access detected (use admin.graphql instead)",
-    },
-    {
-        pattern: /\.rest\.resources\./i,
-        description: ".rest.resources REST API usage detected (use GraphQL instead)",
-    },
-    {
-        pattern: /admin\.rest\.resources\.[A-Z]/i,
-        description: "admin.rest.resources.* REST API usage detected (use GraphQL instead)",
-    },
-    {
-        pattern: /\.rest\.resources\.[A-Z]/i,
-        description: ".rest.resources.* REST API usage detected (use GraphQL instead)",
-    },
+  {
+    pattern: /\/admin\/api\/\d{4}-\d{2}\/(?!graphql\.json)[a-z_]+/i,
+    description: "REST API endpoint detected (use GraphQL instead)",
+  },
+  {
+    pattern: /\/admin\/api\/\d{4}-\d{2}\/[a-z_]+\.json/i,
+    description: "REST .json endpoint detected",
+  },
+  {
+    pattern: /AdminRestApiClient/,
+    description: "AdminRestApiClient import/usage detected (use GraphQL client)",
+  },
+  {
+    pattern: /\.restClient\b/,
+    description: ".restClient property access detected",
+  },
+  {
+    pattern: /rest:\s*true/,
+    description: "REST client option detected",
+  },
+  {
+    pattern: /shopify\.clients\.Rest/,
+    description: "Shopify REST client constructor detected",
+  },
+  {
+    pattern: /\bnew\s+Rest\s*\(|Rest\.create\s*\(/,
+    description: "REST client instantiation detected",
+  },
+  {
+    pattern: /admin\.rest\./i,
+    description: "admin.rest property access detected (use admin.graphql instead)",
+  },
+  {
+    pattern: /\.rest\.resources\./i,
+    description: ".rest.resources REST API usage detected (use GraphQL instead)",
+  },
+  {
+    pattern: /admin\.rest\.resources\.[A-Z]/i,
+    description: "admin.rest.resources.* REST API usage detected (use GraphQL instead)",
+  },
+  {
+    pattern: /\.rest\.resources\.[A-Z]/i,
+    description: ".rest.resources.* REST API usage detected (use GraphQL instead)",
+  },
 ];
 const ALLOWED_PATTERNS = [
-    /\/admin\/api\/\d{4}-\d{2}\/graphql\.json/,
-    /\/\/.*rest/i,
-    /\/\*.*rest.*\*\//,
-    /".*REST.*"/i,
-    /'.*REST.*'/i,
-    /\.test\.ts$/,
+  /\/admin\/api\/\d{4}-\d{2}\/graphql\.json/,
+  /\/\/.*rest/i,
+  /\/\*.*rest.*\*\//,
+  /".*REST.*"/i,
+  /'.*REST.*'/i,
+  /\.test\.ts$/,
 ];
-const SCAN_DIRECTORIES = [
-    "app",
-    "extensions",
-];
+const SCAN_DIRECTORIES = ["app", "extensions"];
 const FILE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx"];
-const IGNORE_PATTERNS = [
-    "node_modules",
-    ".git",
-    "build",
-    "dist",
-    ".cache",
-    "scripts/check-graphql-only.mjs",
-];
+const IGNORE_PATTERNS = ["node_modules", ".git", "build", "dist", ".cache", "scripts/check-graphql-only.mjs"];
 function shouldIgnore(filePath) {
-    return IGNORE_PATTERNS.some(pattern => filePath.includes(pattern));
+  return IGNORE_PATTERNS.some((pattern) => filePath.includes(pattern));
 }
 function isAllowed(line, filePath) {
-    if (ALLOWED_PATTERNS.some(pattern => {
-        if (pattern.source.endsWith("$")) {
-            return pattern.test(filePath);
-        }
-        return pattern.test(line);
-    })) {
-        return true;
-    }
-    return false;
+  if (
+    ALLOWED_PATTERNS.some((pattern) => {
+      if (pattern.source.endsWith("$")) {
+        return pattern.test(filePath);
+      }
+      return pattern.test(line);
+    })
+  ) {
+    return true;
+  }
+  return false;
 }
 function scanFile(filePath) {
-    const violations = [];
-    try {
-        const content = fs.readFileSync(filePath, "utf-8");
-        const lines = content.split("\n");
-        lines.forEach((line, index) => {
-            if (isAllowed(line, filePath)) {
-                return;
-            }
-            for (const { pattern, description } of FORBIDDEN_PATTERNS) {
-                if (pattern.test(line)) {
-                    violations.push({
-                        file: filePath,
-                        line: index + 1,
-                        content: line.trim().substring(0, 100),
-                        description,
-                    });
-                    break;
-                }
-            }
-        });
-    } catch (error) {
-        console.error(`Error reading file ${filePath}:`, error);
-    }
-    return violations;
+  const violations = [];
+  try {
+    const content = fs.readFileSync(filePath, "utf-8");
+    const lines = content.split("\n");
+    lines.forEach((line, index) => {
+      if (isAllowed(line, filePath)) {
+        return;
+      }
+      for (const { pattern, description } of FORBIDDEN_PATTERNS) {
+        if (pattern.test(line)) {
+          violations.push({
+            file: filePath,
+            line: index + 1,
+            content: line.trim().substring(0, 100),
+            description,
+          });
+          break;
+        }
+      }
+    });
+  } catch (error) {
+    console.error(`Error reading file ${filePath}:`, error);
+  }
+  return violations;
 }
 function scanDirectory(dirPath) {
-    const violations = [];
-    if (!fs.existsSync(dirPath)) {
-        return violations;
-    }
-    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-    for (const entry of entries) {
-        const fullPath = path.join(dirPath, entry.name);
-        if (shouldIgnore(fullPath)) {
-            continue;
-        }
-        if (entry.isDirectory()) {
-            violations.push(...scanDirectory(fullPath));
-        } else if (entry.isFile() && FILE_EXTENSIONS.some(ext => entry.name.endsWith(ext))) {
-            violations.push(...scanFile(fullPath));
-        }
-    }
+  const violations = [];
+  if (!fs.existsSync(dirPath)) {
     return violations;
+  }
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dirPath, entry.name);
+    if (shouldIgnore(fullPath)) {
+      continue;
+    }
+    if (entry.isDirectory()) {
+      violations.push(...scanDirectory(fullPath));
+    } else if (entry.isFile() && FILE_EXTENSIONS.some((ext) => entry.name.endsWith(ext))) {
+      violations.push(...scanFile(fullPath));
+    }
+  }
+  return violations;
 }
 function main() {
-    console.log("🔍 Scanning for REST API usage (GraphQL-only compliance check)...\n");
-    const allViolations = [];
-    for (const dir of SCAN_DIRECTORIES) {
-        const dirPath = path.join(process.cwd(), dir);
-        allViolations.push(...scanDirectory(dirPath));
+  console.log("🔍 Scanning for REST API usage (GraphQL-only compliance check)...\n");
+  const allViolations = [];
+  for (const dir of SCAN_DIRECTORIES) {
+    const dirPath = path.join(process.cwd(), dir);
+    allViolations.push(...scanDirectory(dirPath));
+  }
+  if (allViolations.length === 0) {
+    console.log("✅ No REST API usage detected. GraphQL-only compliance check passed!\n");
+    process.exit(0);
+  } else {
+    console.error("❌ REST API usage detected! GraphQL-only compliance check failed.\n");
+    console.error("Shopify requires public apps to use GraphQL Admin API exclusively.\n");
+    console.error("Violations found:\n");
+    for (const violation of allViolations) {
+      console.error(`  📍 ${violation.file}:${violation.line}`);
+      console.error(`     ${violation.description}`);
+      console.error(`     → ${violation.content}`);
+      console.error("");
     }
-    if (allViolations.length === 0) {
-        console.log("✅ No REST API usage detected. GraphQL-only compliance check passed!\n");
-        process.exit(0);
-    } else {
-        console.error("❌ REST API usage detected! GraphQL-only compliance check failed.\n");
-        console.error("Shopify requires public apps to use GraphQL Admin API exclusively.\n");
-        console.error("Violations found:\n");
-        for (const violation of allViolations) {
-            console.error(`  📍 ${violation.file}:${violation.line}`);
-            console.error(`     ${violation.description}`);
-            console.error(`     → ${violation.content}`);
-            console.error("");
-        }
-        console.error(`\nTotal: ${allViolations.length} violation(s)`);
-        console.error("\nPlease replace REST API calls with GraphQL equivalents.");
-        console.error("Reference: https://shopify.dev/docs/api/admin-graphql");
-        process.exit(1);
-    }
+    console.error(`\nTotal: ${allViolations.length} violation(s)`);
+    console.error("\nPlease replace REST API calls with GraphQL equivalents.");
+    console.error("Reference: https://shopify.dev/docs/api/admin-graphql");
+    process.exit(1);
+  }
 }
 main();

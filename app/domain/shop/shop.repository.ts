@@ -58,7 +58,11 @@ export interface IShopRepository {
   create(data: CreateShopData): AsyncResult<Shop, AppError>;
   update(id: string, data: Partial<ShopUpdateData>): AsyncResult<Shop, AppError>;
   updateByDomain(shopDomain: string, data: Partial<ShopUpdateData>): AsyncResult<Shop, AppError>;
-  upsert(shopDomain: string, createData: CreateShopData, updateData: Partial<ShopUpdateData>): AsyncResult<Shop, AppError>;
+  upsert(
+    shopDomain: string,
+    createData: CreateShopData,
+    updateData: Partial<ShopUpdateData>
+  ): AsyncResult<Shop, AppError>;
   softDelete(id: string): AsyncResult<void, AppError>;
   getBasicById(id: string): AsyncResult<ShopBasic | null, AppError>;
   getBasicByDomain(shopDomain: string): AsyncResult<ShopBasic | null, AppError>;
@@ -98,8 +102,4 @@ export interface ShopReinstalledEvent extends ShopEvent {
   readonly type: "shop_reinstalled";
 }
 
-export type ShopDomainEvent =
-  | ShopCreatedEvent
-  | ShopPlanChangedEvent
-  | ShopUninstalledEvent
-  | ShopReinstalledEvent;
+export type ShopDomainEvent = ShopCreatedEvent | ShopPlanChangedEvent | ShopUninstalledEvent | ShopReinstalledEvent;

@@ -273,10 +273,12 @@ export function mapEventToPlatform(
   }
   if (payload.data?.items && Array.isArray(payload.data.items)) {
     if (platform === "meta") {
-      parameters.content_ids = payload.data.items.map((item: unknown) => {
-        const itemObj = item as Record<string, unknown>;
-        return itemObj.product_id || itemObj.variant_id || itemObj.sku;
-      }).filter(Boolean);
+      parameters.content_ids = payload.data.items
+        .map((item: unknown) => {
+          const itemObj = item as Record<string, unknown>;
+          return itemObj.product_id || itemObj.variant_id || itemObj.sku;
+        })
+        .filter(Boolean);
       parameters.contents = payload.data.items.map((item: unknown) => {
         const itemObj = item as Record<string, unknown>;
         return {
@@ -305,10 +307,12 @@ export function mapEventToPlatform(
         };
       });
     } else if (platform === "snapchat") {
-      parameters.item_ids = payload.data.items.map((item: unknown) => {
-        const itemObj = item as Record<string, unknown>;
-        return itemObj.product_id || itemObj.variant_id || itemObj.sku;
-      }).filter(Boolean);
+      parameters.item_ids = payload.data.items
+        .map((item: unknown) => {
+          const itemObj = item as Record<string, unknown>;
+          return itemObj.product_id || itemObj.variant_id || itemObj.sku;
+        })
+        .filter(Boolean);
       parameters.items = payload.data.items.map((item: unknown) => {
         const itemObj = item as Record<string, unknown>;
         return {
@@ -332,7 +336,7 @@ function getNestedValue(obj: unknown, path: string): unknown {
   if (!obj || typeof obj !== "object" || obj === null) {
     return undefined;
   }
-  const keys = path.split(".").filter(key => key.length > 0);
+  const keys = path.split(".").filter((key) => key.length > 0);
   if (keys.length === 0) {
     return undefined;
   }
@@ -361,11 +365,7 @@ function getNestedValue(obj: unknown, path: string): unknown {
   return current;
 }
 
-export function normalizeParameterValue(
-  value: unknown,
-  parameterName: string,
-  _platform: string
-): unknown {
+export function normalizeParameterValue(value: unknown, parameterName: string, _platform: string): unknown {
   if (value === null || value === undefined) {
     return undefined;
   }
@@ -384,7 +384,7 @@ export function normalizeParameterValue(
     }
   }
   if (Array.isArray(value)) {
-    return value.filter(item => item !== null && item !== undefined);
+    return value.filter((item) => item !== null && item !== undefined);
   }
   return value;
 }

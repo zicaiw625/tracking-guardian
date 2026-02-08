@@ -46,7 +46,8 @@ export interface TestChecklist {
 }
 
 const SHOPIFY_OFFICIAL_TEST_GUIDE = "https://help.shopify.com/en/manual/checkout-settings/test-checkout";
-const SHOPIFY_PIXEL_TEST_GUIDE = "https://help.shopify.com/en/manual/online-store/themes/customizing-themes/checkout-extensibility/web-pixels-api/test-custom-pixels";
+const SHOPIFY_PIXEL_TEST_GUIDE =
+  "https://help.shopify.com/en/manual/online-store/themes/customizing-themes/checkout-extensibility/web-pixels-api/test-custom-pixels";
 
 export function generateTestChecklist(
   shopId: string,
@@ -56,7 +57,7 @@ export function generateTestChecklist(
   const allItems = getAllTestItems();
   let selectedItems: TestChecklistItem[];
   if (testType === "quick") {
-        selectedItems = allItems.filter((item) => item.required);
+    selectedItems = allItems.filter((item) => item.required);
   } else if (testType === "custom" && customTestItems) {
     selectedItems = allItems.filter((item) => customTestItems.includes(item.id));
   } else {
@@ -160,11 +161,7 @@ function getAllTestItems(): TestChecklistItem[] {
         "5. 完成订单",
         "6. 验证事件中的 value 是折扣后的金额",
       ],
-      expectedResults: [
-        "Purchase 事件已触发",
-        "value 等于折扣后的订单金额",
-        "事件包含 coupon 参数（如果平台支持）",
-      ],
+      expectedResults: ["Purchase 事件已触发", "value 等于折扣后的订单金额", "事件包含 coupon 参数（如果平台支持）"],
       estimatedTime: 5,
       category: "purchase",
     },
@@ -248,16 +245,8 @@ function getAllTestItems(): TestChecklistItem[] {
       eventType: "add_to_cart",
       required: false,
       platforms: ["google", "meta", "tiktok"],
-      steps: [
-        "1. 前往商店首页",
-        "2. 选择一个商品",
-        "3. 点击「加入购物车」",
-        "4. 在验收页面查看事件",
-      ],
-      expectedResults: [
-        "AddToCart 事件已触发",
-        "事件包含商品信息",
-      ],
+      steps: ["1. 前往商店首页", "2. 选择一个商品", "3. 点击「加入购物车」", "4. 在验收页面查看事件"],
+      expectedResults: ["AddToCart 事件已触发", "事件包含商品信息"],
       estimatedTime: 2,
       category: "cart",
     },
@@ -268,15 +257,8 @@ function getAllTestItems(): TestChecklistItem[] {
       eventType: "begin_checkout",
       required: false,
       platforms: ["google", "meta", "tiktok"],
-      steps: [
-        "1. 将商品加入购物车",
-        "2. 点击「结账」",
-        "3. 在验收页面查看事件",
-      ],
-      expectedResults: [
-        "BeginCheckout 事件已触发",
-        "事件包含购物车信息",
-      ],
+      steps: ["1. 将商品加入购物车", "2. 点击「结账」", "3. 在验收页面查看事件"],
+      expectedResults: ["BeginCheckout 事件已触发", "事件包含购物车信息"],
       estimatedTime: 2,
       category: "cart",
     },
@@ -294,11 +276,7 @@ function getAllTestItems(): TestChecklistItem[] {
         "4. 完成订单（金额为0）",
         "5. 验证事件中的 value 为 0",
       ],
-      expectedResults: [
-        "Purchase 事件已触发",
-        "value 为 0（或接近0，如果包含运费）",
-        "事件仍然包含商品信息",
-      ],
+      expectedResults: ["Purchase 事件已触发", "value 为 0（或接近0，如果包含运费）", "事件仍然包含商品信息"],
       estimatedTime: 5,
       category: "purchase",
     },
@@ -392,17 +370,7 @@ export function generateChecklistMarkdown(checklist: TestChecklist): string {
 }
 
 export function generateChecklistCSV(checklist: TestChecklist): string {
-  const headers = [
-    "ID",
-    "名称",
-    "描述",
-    "事件类型",
-    "必需",
-    "平台",
-    "预计时间（分钟）",
-    "类别",
-    "状态",
-  ];
+  const headers = ["ID", "名称", "描述", "事件类型", "必需", "平台", "预计时间（分钟）", "类别", "状态"];
   const rows = checklist.items.map((item) => [
     item.id,
     item.name,
@@ -414,8 +382,6 @@ export function generateChecklistCSV(checklist: TestChecklist): string {
     item.category,
     "未测试",
   ]);
-  const csv = [headers, ...rows]
-    .map((row) => row.map((cell) => escapeCSV(String(cell))).join(","))
-    .join("\n");
+  const csv = [headers, ...rows].map((row) => row.map((cell) => escapeCSV(String(cell))).join(",")).join("\n");
   return csv;
 }

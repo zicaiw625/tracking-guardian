@@ -1,7 +1,4 @@
-export function safeJsonParse<T>(
-  json: string | null | undefined,
-  defaultValue: T
-): T {
+export function safeJsonParse<T>(json: string | null | undefined, defaultValue: T): T {
   if (!json) return defaultValue;
   try {
     return JSON.parse(json) as T;
@@ -76,13 +73,21 @@ function isNumber(value: unknown): value is number {
   return typeof value === "number" && !Number.isNaN(value);
 }
 
-export function extractStringValue(data: Record<string, unknown> | null | undefined, key: string, defaultValue: string = ""): string {
+export function extractStringValue(
+  data: Record<string, unknown> | null | undefined,
+  key: string,
+  defaultValue: string = ""
+): string {
   if (!data) return defaultValue;
   const value = data[key];
   return isString(value) ? value : defaultValue;
 }
 
-export function extractNumberValue(data: Record<string, unknown> | null | undefined, key: string, defaultValue: number = 0): number {
+export function extractNumberValue(
+  data: Record<string, unknown> | null | undefined,
+  key: string,
+  defaultValue: number = 0
+): number {
   if (!data) return defaultValue;
   const value = data[key];
   return isNumber(value) ? value : defaultValue;
@@ -92,7 +97,12 @@ export function normalizeDecimalValue(value: unknown): number {
   if (typeof value === "number") {
     return value;
   }
-  if (value !== null && typeof value === "object" && "toNumber" in value && typeof (value as { toNumber(): number }).toNumber === "function") {
+  if (
+    value !== null &&
+    typeof value === "object" &&
+    "toNumber" in value &&
+    typeof (value as { toNumber(): number }).toNumber === "function"
+  ) {
     return (value as { toNumber(): number }).toNumber();
   }
   if (typeof value === "string") {
@@ -140,11 +150,7 @@ export function formatNumber(num: number, locale: string = "zh-CN"): string {
   return num.toLocaleString(locale);
 }
 
-export function formatCurrency(
-  amount: number,
-  currency: string = "USD",
-  locale: string = "en-US"
-): string {
+export function formatCurrency(amount: number, currency: string = "USD", locale: string = "en-US"): string {
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
@@ -180,10 +186,7 @@ export function formatDate(
   return d.toLocaleDateString(locale, options);
 }
 
-export function formatDateTime(
-  date: Date | string,
-  locale: string = "zh-CN"
-): string {
+export function formatDateTime(date: Date | string, locale: string = "zh-CN"): string {
   const d = typeof date === "string" ? new Date(date) : date;
   if (isNaN(d.getTime())) {
     return "Invalid Date";
@@ -221,11 +224,7 @@ export function getRelativeTime(date: Date | string, locale: string = "zh-CN"): 
   return rtf.format(-diffSeconds, "second");
 }
 
-export function isDateInRange(
-  date: Date,
-  start: Date,
-  end: Date
-): boolean {
+export function isDateInRange(date: Date, start: Date, end: Date): boolean {
   return date >= start && date <= end;
 }
 
@@ -265,18 +264,18 @@ export function uniqueBy<T, K>(array: T[], keyFn: (item: T) => K): T[] {
   });
 }
 
-export function groupBy<T, K extends string | number>(
-  array: T[],
-  keyFn: (item: T) => K
-): Record<K, T[]> {
-  return array.reduce((groups, item) => {
-    const key = keyFn(item);
-    if (!groups[key]) {
-      groups[key] = [];
-    }
-    groups[key].push(item);
-    return groups;
-  }, {} as Record<K, T[]>);
+export function groupBy<T, K extends string | number>(array: T[], keyFn: (item: T) => K): Record<K, T[]> {
+  return array.reduce(
+    (groups, item) => {
+      const key = keyFn(item);
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(item);
+      return groups;
+    },
+    {} as Record<K, T[]>
+  );
 }
 
 export function chunk<T>(array: T[], size: number): T[][] {
@@ -300,10 +299,7 @@ export function average(numbers: number[]): number {
   return sum(numbers) / numbers.length;
 }
 
-export function pick<T extends object, K extends keyof T>(
-  obj: T,
-  keys: K[]
-): Pick<T, K> {
+export function pick<T extends object, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> {
   const result = {} as Pick<T, K>;
   for (const key of keys) {
     if (key in obj) {
@@ -313,10 +309,7 @@ export function pick<T extends object, K extends keyof T>(
   return result;
 }
 
-export function omit<T extends object, K extends keyof T>(
-  obj: T,
-  keys: K[]
-): Omit<T, K> {
+export function omit<T extends object, K extends keyof T>(obj: T, keys: K[]): Omit<T, K> {
   const result = { ...obj } as Omit<T, K>;
   for (const key of keys) {
     delete (result as Record<string, unknown>)[key as string];
@@ -341,10 +334,7 @@ export function deepMerge<T extends object>(...objects: Partial<T>[]): T {
         typeof result[key] === "object" &&
         !Array.isArray(result[key])
       ) {
-        result[key] = deepMerge(
-          result[key] as object,
-          value as object
-        ) as T[Extract<keyof T, string>];
+        result[key] = deepMerge(result[key] as object, value as object) as T[Extract<keyof T, string>];
       } else {
         result[key] = value as T[Extract<keyof T, string>];
       }

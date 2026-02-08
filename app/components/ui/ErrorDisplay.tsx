@@ -11,12 +11,15 @@ export interface ErrorDisplayProps {
 }
 
 export interface ApiErrorDisplayProps {
-  error: {
-    message?: string;
-    error?: string;
-    code?: string;
-    details?: Array<{ field: string; message: string }>;
-  } | string | null;
+  error:
+    | {
+        message?: string;
+        error?: string;
+        code?: string;
+        details?: Array<{ field: string; message: string }>;
+      }
+    | string
+    | null;
   onRetry?: () => void;
   onDismiss?: () => void;
 }
@@ -44,9 +47,7 @@ export function ErrorDisplay({
             </Text>
           )}
           <InlineStack gap="200">
-            {retryable && onRetry && (
-              <Button onClick={onRetry}>重试</Button>
-            )}
+            {retryable && onRetry && <Button onClick={onRetry}>重试</Button>}
             {onDismiss && (
               <Button variant="plain" onClick={onDismiss}>
                 关闭
@@ -62,11 +63,7 @@ export function ErrorDisplay({
       title={title}
       tone="critical"
       onDismiss={onDismiss}
-      action={
-        retryable && onRetry
-          ? { content: "重试", onAction: onRetry }
-          : undefined
-      }
+      action={retryable && onRetry ? { content: "重试", onAction: onRetry } : undefined}
     >
       <BlockStack gap="200">
         <Text as="p">{message}</Text>
@@ -80,21 +77,10 @@ export function ErrorDisplay({
   );
 }
 
-export function ApiErrorDisplay({
-  error,
-  onRetry,
-  onDismiss,
-}: ApiErrorDisplayProps) {
+export function ApiErrorDisplay({ error, onRetry, onDismiss }: ApiErrorDisplayProps) {
   if (!error) return null;
   if (typeof error === "string") {
-    return (
-      <ErrorDisplay
-        message={error}
-        retryable={!!onRetry}
-        onRetry={onRetry}
-        onDismiss={onDismiss}
-      />
-    );
+    return <ErrorDisplay message={error} retryable={!!onRetry} onRetry={onRetry} onDismiss={onDismiss} />;
   }
   const message = error.message || error.error || "发生未知错误";
   const code = error.code;
@@ -104,16 +90,14 @@ export function ApiErrorDisplay({
         title="输入验证失败"
         tone="warning"
         onDismiss={onDismiss}
-        action={
-          onRetry
-            ? { content: "重试", onAction: onRetry }
-            : undefined
-        }
+        action={onRetry ? { content: "重试", onAction: onRetry } : undefined}
       >
         <BlockStack gap="200">
           {error.details.map((detail, index) => (
             <Text key={index} as="p">
-              <Text as="span" fontWeight="semibold">{detail.field}:</Text>{" "}
+              <Text as="span" fontWeight="semibold">
+                {detail.field}:
+              </Text>{" "}
               {detail.message}
             </Text>
           ))}
@@ -121,15 +105,7 @@ export function ApiErrorDisplay({
       </Banner>
     );
   }
-  return (
-    <ErrorDisplay
-      message={message}
-      code={code}
-      retryable={!!onRetry}
-      onRetry={onRetry}
-      onDismiss={onDismiss}
-    />
-  );
+  return <ErrorDisplay message={message} code={code} retryable={!!onRetry} onRetry={onRetry} onDismiss={onDismiss} />;
 }
 
 export interface NetworkErrorProps {
@@ -162,9 +138,7 @@ export function NotFoundDisplay({ resource = "资源", onBack }: NotFoundProps) 
         <Text as="p" tone="subdued">
           请求的{resource}不存在或已被删除。
         </Text>
-        {onBack && (
-          <Button onClick={onBack}>返回</Button>
-        )}
+        {onBack && <Button onClick={onBack}>返回</Button>}
       </BlockStack>
     </Card>
   );
@@ -179,11 +153,7 @@ export interface EmptyStateProps {
   };
 }
 
-export function EmptyStateDisplay({
-  title = "暂无数据",
-  message = "当前没有可显示的内容。",
-  action,
-}: EmptyStateProps) {
+export function EmptyStateDisplay({ title = "暂无数据", message = "当前没有可显示的内容。", action }: EmptyStateProps) {
   return (
     <Card>
       <BlockStack gap="400" align="center">

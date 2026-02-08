@@ -1,11 +1,10 @@
-
 export function sanitizePII(payload: unknown): unknown {
   if (!payload || typeof payload !== "object") {
     return payload;
   }
-  const sanitized = Array.isArray(payload) ? [...payload] : { ...payload as Record<string, unknown> };
+  const sanitized = Array.isArray(payload) ? [...payload] : { ...(payload as Record<string, unknown>) };
   if (Array.isArray(sanitized)) {
-    return sanitized.map(item => sanitizePII(item));
+    return sanitized.map((item) => sanitizePII(item));
   }
   const obj = sanitized as Record<string, unknown>;
   const allowedFields = new Set([
@@ -164,7 +163,7 @@ export function sanitizePII(payload: unknown): unknown {
       continue;
     }
     const piiKeywords = ["email", "phone", "address", "name", "customer", "user", "personal", "identify"];
-    const containsPiiKeyword = piiKeywords.some(keyword => lowerKey.includes(keyword));
+    const containsPiiKeyword = piiKeywords.some((keyword) => lowerKey.includes(keyword));
     const isAllowed = allowedFields.has(lowerKey);
     if (!isAllowed && containsPiiKeyword) {
       continue;
@@ -193,9 +192,9 @@ function sanitizeCredentials(payload: unknown): unknown {
   if (!payload || typeof payload !== "object") {
     return payload;
   }
-  const sanitized = Array.isArray(payload) ? [...payload] : { ...payload as Record<string, unknown> };
+  const sanitized = Array.isArray(payload) ? [...payload] : { ...(payload as Record<string, unknown>) };
   if (Array.isArray(sanitized)) {
-    return sanitized.map(item => sanitizeCredentials(item));
+    return sanitized.map((item) => sanitizeCredentials(item));
   }
   const obj = sanitized as Record<string, unknown>;
   const sensitiveKeys = new Set([

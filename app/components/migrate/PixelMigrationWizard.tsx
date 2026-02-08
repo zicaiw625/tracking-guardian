@@ -1,19 +1,6 @@
 import { useCallback, useMemo } from "react";
-import {
-  Card,
-  Text,
-  BlockStack,
-  InlineStack,
-  Badge,
-  Button,
-  Box,
-  Divider,
-  ProgressBar,
-} from "@shopify/polaris";
-import {
-  CheckCircleIcon,
-  ArrowRightIcon,
-} from "~/components/icons";
+import { Card, Text, BlockStack, InlineStack, Badge, Button, Box, Divider, ProgressBar } from "@shopify/polaris";
+import { CheckCircleIcon, ArrowRightIcon } from "~/components/icons";
 import { useSubmit, useNavigation } from "@remix-run/react";
 import { useToastContext } from "~/components/ui";
 import type { PlatformType } from "~/types/enums";
@@ -59,13 +46,16 @@ export interface PixelMigrationWizardProps {
   wizardDraft?: {
     step: "select" | "credentials" | "mappings" | "review" | "testing";
     selectedPlatforms: string[];
-    configs: Record<string, {
-      platform: string;
-      platformId: string;
-      credentials: Record<string, string>;
-      eventMappings: Record<string, string>;
-      environment: "test" | "live";
-    }>;
+    configs: Record<
+      string,
+      {
+        platform: string;
+        platformId: string;
+        credentials: Record<string, string>;
+        eventMappings: Record<string, string>;
+        environment: "test" | "live";
+      }
+    >;
   } | null;
   prefillAsset?: PrefillAsset | null;
   pixelConfigs?: Array<{
@@ -76,7 +66,6 @@ export interface PixelMigrationWizardProps {
     rollbackAllowed: boolean;
   }>;
 }
-
 
 export function PixelMigrationWizard({
   onComplete,
@@ -243,18 +232,28 @@ export function PixelMigrationWizard({
   };
   const wizardState = useWizardState({
     initialStep: draftData?.step || "select",
-    initialPlatforms: draftData?.platforms ? Array.from(draftData.platforms) : (assetData?.platforms ? Array.from(assetData.platforms) : initialPlatforms),
+    initialPlatforms: draftData?.platforms
+      ? Array.from(draftData.platforms)
+      : assetData?.platforms
+        ? Array.from(assetData.platforms)
+        : initialPlatforms,
     shopId,
-    wizardDraft: wizardDraft ? {
-      step: wizardDraft.step as WizardStep,
-      selectedPlatforms: wizardDraft.selectedPlatforms as PlatformType[],
-      configs: draftData?.configs || {},
-    } : undefined,
-    prefillAsset: prefillAsset ? {
-      platform: prefillAsset.platform as PlatformType,
-      details: prefillAsset.details || {},
-    } : undefined,
-    defaultConfigs: (draftData?.configs || assetData?.configs || defaultConfigs) as Partial<Record<PlatformType, PlatformConfig>>,
+    wizardDraft: wizardDraft
+      ? {
+          step: wizardDraft.step as WizardStep,
+          selectedPlatforms: wizardDraft.selectedPlatforms as PlatformType[],
+          configs: draftData?.configs || {},
+        }
+      : undefined,
+    prefillAsset: prefillAsset
+      ? {
+          platform: prefillAsset.platform as PlatformType,
+          details: prefillAsset.details || {},
+        }
+      : undefined,
+    defaultConfigs: (draftData?.configs || assetData?.configs || defaultConfigs) as Partial<
+      Record<PlatformType, PlatformConfig>
+    >,
   });
   const {
     currentStep,
@@ -276,37 +275,43 @@ export function PixelMigrationWizard({
   const progress = useMemo(() => {
     return ((currentStepIndex + 1) / steps.length) * 100;
   }, [currentStepIndex, steps.length]);
-  const handleApplyTemplate = useCallback((template: WizardTemplate) => {
-    const templatePlatforms = template.platforms as PlatformType[];
-    templatePlatforms.forEach((platform) => {
-      handlePlatformToggle(platform, true);
-      if (template.eventMappings[platform]) {
-        Object.entries(template.eventMappings[platform]).forEach(([shopifyEvent, platformEvent]) => {
-          handleEventMappingUpdate(platform, shopifyEvent, platformEvent);
-        });
-      }
-    });
-    setShowTemplateModal(false);
-  }, [handlePlatformToggle, handleEventMappingUpdate, setShowTemplateModal]);
-  const allTemplates: WizardTemplate[] = useMemo(() => [
-    ...(templates?.presets || []),
-    ...(templates?.custom || []),
-  ], [templates]);
+  const handleApplyTemplate = useCallback(
+    (template: WizardTemplate) => {
+      const templatePlatforms = template.platforms as PlatformType[];
+      templatePlatforms.forEach((platform) => {
+        handlePlatformToggle(platform, true);
+        if (template.eventMappings[platform]) {
+          Object.entries(template.eventMappings[platform]).forEach(([shopifyEvent, platformEvent]) => {
+            handleEventMappingUpdate(platform, shopifyEvent, platformEvent);
+          });
+        }
+      });
+      setShowTemplateModal(false);
+    },
+    [handlePlatformToggle, handleEventMappingUpdate, setShowTemplateModal]
+  );
+  const allTemplates: WizardTemplate[] = useMemo(
+    () => [...(templates?.presets || []), ...(templates?.custom || [])],
+    [templates]
+  );
   const isSubmitting = navigation.state === "submitting";
-  const validateConfig = useCallback((platform: PlatformType): string[] => {
-    const config = platformConfigs[platform];
-    const errors: string[] = [];
-    const info = PLATFORM_INFO[platform];
-    if (!config || !info) return errors;
-    if (!config.enabled) return errors;
-    info.credentialFields.forEach((field) => {
-      if (field.key === "testEventCode") return;
-      if (!config.credentials[field.key as keyof typeof config.credentials]) {
-        errors.push(`${info.name}: 缺少 ${field.label}`);
-      }
-    });
-    return errors;
-  }, [platformConfigs]);
+  const validateConfig = useCallback(
+    (platform: PlatformType): string[] => {
+      const config = platformConfigs[platform];
+      const errors: string[] = [];
+      const info = PLATFORM_INFO[platform];
+      if (!config || !info) return errors;
+      if (!config.enabled) return errors;
+      info.credentialFields.forEach((field) => {
+        if (field.key === "testEventCode") return;
+        if (!config.credentials[field.key as keyof typeof config.credentials]) {
+          errors.push(`${info.name}: 缺少 ${field.label}`);
+        }
+      });
+      return errors;
+    },
+    [platformConfigs]
+  );
   const canProceedToNextStep = useCallback((): { canProceed: boolean; errors: string[] } => {
     const errors: string[] = [];
     switch (currentStep) {
@@ -470,12 +475,8 @@ export function PixelMigrationWizard({
               像素迁移向导
             </Text>
             <InlineStack gap="200" blockAlign="center">
-              <Badge tone="info">
-                {`步骤 ${currentStepIndex + 1} / ${steps.length}`}
-              </Badge>
-              <Badge>
-                {`${String(Math.round(progress))}% 完成`}
-              </Badge>
+              <Badge tone="info">{`步骤 ${currentStepIndex + 1} / ${steps.length}`}</Badge>
+              <Badge>{`${String(Math.round(progress))}% 完成`}</Badge>
             </InlineStack>
           </InlineStack>
           <ProgressBar progress={progress} tone="primary" size="small" />
@@ -505,30 +506,25 @@ export function PixelMigrationWizard({
                       }}
                     >
                       <BlockStack gap="200" align="center">
-                      <div
-                        style={{
-                          background: isCompleted
-                            ? "var(--p-color-bg-fill-success)"
-                            : isCurrent
-                              ? "var(--p-color-bg-fill-info)"
-                              : "var(--p-color-bg-surface-secondary)",
-                          padding: "var(--p-space-200)",
-                          borderRadius: "9999px",
-                          minWidth: "36px",
-                          minHeight: "36px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          position: "relative",
-                          zIndex: 1,
-                        }}
-                      >
-                          <Text
-                            as="span"
-                            variant="bodySm"
-                            fontWeight="bold"
-                            alignment="center"
-                          >
+                        <div
+                          style={{
+                            background: isCompleted
+                              ? "var(--p-color-bg-fill-success)"
+                              : isCurrent
+                                ? "var(--p-color-bg-fill-info)"
+                                : "var(--p-color-bg-surface-secondary)",
+                            padding: "var(--p-space-200)",
+                            borderRadius: "9999px",
+                            minWidth: "36px",
+                            minHeight: "36px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            position: "relative",
+                            zIndex: 1,
+                          }}
+                        >
+                          <Text as="span" variant="bodySm" fontWeight="bold" alignment="center">
                             {isCompleted ? "✓" : String(step.number)}
                           </Text>
                         </div>
@@ -543,12 +539,7 @@ export function PixelMigrationWizard({
                             {step.label}
                           </Text>
                           {isCurrent && (
-                            <Text
-                              as="span"
-                              variant="bodySm"
-                              tone="subdued"
-                              alignment="center"
-                            >
+                            <Text as="span" variant="bodySm" tone="subdued" alignment="center">
                               {step.estimatedTime}
                             </Text>
                           )}
@@ -595,33 +586,17 @@ export function PixelMigrationWizard({
                 上一步
               </Button>
             )}
-            {currentStep !== "select" &&
-             currentStep !== "review" &&
-             currentStep !== "testing" && (
-              <Button
-                variant="plain"
-                onClick={handleSkip}
-                disabled={isSubmitting}
-              >
+            {currentStep !== "select" && currentStep !== "review" && currentStep !== "testing" && (
+              <Button variant="plain" onClick={handleSkip} disabled={isSubmitting}>
                 跳过此步
               </Button>
             )}
             {currentStep === "review" ? (
-              <Button
-                variant="primary"
-                onClick={handleSave}
-                loading={isSubmitting}
-                icon={CheckCircleIcon}
-              >
+              <Button variant="primary" onClick={handleSave} loading={isSubmitting} icon={CheckCircleIcon}>
                 保存配置
               </Button>
             ) : currentStep !== "testing" ? (
-              <Button
-                variant="primary"
-                onClick={handleNext}
-                disabled={isSubmitting}
-                icon={ArrowRightIcon}
-              >
+              <Button variant="primary" onClick={handleNext} disabled={isSubmitting} icon={ArrowRightIcon}>
                 下一步
               </Button>
             ) : null}

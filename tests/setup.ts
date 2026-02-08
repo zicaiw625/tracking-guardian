@@ -31,7 +31,7 @@ if (typeof globalThis.crypto === "undefined") {
 
 export function createMockRequest(
   url: string,
-  options: RequestInit & { headers?: Record<string, string> } = {},
+  options: RequestInit & { headers?: Record<string, string> } = {}
 ): Request {
   const headers = new Headers(options.headers || {});
   return new Request(url, {

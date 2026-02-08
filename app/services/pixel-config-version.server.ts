@@ -170,7 +170,7 @@ export async function rollbackConfig(
       data: {
         platformId: previous.platformId || null,
         credentialsEncrypted: previous.credentialsEncrypted || null,
-        eventMappings: previous.eventMappings as object || null,
+        eventMappings: (previous.eventMappings as object) || null,
         environment: previous.environment || "test",
         clientSideEnabled: previous.clientSideEnabled ?? true,
         serverSideEnabled: previous.serverSideEnabled ?? false,

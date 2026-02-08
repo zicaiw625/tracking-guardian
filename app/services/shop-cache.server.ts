@@ -1,6 +1,11 @@
 import { RedisCache, SimpleCache, TTL } from "../utils/cache";
 import { logger } from "../utils/logger.server";
-import type { ShopVerificationData, ShopVerificationDataEncrypted, ShopWithPixelConfigs, ShopWithPixelConfigsEncrypted } from "../utils/shop-access.server";
+import type {
+  ShopVerificationData,
+  ShopVerificationDataEncrypted,
+  ShopWithPixelConfigs,
+  ShopWithPixelConfigsEncrypted,
+} from "../utils/shop-access.server";
 import { decryptShopWithPixelConfigs, decryptShopVerificationData } from "../utils/shop-access.server";
 
 interface ShopWithPixelConfigsWithoutSecrets {
@@ -71,9 +76,7 @@ function getBillingKey(shopId: string, yearMonth: string): string {
   return `${shopId}:${yearMonth}`;
 }
 
-export async function getCachedShopVerification(
-  shopDomain: string
-): Promise<ShopVerificationData | null | undefined> {
+export async function getCachedShopVerification(shopDomain: string): Promise<ShopVerificationData | null | undefined> {
   const key = getVerificationKey(shopDomain);
   try {
     const memoryCached = shopVerificationCacheMemory.get(key);
@@ -177,10 +180,7 @@ export async function cacheShopWithConfigsEncrypted(
   }
 }
 
-export async function invalidateShopConfigs(
-  shopDomain: string,
-  environment?: "test" | "live"
-): Promise<void> {
+export async function invalidateShopConfigs(shopDomain: string, environment?: "test" | "live"): Promise<void> {
   try {
     if (environment) {
       const key = getConfigsKey(shopDomain, environment);
@@ -204,19 +204,12 @@ interface BillingCheckResult {
   usage: { current: number; limit: number };
 }
 
-export function getCachedBillingCheck(
-  shopId: string,
-  yearMonth: string
-): BillingCheckResult | undefined {
+export function getCachedBillingCheck(shopId: string, yearMonth: string): BillingCheckResult | undefined {
   const key = getBillingKey(shopId, yearMonth);
   return billingCheckCache.get(key);
 }
 
-export function cacheBillingCheck(
-  shopId: string,
-  yearMonth: string,
-  result: BillingCheckResult
-): void {
+export function cacheBillingCheck(shopId: string, yearMonth: string, result: BillingCheckResult): void {
   const key = getBillingKey(shopId, yearMonth);
   billingCheckCache.set(key, result);
 }
@@ -231,10 +224,7 @@ export function invalidateBillingCache(shopId: string, yearMonth?: string): void
 }
 
 export async function invalidateAllShopCaches(shopDomain: string, shopId?: string): Promise<void> {
-  await Promise.all([
-    invalidateShopVerification(shopDomain),
-    invalidateShopConfigs(shopDomain),
-  ]);
+  await Promise.all([invalidateShopVerification(shopDomain), invalidateShopConfigs(shopDomain)]);
   if (shopId) {
     invalidateBillingCache(shopId);
   }

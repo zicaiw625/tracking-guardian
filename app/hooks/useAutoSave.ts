@@ -30,29 +30,32 @@ export function useAutoSave<T>({
   const dataRef = useRef<T | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const statusResetTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const performSave = useCallback(async (data: T) => {
-    if (!enabled || !isDirty) return;
-    setIsSaving(true);
-    setSaveStatus("saving");
-    try {
-      await saveFn(data);
-      setLastSavedAt(new Date());
-      setSaveStatus("saved");
-      onSaveSuccess?.();
-      if (statusResetTimeoutRef.current) {
-        clearTimeout(statusResetTimeoutRef.current);
+  const performSave = useCallback(
+    async (data: T) => {
+      if (!enabled || !isDirty) return;
+      setIsSaving(true);
+      setSaveStatus("saving");
+      try {
+        await saveFn(data);
+        setLastSavedAt(new Date());
+        setSaveStatus("saved");
+        onSaveSuccess?.();
+        if (statusResetTimeoutRef.current) {
+          clearTimeout(statusResetTimeoutRef.current);
+        }
+        statusResetTimeoutRef.current = setTimeout(() => {
+          setSaveStatus("idle");
+          statusResetTimeoutRef.current = null;
+        }, 3000);
+      } catch (error) {
+        setSaveStatus("error");
+        onSaveError?.(error instanceof Error ? error : new Error(String(error)));
+      } finally {
+        setIsSaving(false);
       }
-      statusResetTimeoutRef.current = setTimeout(() => {
-        setSaveStatus("idle");
-        statusResetTimeoutRef.current = null;
-      }, 3000);
-    } catch (error) {
-      setSaveStatus("error");
-      onSaveError?.(error instanceof Error ? error : new Error(String(error)));
-    } finally {
-      setIsSaving(false);
-    }
-  }, [enabled, isDirty, saveFn, onSaveSuccess, onSaveError]);
+    },
+    [enabled, isDirty, saveFn, onSaveSuccess, onSaveError]
+  );
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {
@@ -68,16 +71,19 @@ export function useAutoSave<T>({
       await performSave(dataRef.current);
     }
   }, [performSave]);
-  const setData = useCallback((data: T) => {
-    dataRef.current = data;
-    if (!enabled || !isDirty) return;
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    timeoutRef.current = setTimeout(() => {
-      performSave(data);
-    }, delay);
-  }, [enabled, isDirty, delay, performSave]);
+  const setData = useCallback(
+    (data: T) => {
+      dataRef.current = data;
+      if (!enabled || !isDirty) return;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = setTimeout(() => {
+        performSave(data);
+      }, delay);
+    },
+    [enabled, isDirty, delay, performSave]
+  );
   return {
     isSaving,
     lastSavedAt,

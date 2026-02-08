@@ -33,11 +33,19 @@ export async function tryAuthenticatePublicWithShop(
 export async function authenticatePublic(request: Request): Promise<PublicAuthResult> {
   try {
     const { sessionToken, cors } = await authenticate.public.checkout(request);
-    return { sessionToken: sessionToken as unknown as PublicAuthResult["sessionToken"], cors, surface: "checkout" as const };
+    return {
+      sessionToken: sessionToken as unknown as PublicAuthResult["sessionToken"],
+      cors,
+      surface: "checkout" as const,
+    };
   } catch {
     try {
       const { sessionToken, cors } = await authenticate.public.customerAccount(request);
-      return { sessionToken: sessionToken as unknown as PublicAuthResult["sessionToken"], cors, surface: "customer_account" as const };
+      return {
+        sessionToken: sessionToken as unknown as PublicAuthResult["sessionToken"],
+        cors,
+        surface: "customer_account" as const,
+      };
     } catch (error) {
       logger.warn("Public extension authentication failed", {
         error: error instanceof Error ? error.message : String(error),
@@ -150,14 +158,16 @@ export function publicJsonWithAuthCors<T>(
   init?: ResponseInit & { customCorsHeaders?: string[] }
 ): Response {
   const corsHeaders = init?.customCorsHeaders || ["Authorization"];
-  const corsResponse = authResult.cors(new Response(JSON.stringify(data), {
-    status: init?.status || 200,
-    statusText: init?.statusText,
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
-  }));
+  const corsResponse = authResult.cors(
+    new Response(JSON.stringify(data), {
+      status: init?.status || 200,
+      statusText: init?.statusText,
+      headers: {
+        "Content-Type": "application/json",
+        ...init?.headers,
+      },
+    })
+  );
   const mergedHeaders = new Headers(corsResponse.headers);
   const dynamicCors = getDynamicCorsHeaders(request, corsHeaders);
   Object.entries(dynamicCors).forEach(([key, value]) => {

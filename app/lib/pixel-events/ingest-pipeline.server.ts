@@ -1,6 +1,11 @@
 import type { PixelEventPayload, KeyValidationResult } from "./types";
 import { validateRequest, isPrimaryEvent } from "./validation";
-import { generateEventIdForType, generateOrderMatchKey, createEventNonce, upsertPixelEventReceipt } from "./receipt-handler";
+import {
+  generateEventIdForType,
+  generateOrderMatchKey,
+  createEventNonce,
+  upsertPixelEventReceipt,
+} from "./receipt-handler";
 import { checkInitialConsent, filterPlatformsByConsent, logConsentFilterMetrics } from "./consent-filter";
 import { hashValueSync } from "~/utils/crypto.server";
 import { logger } from "~/utils/logger.server";
@@ -45,7 +50,7 @@ export function validateEvents(
 ): Array<{ payload: PixelEventPayload; index: number }> {
   const validated: Array<{ payload: PixelEventPayload; index: number }> = [];
   const now = Date.now();
-  
+
   for (let i = 0; i < events.length; i++) {
     const eventValidation = validateRequest(events[i]);
     if (!eventValidation.valid) {
@@ -55,7 +60,7 @@ export function validateEvents(
       });
       continue;
     }
-    
+
     const payload = eventValidation.payload;
     if (payload.shopDomain !== shopDomain) {
       logger.warn(`Event at index ${i} has different shopDomain`, {
@@ -64,7 +69,7 @@ export function validateEvents(
       });
       continue;
     }
-    
+
     const eventTimeDiff = Math.abs(now - payload.timestamp);
     if (eventTimeDiff > TIMESTAMP_WINDOW_MS) {
       logger.debug(`Event at index ${i} timestamp outside window: diff=${eventTimeDiff}ms, skipping`, {
@@ -75,10 +80,10 @@ export function validateEvents(
       });
       continue;
     }
-    
+
     validated.push({ payload, index: i });
   }
-  
+
   return validated;
 }
 
@@ -88,54 +93,51 @@ export function normalizeEvents(
   mode: "purchase_only" | "full_funnel"
 ): NormalizedEvent[] {
   const normalized: NormalizedEvent[] = [];
-  
+
   for (const { payload, index } of validatedEvents) {
     if (!isPrimaryEvent(payload.eventName, mode)) {
-      logger.debug(`Event ${payload.eventName} at index ${index} not accepted for ${shopDomain} (mode: ${mode}) - skipping`);
+      logger.debug(
+        `Event ${payload.eventName} at index ${index} not accepted for ${shopDomain} (mode: ${mode}) - skipping`
+      );
       continue;
     }
-    
+
     const eventType = payload.eventName === "checkout_completed" ? "purchase" : payload.eventName;
     const isPurchaseEvent = eventType === "purchase";
-    
-    const items = payload.data.items as Array<{
-      id?: string;
-      quantity?: number | string;
-      variantId?: string;
-      variant_id?: string;
-      productId?: string;
-      product_id?: string;
-    }> | undefined;
-    
-    const normalizedItems = items?.map(item => ({
-      id: String(
-        item.variantId ||
-        item.variant_id ||
-        item.productId ||
-        item.product_id ||
-        item.id ||
-        ""
-      ).trim(),
-      quantity: typeof item.quantity === "number"
-        ? Math.max(1, Math.floor(item.quantity))
-        : typeof item.quantity === "string"
-        ? Math.max(1, parseInt(item.quantity, 10) || 1)
-        : 1,
-    })).filter(item => item.id) || [];
-    
+
+    const items = payload.data.items as
+      | Array<{
+          id?: string;
+          quantity?: number | string;
+          variantId?: string;
+          variant_id?: string;
+          productId?: string;
+          product_id?: string;
+        }>
+      | undefined;
+
+    const normalizedItems =
+      items
+        ?.map((item) => ({
+          id: String(item.variantId || item.variant_id || item.productId || item.product_id || item.id || "").trim(),
+          quantity:
+            typeof item.quantity === "number"
+              ? Math.max(1, Math.floor(item.quantity))
+              : typeof item.quantity === "string"
+                ? Math.max(1, parseInt(item.quantity, 10) || 1)
+                : 1,
+        }))
+        .filter((item) => item.id) || [];
+
     let orderId: string | null = null;
     let altOrderKey: string | null = null;
     let eventIdentifier: string | null = null;
-    
+
     if (isPurchaseEvent) {
       try {
         orderId = payload.data.orderId ?? null;
         const checkoutToken = payload.data.checkoutToken ?? null;
-        const matchKeyResult = generateOrderMatchKey(
-          orderId,
-          checkoutToken,
-          shopDomain
-        );
+        const matchKeyResult = generateOrderMatchKey(orderId, checkoutToken, shopDomain);
         orderId = matchKeyResult.orderId;
         altOrderKey = matchKeyResult.altOrderKey;
         eventIdentifier = orderId;
@@ -157,7 +159,7 @@ export function normalizeEvents(
         eventIdentifier = null;
       }
     }
-    
+
     const eventId = generateEventIdForType(
       eventIdentifier,
       eventType,
@@ -166,7 +168,7 @@ export function normalizeEvents(
       normalizedItems.length > 0 ? normalizedItems : undefined,
       payload.nonce ?? null
     );
-    
+
     normalized.push({
       payload,
       eventId,
@@ -176,7 +178,7 @@ export function normalizeEvents(
       normalizedItems,
     });
   }
-  
+
   return normalized;
 }
 
@@ -201,7 +203,7 @@ export async function deduplicateEvents(
   if (purchaseKeyList.length > 0) {
     try {
       const redis = await getRedisClient();
-      const redisKeys = purchaseKeyList.map(key => `dedup:purchase:${shopId}:${key}`);
+      const redisKeys = purchaseKeyList.map((key) => `dedup:purchase:${shopId}:${key}`);
       const redisResults = await redis.mGet(redisKeys).catch(() => redisKeys.map(() => null));
       const redisHits = new Set<string>();
       for (let i = 0; i < purchaseKeyList.length; i++) {
@@ -211,16 +213,13 @@ export async function deduplicateEvents(
           existingPurchaseKeys.add(key);
         }
       }
-      const keysToCheckInDb = purchaseKeyList.filter(key => !redisHits.has(key));
+      const keysToCheckInDb = purchaseKeyList.filter((key) => !redisHits.has(key));
       if (keysToCheckInDb.length > 0) {
         const existing = await prisma.pixelEventReceipt.findMany({
           where: {
             shopId,
             eventType: "purchase",
-            OR: [
-              { orderKey: { in: keysToCheckInDb } },
-              { altOrderKey: { in: keysToCheckInDb } },
-            ],
+            OR: [{ orderKey: { in: keysToCheckInDb } }, { altOrderKey: { in: keysToCheckInDb } }],
           },
           select: {
             orderKey: true,
@@ -240,7 +239,7 @@ export async function deduplicateEvents(
         }
         const ttlSeconds = 7 * 24 * 60 * 60;
         await Promise.all(
-          Array.from(dbHits).map(key => 
+          Array.from(dbHits).map((key) =>
             redis.set(`dedup:purchase:${shopId}:${key}`, "1", { EX: ttlSeconds }).catch(() => {})
           )
         );
@@ -255,10 +254,7 @@ export async function deduplicateEvents(
           where: {
             shopId,
             eventType: "purchase",
-            OR: [
-              { orderKey: { in: purchaseKeyList } },
-              { altOrderKey: { in: purchaseKeyList } },
-            ],
+            OR: [{ orderKey: { in: purchaseKeyList } }, { altOrderKey: { in: purchaseKeyList } }],
           },
           select: {
             orderKey: true,
@@ -278,14 +274,14 @@ export async function deduplicateEvents(
     }
   }
   const seenPurchaseKeys = new Set<string>();
-  
+
   for (const event of normalizedEvents) {
     const eventType = event.payload.eventName === "checkout_completed" ? "purchase" : event.payload.eventName;
     const isPurchaseEvent = eventType === "purchase";
-    
+
     let isDuplicate = false;
     let isReplay = false;
-    
+
     if (isPurchaseEvent && event.orderId) {
       try {
         const keysForEvent = [event.orderId];
@@ -293,8 +289,7 @@ export async function deduplicateEvents(
           keysForEvent.push(event.altOrderKey);
         }
         const alreadyRecorded =
-          keysForEvent.some((k) => existingPurchaseKeys.has(k)) ||
-          keysForEvent.some((k) => seenPurchaseKeys.has(k));
+          keysForEvent.some((k) => existingPurchaseKeys.has(k)) || keysForEvent.some((k) => seenPurchaseKeys.has(k));
         if (alreadyRecorded) {
           const orderIdHash = hashValueSync(event.orderId).slice(0, 12);
           logger.debug(`Purchase event already recorded for order ${orderIdHash}, skipping`, {
@@ -312,7 +307,7 @@ export async function deduplicateEvents(
             nonceFromBody,
             eventType
           );
-          
+
           if (nonceResult.isReplay) {
             const orderIdHash = hashValueSync(event.orderId).slice(0, 12);
             logger.debug(`Replay detected for order ${orderIdHash}, skipping`, {
@@ -335,7 +330,7 @@ export async function deduplicateEvents(
         continue;
       }
     }
-    
+
     if (!isDuplicate && !isReplay) {
       deduplicated.push({
         ...event,
@@ -344,7 +339,7 @@ export async function deduplicateEvents(
       });
     }
   }
-  
+
   return deduplicated;
 }
 
@@ -365,28 +360,28 @@ export async function distributeEvents(
   activeVerificationRunId: string | null | undefined
 ): Promise<ProcessedEvent[]> {
   const processed: ProcessedEvent[] = [];
-  
+
   for (const event of deduplicatedEvents) {
     const consentResult = checkInitialConsent(event.payload.consent);
-    
+
     const mappedConfigs = enabledPixelConfigs.map((config) => ({
       platform: config.platform,
       id: config.id,
       platformId: config.platformId ?? undefined,
       clientSideEnabled: config.clientSideEnabled ?? undefined,
       serverSideEnabled: config.serverSideEnabled ?? undefined,
-      clientConfig: config.clientConfig && typeof config.clientConfig === 'object' && 'treatAsMarketing' in (config.clientConfig as object)
-        ? { treatAsMarketing: (config.clientConfig as { treatAsMarketing?: boolean }).treatAsMarketing }
-        : null,
+      clientConfig:
+        config.clientConfig &&
+        typeof config.clientConfig === "object" &&
+        "treatAsMarketing" in (config.clientConfig as object)
+          ? { treatAsMarketing: (config.clientConfig as { treatAsMarketing?: boolean }).treatAsMarketing }
+          : null,
     }));
-    
-    const { platformsToRecord, skippedPlatforms } = filterPlatformsByConsent(
-      mappedConfigs,
-      consentResult
-    );
-    
+
+    const { platformsToRecord, skippedPlatforms } = filterPlatformsByConsent(mappedConfigs, consentResult);
+
     const destinations = platformsToRecord.map((p) => p.platform);
-    
+
     if (destinations.length === 0) {
       logger.debug(`Event has no allowed platforms after consent filtering, skipping`, {
         shopDomain,
@@ -395,8 +390,10 @@ export async function distributeEvents(
       });
       continue;
     }
-    
-    const isPurchaseEvent = (event.payload.eventName as string) === "checkout_completed" || (event.payload.eventName as string) === "purchase";
+
+    const isPurchaseEvent =
+      (event.payload.eventName as string) === "checkout_completed" ||
+      (event.payload.eventName as string) === "purchase";
 
     if (isPurchaseEvent && event.orderId) {
       if (activeVerificationRunId === undefined) {
@@ -408,13 +405,7 @@ export async function distributeEvents(
         activeVerificationRunId = run?.id ?? null;
       }
 
-      logConsentFilterMetrics(
-        shopDomain,
-        event.orderId,
-        platformsToRecord,
-        skippedPlatforms,
-        consentResult
-      );
+      logConsentFilterMetrics(shopDomain, event.orderId, platformsToRecord, skippedPlatforms, consentResult);
 
       try {
         const eventType = "purchase";
@@ -479,7 +470,7 @@ export async function distributeEvents(
         hmacMatched: keyValidation.matched,
       },
     };
-    
+
     processed.push({
       ...event,
       destinations,
@@ -488,6 +479,6 @@ export async function distributeEvents(
       payload: payloadWithTrust,
     });
   }
-  
+
   return processed;
 }

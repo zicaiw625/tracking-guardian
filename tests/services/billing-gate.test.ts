@@ -187,10 +187,7 @@ describe("Billing Gate Service", () => {
       pro: 5000,
       enterprise: 50000,
     };
-    function suggestUpgrade(
-      currentPlan: (typeof PLANS)[number],
-      currentUsage: number
-    ): (typeof PLANS)[number] | null {
+    function suggestUpgrade(currentPlan: (typeof PLANS)[number], currentUsage: number): (typeof PLANS)[number] | null {
       if (currentPlan === "enterprise") return null;
       const currentLimit = PLAN_LIMITS[currentPlan];
       if (currentUsage < currentLimit * 0.8) return null;

@@ -2,11 +2,9 @@ import { logger } from "../../utils/logger.server";
 import { syncSubscriptionStatus } from "../../services/billing/subscription.server";
 import type { WebhookContext, WebhookHandlerResult } from "../types";
 
-export async function handleAppSubscriptionsUpdate(
-  context: WebhookContext
-): Promise<WebhookHandlerResult> {
+export async function handleAppSubscriptionsUpdate(context: WebhookContext): Promise<WebhookHandlerResult> {
   const { shop, admin } = context;
-  
+
   if (!admin) {
     logger.warn(`No admin context for app_subscriptions/update webhook from ${shop}`);
     return {

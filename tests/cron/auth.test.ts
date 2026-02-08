@@ -55,16 +55,11 @@ describe("Cron Authentication", () => {
     return createHmac("sha256", secret).update(signatureContent).digest("hex");
   }
 
-  function createAuthenticatedRequest(
-    secret: string = testSecret,
-    overrideHeaders?: Record<string, string>
-  ) {
+  function createAuthenticatedRequest(secret: string = testSecret, overrideHeaders?: Record<string, string>) {
     const timestamp = String(Math.floor(Date.now() / 1000));
     const url = "https://example.com/cron";
     const method = "GET";
-    const signature = createHmac("sha256", secret)
-      .update(`${method}:/cron:${timestamp}:`)
-      .digest("hex");
+    const signature = createHmac("sha256", secret).update(`${method}:/cron:${timestamp}:`).digest("hex");
     return createMockRequest(url, {
       method,
       headers: {
@@ -129,9 +124,7 @@ describe("Cron Authentication", () => {
         },
       });
       validateCronAuth(request);
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining("shorter than recommended")
-      );
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("shorter than recommended"));
     });
   });
   describe("verifyReplayProtection", () => {
@@ -255,9 +248,7 @@ describe("Cron Authentication", () => {
       const request = createAuthenticatedRequest(previousSecret);
       const result = validateCronAuth(request);
       expect(result).toBeNull();
-      expect(logger.info).toHaveBeenCalledWith(
-        expect.stringContaining("CRON_SECRET_PREVIOUS")
-      );
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining("CRON_SECRET_PREVIOUS"));
     });
     it("should reject invalid secret even when rotation is active", () => {
       process.env.CRON_SECRET = newSecret;

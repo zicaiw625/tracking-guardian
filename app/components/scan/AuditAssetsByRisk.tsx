@@ -1,15 +1,4 @@
-import {
-  Card,
-  Text,
-  BlockStack,
-  InlineStack,
-  Badge,
-  Button,
-  Box,
-  Divider,
-  Icon,
-  Banner,
-} from "@shopify/polaris";
+import { Card, Text, BlockStack, InlineStack, Badge, Button, Box, Divider, Icon, Banner } from "@shopify/polaris";
 import { AlertCircleIcon, CheckCircleIcon, ArrowRightIcon, ClockIcon, LockIcon } from "~/components/icons";
 import type { AuditAssetRecord } from "~/services/audit-asset.server";
 import type { PlanId } from "~/services/billing/plans";
@@ -131,43 +120,46 @@ export function AuditAssetsByRisk({
     return map[migration] || map.none;
   };
 
-  const assetsByCategory = useMemo(() => ({
-    will_fail: assets.filter((a) => {
-      const category = determineRiskCategory(a, a.riskLevel as "high" | "medium" | "low");
-      return category === "will_fail";
+  const assetsByCategory = useMemo(
+    () => ({
+      will_fail: assets.filter((a) => {
+        const category = determineRiskCategory(a, a.riskLevel as "high" | "medium" | "low");
+        return category === "will_fail";
+      }),
+      can_replace: assets.filter((a) => {
+        const category = determineRiskCategory(a, a.riskLevel as "high" | "medium" | "low");
+        return category === "can_replace";
+      }),
+      no_migration_needed: assets.filter((a) => {
+        const category = determineRiskCategory(a, a.riskLevel as "high" | "medium" | "low");
+        return category === "no_migration_needed";
+      }),
     }),
-    can_replace: assets.filter((a) => {
-      const category = determineRiskCategory(a, a.riskLevel as "high" | "medium" | "low");
-      return category === "can_replace";
-    }),
-    no_migration_needed: assets.filter((a) => {
-      const category = determineRiskCategory(a, a.riskLevel as "high" | "medium" | "low");
-      return category === "no_migration_needed";
-    }),
-  }), [assets]);
+    [assets]
+  );
 
   const highRiskAssets = assetsByCategory.will_fail;
   const mediumRiskAssets = assetsByCategory.can_replace;
   const totalHighRisk = highRiskAssets.length;
   const totalMediumRisk = mediumRiskAssets.length;
-  
-  const calculatedRiskScore = useMemo(() => totalHighRisk * 30 + totalMediumRisk * 15, [totalHighRisk, totalMediumRisk]);
+
+  const calculatedRiskScore = useMemo(
+    () => totalHighRisk * 30 + totalMediumRisk * 15,
+    [totalHighRisk, totalMediumRisk]
+  );
   const riskScore = providedRiskScore ?? calculatedRiskScore;
   const riskLevel = riskScore >= 60 ? "high" : riskScore >= 30 ? "medium" : "low";
-  
-  const estimatedTimeMinutes = useMemo(() => highRiskAssets.reduce((sum, asset) =>
-    sum + getEstimatedTime(asset), 0
-  ) + mediumRiskAssets.reduce((sum, asset) =>
-    sum + getEstimatedTime(asset), 0
-  ), [highRiskAssets, mediumRiskAssets]);
+
+  const estimatedTimeMinutes = useMemo(
+    () =>
+      highRiskAssets.reduce((sum, asset) => sum + getEstimatedTime(asset), 0) +
+      mediumRiskAssets.reduce((sum, asset) => sum + getEstimatedTime(asset), 0),
+    [highRiskAssets, mediumRiskAssets]
+  );
 
   const isFreeTier = currentPlan === "free";
-  const visibleHighRiskAssets = isFreeTier
-    ? highRiskAssets.slice(0, freeTierLimit)
-    : highRiskAssets;
-  const hiddenHighRiskCount = isFreeTier
-    ? Math.max(0, totalHighRisk - freeTierLimit)
-    : 0;
+  const visibleHighRiskAssets = isFreeTier ? highRiskAssets.slice(0, freeTierLimit) : highRiskAssets;
+  const hiddenHighRiskCount = isFreeTier ? Math.max(0, totalHighRisk - freeTierLimit) : 0;
   const totalAssets = assets.length;
   const hasAssets = totalAssets > 0;
   const handleMigrateClick = (asset: AuditAssetRecord) => {
@@ -229,8 +221,8 @@ export function AuditAssetsByRisk({
                     riskLevel === "high"
                       ? "bg-fill-critical"
                       : riskLevel === "medium"
-                      ? "bg-fill-warning"
-                      : "bg-fill-success"
+                        ? "bg-fill-warning"
+                        : "bg-fill-success"
                   }
                   padding="400"
                   borderRadius="200"
@@ -257,7 +249,8 @@ export function AuditAssetsByRisk({
                     {t("common.countItems", { count: totalHighRisk })}
                   </Text>
                   <Text as="p" variant="bodySm">
-                    {t("scan.risk.estimatedFixTime")}: {estimatedTimeMinutes < 60
+                    {t("scan.risk.estimatedFixTime")}:{" "}
+                    {estimatedTimeMinutes < 60
                       ? t("common.minutes", { count: estimatedTimeMinutes })
                       : `${Math.floor(estimatedTimeMinutes / 60)} ${t("common.hours")} ${estimatedTimeMinutes % 60} ${t("common.minutes")}`}
                   </Text>
@@ -267,12 +260,7 @@ export function AuditAssetsByRisk({
                 <BlockStack gap="200">
                   {totalHighRisk > 0 && (
                     <BlockStack gap="200">
-                      <Button
-                        variant="primary"
-                        size="large"
-                        url="/app/migrate"
-                        icon={ArrowRightIcon}
-                      >
+                      <Button variant="primary" size="large" url="/app/migrate" icon={ArrowRightIcon}>
                         {t("scan.risk.enablePurchaseFix", { time: String(Math.ceil(estimatedTimeMinutes * 0.3)) })}
                       </Button>
                       {currentPlan !== "free" && currentPlan !== "starter" && (
@@ -312,12 +300,7 @@ export function AuditAssetsByRisk({
               {visibleHighRiskAssets.map((asset) => {
                 const migrationInfo = getMigrationLabel(asset.suggestedMigration);
                 return (
-                  <Box
-                    key={asset.id}
-                    background="bg-surface-critical"
-                    padding="400"
-                    borderRadius="200"
-                  >
+                  <Box key={asset.id} background="bg-surface-critical" padding="400" borderRadius="200">
                     <BlockStack gap="300">
                       <InlineStack align="space-between" blockAlign="start">
                         <BlockStack gap="100">
@@ -325,9 +308,7 @@ export function AuditAssetsByRisk({
                             <Text as="span" fontWeight="semibold">
                               {asset.displayName || asset.platform || t("common.unknownAsset")}
                             </Text>
-                            {asset.platform && (
-                              <Badge>{asset.platform}</Badge>
-                            )}
+                            {asset.platform && <Badge>{asset.platform}</Badge>}
                             {(() => {
                               const priority = getPriority(asset);
                               if (typeof priority === "number" && priority > 0) {
@@ -406,11 +387,7 @@ export function AuditAssetsByRisk({
                 );
               })}
               {hiddenHighRiskCount > 0 && (
-                <Box
-                  background="bg-surface-secondary"
-                  padding="400"
-                  borderRadius="200"
-                >
+                <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="300">
                     <InlineStack align="space-between" blockAlign="center">
                       <BlockStack gap="100">
@@ -424,11 +401,7 @@ export function AuditAssetsByRisk({
                           {t("scan.risk.upgradeHint")}
                         </Text>
                       </BlockStack>
-                      <Button
-                        variant="primary"
-                        url="/app/billing"
-                        icon={ArrowRightIcon}
-                      >
+                      <Button variant="primary" url="/app/billing" icon={ArrowRightIcon}>
                         {t("scan.risk.upgradeUnlock")}
                       </Button>
                     </InlineStack>
@@ -460,12 +433,7 @@ export function AuditAssetsByRisk({
                 {assetsByCategory.can_replace.map((asset) => {
                   const migrationInfo = getMigrationLabel(asset.suggestedMigration);
                   return (
-                    <Box
-                      key={asset.id}
-                      background="bg-surface-warning"
-                      padding="400"
-                      borderRadius="200"
-                    >
+                    <Box key={asset.id} background="bg-surface-warning" padding="400" borderRadius="200">
                       <BlockStack gap="300">
                         <InlineStack align="space-between" blockAlign="start">
                           <BlockStack gap="100">
@@ -473,12 +441,10 @@ export function AuditAssetsByRisk({
                               <Text as="span" fontWeight="semibold">
                                 {asset.displayName || asset.platform || t("common.unknownAsset")}
                               </Text>
-                              {asset.platform && (
-                                <Badge>{asset.platform}</Badge>
-                              )}
+                              {asset.platform && <Badge>{asset.platform}</Badge>}
                               {(() => {
-                              const priority = getPriority(asset);
-                              if (typeof priority === "number" && priority > 0) {
+                                const priority = getPriority(asset);
+                                if (typeof priority === "number" && priority > 0) {
                                   return (
                                     <Badge tone={priority >= 5 ? undefined : "info"}>
                                       {t("scan.risk.priority", { level: priority })}
@@ -541,8 +507,8 @@ export function AuditAssetsByRisk({
                               return null;
                             })()}
                             {(() => {
-                            const priority = getPriority(asset);
-                            if (typeof priority === "number" && priority >= 5 && priority < 8) {
+                              const priority = getPriority(asset);
+                              if (typeof priority === "number" && priority >= 5 && priority < 8) {
                                 return <Badge>{t("scan.risk.mediumPriority")}</Badge>;
                               }
                               return null;
@@ -567,7 +533,9 @@ export function AuditAssetsByRisk({
                   <Text as="h3" variant="headingSm">
                     {getRiskCategoryInfo("no_migration_needed").label}
                   </Text>
-                  <Badge tone="success">{t("common.countItems", { count: assetsByCategory.no_migration_needed.length })}</Badge>
+                  <Badge tone="success">
+                    {t("common.countItems", { count: assetsByCategory.no_migration_needed.length })}
+                  </Badge>
                 </InlineStack>
               </InlineStack>
               <Banner tone="success">
@@ -579,12 +547,7 @@ export function AuditAssetsByRisk({
                 {assetsByCategory.no_migration_needed.map((asset) => {
                   const migrationInfo = getMigrationLabel(asset.suggestedMigration);
                   return (
-                    <Box
-                      key={asset.id}
-                      background="bg-surface-success"
-                      padding="400"
-                      borderRadius="200"
-                    >
+                    <Box key={asset.id} background="bg-surface-success" padding="400" borderRadius="200">
                       <BlockStack gap="300">
                         <InlineStack align="space-between" blockAlign="start">
                           <BlockStack gap="100">
@@ -592,17 +555,11 @@ export function AuditAssetsByRisk({
                               <Text as="span" fontWeight="semibold">
                                 {asset.displayName || asset.platform || t("common.unknownAsset")}
                               </Text>
-                              {asset.platform && (
-                                <Badge>{asset.platform}</Badge>
-                              )}
+                              {asset.platform && <Badge>{asset.platform}</Badge>}
                               {(() => {
-                              const priority = getPriority(asset);
-                              if (typeof priority === "number" && priority > 0) {
-                                  return (
-                                    <Badge tone="info">
-                                      {t("scan.risk.priority", { level: priority })}
-                                    </Badge>
-                                  );
+                                const priority = getPriority(asset);
+                                if (typeof priority === "number" && priority > 0) {
+                                  return <Badge tone="info">{t("scan.risk.priority", { level: priority })}</Badge>;
                                 }
                                 return null;
                               })()}

@@ -41,10 +41,7 @@ export interface ListPendingJobsResult {
   };
 }
 
-export async function listPendingJobs(
-  limit: number,
-  now: Date
-): Promise<ListPendingJobsResult[]> {
+export async function listPendingJobs(limit: number, now: Date): Promise<ListPendingJobsResult[]> {
   // Use SKIP LOCKED to avoid race conditions between workers
   // This requires raw query as Prisma doesn't support SKIP LOCKED natively in findMany yet
   const lockedJobs = await prisma.$queryRaw<{ id: string }[]>`
@@ -76,10 +73,7 @@ export async function listPendingJobs(
   return jobs as ListPendingJobsResult[];
 }
 
-export async function recoverStuckProcessingJobs(options?: {
-  maxAgeMs?: number;
-  now?: Date;
-}): Promise<number> {
+export async function recoverStuckProcessingJobs(options?: { maxAgeMs?: number; now?: Date }): Promise<number> {
   const maxAgeMs = options?.maxAgeMs ?? DEFAULT_PROCESSING_STALE_MS;
   const now = options?.now ?? new Date();
   const cutoff = new Date(now.getTime() - maxAgeMs);
@@ -138,10 +132,7 @@ export async function markFailed(
   });
 }
 
-export async function createDispatchJob(
-  internalEventId: string,
-  destination: DispatchDestination
-): Promise<string> {
+export async function createDispatchJob(internalEventId: string, destination: DispatchDestination): Promise<string> {
   const id = randomUUID();
   await prisma.eventDispatchJob.create({
     data: {

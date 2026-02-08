@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
-import { AppProvider, Card, Page, Text, Banner, BlockStack, } from "@shopify/polaris";
+import { AppProvider, Card, Page, Text, Banner, BlockStack } from "@shopify/polaris";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import polarisTranslationsEn from "@shopify/polaris/locales/en.json" with { type: "json" };
 import { login } from "../../shopify.server";
@@ -13,40 +13,44 @@ const i18nEn = getPolarisTranslations(polarisTranslationsEn);
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-    const url = new URL(request.url);
-    const shop = url.searchParams.get("shop");
-    if (shop) {
-        const loginResponse = await login(request);
-        if (loginResponse instanceof Response) {
-            return loginResponse;
-        }
-        return json({
-            hasShopParam: true,
-            errors: loginResponse,
-            polarisTranslations: i18nEn,
-        });
+  const url = new URL(request.url);
+  const shop = url.searchParams.get("shop");
+  if (shop) {
+    const loginResponse = await login(request);
+    if (loginResponse instanceof Response) {
+      return loginResponse;
     }
     return json({
-        hasShopParam: false,
-        errors: null,
-        polarisTranslations: i18nEn,
+      hasShopParam: true,
+      errors: loginResponse,
+      polarisTranslations: i18nEn,
     });
+  }
+  return json({
+    hasShopParam: false,
+    errors: null,
+    polarisTranslations: i18nEn,
+  });
 };
 
 function AuthContent() {
-    const { t } = useTranslation();
-    const { polarisTranslations, hasShopParam, errors } = useLoaderData<typeof loader>();
-    
-    return (<AppProvider i18n={polarisTranslations}>
+  const { t } = useTranslation();
+  const { polarisTranslations, hasShopParam, errors } = useLoaderData<typeof loader>();
+
+  return (
+    <AppProvider i18n={polarisTranslations}>
       <Page>
         <Card>
           <BlockStack gap="400">
             <Text variant="headingLg" as="h1">
               Tracking Guardian
             </Text>
-            {hasShopParam && errors ? (<Banner tone="critical">
+            {hasShopParam && errors ? (
+              <Banner tone="critical">
                 <p>{t("Auth.Login.Error")}</p>
-              </Banner>) : (<>
+              </Banner>
+            ) : (
+              <>
                 <Banner tone="info">
                   <p>{t("Auth.Login.Info")}</p>
                 </Banner>
@@ -67,11 +71,13 @@ function AuthContent() {
                 <Text as="p" tone="subdued" variant="bodySm">
                   {t("Auth.Login.Footer")}
                 </Text>
-              </>)}
+              </>
+            )}
           </BlockStack>
         </Card>
       </Page>
-    </AppProvider>);
+    </AppProvider>
+  );
 }
 
 export default function Auth() {

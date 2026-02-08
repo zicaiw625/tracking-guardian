@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect } from "react";
 
 export interface UseFormDirtyOptions<T> {
   initialValues: T;
@@ -28,11 +28,14 @@ export function useFormDirty<T>({
     initialValuesRef.current = initialValues;
     setIsDirty(false);
   }, [initialValues]);
-  const checkDirty = useCallback((currentValues: T): boolean => {
-    const dirty = !comparator(initialValuesRef.current, currentValues);
-    setIsDirty(dirty);
-    return dirty;
-  }, [comparator]);
+  const checkDirty = useCallback(
+    (currentValues: T): boolean => {
+      const dirty = !comparator(initialValuesRef.current, currentValues);
+      setIsDirty(dirty);
+      return dirty;
+    },
+    [comparator]
+  );
   const resetToClean = useCallback((newInitialValues?: T) => {
     if (newInitialValues !== undefined) {
       initialValuesRef.current = newInitialValues;
@@ -58,9 +61,7 @@ export function useFormDirty<T>({
   };
 }
 
-export function useMultiFieldDirty<T extends Record<string, unknown>>(
-  initialValues: T
-) {
+export function useMultiFieldDirty<T extends Record<string, unknown>>(initialValues: T) {
   const [values, setValues] = useState<T>(initialValues);
   const initialRef = useRef<T>(initialValues);
   const [isDirty, setIsDirty] = useState(false);
@@ -70,7 +71,7 @@ export function useMultiFieldDirty<T extends Record<string, unknown>>(
     setIsDirty(false);
   }, [initialValues]);
   const updateField = useCallback(<K extends keyof T>(field: K, value: T[K]) => {
-    setValues(prev => {
+    setValues((prev) => {
       const newValues = { ...prev, [field]: value };
       const dirty = JSON.stringify(newValues) !== JSON.stringify(initialRef.current);
       setIsDirty(dirty);

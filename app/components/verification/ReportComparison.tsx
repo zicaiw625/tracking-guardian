@@ -1,15 +1,6 @@
 import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Card,
-  Text,
-  BlockStack,
-  Button,
-  Select,
-  Divider,
-  DataTable,
-  Banner,
-} from "@shopify/polaris";
+import { Card, Text, BlockStack, Button, Select, Divider, DataTable, Banner } from "@shopify/polaris";
 import { RefreshIcon } from "~/components/icons";
 import { useToastContext } from "~/components/ui";
 import type { VerificationReportData } from "~/services/verification-report.server";
@@ -53,7 +44,10 @@ export function ReportComparison({ shopId: _shopId, availableRuns }: ReportCompa
         const data = await response.json();
         setReport(data);
       } catch (error) {
-        showError(t("components.reportComparison.loadFailed") + (error instanceof Error ? error.message : t("components.reportComparison.unknownError")));
+        showError(
+          t("components.reportComparison.loadFailed") +
+            (error instanceof Error ? error.message : t("components.reportComparison.unknownError"))
+        );
       }
     },
     [showError, t]
@@ -69,21 +63,17 @@ export function ReportComparison({ shopId: _shopId, availableRuns }: ReportCompa
     }
     setIsLoading(true);
     try {
-      await Promise.all([
-        handleLoadReport(run1Id, setReport1),
-        handleLoadReport(run2Id, setReport2),
-      ]);
+      await Promise.all([handleLoadReport(run1Id, setReport1), handleLoadReport(run2Id, setReport2)]);
     } finally {
       setIsLoading(false);
     }
   }, [run1Id, run2Id, handleLoadReport, showError, t]);
 
-  const generateComparisonData = (
-    report1: VerificationReportData,
-    report2: VerificationReportData
-  ): ComparisonData => {
-    const successRate1 = report1.summary.totalTests > 0 ? (report1.summary.passedTests / report1.summary.totalTests) * 100 : 0;
-    const successRate2 = report2.summary.totalTests > 0 ? (report2.summary.passedTests / report2.summary.totalTests) * 100 : 0;
+  const generateComparisonData = (report1: VerificationReportData, report2: VerificationReportData): ComparisonData => {
+    const successRate1 =
+      report1.summary.totalTests > 0 ? (report1.summary.passedTests / report1.summary.totalTests) * 100 : 0;
+    const successRate2 =
+      report2.summary.totalTests > 0 ? (report2.summary.passedTests / report2.summary.totalTests) * 100 : 0;
     const metrics: ComparisonData["metrics"] = [
       {
         label: t("components.reportComparison.passRate"),
@@ -107,15 +97,15 @@ export function ReportComparison({ shopId: _shopId, availableRuns }: ReportCompa
         label: t("components.reportComparison.totalEvents"),
         value1: report1.summary.totalTests.toString(),
         value2: report2.summary.totalTests.toString(),
-        change: report1.summary.totalTests > 0 ? ((report2.summary.totalTests - report1.summary.totalTests) / report1.summary.totalTests) * 100 : 0,
+        change:
+          report1.summary.totalTests > 0
+            ? ((report2.summary.totalTests - report1.summary.totalTests) / report1.summary.totalTests) * 100
+            : 0,
       },
     ];
     const platformStats1 = calculatePlatformStats(report1);
     const platformStats2 = calculatePlatformStats(report2);
-    const allPlatforms = new Set([
-      ...Object.keys(platformStats1),
-      ...Object.keys(platformStats2),
-    ]);
+    const allPlatforms = new Set([...Object.keys(platformStats1), ...Object.keys(platformStats2)]);
     const platforms: ComparisonData["platforms"] = Array.from(allPlatforms).map((platform) => {
       const stats1 = platformStats1[platform] || { passed: 0, total: 0 };
       const stats2 = platformStats2[platform] || { passed: 0, total: 0 };
@@ -138,10 +128,15 @@ export function ReportComparison({ shopId: _shopId, availableRuns }: ReportCompa
       improvements.push(t("components.reportComparison.accuracyDrop"));
     }
     if (report2.summary.failedTests > report1.summary.failedTests) {
-      improvements.push(t("components.reportComparison.failedIncrease", { v1: report1.summary.failedTests, v2: report2.summary.failedTests }));
+      improvements.push(
+        t("components.reportComparison.failedIncrease", {
+          v1: report1.summary.failedTests,
+          v2: report2.summary.failedTests,
+        })
+      );
     }
     return { metrics, platforms, improvements };
-  }
+  };
 
   const comparisonData = report1 && report2 ? generateComparisonData(report1, report2) : null;
   return (
@@ -156,7 +151,7 @@ export function ReportComparison({ shopId: _shopId, availableRuns }: ReportCompa
             options={[
               { label: t("components.reportComparison.selectReport"), value: "" },
               ...availableRuns.map((run) => ({
-                label: `${run.runName} (${run.completedAt ? new Date(run.completedAt).toLocaleDateString(i18n.language === 'zh' ? "zh-CN" : "en-US") : t("components.reportComparison.incomplete")})`,
+                label: `${run.runName} (${run.completedAt ? new Date(run.completedAt).toLocaleDateString(i18n.language === "zh" ? "zh-CN" : "en-US") : t("components.reportComparison.incomplete")})`,
                 value: run.runId,
               })),
             ]}
@@ -168,7 +163,7 @@ export function ReportComparison({ shopId: _shopId, availableRuns }: ReportCompa
             options={[
               { label: t("components.reportComparison.selectReport"), value: "" },
               ...availableRuns.map((run) => ({
-                label: `${run.runName} (${run.completedAt ? new Date(run.completedAt).toLocaleDateString(i18n.language === 'zh' ? "zh-CN" : "en-US") : t("components.reportComparison.incomplete")})`,
+                label: `${run.runName} (${run.completedAt ? new Date(run.completedAt).toLocaleDateString(i18n.language === "zh" ? "zh-CN" : "en-US") : t("components.reportComparison.incomplete")})`,
                 value: run.runId,
               })),
             ]}
@@ -199,10 +194,10 @@ export function ReportComparison({ shopId: _shopId, availableRuns }: ReportCompa
                   <DataTable
                     columnContentTypes={["text", "text", "text", "text"]}
                     headings={[
-                      t("components.reportComparison.metric"), 
-                      t("components.reportComparison.report1Val"), 
-                      t("components.reportComparison.report2Val"), 
-                      t("components.reportComparison.change")
+                      t("components.reportComparison.metric"),
+                      t("components.reportComparison.report1Val"),
+                      t("components.reportComparison.report2Val"),
+                      t("components.reportComparison.change"),
                     ]}
                     rows={comparisonData.metrics.map((m) => [
                       m.label,
@@ -222,10 +217,10 @@ export function ReportComparison({ shopId: _shopId, availableRuns }: ReportCompa
                     <DataTable
                       columnContentTypes={["text", "text", "text", "text"]}
                       headings={[
-                        t("components.reportComparison.platform"), 
-                        t("components.reportComparison.passRate1"), 
-                        t("components.reportComparison.passRate2"), 
-                        t("components.reportComparison.change")
+                        t("components.reportComparison.platform"),
+                        t("components.reportComparison.passRate1"),
+                        t("components.reportComparison.passRate2"),
+                        t("components.reportComparison.change"),
                       ]}
                       rows={comparisonData.platforms.map((p) => [
                         p.platform,
@@ -263,10 +258,7 @@ export function ReportComparison({ shopId: _shopId, availableRuns }: ReportCompa
   );
 }
 
-function calculatePlatformStats(report: VerificationReportData): Record<
-  string,
-  { passed: number; total: number }
-> {
+function calculatePlatformStats(report: VerificationReportData): Record<string, { passed: number; total: number }> {
   const stats: Record<string, { passed: number; total: number }> = {};
   for (const [platform, result] of Object.entries(report.platformResults)) {
     if (!stats[platform]) {

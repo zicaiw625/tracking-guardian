@@ -49,7 +49,9 @@ export interface FormManagerReturn<T extends Record<string, unknown>> {
   validate: () => boolean;
   getError: (field: keyof T) => string | undefined;
   toFormData: (action?: string) => FormData;
-  getFieldProps: <K extends keyof T>(field: K) => {
+  getFieldProps: <K extends keyof T>(
+    field: K
+  ) => {
     value: T[K];
     onChange: (value: T[K]) => void;
     error: string | undefined;
@@ -69,19 +71,12 @@ function isEqual(a: unknown, b: unknown): boolean {
     const keysA = Object.keys(a as object);
     const keysB = Object.keys(b as object);
     if (keysA.length !== keysB.length) return false;
-    return keysA.every((key) =>
-      isEqual(
-        (a as Record<string, unknown>)[key],
-        (b as Record<string, unknown>)[key]
-      )
-    );
+    return keysA.every((key) => isEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]));
   }
   return false;
 }
 
-export function useFormManager<T extends Record<string, unknown>>(
-  config: FormConfig<T>
-): FormManagerReturn<T> {
+export function useFormManager<T extends Record<string, unknown>>(config: FormConfig<T>): FormManagerReturn<T> {
   const initialValues = useMemo(() => {
     const values = {} as T;
     for (const key in config) {
@@ -118,9 +113,7 @@ export function useFormManager<T extends Record<string, unknown>>(
   const isDirty = useMemo(() => {
     for (const key in values) {
       const fieldConfig = config[key];
-      const currentValue = fieldConfig?.transform
-        ? fieldConfig.transform(values[key])
-        : values[key];
+      const currentValue = fieldConfig?.transform ? fieldConfig.transform(values[key]) : values[key];
       const initialValue = fieldConfig?.transform
         ? fieldConfig.transform(savedInitialValues[key])
         : savedInitialValues[key];
@@ -143,16 +136,11 @@ export function useFormManager<T extends Record<string, unknown>>(
       ...newValues,
     }));
   }, []);
-  const getValue = useCallback(
-    <K extends keyof T>(field: K): T[K] => values[field],
-    [values]
-  );
+  const getValue = useCallback(<K extends keyof T>(field: K): T[K] => values[field], [values]);
   const getFieldState = useCallback(
     <K extends keyof T>(field: K): FieldState<T[K]> => {
       const fieldConfig = config[field];
-      const currentValue = fieldConfig?.transform
-        ? fieldConfig.transform(values[field])
-        : values[field];
+      const currentValue = fieldConfig?.transform ? fieldConfig.transform(values[field]) : values[field];
       const initialValue = fieldConfig?.transform
         ? fieldConfig.transform(savedInitialValues[field])
         : savedInitialValues[field];
@@ -175,13 +163,16 @@ export function useFormManager<T extends Record<string, unknown>>(
     setValuesState(initialValuesRef.current);
     setTouched({});
   }, []);
-  const resetWith = useCallback((newInitialValues: Partial<T>) => {
-    const merged = { ...savedInitialValues, ...newInitialValues };
-    initialValuesRef.current = merged;
-    setSavedInitialValues(merged);
-    setValuesState(merged);
-    setTouched({});
-  }, [savedInitialValues]);
+  const resetWith = useCallback(
+    (newInitialValues: Partial<T>) => {
+      const merged = { ...savedInitialValues, ...newInitialValues };
+      initialValuesRef.current = merged;
+      setSavedInitialValues(merged);
+      setValuesState(merged);
+      setTouched({});
+    },
+    [savedInitialValues]
+  );
   const commit = useCallback(() => {
     initialValuesRef.current = { ...values };
     setSavedInitialValues({ ...values });
@@ -195,10 +186,7 @@ export function useFormManager<T extends Record<string, unknown>>(
     setTouched(allTouched);
     return Object.keys(errors).length === 0;
   }, [config, errors]);
-  const getError = useCallback(
-    (field: keyof T) => (touched[field] ? errors[field] : undefined),
-    [errors, touched]
-  );
+  const getError = useCallback((field: keyof T) => (touched[field] ? errors[field] : undefined), [errors, touched]);
   const toFormData = useCallback(
     (action?: string): FormData => {
       const formData = new FormData();
@@ -258,10 +246,7 @@ export function useFormManager<T extends Record<string, unknown>>(
   };
 }
 
-export function useField<T>(
-  initialValue: T,
-  validate?: (value: T) => string | undefined
-) {
+export function useField<T>(initialValue: T, validate?: (value: T) => string | undefined) {
   const [value, setValue] = useState<T>(initialValue);
   const [touched, setTouched] = useState(false);
   const [savedInitial, setSavedInitial] = useState<T>(initialValue);
@@ -312,9 +297,6 @@ export function field<T>(initialValue: T): FieldConfig<T> {
   return { initialValue };
 }
 
-export function requiredField<T>(
-  initialValue: T,
-  validate?: (value: T) => string | undefined
-): FieldConfig<T> {
+export function requiredField<T>(initialValue: T, validate?: (value: T) => string | undefined): FieldConfig<T> {
   return { initialValue, required: true, validate };
 }

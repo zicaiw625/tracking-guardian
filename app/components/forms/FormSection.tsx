@@ -8,12 +8,7 @@ export interface FormSectionProps {
   children: ReactNode;
 }
 
-export function FormSection({
-  title,
-  description,
-  showDivider = false,
-  children,
-}: FormSectionProps) {
+export function FormSection({ title, description, showDivider = false, children }: FormSectionProps) {
   return (
     <BlockStack gap="300">
       {showDivider && <Divider />}

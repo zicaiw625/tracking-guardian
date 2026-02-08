@@ -16,8 +16,8 @@ jobs:
           version: 10.11.0
       - uses: actions/setup-node@v4
         with:
-          node-version: '20.10.0'
-          cache: 'pnpm'
+          node-version: "20.10.0"
+          cache: "pnpm"
       - run: pnpm install --frozen-lockfile
       - run: pnpm ci:lint
 
@@ -30,8 +30,8 @@ jobs:
           version: 10.11.0
       - uses: actions/setup-node@v4
         with:
-          node-version: '20.10.0'
-          cache: 'pnpm'
+          node-version: "20.10.0"
+          cache: "pnpm"
       - run: pnpm install --frozen-lockfile
       - run: pnpm ci:test
 
@@ -44,8 +44,8 @@ jobs:
           version: 10.11.0
       - uses: actions/setup-node@v4
         with:
-          node-version: '20.10.0'
-          cache: 'pnpm'
+          node-version: "20.10.0"
+          cache: "pnpm"
       - run: pnpm install --frozen-lockfile
       - run: pnpm ci:compliance
 
@@ -58,8 +58,8 @@ jobs:
           version: 10.11.0
       - uses: actions/setup-node@v4
         with:
-          node-version: '20.10.0'
-          cache: 'pnpm'
+          node-version: "20.10.0"
+          cache: "pnpm"
       - run: pnpm install --frozen-lockfile
       - run: pnpm ci:security
 
@@ -72,8 +72,8 @@ jobs:
           version: 10.11.0
       - uses: actions/setup-node@v4
         with:
-          node-version: '20.10.0'
-          cache: 'pnpm'
+          node-version: "20.10.0"
+          cache: "pnpm"
       - run: pnpm install --frozen-lockfile
       - run: pnpm pre-deploy:check
         env:
@@ -98,8 +98,8 @@ jobs:
           version: 10.11.0
       - uses: actions/setup-node@v4
         with:
-          node-version: '20.10.0'
-          cache: 'pnpm'
+          node-version: "20.10.0"
+          cache: "pnpm"
       - run: pnpm install --frozen-lockfile
       - run: pnpm ext:inject
         env:

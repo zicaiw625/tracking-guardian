@@ -1,7 +1,4 @@
-export {
-  FormSection,
-  type FormSectionProps,
-} from "./FormSection";
+export { FormSection, type FormSectionProps } from "./FormSection";
 
 export {
   PlatformCredentialsForm,
@@ -14,4 +11,3 @@ export {
   type PlatformCredentials,
   type PlatformCredentialsFormProps,
 } from "./PlatformCredentialsForm";
-

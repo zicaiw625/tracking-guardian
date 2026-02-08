@@ -46,11 +46,7 @@ export interface PrismaDelegate<TModel> {
   delete(args: { where: { id: string } }): Promise<TModel>;
 }
 
-export abstract class BaseRepository<
-  TModel extends BaseModel,
-  TCreate,
-  TUpdate
-> {
+export abstract class BaseRepository<TModel extends BaseModel, TCreate, TUpdate> {
   protected readonly db: PrismaClient;
   protected readonly modelName: string;
   constructor(modelName: string, db?: PrismaClient) {
@@ -58,10 +54,7 @@ export abstract class BaseRepository<
     this.modelName = modelName;
   }
   protected abstract getDelegate(client?: TransactionClient): PrismaDelegate<TModel>;
-  async findById(
-    id: string,
-    options?: QueryOptions
-  ): AsyncResult<TModel | null, AppError> {
+  async findById(id: string, options?: QueryOptions): AsyncResult<TModel | null, AppError> {
     try {
       const result = await this.getDelegate().findUnique({
         where: { id },
@@ -72,10 +65,7 @@ export abstract class BaseRepository<
       return err(this.handleError(error, "findById"));
     }
   }
-  async findByIdOrFail(
-    id: string,
-    options?: QueryOptions
-  ): AsyncResult<TModel, AppError> {
+  async findByIdOrFail(id: string, options?: QueryOptions): AsyncResult<TModel, AppError> {
     const result = await this.findById(id, options);
     if (!result.ok) return result;
     if (!result.value) {
@@ -83,10 +73,7 @@ export abstract class BaseRepository<
     }
     return ok(result.value);
   }
-  async findFirst(
-    where: Record<string, unknown>,
-    options?: QueryOptions
-  ): AsyncResult<TModel | null, AppError> {
+  async findFirst(where: Record<string, unknown>, options?: QueryOptions): AsyncResult<TModel | null, AppError> {
     try {
       const result = await this.getDelegate().findFirst({
         where,
@@ -156,10 +143,7 @@ export abstract class BaseRepository<
     if (!result.ok) return result;
     return ok(result.value > 0);
   }
-  async create(
-    data: TCreate,
-    options?: QueryOptions
-  ): AsyncResult<TModel, AppError> {
+  async create(data: TCreate, options?: QueryOptions): AsyncResult<TModel, AppError> {
     try {
       const result = await this.getDelegate().create({
         data,
@@ -171,11 +155,7 @@ export abstract class BaseRepository<
       return err(this.handleError(error, "create"));
     }
   }
-  async update(
-    id: string,
-    data: TUpdate,
-    options?: QueryOptions
-  ): AsyncResult<TModel, AppError> {
+  async update(id: string, data: TUpdate, options?: QueryOptions): AsyncResult<TModel, AppError> {
     try {
       const result = await this.getDelegate().update({
         where: { id },
@@ -219,9 +199,7 @@ export abstract class BaseRepository<
       return err(this.handleError(error, "delete"));
     }
   }
-  async transaction<T>(
-    fn: (tx: TransactionClient) => Promise<T>
-  ): AsyncResult<T, AppError> {
+  async transaction<T>(fn: (tx: TransactionClient) => Promise<T>): AsyncResult<T, AppError> {
     try {
       const result = await this.db.$transaction(fn);
       return ok(result);
@@ -247,12 +225,10 @@ export abstract class BaseRepository<
       }
       if (errorCode?.startsWith("P2")) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        return new AppError(
-          ErrorCode.DB_QUERY_ERROR,
-          `Database error in ${this.modelName}: ${errorMessage}`,
-          false,
-          { model: this.modelName, prismaCode: errorCode }
-        );
+        return new AppError(ErrorCode.DB_QUERY_ERROR, `Database error in ${this.modelName}: ${errorMessage}`, false, {
+          model: this.modelName,
+          prismaCode: errorCode,
+        });
       }
     }
     return Errors.dbQuery(`${this.modelName}.${operation}: ${String(error)}`);

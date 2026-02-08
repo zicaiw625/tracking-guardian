@@ -1,14 +1,4 @@
-import {
-  Card,
-  BlockStack,
-  InlineStack,
-  Text,
-  Badge,
-  ProgressBar,
-  List,
-  Box,
-  Divider,
-} from "@shopify/polaris";
+import { Card, BlockStack, InlineStack, Text, Badge, ProgressBar, List, Box, Divider } from "@shopify/polaris";
 
 export interface RiskReportItem {
   id: string;
@@ -80,7 +70,11 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
                 <Text variant="bodyMd" as="span">
                   风险分数
                 </Text>
-                <Text variant="headingLg" as="span" tone={riskLevel === "high" ? "critical" : riskLevel === "medium" ? undefined : undefined}>
+                <Text
+                  variant="headingLg"
+                  as="span"
+                  tone={riskLevel === "high" ? "critical" : riskLevel === "medium" ? undefined : undefined}
+                >
                   {`${riskScore}/100`}
                 </Text>
               </InlineStack>
@@ -124,7 +118,10 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
             <List>
               {categories.willFail.map((item: RiskReportItem) => (
                 <List.Item key={item.id}>
-                  <div onClick={onItemClick ? () => onItemClick(item.id) : undefined} style={{ cursor: onItemClick ? "pointer" : "default" }}>
+                  <div
+                    onClick={onItemClick ? () => onItemClick(item.id) : undefined}
+                    style={{ cursor: onItemClick ? "pointer" : "default" }}
+                  >
                     <BlockStack gap="200">
                       <InlineStack align="space-between">
                         <Text variant="bodyMd" as="span" fontWeight="semibold">
@@ -163,7 +160,10 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
             <List>
               {categories.canReplace.map((item: RiskReportItem) => (
                 <List.Item key={item.id}>
-                  <div onClick={onItemClick ? () => onItemClick(item.id) : undefined} style={{ cursor: onItemClick ? "pointer" : "default" }}>
+                  <div
+                    onClick={onItemClick ? () => onItemClick(item.id) : undefined}
+                    style={{ cursor: onItemClick ? "pointer" : "default" }}
+                  >
                     <BlockStack gap="200">
                       <InlineStack align="space-between">
                         <Text variant="bodyMd" as="span" fontWeight="semibold">
@@ -177,7 +177,12 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
                         </Text>
                       )}
                       <Text variant="bodySm" as="span">
-                        推荐迁移方式: {item.suggestedMigration === "web_pixel" ? "Web Pixel" : item.suggestedMigration === "ui_extension" ? "UI Extension" : item.suggestedMigration}
+                        推荐迁移方式:{" "}
+                        {item.suggestedMigration === "web_pixel"
+                          ? "Web Pixel"
+                          : item.suggestedMigration === "ui_extension"
+                            ? "UI Extension"
+                            : item.suggestedMigration}
                       </Text>
                       <Text variant="bodySm" as="span" tone="subdued">
                         预计时间: {item.estimatedTimeMinutes} 分钟

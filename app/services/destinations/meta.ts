@@ -4,8 +4,8 @@ import type { MetaCredentials } from "~/types";
 import type { InternalEventPayload, SendEventResult } from "./types";
 import { S2S_FETCH_TIMEOUT_MS } from "./types";
 
-const META_GRAPH_BASE = process.env.META_GRAPH_VERSION 
-  ? `https://graph.facebook.com/${process.env.META_GRAPH_VERSION}` 
+const META_GRAPH_BASE = process.env.META_GRAPH_VERSION
+  ? `https://graph.facebook.com/${process.env.META_GRAPH_VERSION}`
   : "https://graph.facebook.com/v20.0";
 
 const EVENT_NAME_MAP: Record<string, string> = {
@@ -25,7 +25,10 @@ function toMetaContents(items: unknown): Array<{ id: string; quantity: number; i
     .filter((i): i is Record<string, unknown> => i != null && typeof i === "object")
     .map((i) => ({
       id: String(i.id ?? i.variant_id ?? i.product_id ?? "").trim(),
-      quantity: typeof i.quantity === "number" ? Math.max(1, i.quantity) : Math.max(1, parseInt(String(i.quantity ?? 1), 10) || 1),
+      quantity:
+        typeof i.quantity === "number"
+          ? Math.max(1, i.quantity)
+          : Math.max(1, parseInt(String(i.quantity ?? 1), 10) || 1),
       item_price: typeof i.price === "number" ? i.price : parseFloat(String(i.price ?? 0)) || 0,
     }))
     .filter((i) => i.id);
@@ -37,10 +40,7 @@ function numericValue(v: unknown): number {
   return Number.isNaN(n) ? 0 : n;
 }
 
-export async function sendEvent(
-  event: InternalEventPayload,
-  credentials: MetaCredentials
-): Promise<SendEventResult> {
+export async function sendEvent(event: InternalEventPayload, credentials: MetaCredentials): Promise<SendEventResult> {
   const { pixelId, accessToken, testEventCode } = credentials;
   const userData: Record<string, string> = {};
   if (event.user_data_hashed && typeof event.user_data_hashed === "object") {
@@ -110,7 +110,7 @@ export async function sendEvent(
       },
     });
     const json = (res.data && typeof res.data === "object" ? res.data : {}) as Record<string, any>;
-    
+
     if (res.ok && !json.error) {
       return { ok: true, statusCode: res.status };
     }

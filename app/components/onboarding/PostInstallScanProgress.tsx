@@ -1,13 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import {
-  Card,
-  Text,
-  BlockStack,
-  InlineStack,
-  ProgressBar,
-  Spinner,
-  Badge,
-} from "@shopify/polaris";
+import { Card, Text, BlockStack, InlineStack, ProgressBar, Spinner, Badge } from "@shopify/polaris";
 import { useRevalidator } from "@remix-run/react";
 import { useTranslation } from "react-i18next";
 
@@ -121,17 +113,17 @@ export function PostInstallScanProgress({
         <ProgressBar progress={progress} size="large" />
         <BlockStack gap="200">
           {steps.map((step, index) => (
-            <InlineStack
-              key={index}
-              gap="300"
-              blockAlign="center"
-            >
+            <InlineStack key={index} gap="300" blockAlign="center">
               {index < currentStep ? (
-                <Text as="span" tone="success">✓</Text>
+                <Text as="span" tone="success">
+                  ✓
+                </Text>
               ) : index === currentStep ? (
                 <Spinner size="small" />
               ) : (
-                <Text as="span" tone="subdued">○</Text>
+                <Text as="span" tone="subdued">
+                  ○
+                </Text>
               )}
               <Text
                 as="span"

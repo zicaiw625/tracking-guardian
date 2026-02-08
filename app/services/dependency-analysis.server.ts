@@ -19,9 +19,7 @@ export interface DependencyGraph {
   }>;
 }
 
-export async function analyzeDependencies(
-  shopId: string
-): Promise<DependencyGraph> {
+export async function analyzeDependencies(shopId: string): Promise<DependencyGraph> {
   const assets = await prisma.auditAsset.findMany({
     where: {
       shopId,
@@ -69,10 +67,7 @@ export async function analyzeDependencies(
   assets.forEach((asset) => {
     if (asset.platform && asset.riskLevel === "high") {
       const samePlatformLowRisk = assets.filter(
-        (a) =>
-          a.id !== asset.id &&
-          a.platform === asset.platform &&
-          a.riskLevel === "low"
+        (a) => a.id !== asset.id && a.platform === asset.platform && a.riskLevel === "low"
       );
       samePlatformLowRisk.forEach((lowRiskAsset) => {
         edges.push({
@@ -84,12 +79,8 @@ export async function analyzeDependencies(
       });
     }
   });
-  const webPixelAssets = assets.filter(
-    (a) => a.suggestedMigration === "web_pixel"
-  );
-  const uiExtensionAssets = assets.filter(
-    (a) => a.suggestedMigration === "ui_extension"
-  );
+  const webPixelAssets = assets.filter((a) => a.suggestedMigration === "web_pixel");
+  const uiExtensionAssets = assets.filter((a) => a.suggestedMigration === "ui_extension");
   webPixelAssets.forEach((webPixelAsset) => {
     uiExtensionAssets.forEach((uiExtensionAsset) => {
       if (webPixelAsset.platform === uiExtensionAsset.platform) {
@@ -105,14 +96,14 @@ export async function analyzeDependencies(
   return { nodes, edges };
 }
 
-export async function generateMigrationOrder(
-  shopId: string
-): Promise<Array<{
-  assetId: string;
-  order: number;
-  reason: string;
-  dependencies: string[];
-}>> {
+export async function generateMigrationOrder(shopId: string): Promise<
+  Array<{
+    assetId: string;
+    order: number;
+    reason: string;
+    dependencies: string[];
+  }>
+> {
   const graph = await analyzeDependencies(shopId);
   const inDegree = new Map<string, number>();
   const dependents = new Map<string, string[]>();
@@ -137,9 +128,7 @@ export async function generateMigrationOrder(
   }> = [];
   const processed = new Set<string>();
   let currentOrder = 1;
-  const noDependencyNodes = graph.nodes.filter(
-    (node) => (inDegree.get(node.id) || 0) === 0
-  );
+  const noDependencyNodes = graph.nodes.filter((node) => (inDegree.get(node.id) || 0) === 0);
   noDependencyNodes.sort((a, b) => {
     const priorityA = a.priority || 0;
     const priorityB = b.priority || 0;
@@ -147,10 +136,7 @@ export async function generateMigrationOrder(
       return priorityB - priorityA;
     }
     const riskOrder = { high: 3, medium: 2, low: 1 };
-    return (
-      riskOrder[b.riskLevel as keyof typeof riskOrder] -
-      riskOrder[a.riskLevel as keyof typeof riskOrder]
-    );
+    return riskOrder[b.riskLevel as keyof typeof riskOrder] - riskOrder[a.riskLevel as keyof typeof riskOrder];
   });
   const queue = [...noDependencyNodes];
   while (queue.length > 0) {
@@ -160,9 +146,7 @@ export async function generateMigrationOrder(
       where: { id: node.assetId },
       select: { dependencies: true },
     });
-    const dependencies = asset?.dependencies
-      ? (asset.dependencies as string[])
-      : [];
+    const dependencies = asset?.dependencies ? (asset.dependencies as string[]) : [];
     ordered.push({
       assetId: node.assetId,
       order: currentOrder++,
@@ -188,9 +172,7 @@ export async function generateMigrationOrder(
         where: { id: node.assetId },
         select: { dependencies: true },
       });
-      const dependencies = asset?.dependencies
-        ? (asset.dependencies as string[])
-        : [];
+      const dependencies = asset?.dependencies ? (asset.dependencies as string[]) : [];
       ordered.push({
         assetId: node.assetId,
         order: currentOrder++,

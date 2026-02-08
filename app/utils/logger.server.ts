@@ -45,8 +45,7 @@ const LOG_LEVELS: Record<LogLevel, number> = {
   error: 3,
 };
 
-const MIN_LOG_LEVEL: LogLevel =
-  process.env.NODE_ENV === "production" ? "info" : "debug";
+const MIN_LOG_LEVEL: LogLevel = process.env.NODE_ENV === "production" ? "info" : "debug";
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
@@ -66,16 +65,11 @@ export function getRequestId(request: Request): string {
 
 export function getCorrelationId(request: Request): string {
   return (
-    request.headers.get(CORRELATION_ID_HEADER) ||
-    request.headers.get(REQUEST_ID_HEADER) ||
-    generateCorrelationId()
+    request.headers.get(CORRELATION_ID_HEADER) || request.headers.get(REQUEST_ID_HEADER) || generateCorrelationId()
   );
 }
 
-export function withCorrelation<T>(
-  context: Partial<CorrelationContext>,
-  fn: () => T
-): T {
+export function withCorrelation<T>(context: Partial<CorrelationContext>, fn: () => T): T {
   const existingContext = correlationStorage.getStore();
   const newContext: CorrelationContext = {
     correlationId: context.correlationId || existingContext?.correlationId || generateCorrelationId(),
@@ -260,7 +254,9 @@ function sanitizeContext(context: LogContext, depth: number = 0): LogContext {
     }
     if (SENSITIVE_FIELD_PATTERNS.some((f) => lowerKey.includes(f))) {
       if (
-        (lowerKey.includes("trackingnumber") || lowerKey.includes("checkouttoken") || lowerKey.includes("sharetoken")) &&
+        (lowerKey.includes("trackingnumber") ||
+          lowerKey.includes("checkouttoken") ||
+          lowerKey.includes("sharetoken")) &&
         typeof value === "string" &&
         value.length > 0
       ) {
@@ -270,11 +266,11 @@ function sanitizeContext(context: LogContext, depth: number = 0): LogContext {
       }
     } else if (typeof value === "object" && value !== null) {
       if (Array.isArray(value)) {
-        const sanitizedArray = value.slice(0, 10).map((item) =>
-          typeof item === "object" && item !== null
-            ? sanitizeContext(item as LogContext, depth + 1)
-            : item
-        );
+        const sanitizedArray = value
+          .slice(0, 10)
+          .map((item) =>
+            typeof item === "object" && item !== null ? sanitizeContext(item as LogContext, depth + 1) : item
+          );
         if (value.length > 10) {
           sanitizedArray.push(`...(${value.length - 10} more)`);
         }
@@ -291,12 +287,7 @@ function sanitizeContext(context: LogContext, depth: number = 0): LogContext {
   return sanitized;
 }
 
-function buildLogEntry(
-  level: LogLevel,
-  message: string,
-  context?: LogContext,
-  error?: Error | unknown
-): LogEntry {
+function buildLogEntry(level: LogLevel, message: string, context?: LogContext, error?: Error | unknown): LogEntry {
   const correlationContext = correlationStorage.getStore();
   const entry: LogEntry = {
     timestamp: new Date().toISOString(),
@@ -356,18 +347,14 @@ interface Logger {
 
 function createChildLogger(additionalContext: LogContext): Logger {
   return {
-    debug: (msg: string, ctx?: LogContext) =>
-      loggerImpl.debug(msg, { ...additionalContext, ...ctx }),
-    info: (msg: string, ctx?: LogContext) =>
-      loggerImpl.info(msg, { ...additionalContext, ...ctx }),
-    warn: (msg: string, ctx?: LogContext) =>
-      loggerImpl.warn(msg, { ...additionalContext, ...ctx }),
+    debug: (msg: string, ctx?: LogContext) => loggerImpl.debug(msg, { ...additionalContext, ...ctx }),
+    info: (msg: string, ctx?: LogContext) => loggerImpl.info(msg, { ...additionalContext, ...ctx }),
+    warn: (msg: string, ctx?: LogContext) => loggerImpl.warn(msg, { ...additionalContext, ...ctx }),
     error: (msg: string, err?: Error | unknown, ctx?: LogContext) =>
       loggerImpl.error(msg, err, { ...additionalContext, ...ctx }),
     log: (level: LogLevel, msg: string, ctx?: LogContext) =>
       loggerImpl.log(level, msg, { ...additionalContext, ...ctx }),
-    child: (moreContext: LogContext) =>
-      createChildLogger({ ...additionalContext, ...moreContext }),
+    child: (moreContext: LogContext) => createChildLogger({ ...additionalContext, ...moreContext }),
   };
 }
 
@@ -433,18 +420,9 @@ export interface RequestLogger {
   readonly correlationId: string;
 }
 
-export function createRequestLogger(
-  requestOrId: Request | string,
-  baseContext?: LogContext
-): RequestLogger {
-  const requestId =
-    typeof requestOrId === "string"
-      ? requestOrId
-      : getRequestId(requestOrId);
-  const correlationId =
-    typeof requestOrId === "string"
-      ? requestOrId
-      : getCorrelationId(requestOrId);
+export function createRequestLogger(requestOrId: Request | string, baseContext?: LogContext): RequestLogger {
+  const requestId = typeof requestOrId === "string" ? requestOrId : getRequestId(requestOrId);
+  const correlationId = typeof requestOrId === "string" ? requestOrId : getCorrelationId(requestOrId);
   const contextWithIds: LogContext = {
     ...baseContext,
     requestId,
@@ -504,9 +482,9 @@ export const metrics = {
       | "invalid_origin_protocol"
       | "origin_not_allowlisted"
       | "invalid_key"
-    | "invalid_timestamp"
-    | "timestamp_missing"
-    | "body_too_large"
+      | "invalid_timestamp"
+      | "timestamp_missing"
+      | "body_too_large"
       | "invalid_payload"
       | "rate_limited"
       | "replay_detected"
@@ -519,10 +497,7 @@ export const metrics = {
     logger.info(`[METRIC] pixel_rejection`, {
       ...context,
       _metric: "pixel_rejection",
-      _severity:
-        context.reason === "rate_limited" || context.reason === "replay_detected"
-          ? "warning"
-          : "info",
+      _severity: context.reason === "rate_limited" || context.reason === "replay_detected" ? "warning" : "info",
     });
   },
   silentDrop(context: {
@@ -622,12 +597,7 @@ export const metrics = {
       _metric: "retry_queue",
     });
   },
-  rateLimit(context: {
-    endpoint: string;
-    key: string;
-    blocked: boolean;
-    remaining?: number;
-  }): void {
+  rateLimit(context: { endpoint: string; key: string; blocked: boolean; remaining?: number }): void {
     if (context.blocked) {
       logger.warn(`[METRIC] rate_limited`, {
         ...context,
@@ -635,11 +605,7 @@ export const metrics = {
       });
     }
   },
-  circuitBreaker(context: {
-    shopDomain: string;
-    action: "tripped" | "reset";
-    count?: number;
-  }): void {
+  circuitBreaker(context: { shopDomain: string; action: "tripped" | "reset"; count?: number }): void {
     logger.warn(`[METRIC] circuit_breaker`, {
       ...context,
       _metric: "circuit_breaker",
@@ -656,9 +622,7 @@ export const metrics = {
     logger.info(`[METRIC] batch_processing`, {
       ...context,
       _metric: "batch_processing",
-      successRate: context.totalItems > 0
-        ? Math.round((context.succeeded / context.totalItems) * 100)
-        : 0,
+      successRate: context.totalItems > 0 ? Math.round((context.succeeded / context.totalItems) * 100) : 0,
     });
   },
 };
@@ -670,11 +634,7 @@ export function createTimer(): { elapsed: () => number } {
   };
 }
 
-export async function withTiming<T>(
-  name: string,
-  fn: () => Promise<T>,
-  context?: LogContext
-): Promise<T> {
+export async function withTiming<T>(name: string, fn: () => Promise<T>, context?: LogContext): Promise<T> {
   const timer = createTimer();
   try {
     const result = await fn();
@@ -723,10 +683,7 @@ export function logError(
   });
 }
 
-export function logRequestStart(
-  request: Request,
-  context?: LogContext
-): { requestId: string; startTime: number } {
+export function logRequestStart(request: Request, context?: LogContext): { requestId: string; startTime: number } {
   const requestId = getRequestId(request);
   const url = new URL(request.url);
   logger.info("Request started", {
@@ -738,12 +695,7 @@ export function logRequestStart(
   return { requestId, startTime: Date.now() };
 }
 
-export function logRequestEnd(
-  requestId: string,
-  startTime: number,
-  status: number,
-  context?: LogContext
-): void {
+export function logRequestEnd(requestId: string, startTime: number, status: number, context?: LogContext): void {
   const duration = Date.now() - startTime;
   const level = status >= 500 ? "error" : status >= 400 ? "warn" : "info";
   logger.log(level, "Request completed", {
@@ -788,12 +740,7 @@ export function logAudit(
   });
 }
 
-export function logSlowOperation(
-  operation: string,
-  duration: number,
-  thresholdMs: number,
-  context?: LogContext
-): void {
+export function logSlowOperation(operation: string, duration: number, thresholdMs: number, context?: LogContext): void {
   if (duration > thresholdMs) {
     logger.warn(`Slow operation: ${operation}`, {
       duration,
@@ -804,12 +751,7 @@ export function logSlowOperation(
   }
 }
 
-export function logQueryPerformance(
-  query: string,
-  duration: number,
-  rowCount?: number,
-  context?: LogContext
-): void {
+export function logQueryPerformance(query: string, duration: number, rowCount?: number, context?: LogContext): void {
   const level = duration > 1000 ? "warn" : duration > 100 ? "info" : "debug";
   logger.log(level, "Database query", {
     query: query.substring(0, 100),
@@ -820,11 +762,7 @@ export function logQueryPerformance(
   });
 }
 
-export function logHealthCheck(
-  service: string,
-  healthy: boolean,
-  details?: LogContext
-): void {
+export function logHealthCheck(service: string, healthy: boolean, details?: LogContext): void {
   const level = healthy ? "debug" : "error";
   logger.log(level, `Health check: ${service}`, {
     service,

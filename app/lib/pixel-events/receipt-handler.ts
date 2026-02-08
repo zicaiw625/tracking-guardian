@@ -17,12 +17,10 @@ function buildMinimalPayloadForReceipt(
   hmacMatched?: boolean,
   platform?: string | null
 ): Record<string, unknown> {
-  const items = (payload.data?.items ?? [])
-    .slice(0, 50)
-    .map((i) => ({
-      id: String(i?.id ?? ""),
-      quantity: typeof i?.quantity === "number" ? i.quantity : 1,
-    }));
+  const items = (payload.data?.items ?? []).slice(0, 50).map((i) => ({
+    id: String(i?.id ?? ""),
+    quantity: typeof i?.quantity === "number" ? i.quantity : 1,
+  }));
   const base: Record<string, unknown> = {
     consent: payload.consent,
     data: {
@@ -93,10 +91,7 @@ export async function isClientEventRecorded(
   eventType: string,
   opts?: { altOrderKey?: string | null }
 ): Promise<boolean> {
-  const orList: Array<{ orderKey?: string; altOrderKey?: string }> = [
-    { orderKey },
-    { altOrderKey: orderKey },
-  ];
+  const orList: Array<{ orderKey?: string; altOrderKey?: string }> = [{ orderKey }, { altOrderKey: orderKey }];
   if (opts?.altOrderKey != null && opts.altOrderKey !== "" && opts.altOrderKey !== orderKey) {
     orList.push({ orderKey: opts.altOrderKey }, { altOrderKey: opts.altOrderKey });
   }
@@ -128,9 +123,7 @@ export async function upsertPixelEventReceipt(
   const originHost = extractOriginHost(origin);
   const checkoutToken = payload.data?.checkoutToken;
   const checkoutFingerprint =
-    typeof checkoutToken === "string" && checkoutToken.trim() !== ""
-      ? hashValueSync(checkoutToken)
-      : null;
+    typeof checkoutToken === "string" && checkoutToken.trim() !== "" ? hashValueSync(checkoutToken) : null;
   const payloadData = payload?.data as Record<string, unknown> | undefined;
   const extractedOrderKey = orderKey || (payloadData?.orderId as string | undefined);
   const platformValue = platform ?? "unknown";
@@ -140,21 +133,15 @@ export async function upsertPixelEventReceipt(
       const { sanitizePII } = await import("../../services/event-log.server");
       const sanitized = sanitizePII(payload);
       if (verificationRunId) {
-        const base =
-          sanitized && typeof sanitized === "object" ? (sanitized as Record<string, unknown>) : {};
+        const base = sanitized && typeof sanitized === "object" ? (sanitized as Record<string, unknown>) : {};
         const baseData =
           base.data && typeof base.data === "object" && base.data !== null
             ? (base.data as Record<string, unknown>)
             : null;
         payloadToStore = {
           ...base,
-          ...(baseData
-            ? { data: { ...baseData, hmacMatched: hmacMatched ?? false } }
-            : {}),
-          trustLevel:
-            typeof base.trustLevel === "string"
-              ? base.trustLevel
-              : trustLevel ?? "untrusted",
+          ...(baseData ? { data: { ...baseData, hmacMatched: hmacMatched ?? false } } : {}),
+          trustLevel: typeof base.trustLevel === "string" ? base.trustLevel : (trustLevel ?? "untrusted"),
           hmacMatched: hmacMatched ?? false,
         };
         if (platform != null && platform !== "") {
@@ -163,9 +150,7 @@ export async function upsertPixelEventReceipt(
         }
       } else {
         const sanitizedPayload =
-          sanitized && typeof sanitized === "object"
-            ? (sanitized as PixelEventPayload)
-            : payload;
+          sanitized && typeof sanitized === "object" ? (sanitized as PixelEventPayload) : payload;
         payloadToStore = buildMinimalPayloadForReceipt(sanitizedPayload, trustLevel, hmacMatched, platform);
       }
     }
@@ -300,11 +285,11 @@ export async function upsertPixelEventReceipt(
         }
         logger.info(`Fallback: Wrote purchase deduplication key to Redis after DB failure`, {
           shopId,
-          orderKey: extractedOrderKey
+          orderKey: extractedOrderKey,
         });
       } catch (redisError) {
         logger.warn(`Failed to write fallback Redis key after DB failure`, {
-           error: String(redisError)
+          error: String(redisError),
         });
       }
     }
@@ -313,9 +298,7 @@ export async function upsertPixelEventReceipt(
   }
 }
 
-export async function getActivePixelConfigs(
-  shopId: string
-): Promise<Array<{ platform: string }>> {
+export async function getActivePixelConfigs(shopId: string): Promise<Array<{ platform: string }>> {
   return prisma.pixelConfig.findMany({
     where: {
       shopId,
@@ -327,10 +310,7 @@ export async function getActivePixelConfigs(
   });
 }
 
-export function generatePurchaseEventId(
-  orderId: string,
-  shopDomain: string
-): string {
+export function generatePurchaseEventId(orderId: string, shopDomain: string): string {
   return generateEventId(orderId, "purchase", shopDomain);
 }
 
@@ -361,23 +341,21 @@ export function generateDeduplicationKeyForEvent(
   shopDomain: string
 ): string {
   const identifier = orderId || checkoutToken || "";
-  const itemsHash = items.length > 0
-    ? createHash("sha256")
-        .update(
-          items
-            .sort((a, b) => a.id.localeCompare(b.id))
-            .map(item => `${item.id}:${item.quantity}`)
-            .join(","),
-          "utf8"
-        )
-        .digest("hex")
-        .substring(0, 16)
-    : "empty";
+  const itemsHash =
+    items.length > 0
+      ? createHash("sha256")
+          .update(
+            items
+              .sort((a, b) => a.id.localeCompare(b.id))
+              .map((item) => `${item.id}:${item.quantity}`)
+              .join(","),
+            "utf8"
+          )
+          .digest("hex")
+          .substring(0, 16)
+      : "empty";
   const keyInput = `${shopDomain}:${identifier}:${eventName}:${itemsHash}`;
-  return createHash("sha256")
-    .update(keyInput, "utf8")
-    .digest("hex")
-    .substring(0, 32);
+  return createHash("sha256").update(keyInput, "utf8").digest("hex").substring(0, 32);
 }
 
 export async function createEventNonce(

@@ -1,7 +1,10 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../../shopify.server";
 import prisma from "../../db.server";
-import { generateVerificationReportData, generateVerificationReportCSV } from "../../services/verification-report.server";
+import {
+  generateVerificationReportData,
+  generateVerificationReportCSV,
+} from "../../services/verification-report.server";
 import { logger } from "../../utils/logger.server";
 import { sanitizeFilename } from "../../utils/responses";
 import { jsonApi, withSecurityHeaders } from "../../utils/security-headers";
@@ -61,9 +64,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return jsonApi({ error: "Unsupported format" }, { status: 400 });
   } catch (error) {
     logger.error("Failed to export verification report", { error });
-    return jsonApi(
-      { error: error instanceof Error ? error.message : "Failed to export report" },
-      { status: 500 }
-    );
+    return jsonApi({ error: error instanceof Error ? error.message : "Failed to export report" }, { status: 500 });
   }
 };

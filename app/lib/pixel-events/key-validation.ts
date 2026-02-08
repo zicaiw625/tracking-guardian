@@ -5,14 +5,9 @@ import {
   type ShopVerificationData,
   type ShopWithPixelConfigs,
 } from "../../utils/shop-access.server";
-import {
-  getCachedShopWithConfigs,
-  cacheShopWithConfigsEncrypted,
-} from "../../services/shop-cache.server";
+import { getCachedShopWithConfigs, cacheShopWithConfigsEncrypted } from "../../services/shop-cache.server";
 
-export async function getShopForPixelVerification(
-  shopDomain: string
-): Promise<ShopVerificationData | null> {
+export async function getShopForPixelVerification(shopDomain: string): Promise<ShopVerificationData | null> {
   return getShopForVerification(shopDomain);
 }
 

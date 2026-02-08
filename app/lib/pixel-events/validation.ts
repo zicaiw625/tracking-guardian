@@ -1,8 +1,4 @@
-import type {
-  PixelEventPayload,
-  PixelEventName,
-  ValidationResult,
-} from "./types";
+import type { PixelEventPayload, PixelEventName, ValidationResult } from "./types";
 import { PRIMARY_EVENTS, FUNNEL_EVENTS } from "./constants";
 
 import {
@@ -13,20 +9,16 @@ import {
   SHOP_DOMAIN_PATTERN,
   MIN_REASONABLE_TIMESTAMP,
   MAX_FUTURE_TIMESTAMP_MS,
-} from '~/schemas/pixel-event';
+} from "~/schemas/pixel-event";
 
-function validateBodyStructure(
-  body: unknown
-): { valid: true; data: Record<string, unknown> } | ValidationResult {
+function validateBodyStructure(body: unknown): { valid: true; data: Record<string, unknown> } | ValidationResult {
   if (!body || typeof body !== "object") {
     return { valid: false, error: "Invalid request body", code: "invalid_body" };
   }
   return { valid: true, data: body as Record<string, unknown> };
 }
 
-function normalizeEventFields(
-  data: Record<string, unknown>
-): {
+function normalizeEventFields(data: Record<string, unknown>): {
   eventName: string;
   timestamp: number;
   shopDomain: string;
@@ -76,9 +68,7 @@ function normalizeEventFields(
   };
 }
 
-function validateRequiredFields(
-  data: Record<string, unknown>
-): ValidationResult | null {
+function validateRequiredFields(data: Record<string, unknown>): ValidationResult | null {
   const normalized = normalizeEventFields(data);
   if (!normalized) {
     const isPRDFormat = "event_name" in data;
@@ -118,10 +108,7 @@ function validateRequiredFields(
     };
   }
   const now = Date.now();
-  if (
-    timestamp < MIN_REASONABLE_TIMESTAMP ||
-    timestamp > now + MAX_FUTURE_TIMESTAMP_MS
-  ) {
+  if (timestamp < MIN_REASONABLE_TIMESTAMP || timestamp > now + MAX_FUTURE_TIMESTAMP_MS) {
     return {
       valid: false,
       error: "Timestamp outside reasonable range",
@@ -131,9 +118,7 @@ function validateRequiredFields(
   return null;
 }
 
-function validateConsentFormat(
-  consent: unknown
-): ValidationResult | null {
+function validateConsentFormat(consent: unknown): ValidationResult | null {
   if (consent === undefined) {
     return null;
   }
@@ -172,9 +157,7 @@ function validateConsentFormat(
   return null;
 }
 
-function sanitizeEventData(
-  eventData: Record<string, unknown> | undefined
-): PixelEventPayload["data"] {
+function sanitizeEventData(eventData: Record<string, unknown> | undefined): PixelEventPayload["data"] {
   if (!eventData || typeof eventData !== "object") {
     return {};
   }
@@ -219,7 +202,13 @@ function sanitizeEventData(
         });
       } else if (key === "orderId" || key === "checkoutToken") {
         sanitized[key] = value === null || value === undefined ? null : String(value);
-      } else if (key === "orderNumber" || key === "url" || key === "title" || key === "productId" || key === "productTitle") {
+      } else if (
+        key === "orderNumber" ||
+        key === "url" ||
+        key === "title" ||
+        key === "productId" ||
+        key === "productTitle"
+      ) {
         if (key === "url") {
           const urlValue = value === null || value === undefined ? null : String(value);
           if (urlValue) {
@@ -242,7 +231,8 @@ function sanitizeEventData(
         } else if (key === "productTitle") {
           sanitized.productTitle = truncate(value, 500);
         } else {
-          (sanitized as Record<string, unknown>)[key] = value === null || value === undefined ? undefined : String(value);
+          (sanitized as Record<string, unknown>)[key] =
+            value === null || value === undefined ? undefined : String(value);
         }
       } else if (key === "environment") {
         const envStr = value === null || value === undefined ? undefined : String(value);
@@ -253,7 +243,14 @@ function sanitizeEventData(
         }
       } else if (key === "currency") {
         sanitized.currency = value == null || value === undefined ? undefined : String(value);
-      } else if (key === "value" || key === "tax" || key === "shipping" || key === "itemCount" || key === "price" || key === "quantity") {
+      } else if (
+        key === "value" ||
+        key === "tax" ||
+        key === "shipping" ||
+        key === "itemCount" ||
+        key === "price" ||
+        key === "quantity"
+      ) {
         if (typeof value === "number") {
           (sanitized as Record<string, unknown>)[key] = value;
         }
@@ -263,9 +260,7 @@ function sanitizeEventData(
   return sanitized;
 }
 
-function validateCheckoutCompletedFields(
-  eventData: Record<string, unknown> | undefined
-): ValidationResult | null {
+function validateCheckoutCompletedFields(eventData: Record<string, unknown> | undefined): ValidationResult | null {
   const hasOrderId = eventData?.orderId !== undefined && eventData?.orderId !== null;
   const hasCheckoutToken = eventData?.checkoutToken !== undefined && eventData?.checkoutToken !== null;
   if (!hasOrderId && !hasCheckoutToken) {
@@ -277,10 +272,7 @@ function validateCheckoutCompletedFields(
   }
   if (eventData?.checkoutToken) {
     const token = String(eventData.checkoutToken);
-    if (
-      token.length < CHECKOUT_TOKEN_MIN_LENGTH ||
-      token.length > CHECKOUT_TOKEN_MAX_LENGTH
-    ) {
+    if (token.length < CHECKOUT_TOKEN_MIN_LENGTH || token.length > CHECKOUT_TOKEN_MAX_LENGTH) {
       return {
         valid: false,
         error: "Invalid checkoutToken length",
@@ -342,21 +334,30 @@ export function validateRequest(body: unknown): ValidationResult {
     return { valid: false, error: "Invalid event format", code: "invalid_body" };
   }
   const { eventName, timestamp, shopDomain, nonce, context } = normalized;
-  const rawConsent = (data.consent || (context as Record<string, unknown>)?.consent) as Record<string, unknown> | undefined;
+  const rawConsent = (data.consent || (context as Record<string, unknown>)?.consent) as
+    | Record<string, unknown>
+    | undefined;
   const consentError = validateConsentFormat(rawConsent);
   if (consentError) {
     return consentError;
   }
-  const normalizedConsent = rawConsent ? (() => {
-    const saleOfDataAllowed = rawConsent.saleOfDataAllowed !== undefined
-      ? (typeof rawConsent.saleOfDataAllowed === "boolean" ? rawConsent.saleOfDataAllowed : undefined)
-      : (typeof rawConsent.saleOfData === "boolean" ? rawConsent.saleOfData : undefined);
-    return {
-      marketing: typeof rawConsent.marketing === "boolean" ? rawConsent.marketing : undefined,
-      analytics: typeof rawConsent.analytics === "boolean" ? rawConsent.analytics : undefined,
-      saleOfDataAllowed,
-    };
-  })() : undefined;
+  const normalizedConsent = rawConsent
+    ? (() => {
+        const saleOfDataAllowed =
+          rawConsent.saleOfDataAllowed !== undefined
+            ? typeof rawConsent.saleOfDataAllowed === "boolean"
+              ? rawConsent.saleOfDataAllowed
+              : undefined
+            : typeof rawConsent.saleOfData === "boolean"
+              ? rawConsent.saleOfData
+              : undefined;
+        return {
+          marketing: typeof rawConsent.marketing === "boolean" ? rawConsent.marketing : undefined,
+          analytics: typeof rawConsent.analytics === "boolean" ? rawConsent.analytics : undefined,
+          saleOfDataAllowed,
+        };
+      })()
+    : undefined;
   const rawEventData = (data.data || (context as Record<string, unknown>)?.data) as Record<string, unknown> | undefined;
   if (eventName === "checkout_completed") {
     const checkoutError = validateCheckoutCompletedFields(rawEventData);
@@ -412,9 +413,10 @@ export function parsePixelConfig(configStr?: string): PixelConfig {
     return {
       schema_version: "1",
       mode: parsed.mode === "full_funnel" ? "full_funnel" : "purchase_only",
-      enabled_platforms: typeof parsed.enabled_platforms === "string"
-        ? parsed.enabled_platforms
-        : DEFAULT_PIXEL_CONFIG.enabled_platforms,
+      enabled_platforms:
+        typeof parsed.enabled_platforms === "string"
+          ? parsed.enabled_platforms
+          : DEFAULT_PIXEL_CONFIG.enabled_platforms,
       strictness: parsed.strictness === "balanced" ? "balanced" : "strict",
     };
   } catch {
@@ -424,7 +426,10 @@ export function parsePixelConfig(configStr?: string): PixelConfig {
 
 export function isPlatformEnabled(config: PixelConfig, platform: string): boolean {
   const normalizedPlatform = platform.toLowerCase();
-  const enabledPlatforms = config.enabled_platforms.toLowerCase().split(",").map(p => p.trim());
+  const enabledPlatforms = config.enabled_platforms
+    .toLowerCase()
+    .split(",")
+    .map((p) => p.trim());
   const platformAliases: Record<string, string[]> = {
     google: ["google", "ga4", "analytics"],
     meta: ["meta", "facebook", "fb"],
@@ -432,7 +437,7 @@ export function isPlatformEnabled(config: PixelConfig, platform: string): boolea
   };
   for (const [canonical, aliases] of Object.entries(platformAliases)) {
     if (aliases.includes(normalizedPlatform)) {
-      return enabledPlatforms.some(p => aliases.includes(p) || p === canonical);
+      return enabledPlatforms.some((p) => aliases.includes(p) || p === canonical);
     }
   }
   return enabledPlatforms.includes(normalizedPlatform);

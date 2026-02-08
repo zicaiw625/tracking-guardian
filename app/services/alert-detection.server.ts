@@ -23,21 +23,38 @@ function hashPayload(payload: Record<string, unknown>): string {
   return String(Math.abs(h));
 }
 
-export async function runAlertDetection(shopId: string, forDate?: Date): Promise<{
+export async function runAlertDetection(
+  shopId: string,
+  forDate?: Date
+): Promise<{
   created: number;
-  createdAlerts: Array<{ alertType: string; severity: string; message: string; payload: Record<string, unknown>; sentAt: Date }>;
+  createdAlerts: Array<{
+    alertType: string;
+    severity: string;
+    message: string;
+    payload: Record<string, unknown>;
+    sentAt: Date;
+  }>;
 }> {
-  const date = forDate ?? (() => {
-    const y = new Date();
-    y.setUTCDate(y.getUTCDate() - 1);
-    y.setUTCHours(0, 0, 0, 0);
-    return y;
-  })();
+  const date =
+    forDate ??
+    (() => {
+      const y = new Date();
+      y.setUTCDate(y.getUTCDate() - 1);
+      y.setUTCHours(0, 0, 0, 0);
+      return y;
+    })();
   const startOfDay = new Date(date);
   startOfDay.setUTCHours(0, 0, 0, 0);
   const key = dateKey(startOfDay);
   let created = 0;
-  const createdAlerts: Array<{ alertType: string; severity: string; message: string; payload: Record<string, unknown>; sentAt: Date }> = [];
+  const createdAlerts: Array<{
+    alertType: string;
+    severity: string;
+    message: string;
+    payload: Record<string, unknown>;
+    sentAt: Date;
+  }> = [];
 
   const metrics = await prisma.dailyAggregatedMetrics.findUnique({
     where: { shopId_date: { shopId, date: startOfDay } },
@@ -113,8 +130,9 @@ export async function runAlertDetection(shopId: string, forDate?: Date): Promise
 function toAlertConfigItems(raw: unknown): AlertConfigItem[] {
   if (!Array.isArray(raw)) return [];
   return raw.map((c: unknown) => {
-    const item = c && typeof c === "object" ? c as Record<string, unknown> : {};
-    const settings = item.settings && typeof item.settings === "object" ? item.settings as Record<string, unknown> : null;
+    const item = c && typeof c === "object" ? (c as Record<string, unknown>) : {};
+    const settings =
+      item.settings && typeof item.settings === "object" ? (item.settings as Record<string, unknown>) : null;
     return {
       channel: typeof item.channel === "string" ? item.channel : "email",
       enabled: typeof item.isEnabled === "boolean" ? item.isEnabled : true,
@@ -128,35 +146,68 @@ function toAlertConfigItems(raw: unknown): AlertConfigItem[] {
 }
 
 export async function runAlertDetectionForAllShops(): Promise<{ shopsProcessed: number; alertsCreated: number }> {
-  const shops = await prisma.shop.findMany({
-    where: { isActive: true },
-    select: { id: true, settings: true },
-  });
   let alertsCreated = 0;
+  let shopsProcessed = 0;
+  const batchSize = 200;
+  const concurrency = 5;
+
   const yesterday = new Date();
   yesterday.setUTCDate(yesterday.getUTCDate() - 1);
   yesterday.setUTCHours(0, 0, 0, 0);
-  for (const shop of shops) {
-    try {
-      const settings = shop.settings && typeof shop.settings === "object" ? shop.settings as Record<string, unknown> : null;
-      const rawAlertConfigs = settings?.alertConfigs && Array.isArray(settings.alertConfigs) ? settings.alertConfigs : [];
-      const runForShop = rawAlertConfigs.length > 0;
-      if (!runForShop) continue;
-      const result = await runAlertDetection(shop.id, yesterday);
-      alertsCreated += result.created;
-      const alertConfigItems = toAlertConfigItems(rawAlertConfigs);
-      for (const createdAlert of result.createdAlerts) {
-        await sendAlertToChannels(shop.id, {
-          alertType: createdAlert.alertType,
-          severity: createdAlert.severity,
-          message: createdAlert.message,
-          payload: createdAlert.payload,
-          sentAt: createdAlert.sentAt,
-        }, alertConfigItems);
+
+  let cursor: string | undefined;
+  for (;;) {
+    const shops = await prisma.shop.findMany({
+      where: { isActive: true },
+      select: { id: true, settings: true },
+      orderBy: { id: "asc" },
+      take: batchSize,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    });
+    if (shops.length === 0) break;
+    shopsProcessed += shops.length;
+    cursor = shops[shops.length - 1]!.id;
+
+    let idx = 0;
+    const worker = async () => {
+      for (;;) {
+        const i = idx++;
+        const shop = shops[i];
+        if (!shop) return;
+        try {
+          const settings =
+            shop.settings && typeof shop.settings === "object" ? (shop.settings as Record<string, unknown>) : null;
+          const rawAlertConfigs =
+            settings?.alertConfigs && Array.isArray(settings.alertConfigs) ? settings.alertConfigs : [];
+          if (rawAlertConfigs.length === 0) continue;
+
+          const result = await runAlertDetection(shop.id, yesterday);
+          alertsCreated += result.created;
+
+          const alertConfigItems = toAlertConfigItems(rawAlertConfigs);
+          for (const createdAlert of result.createdAlerts) {
+            await sendAlertToChannels(
+              shop.id,
+              {
+                alertType: createdAlert.alertType,
+                severity: createdAlert.severity,
+                message: createdAlert.message,
+                payload: createdAlert.payload,
+                sentAt: createdAlert.sentAt,
+              },
+              alertConfigItems
+            );
+          }
+        } catch (error) {
+          logger.error("Alert detection failed for shop", error instanceof Error ? error : new Error(String(error)), {
+            shopId: shop.id,
+          });
+        }
       }
-    } catch (error) {
-      logger.error("Alert detection failed for shop", error instanceof Error ? error : new Error(String(error)), { shopId: shop.id });
-    }
+    };
+
+    await Promise.all(Array.from({ length: Math.min(concurrency, shops.length) }, () => worker()));
   }
-  return { shopsProcessed: shops.length, alertsCreated };
+
+  return { shopsProcessed, alertsCreated };
 }

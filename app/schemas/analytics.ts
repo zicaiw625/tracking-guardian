@@ -33,17 +33,9 @@ export const AnalyticsEventSchema = z.enum(ANALYTICS_EVENT_NAMES);
 
 export type AnalyticsEvent = z.infer<typeof AnalyticsEventSchema>;
 
-const MetadataLeafValue = z.union([
-  z.string().max(500),
-  z.number(),
-  z.boolean(),
-  z.null(),
-]);
+const MetadataLeafValue = z.union([z.string().max(500), z.number(), z.boolean(), z.null()]);
 
-const MetadataNestedValue = z.union([
-  MetadataLeafValue,
-  z.record(z.string().max(64), MetadataLeafValue),
-]);
+const MetadataNestedValue = z.union([MetadataLeafValue, z.record(z.string().max(64), MetadataLeafValue)]);
 
 export const AnalyticsMetadataSchema = z
   .record(z.string().max(64), MetadataNestedValue)

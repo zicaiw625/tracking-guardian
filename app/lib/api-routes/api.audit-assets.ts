@@ -31,10 +31,12 @@ const MAX_PLATFORMS_COUNT = 100;
 const MAX_ITEMS_COUNT = 100;
 
 function validatePlatformName(platform: string): boolean {
-  return typeof platform === "string" &&
+  return (
+    typeof platform === "string" &&
     platform.length > 0 &&
     platform.length <= MAX_PLATFORM_NAME_LENGTH &&
-    /^[a-zA-Z0-9_-]+$/.test(platform);
+    /^[a-zA-Z0-9_-]+$/.test(platform)
+  );
 }
 
 function validateItem(item: unknown): item is { name: string; type: string } {
@@ -88,11 +90,7 @@ function validateAssetId(assetId: unknown): AppError | null {
   return null;
 }
 
-async function handleUpdateStatus(
-  shopId: string,
-  assetId: string,
-  status: MigrationStatus
-): Promise<Response> {
+async function handleUpdateStatus(shopId: string, assetId: string, status: MigrationStatus): Promise<Response> {
   const assetIdError = validateAssetId(assetId);
   if (assetIdError) {
     throw assetIdError;
@@ -129,18 +127,30 @@ async function handleCreateFromList(
     }
     for (const item of items) {
       if (!item || typeof item.name !== "string" || typeof item.type !== "string") continue;
-      const category = (item.type === "pixel" ? "pixel" :
-                      item.type === "survey" ? "survey" :
-                      item.type === "support" ? "support" :
-                      item.type === "affiliate" ? "affiliate" : "other") as AssetCategory;
+      const category = (
+        item.type === "pixel"
+          ? "pixel"
+          : item.type === "survey"
+            ? "survey"
+            : item.type === "support"
+              ? "support"
+              : item.type === "affiliate"
+                ? "affiliate"
+                : "other"
+      ) as AssetCategory;
       const asset = await createAuditAsset(shopId, {
         sourceType: "merchant_confirmed",
         category,
         displayName: `升级向导清单: ${item.name}`,
         riskLevel: category === "pixel" ? "high" : "medium",
-        suggestedMigration: category === "pixel" ? "web_pixel" :
-                           category === "survey" || category === "support" ? "ui_extension" :
-                           category === "affiliate" ? "server_side" : "none",
+        suggestedMigration:
+          category === "pixel"
+            ? "web_pixel"
+            : category === "survey" || category === "support"
+              ? "ui_extension"
+              : category === "affiliate"
+                ? "server_side"
+                : "none",
         details: {
           source: "upgrade_guide_list",
           itemName: item.name,
@@ -170,7 +180,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const assetId = url.searchParams.get("assetId");
     if (assetId) {
       const assets = await getAuditAssets(shopId, {});
-      const asset = assets.find(a => a.id === assetId);
+      const asset = assets.find((a) => a.id === assetId);
       if (!asset) {
         throw AppError.notFound("Asset", assetId);
       }
@@ -266,24 +276,29 @@ function createValueExtractors(jsonBody: Record<string, unknown> | null, formDat
 }
 
 function isAssetCategory(value: unknown): value is AssetCategory {
-  return typeof value === "string" &&
-    (value === "pixel" || value === "survey" || value === "support" || value === "affiliate" || value === "other");
+  return (
+    typeof value === "string" &&
+    (value === "pixel" || value === "survey" || value === "support" || value === "affiliate" || value === "other")
+  );
 }
 
 function isMigrationStatus(value: unknown): value is MigrationStatus {
-  return typeof value === "string" &&
-    (value === "pending" || value === "in_progress" || value === "completed" || value === "skipped");
+  return (
+    typeof value === "string" &&
+    (value === "pending" || value === "in_progress" || value === "completed" || value === "skipped")
+  );
 }
 
-function parseCreateFromListData(jsonBody: Record<string, unknown> | null): { platforms: string[]; items: Array<{ name: string; type: string }> } {
+function parseCreateFromListData(jsonBody: Record<string, unknown> | null): {
+  platforms: string[];
+  items: Array<{ name: string; type: string }>;
+} {
   const platformsJson = jsonBody?.platforms;
   const platforms: string[] = Array.isArray(platformsJson)
     ? platformsJson.filter((p): p is string => validatePlatformName(p))
     : [];
   const itemsJson = jsonBody?.items;
-  const items: Array<{ name: string; type: string }> = Array.isArray(itemsJson)
-    ? itemsJson.filter(validateItem)
-    : [];
+  const items: Array<{ name: string; type: string }> = Array.isArray(itemsJson) ? itemsJson.filter(validateItem) : [];
   if (platforms.length > MAX_PLATFORMS_COUNT) {
     throw Errors.payloadTooLarge(platforms.length, MAX_PLATFORMS_COUNT);
   }

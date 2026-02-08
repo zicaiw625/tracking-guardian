@@ -1,12 +1,4 @@
-import {
-  Banner,
-  Button,
-  BlockStack,
-  InlineStack,
-  Text,
-  List,
-  Card,
-} from "@shopify/polaris";
+import { Banner, Button, BlockStack, InlineStack, Text, List, Card } from "@shopify/polaris";
 import { LockIcon } from "~/components/icons";
 import { type PlanId } from "~/services/billing/plans";
 import { isPlanAtLeast, getPlanDefinition } from "~/utils/plans";
@@ -49,50 +41,31 @@ const FEATURE_INFO: Record<
     name: "UI 模块",
     description: "Thank you / Order status 页面侧自定义（以 Shopify 官方能力为准）",
     requiredPlan: "starter",
-    featureList: [
-      "当前版本不提供页面模块库",
-    ],
+    featureList: ["当前版本不提供页面模块库"],
   },
   verification: {
     name: "验收功能",
     description: "验证迁移配置是否正确工作",
     requiredPlan: "starter",
-    featureList: [
-      "测试订单生成与验证",
-      "事件参数完整性检查",
-      "金额准确性验证",
-    ],
+    featureList: ["测试订单生成与验证", "事件参数完整性检查", "金额准确性验证"],
   },
   alerts: {
     name: "告警功能",
     description: "实时监控追踪健康状态",
     requiredPlan: "growth",
-    featureList: [
-      "多渠道告警（邮件/Slack/Telegram）",
-      "事件失败率监控",
-      "自动异常检测",
-    ],
+    featureList: ["多渠道告警（邮件/Slack/Telegram）", "事件失败率监控", "自动异常检测"],
   },
   reconciliation: {
     name: "事件对账",
     description: "对比 Shopify 订单与平台转化数据",
     requiredPlan: "growth",
-    featureList: [
-      "每日自动对账",
-      "偏差率分析",
-      "送达缺口定位",
-    ],
+    featureList: ["每日自动对账", "偏差率分析", "送达缺口定位"],
   },
   agency: {
     name: "Agency 多店功能",
     description: "管理多个店铺的批量操作",
     requiredPlan: "agency",
-    featureList: [
-      "多店工作区管理",
-      "批量 Audit 扫描",
-      "批量应用像素模板",
-      "迁移验收报告导出",
-    ],
+    featureList: ["多店工作区管理", "批量 Audit 扫描", "批量应用像素模板", "迁移验收报告导出"],
   },
 };
 
@@ -152,8 +125,7 @@ export function UpgradePrompt({
         {showLimitInfo && (
           <Banner tone="warning">
             <Text as="p" variant="bodySm">
-              当前已使用 {current} / {limit} 个{info.name}。
-              {limit === 0 && "当前套餐不支持此功能。"}
+              当前已使用 {current} / {limit} 个{info.name}。{limit === 0 && "当前套餐不支持此功能。"}
             </Text>
           </Banner>
         )}

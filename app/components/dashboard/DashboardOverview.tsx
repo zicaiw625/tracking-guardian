@@ -43,9 +43,10 @@ export function DashboardOverview({
       t("dashboard.intro.items.2"),
       t("dashboard.intro.items.3"),
     ],
-    primaryAction: data.migrationProgress?.currentStage === "audit" || !data.migrationProgress || !data.latestScan
-      ? { content: t("dashboard.intro.startScan"), url: "/app/scan" }
-      : { content: t("dashboard.intro.viewReport"), url: "/app/scan?tab=2" },
+    primaryAction:
+      data.migrationProgress?.currentStage === "audit" || !data.migrationProgress || !data.latestScan
+        ? { content: t("dashboard.intro.startScan"), url: "/app/scan" }
+        : { content: t("dashboard.intro.viewReport"), url: "/app/scan?tab=2" },
     secondaryAction: { content: t("dashboard.intro.reportCenter"), url: "/app/reports" },
   };
 
@@ -53,17 +54,13 @@ export function DashboardOverview({
   if (data.dataConnection) {
     if (!data.dataConnection.hasIngestionSecret) connectionIssues.push(ConnectionIssue.INGESTION_SECRET_MISSING);
     if (!data.dataConnection.hasWebPixel) connectionIssues.push(ConnectionIssue.WEB_PIXEL_NOT_INSTALLED);
-    if (!data.dataConnection.webPixelHasIngestionKey) connectionIssues.push(ConnectionIssue.WEB_PIXEL_MISSING_INGESTION_KEY);
+    if (!data.dataConnection.webPixelHasIngestionKey)
+      connectionIssues.push(ConnectionIssue.WEB_PIXEL_MISSING_INGESTION_KEY);
   }
 
   return (
     <BlockStack gap="500">
-      {data.dataConnection && (
-        <DataConnectionBanner
-          issues={connectionIssues}
-          onFixPixel={onFixPixel}
-        />
-      )}
+      {data.dataConnection && <DataConnectionBanner issues={connectionIssues} onFixPixel={onFixPixel} />}
       {backendUrlInfo?.placeholderDetected && (
         <Banner tone="critical" title={t("dashboard.errors.backendUrlMissing.title")}>
           <BlockStack gap="300">
@@ -107,21 +104,14 @@ export function DashboardOverview({
         </Banner>
       )}
       {showWelcomeBanner && (
-        <Banner
-          title={t("dashboard.welcomeBanner.title")}
-          onDismiss={onDismissWelcomeBanner}
-        >
+        <Banner title={t("dashboard.welcomeBanner.title")} onDismiss={onDismissWelcomeBanner}>
           <Text as="p" variant="bodySm">
             {t("dashboard.welcomeBanner.content")}
           </Text>
         </Banner>
       )}
       {showScanProgress && (
-        <PostInstallScanProgress
-          shopId={data.shopDomain}
-          scanStartedAt={scanStartedAt}
-          onComplete={onScanComplete}
-        />
+        <PostInstallScanProgress shopId={data.shopDomain} scanStartedAt={scanStartedAt} onComplete={onScanComplete} />
       )}
       {data.showOnboarding && data.latestScan && (
         <UpgradeHealthCheck
@@ -197,7 +187,9 @@ export function DashboardOverview({
                   variant={isPlanAtLeast(data.planId || "free", "starter") ? "primary" : "secondary"}
                   fullWidth
                 >
-                  {isPlanAtLeast(data.planId || "free", "starter") ? t("dashboard.cards.migration.cta.start") : t("dashboard.cards.migration.cta.upgrade")}
+                  {isPlanAtLeast(data.planId || "free", "starter")
+                    ? t("dashboard.cards.migration.cta.start")
+                    : t("dashboard.cards.migration.cta.upgrade")}
                 </Button>
               </BlockStack>
             </Card>
@@ -222,7 +214,9 @@ export function DashboardOverview({
                   variant={isPlanAtLeast(data.planId || "free", "starter") ? "primary" : "secondary"}
                   fullWidth
                 >
-                  {isPlanAtLeast(data.planId || "free", "starter") ? t("dashboard.cards.selfCheck.cta.configure") : t("dashboard.cards.migration.cta.upgrade")}
+                  {isPlanAtLeast(data.planId || "free", "starter")
+                    ? t("dashboard.cards.selfCheck.cta.configure")
+                    : t("dashboard.cards.migration.cta.upgrade")}
                 </Button>
               </BlockStack>
             </Card>
@@ -247,7 +241,9 @@ export function DashboardOverview({
                   variant={isPlanAtLeast(data.planId || "free", "growth") ? "primary" : "secondary"}
                   fullWidth
                 >
-                  {isPlanAtLeast(data.planId || "free", "growth") ? t("dashboard.cards.report.cta.generate") : t("dashboard.cards.report.cta.upgrade")}
+                  {isPlanAtLeast(data.planId || "free", "growth")
+                    ? t("dashboard.cards.report.cta.generate")
+                    : t("dashboard.cards.report.cta.upgrade")}
                 </Button>
               </BlockStack>
             </Card>
