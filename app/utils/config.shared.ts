@@ -54,7 +54,9 @@ export const INGESTION_KEY_CONFIG = {
 
 export const ENCRYPTION_CONFIG = {
   ALGORITHM: "aes-256-gcm",
-  IV_LENGTH: 16,
+  // For AES-256-GCM, a 12-byte IV is the modern recommended size.
+  // Note: legacy tokens/strings may use 16-byte IV (v1) and are still supported by decrypt().
+  IV_LENGTH: 12,
   AUTH_TAG_LENGTH: 16,
   SCRYPT_PARAMS: {
     N: 131072,

@@ -38,6 +38,7 @@ import { trackEvent } from "../services/analytics.server";
 import { safeFireAndForget } from "../utils/helpers.server";
 import { sanitizeFilename } from "../utils/responses";
 import { withSecurityHeaders } from "../utils/security-headers";
+import { useTranslation, Trans } from "react-i18next";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -86,7 +87,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     });
   }
   const reportData = await generateVerificationReportData(shop.id, runId);
-    if (!canExportReports && reportData) {
+  if (!canExportReports && reportData) {
     safeFireAndForget(
       trackEvent({
         shopId: shop.id,
@@ -153,10 +154,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   return json({ success: false, error: "Unknown action" }, { status: 400 });
 };
 
-import { useTranslation } from "react-i18next";
-
-// ... existing imports ...
-
 export default function VerificationReportPage() {
   const { shop, run, reportData, canExportReports, gateResult, currentPlan, pixelStrictOrigin } = useLoaderData<typeof loader>();
   const submit = useSubmit();
@@ -164,6 +161,15 @@ export default function VerificationReportPage() {
   useToastContext();
   const { t } = useTranslation();
   const [isExporting, setIsExporting] = useState(false);
+
+  const formatValue = (v: unknown): string => {
+    if (typeof v === "number" && Number.isFinite(v)) return v.toFixed(2);
+    if (typeof v === "string") {
+      const n = Number(v);
+      if (Number.isFinite(n)) return n.toFixed(2);
+    }
+    return "";
+  };
 
   if (!shop) {
     return (
@@ -425,7 +431,7 @@ export default function VerificationReportPage() {
                   event.platform,
                   event.orderId || "",
                   event.status,
-                  event.params?.value?.toFixed(2) || "",
+                  formatValue(event.params?.value),
                   event.params?.currency || "",
                   event.discrepancies?.join("; ") || event.errors?.join("; ") || "",
                   event.sandboxLimitations?.join("; ") || "",
@@ -446,7 +452,10 @@ export default function VerificationReportPage() {
                 {t("verification.report.originWarning.title")}
               </Text>
               <Text as="p" variant="bodySm">
-                <span dangerouslySetInnerHTML={{ __html: t("verification.report.originWarning.desc") }} />
+                <Trans
+                  i18nKey="verification.report.originWarning.desc"
+                  components={[<code key="0" />]}
+                />
               </Text>
             </BlockStack>
           </Banner>
@@ -614,16 +623,28 @@ function SandboxLimitationsInfo() {
         <Banner tone="info">
             <BlockStack gap="200">
                 <Text as="p" variant="bodySm">
-                    <span dangerouslySetInnerHTML={{__html: t("verification.report.sandbox.infoBanner.p1")}} />
+                    <Trans
+                      i18nKey="verification.report.sandbox.infoBanner.p1"
+                      components={[<strong key="0" />]}
+                    />
                 </Text>
                 <Text as="p" variant="bodySm" fontWeight="semibold">
-                    <span dangerouslySetInnerHTML={{__html: t("verification.report.sandbox.infoBanner.p2")}} />
+                    <Trans
+                      i18nKey="verification.report.sandbox.infoBanner.p2"
+                      components={[<strong key="0" />]}
+                    />
                 </Text>
                 <Text as="p" variant="bodySm">
-                    <span dangerouslySetInnerHTML={{__html: t("verification.report.sandbox.infoBanner.p3")}} />
+                    <Trans
+                      i18nKey="verification.report.sandbox.infoBanner.p3"
+                      components={[<strong key="0" />]}
+                    />
                 </Text>
                 <Text as="p" variant="bodySm">
-                    <span dangerouslySetInnerHTML={{__html: t("verification.report.sandbox.infoBanner.p4")}} />
+                    <Trans
+                      i18nKey="verification.report.sandbox.infoBanner.p4"
+                      components={[<strong key="0" />]}
+                    />
                 </Text>
                 <Text as="p" variant="bodySm" fontWeight="semibold">
                     {t("verification.report.sandbox.infoBanner.knownLimits")}
@@ -632,7 +653,7 @@ function SandboxLimitationsInfo() {
                     {(t("verification.report.sandbox.infoBanner.limitsList", { returnObjects: true }) as string[]).map((item, i) => (
                         <List.Item key={i}>
                              <Text as="span" variant="bodySm">
-                                <span dangerouslySetInnerHTML={{__html: item}} />
+                                <Trans defaults={item} components={[<strong key="0" />]} />
                              </Text>
                         </List.Item>
                     ))}
@@ -644,7 +665,10 @@ function SandboxLimitationsInfo() {
                     {t("verification.report.sandbox.infoBanner.unavailableEventsDesc")}
                 </Text>
                  <Text as="p" variant="bodySm" tone="subdued">
-                    <span dangerouslySetInnerHTML={{__html: t("verification.report.sandbox.infoBanner.autoLabelDesc")}} />
+                    <Trans
+                      i18nKey="verification.report.sandbox.infoBanner.autoLabelDesc"
+                      components={[<strong key="0" />]}
+                    />
                  </Text>
             </BlockStack>
         </Banner>

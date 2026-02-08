@@ -569,8 +569,8 @@ export function validateAllConfig(): { valid: boolean; errors: string[] } {
   ) {
     errors.push("Retention DEFAULT_DAYS must be within MIN_DAYS and MAX_DAYS");
   }
-  if (ENCRYPTION_CONFIG.IV_LENGTH !== 16) {
-    errors.push("IV length must be 16 for AES-256-GCM");
+  if (ENCRYPTION_CONFIG.IV_LENGTH !== 12) {
+    errors.push("IV length must be 12 for AES-256-GCM (v2). Legacy v1 may use 16 but should not be the default.");
   }
   const envResult = validateConfig();
   errors.push(...envResult.errors);

@@ -1,6 +1,18 @@
 import { getRedisClient } from "./redis-client.server";
 import { logger } from "./logger.server";
 
+function escapeRegExp(value: string): string {
+  // Escape regex meta chars: . * + ? ^ $ { } ( ) | [ ] \ /
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function globToRegExp(glob: string): RegExp {
+  // Treat "*" as wildcard matching any chars; everything else is literal.
+  // Anchor to avoid partial matches that can delete unintended keys.
+  const escaped = escapeRegExp(glob).replace(/\\\*/g, ".*");
+  return new RegExp(`^${escaped}$`);
+}
+
 interface CacheEntry<T> {
   value: T;
   expiresAt: number;
@@ -92,7 +104,7 @@ export class SimpleCache<T> {
     return result;
   }
   deletePattern(pattern: string): number {
-    const regex = new RegExp(pattern.replace(/\*/g, ".*"));
+    const regex = globToRegExp(pattern);
     let count = 0;
     for (const key of this.cache.keys()) {
       if (regex.test(key)) {
@@ -194,27 +206,29 @@ export class RedisCache<T> {
   }
   async deletePattern(pattern: string): Promise<number> {
     const memCount = this.memoryCache.deletePattern(pattern);
+    let redisDeleted = 0;
     if (this.useRedis) {
       try {
         const client = await getRedisClient();
-        const keys = await client.keys(`${this.prefix}${pattern}`);
-        for (const key of keys) {
-          await client.del(key);
+        redisDeleted = await this.deleteByScan(client, `${this.prefix}${pattern}`);
+        if (redisDeleted > 0) {
+          logger.debug("Redis cache deletePattern deleted keys", { pattern, deleted: redisDeleted });
         }
       } catch (error) {
         logger.debug("Redis cache deletePattern error", { pattern, error });
       }
     }
-    return memCount;
+    // Return combined deletions (memory + redis). Keys live in different namespaces.
+    return memCount + redisDeleted;
   }
   async clear(): Promise<void> {
     this.memoryCache.clear();
     if (this.useRedis) {
       try {
         const client = await getRedisClient();
-        const keys = await client.keys(`${this.prefix}*`);
-        for (const key of keys) {
-          await client.del(key);
+        const deleted = await this.deleteByScan(client, `${this.prefix}*`);
+        if (deleted > 0) {
+          logger.debug("Redis cache clear deleted keys", { deleted });
         }
       } catch (error) {
         logger.debug("Redis cache clear error", { error });
@@ -229,6 +243,47 @@ export class RedisCache<T> {
     const value = await factory();
     await this.set(key, value, ttlMs);
     return value;
+  }
+
+  private async deleteByScan(
+    client: Awaited<ReturnType<typeof getRedisClient>>,
+    matchPattern: string,
+    options?: { scanCount?: number; deleteBatchSize?: number; maxKeys?: number }
+  ): Promise<number> {
+    const scanCount = options?.scanCount ?? 500;
+    const deleteBatchSize = options?.deleteBatchSize ?? 50;
+    const maxKeys = options?.maxKeys ?? 50_000;
+
+    let cursor = "0";
+    let deleted = 0;
+    let seen = 0;
+
+    do {
+      const result = await client.scan(cursor, matchPattern, scanCount);
+      cursor = result.cursor;
+
+      const keys = result.keys ?? [];
+      seen += keys.length;
+      for (let i = 0; i < keys.length; i += deleteBatchSize) {
+        const batch = keys.slice(i, i + deleteBatchSize);
+        const results = await Promise.all(batch.map((k) => client.del(k).catch(() => 0)));
+        for (const r of results) {
+          if (typeof r === "number") deleted += r;
+        }
+      }
+
+      if (seen >= maxKeys) {
+        logger.warn("Redis cache deleteByScan stopped early (maxKeys reached)", {
+          matchPattern,
+          deleted,
+          seen,
+          maxKeys,
+        });
+        break;
+      }
+    } while (cursor !== "0");
+
+    return deleted;
   }
 }
 

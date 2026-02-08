@@ -5,6 +5,7 @@ export const DEFAULT_TIMEOUT_MS = 10000;
 export const DEFAULT_RETRY_ATTEMPTS = 3;
 export const DEFAULT_BASE_DELAY_MS = 1000;
 export const DEFAULT_MAX_DELAY_MS = 30000;
+const DEFAULT_MAX_REDIRECTS = 5;
 
 const ALLOWED_OUTBOUND_HOSTS = [
   "admin.shopify.com",
@@ -27,6 +28,13 @@ const ALLOWED_OUTBOUND_HOSTS = [
   "api.telegram.org",
   "business-api.tiktok.com",
 ] as const;
+
+function envIsTrue(key: string): boolean {
+  const v = process.env[key];
+  if (!v) return false;
+  const normalized = v.toLowerCase().trim();
+  return normalized === "true" || normalized === "1" || normalized === "yes";
+}
 
 function isHostAllowed(hostname: string): boolean {
   const normalized = hostname.toLowerCase();
@@ -51,11 +59,21 @@ export function validateOutboundUrl(url: string): { valid: boolean; reason?: str
     if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
       return { valid: false, reason: `Invalid protocol: ${parsed.protocol}` };
     }
-    if (parsed.protocol === "http:" && !isLocalhost(parsed.hostname)) {
+    const localhost = isLocalhost(parsed.hostname);
+    if (parsed.protocol === "http:" && !localhost) {
       return { valid: false, reason: "HTTP protocol not allowed for non-localhost URLs" };
     }
-    if (isLocalhost(parsed.hostname) || isPrivateIP(parsed.hostname)) {
-      return { valid: false, reason: "Localhost and private IP addresses are not allowed" };
+    if (localhost) {
+      const allowLocalhostOutbound =
+        process.env.NODE_ENV !== "production" &&
+        (envIsTrue("ALLOW_LOCALHOST_OUTBOUND") || envIsTrue("ALLOW_HTTP_LOCALHOST_OUTBOUND"));
+      if (!allowLocalhostOutbound) {
+        return { valid: false, reason: "Localhost outbound requests are disabled" };
+      }
+      return { valid: true };
+    }
+    if (isPrivateIP(parsed.hostname)) {
+      return { valid: false, reason: "Private IP addresses are not allowed" };
     }
     if (!isHostAllowed(parsed.hostname)) {
       return { valid: false, reason: `Host not in allowlist: ${parsed.hostname}` };
@@ -87,6 +105,7 @@ export interface HttpRequestOptions extends RequestInit {
   baseDelayMs?: number;
   maxDelayMs?: number;
   retryOn?: Array<"timeout" | "network" | "5xx" | "429">;
+  maxRedirects?: number;
 }
 
 export interface HttpResponse<T = unknown> {
@@ -171,6 +190,37 @@ function safeUrlForLogs(raw: string): string {
   }
 }
 
+function getMethod(options: RequestInit): string {
+  return (options.method ?? "GET").toUpperCase();
+}
+
+function stripBodyAndContentHeaders(options: RequestInit): RequestInit {
+  const next: RequestInit = { ...options, body: undefined };
+  const h = options.headers;
+  if (!h) return next;
+  if (h instanceof Headers) {
+    const cloned = new Headers(h);
+    cloned.delete("content-type");
+    cloned.delete("content-length");
+    next.headers = cloned;
+    return next;
+  }
+  if (Array.isArray(h)) {
+    next.headers = h.filter(([k]) => {
+      const key = String(k).toLowerCase();
+      return key !== "content-type" && key !== "content-length";
+    });
+    return next;
+  }
+  next.headers = Object.fromEntries(
+    Object.entries(h).filter(([k]) => {
+      const key = k.toLowerCase();
+      return key !== "content-type" && key !== "content-length";
+    })
+  );
+  return next;
+}
+
 export async function httpRequest<T = unknown>(
   url: string,
   options: HttpRequestOptions = {}
@@ -199,39 +249,155 @@ export async function httpRequest<T = unknown>(
     baseDelayMs = DEFAULT_BASE_DELAY_MS,
     maxDelayMs = DEFAULT_MAX_DELAY_MS,
     retryOn = ["timeout", "network", "5xx", "429"],
+    maxRedirects = DEFAULT_MAX_REDIRECTS,
     ...fetchOptions
-  } = options;
+  } = options as HttpRequestOptions & { maxRedirects?: number };
   let lastError: Error | undefined;
   const startTime = Date.now();
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const response = await fetchWithTimeout(url, fetchOptions, timeout);
-      const duration = Date.now() - startTime;
-      if (!response.ok && isRetryableStatus(response.status, retryOn) && attempt < retries) {
-        const retryAfter = extractRetryAfter(response) || calculateBackoffDelay(attempt + 1, baseDelayMs, maxDelayMs);
-        logger.debug(`HTTP ${response.status} from ${safeUrlForLogs(url)}, retrying in ${retryAfter}ms`, {
-          attempt: attempt + 1,
-          maxAttempts: retries + 1,
-        });
-        await sleep(retryAfter);
-        continue;
+      let currentUrl = url;
+      let redirects = 0;
+      let currentFetchOptions: RequestInit = { ...fetchOptions };
+
+      for (;;) {
+        const response = await fetchWithTimeout(
+          currentUrl,
+          { ...currentFetchOptions, redirect: "manual" },
+          timeout
+        );
+
+        if (response.status >= 300 && response.status < 400) {
+          const location = response.headers.get("location");
+          if (!location) {
+            const duration = Date.now() - startTime;
+            let data: T;
+            const contentType = response.headers.get("content-type");
+            if (contentType?.includes("application/json")) {
+              data = await response.json() as T;
+            } else {
+              const text = await response.text();
+              data = (typeof text === "string" ? text : { type: "text", content: text }) as T;
+            }
+            return {
+              ok: response.ok,
+              status: response.status,
+              statusText: response.statusText,
+              headers: response.headers,
+              data,
+              duration,
+            };
+          }
+          if (redirects >= maxRedirects) {
+            logger.error(`[SSRF Protection] Blocked redirect chain (too many redirects) for ${safeUrlForLogs(url)}`);
+            const duration = Date.now() - startTime;
+            const errorData: HttpError = {
+              type: "http",
+              message: "Too many redirects",
+              status: 502,
+              retryable: false,
+            };
+            return {
+              ok: false,
+              status: 502,
+              statusText: "Bad Gateway",
+              headers: new Headers(),
+              data: errorData as T,
+              duration,
+            };
+          }
+
+          let nextUrl: string;
+          try {
+            nextUrl = new URL(location, currentUrl).toString();
+          } catch (e) {
+            logger.error(
+              `[SSRF Protection] Blocked invalid redirect location from ${safeUrlForLogs(currentUrl)}: ${String(e)}`
+            );
+            const duration = Date.now() - startTime;
+            const errorData: HttpError = {
+              type: "parse",
+              message: "Invalid redirect location",
+              retryable: false,
+            };
+            return {
+              ok: false,
+              status: 502,
+              statusText: "Bad Gateway",
+              headers: new Headers(),
+              data: errorData as T,
+              duration,
+            };
+          }
+
+          const redirectValidation = validateOutboundUrl(nextUrl);
+          if (!redirectValidation.valid) {
+            logger.error(
+              `[SSRF Protection] Blocked redirect to ${safeUrlForLogs(nextUrl)}: ${redirectValidation.reason}`
+            );
+            const duration = Date.now() - startTime;
+            const errorData: HttpError = {
+              type: "unknown",
+              message: `SSRF protection: ${redirectValidation.reason || "redirect URL not allowed"}`,
+              retryable: false,
+            };
+            return {
+              ok: false,
+              status: 403,
+              statusText: "Forbidden",
+              headers: new Headers(),
+              data: errorData as T,
+              duration,
+            };
+          }
+
+          // Match fetch redirect behavior more closely:
+          // - 303: switch to GET (except HEAD), drop body
+          // - 301/302: if POST, switch to GET, drop body (legacy behavior)
+          const method = getMethod(currentFetchOptions);
+          if (response.status === 303 && method !== "GET" && method !== "HEAD") {
+            currentFetchOptions = stripBodyAndContentHeaders({ ...currentFetchOptions, method: "GET" });
+          } else if ((response.status === 301 || response.status === 302) && method === "POST") {
+            currentFetchOptions = stripBodyAndContentHeaders({ ...currentFetchOptions, method: "GET" });
+          }
+
+          redirects++;
+          currentUrl = nextUrl;
+          continue;
+        }
+
+        const duration = Date.now() - startTime;
+        if (!response.ok && isRetryableStatus(response.status, retryOn) && attempt < retries) {
+          const retryAfter = extractRetryAfter(response) || calculateBackoffDelay(attempt + 1, baseDelayMs, maxDelayMs);
+          logger.debug(`HTTP ${response.status} from ${safeUrlForLogs(currentUrl)}, retrying in ${retryAfter}ms`, {
+            attempt: attempt + 1,
+            maxAttempts: retries + 1,
+          });
+          await sleep(retryAfter);
+          // retry the whole request (including redirects)
+          break;
+        }
+
+        let data: T;
+        const contentType = response.headers.get("content-type");
+        if (contentType?.includes("application/json")) {
+          data = await response.json() as T;
+        } else {
+          const text = await response.text();
+          data = (typeof text === "string" ? text : { type: "text", content: text }) as T;
+        }
+        return {
+          ok: response.ok,
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+          data,
+          duration,
+        };
       }
-      let data: T;
-      const contentType = response.headers.get("content-type");
-      if (contentType?.includes("application/json")) {
-        data = await response.json() as T;
-      } else {
-        const text = await response.text();
-        data = (typeof text === "string" ? text : { type: "text", content: text }) as T;
-      }
-      return {
-        ok: response.ok,
-        status: response.status,
-        statusText: response.statusText,
-        headers: response.headers,
-        data,
-        duration,
-      };
+
+      // if we got here, it means we intentionally broke to outer retry loop
+      continue;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
       const duration = Date.now() - startTime;

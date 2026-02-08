@@ -1,7 +1,7 @@
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
 import { getValidCredentials } from "~/services/credentials.server";
-import { listPendingJobs, markSent, markFailed, type ListPendingJobsResult } from "./queue";
+import { listPendingJobs, markSent, markFailed, recoverStuckProcessingJobs, type ListPendingJobsResult } from "./queue";
 import { sendEvent as sendGa4 } from "~/services/destinations/ga4";
 import { sendEvent as sendMeta } from "~/services/destinations/meta";
 import { sendEvent as sendTiktok } from "~/services/destinations/tiktok";
@@ -46,12 +46,26 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
   processed: number;
   sent: number;
   failed: number;
+  recovered: number;
 }> {
   if (process.env.SERVER_SIDE_CONVERSIONS_ENABLED !== "true") {
-    return { processed: 0, sent: 0, failed: 0 };
+    return { processed: 0, sent: 0, failed: 0, recovered: 0 };
   }
   const maxJobs = options?.maxJobs ?? DEFAULT_MAX_JOBS;
   const now = new Date();
+
+  let recovered = 0;
+  try {
+    recovered = await recoverStuckProcessingJobs({ now });
+    if (recovered > 0) {
+      logger.warn("[Dispatch Worker] Recovered stuck PROCESSING jobs", { recovered });
+    }
+  } catch (e) {
+    logger.error("[Dispatch Worker] Failed to recover stuck PROCESSING jobs", {
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+
   const jobs = await listPendingJobs(maxJobs, now);
   let sent = 0;
   let failed = 0;
@@ -152,5 +166,5 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
     }
   }
 
-  return { processed: jobs.length, sent, failed };
+  return { processed: jobs.length, sent, failed, recovered };
 }

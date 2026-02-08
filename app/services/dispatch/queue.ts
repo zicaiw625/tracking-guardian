@@ -3,6 +3,7 @@ import prisma from "~/db.server";
 
 const BACKOFF_MINUTES = [1, 5, 30, 120];
 const MAX_ATTEMPTS = BACKOFF_MINUTES.length;
+const DEFAULT_PROCESSING_STALE_MS = 15 * 60 * 1000;
 
 export type DispatchDestination = "GA4" | "META" | "TIKTOK";
 export type DispatchJobStatus = "PENDING" | "SENT" | "FAILED" | "PROCESSING";
@@ -73,6 +74,31 @@ export async function listPendingJobs(
   });
 
   return jobs as ListPendingJobsResult[];
+}
+
+export async function recoverStuckProcessingJobs(options?: {
+  maxAgeMs?: number;
+  now?: Date;
+}): Promise<number> {
+  const maxAgeMs = options?.maxAgeMs ?? DEFAULT_PROCESSING_STALE_MS;
+  const now = options?.now ?? new Date();
+  const cutoff = new Date(now.getTime() - maxAgeMs);
+
+  const result = await prisma.eventDispatchJob.updateMany({
+    where: {
+      status: "PROCESSING",
+      updatedAt: { lt: cutoff },
+    },
+    data: {
+      status: "PENDING",
+      next_retry_at: now,
+      updatedAt: now,
+      last_error: "Recovered stale PROCESSING job (worker crash/timeout suspected)",
+      last_response_code: null,
+    },
+  });
+
+  return result.count;
 }
 
 export function computeNextRetryAt(attempts: number): Date | null {

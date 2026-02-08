@@ -2038,20 +2038,20 @@
             "title": "Auto-labeling Explanation"
         },
         "infoBanner": {
-            "p1": "💡 <strong>Note:</strong> The following events contain payload evidence chains sent to platforms. If certain fields (like name, email, phone, address) are null, it may be due to PCD (Protected Customer Data) requiring extra scope approval (effective from 2025-12-10) or user consent not granted. This is Shopify platform compliance behavior, not a bug.",
-            "p2": "⚠️ <strong>checkout_completed Event Trigger Behavior (Important):</strong>",
-            "p3": "<strong>checkout_completed</strong> does not always trigger on the Thank You page, and usually triggers only once. When upsell or post-purchase offers exist, the event triggers on the first upsell page and will not trigger again on the Thank You page. This is expected Shopify behavior, not a bug. If the page fails to load or the user leaves quickly, the event may not trigger. The verification report marks event trigger locations and possible reasons for missing events to help distinguish 'normal missing' from 'actual bugs'.",
-            "p4": "⚠️ <strong>Strict Sandbox Limitations (Auto-labeled):</strong> Web Pixel runs in a strict sandbox (Web Worker) environment and cannot access DOM, localStorage, third-party cookies, etc. Some fields may be unavailable. The report automatically labels all fields and events unavailable due to strict sandbox limitations. If some fields are null or missing, it may be due to strict sandbox limitations, which is a platform limitation, not a bug. Which events/fields are unavailable are automatically labeled in the report to reduce disputes. See 'Strict Sandbox Limitations' section below for details.",
+            "p1": "💡 <0>Note:</0> The following events contain payload evidence chains sent to platforms. If certain fields (like name, email, phone, address) are null, it may be due to PCD (Protected Customer Data) requiring extra scope approval (effective from 2025-12-10) or user consent not granted. This is Shopify platform compliance behavior, not a bug.",
+            "p2": "⚠️ <0>checkout_completed Event Trigger Behavior (Important):</0>",
+            "p3": "<0>checkout_completed</0> does not always trigger on the Thank You page, and usually triggers only once. When upsell or post-purchase offers exist, the event triggers on the first upsell page and will not trigger again on the Thank You page. This is expected Shopify behavior, not a bug. If the page fails to load or the user leaves quickly, the event may not trigger. The verification report marks event trigger locations and possible reasons for missing events to help distinguish 'normal missing' from 'actual bugs'.",
+            "p4": "⚠️ <0>Strict Sandbox Limitations (Auto-labeled):</0> Web Pixel runs in a strict sandbox (Web Worker) environment and cannot access DOM, localStorage, third-party cookies, etc. Some fields may be unavailable. The report automatically labels all fields and events unavailable due to strict sandbox limitations. If some fields are null or missing, it may be due to strict sandbox limitations, which is a platform limitation, not a bug. Which events/fields are unavailable are automatically labeled in the report to reduce disputes. See 'Strict Sandbox Limitations' section below for details.",
             "knownLimits": "Known Limited Fields (May be null, auto-labeled):",
             "limitsList": [
-                "<strong>checkout_completed / checkout_started:</strong> buyer.email, buyer.phone, deliveryAddress, shippingAddress, billingAddress (These fields are unavailable in Web Worker environment, this is a platform limitation, not a bug. Auto-labeled in report)",
-                "<strong>checkout_contact_info_submitted:</strong> buyer.email, buyer.phone (These fields are unavailable in Web Worker environment, this is a platform limitation, not a bug. Auto-labeled in report)",
-                "<strong>checkout_shipping_info_submitted:</strong> deliveryAddress, shippingAddress (These fields are unavailable in Web Worker environment, this is a platform limitation, not a bug. Auto-labeled in report)",
-                "<strong>payment_info_submitted:</strong> billingAddress (These fields are unavailable in Web Worker environment, this is a platform limitation, not a bug. Auto-labeled in report)"
+                "<0>checkout_completed / checkout_started:</0> buyer.email, buyer.phone, deliveryAddress, shippingAddress, billingAddress (These fields are unavailable in Web Worker environment, this is a platform limitation, not a bug. Auto-labeled in report)",
+                "<0>checkout_contact_info_submitted:</0> buyer.email, buyer.phone (These fields are unavailable in Web Worker environment, this is a platform limitation, not a bug. Auto-labeled in report)",
+                "<0>checkout_shipping_info_submitted:</0> deliveryAddress, shippingAddress (These fields are unavailable in Web Worker environment, this is a platform limitation, not a bug. Auto-labeled in report)",
+                "<0>payment_info_submitted:</0> billingAddress (These fields are unavailable in Web Worker environment, this is a platform limitation, not a bug. Auto-labeled in report)"
             ],
             "unavailableEventsTitle": "Unavailable Event Types (Auto-labeled, require order webhooks):",
             "unavailableEventsDesc": "refund, order_cancelled, order_edited, subscription_created, subscription_updated, subscription_cancelled (These events are unavailable in strict sandbox and require order webhooks. Auto-labeled in report)",
-            "autoLabelDesc": "💡 <strong>Auto-labeling Explanation:</strong> The report automatically labels all fields and events unavailable due to strict sandbox limitations. These limitations are Shopify platform design limitations, not bugs. Which events/fields are unavailable are automatically labeled in the report to reduce disputes. To access these fields or events, please use order webhooks or other Shopify APIs. See 'Strict Sandbox Limitations' section below for details."
+            "autoLabelDesc": "💡 <0>Auto-labeling Explanation:</0> The report automatically labels all fields and events unavailable due to strict sandbox limitations. These limitations are Shopify platform design limitations, not bugs. Which events/fields are unavailable are automatically labeled in the report to reduce disputes. To access these fields or events, please use order webhooks or other Shopify APIs. See 'Strict Sandbox Limitations' section below for details."
         }
       },
       "reconciliation": {
@@ -2069,7 +2069,7 @@
       },
        "originWarning": {
            "title": "Event Reception Validation: Currently using loose Origin validation",
-           "desc": "Requests from non-whitelisted origins or with failed HMAC validation (but not rejected) may still be received and marked as low trust. The verification report may include such events. For higher accuracy, it is recommended to set <code>PIXEL_STRICT_ORIGIN=true</code> in the deployment environment and configure the Origin whitelist."
+           "desc": "Requests from non-whitelisted origins or with failed HMAC validation (but not rejected) may still be received and marked as low trust. The verification report may include such events. For higher accuracy, it is recommended to set <0>PIXEL_STRICT_ORIGIN=true</0> in the deployment environment and configure the Origin whitelist."
        }
     },
     "page": {
