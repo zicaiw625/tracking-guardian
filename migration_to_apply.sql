@@ -1,4 +1,19 @@
+-- =====================================================================
+-- DEPRECATED / DO NOT APPLY
+--
+-- This file is an outdated snapshot and is intentionally blocked from
+-- being executed. Use Prisma migrations instead:
+--   - prisma migrate deploy   (production)
+--   - prisma migrate dev      (development)
+--
+-- Rationale: applying this file can silently drift the schema, reintroduce
+-- removed tables/columns, and may include plaintext token fields.
+-- =====================================================================
 
+DO $$
+BEGIN
+  RAISE EXCEPTION 'DEPRECATED: Do not execute migration_to_apply.sql. Use Prisma migrations.';
+END $$;
 
 CREATE TABLE "Session" (
     "id" TEXT NOT NULL,

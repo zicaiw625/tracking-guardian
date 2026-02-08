@@ -17,7 +17,16 @@ function getWebhookId(authResult: Awaited<ReturnType<typeof authenticate.webhook
   ) {
     return authResult.webhookId;
   }
-  return request.headers.get("X-Shopify-Event-Id") ?? request.headers.get("X-Shopify-Webhook-Id") ?? null;
+  const headerId = request.headers.get("X-Shopify-Event-Id") ?? request.headers.get("X-Shopify-Webhook-Id") ?? null;
+  if (headerId) {
+    return headerId;
+  }
+  // Fallback: use webhook HMAC as a stable idempotency key for duplicates with identical payload.
+  const hmac = request.headers.get("X-Shopify-Hmac-Sha256");
+  if (hmac && hmac.trim() !== "") {
+    return `hmac_${hmac.trim()}`;
+  }
+  return null;
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -67,6 +76,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       admin: authResult.admin as WebhookContext["admin"],
       session: authResult.session,
     };
+    if (webhookId && webhookId.startsWith("hmac_")) {
+      logger.warn("[Webhook] Missing webhookId header, using HMAC-based fallback id", {
+        shop: context.shop,
+        topic: context.topic,
+      });
+    }
     const shopTopicKey = `webhook:${context.shop}:${context.topic}`;
     const shopTopicRateLimit = await checkRateLimitAsync(
       shopTopicKey,

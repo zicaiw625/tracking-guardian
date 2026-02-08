@@ -4,6 +4,9 @@ import { createConsentManager, subscribeToConsentChanges } from "./consent";
 import { createEventSender, subscribeToAnalyticsEvents } from "./events";
 import type { PixelSettings, PixelInit, CustomerPrivacyState, VisitorConsentCollectedEvent } from "./types";
 
+let backendUrlConfigErrorLogged = false;
+let ingestionKeyConfigErrorLogged = false;
+
 register(
   ({
     analytics,
@@ -36,18 +39,25 @@ register(
         console.log("[Tracking Guardian]", ...args);
       }
     }
-    if (placeholderDetected && isDevMode) {
-      const errorMsg =
-        "严重错误：检测到 BACKEND_URL 占位符未替换。像素扩展将无法发送事件到后端，导致事件丢失。这是严重的配置错误，必须在生产环境部署前修复。请在 CI/CD 流程中运行 'pnpm ext:inject' 或 'pnpm deploy:ext'。";
-      console.error("[Tracking Guardian] ❌", errorMsg);
+    if (!backendUrl && !backendUrlConfigErrorLogged) {
+      backendUrlConfigErrorLogged = true;
+      const errorMsg = placeholderDetected
+        ? "严重错误：检测到 BACKEND_URL 占位符未替换。像素扩展无法发送事件到后端，事件将丢失。请确保部署流程执行了 'pnpm ext:inject' 并在发布前通过 'pnpm ext:validate'。"
+        : "严重错误：无法解析 BACKEND_URL（未配置或未通过白名单校验）。像素扩展无法发送事件到后端，事件将丢失。";
+      console.error("[Tracking Guardian] ❌", errorMsg, {
+        shopDomain,
+        rawBackendUrl: BACKEND_URL,
+        placeholderDetected,
+      });
     }
     if (
       backendUrl &&
       (!ingestionKey || (typeof ingestionKey === "string" && ingestionKey.trim() === "")) &&
-      isDevMode
+      !ingestionKeyConfigErrorLogged
     ) {
+      ingestionKeyConfigErrorLogged = true;
       console.error(
-        "[Tracking Guardian] 像素配置缺失 ingestion_key。生产严格模式下 /ingest 将拒绝所有像素事件，导致静默失败。请在 Admin 设置中配置 Ingestion Key，并确保 Web Pixel 的 settings 中包含 ingestion_key。"
+        "[Tracking Guardian] ❌ 像素配置缺失 ingestion_key。生产严格模式下 /ingest 将拒绝所有像素事件，导致事件丢失。请在 Admin 中重新生成/同步 Pixel settings。"
       );
     }
     if (isDevMode) {

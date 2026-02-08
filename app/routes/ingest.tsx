@@ -16,6 +16,7 @@ import { shopLoadingMiddleware } from "~/lib/pixel-events/middleware/shop-loadin
 import { hmacValidationMiddleware } from "~/lib/pixel-events/middleware/hmac-validation.middleware";
 import { rateLimitPostShopMiddleware } from "~/lib/pixel-events/middleware/rate-limit-post-shop.middleware";
 import { enqueueMiddleware } from "~/lib/pixel-events/middleware/enqueue.middleware";
+import { nonceReplayProtectionMiddleware } from "~/lib/pixel-events/middleware/nonce-replay.middleware";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const initialContext = buildInitialContext(request);
@@ -31,6 +32,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     hmacValidationMiddleware,
     originValidationPostShopMiddleware,
     rateLimitPostShopMiddleware,
+    nonceReplayProtectionMiddleware,
     enqueueMiddleware,
   ];
   return composeIngestMiddleware(middlewares, initialContext);

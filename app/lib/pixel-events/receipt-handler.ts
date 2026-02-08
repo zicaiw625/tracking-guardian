@@ -4,12 +4,23 @@ import prisma from "../../db.server";
 import { generateEventId, generateMatchKey, makeOrderKey, hashValueSync } from "../../utils/crypto.server";
 import { extractOriginHost } from "../../utils/origin-validation.server";
 import { logger } from "../../utils/logger.server";
-import { RETENTION_CONFIG } from "../../utils/config.server";
+import { RETENTION_CONFIG, isStrictSecurityMode } from "../../utils/config.server";
 import { generateSimpleId } from "../../utils/helpers";
 import type { TrustLevel } from "../../utils/receipt-trust.server";
 import type { PixelEventPayload, KeyValidationResult } from "./types";
 import { generateCanonicalEventId } from "../../services/event-normalizer.server";
 import { getRedisClient, getRedisClientStrict } from "../../utils/redis-client.server";
+
+export class ReplayProtectionUnavailableError extends Error {
+  name = "ReplayProtectionUnavailableError";
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message);
+    if (options && "cause" in options) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (this as any).cause = options.cause;
+    }
+  }
+}
 
 function buildMinimalPayloadForReceipt(
   payload: PixelEventPayload,
@@ -382,7 +393,15 @@ export async function createEventNonce(
       timestamp,
       error: redisError instanceof Error ? redisError.message : String(redisError),
     });
-    // P1-1: DB fallback removed as EventNonce table is deleted. Fail open (allow event).
+    // P0: In production strict mode, do NOT silently fail-open.
+    // Throw to force the worker to retry later (keeps events in queue instead of accepting replay risk).
+    if (process.env.NODE_ENV === "production" && isStrictSecurityMode()) {
+      throw new ReplayProtectionUnavailableError("Replay protection unavailable (Redis strict down)", {
+        cause: redisError,
+      });
+    }
+
+    // Non-production: fail open to keep dev/test usable.
     return { isReplay: false };
   }
 }

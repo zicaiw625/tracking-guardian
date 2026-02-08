@@ -4,6 +4,7 @@ import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import { MONITORING_CONFIG, isStrictSecurityMode } from "../../utils/config.server";
 import { jsonApi } from "../../utils/security-headers";
+import { getRedisClient, getRedisClientStrict } from "../../utils/redis-client.server";
 
 interface BasicHealthStatus {
   status: "healthy" | "degraded" | "unhealthy";
@@ -16,6 +17,8 @@ interface DetailedHealthStatus extends BasicHealthStatus {
   checks: {
     database: HealthCheck;
     memory: HealthCheck;
+    redis?: HealthCheck;
+    queues?: HealthCheck;
   };
 }
 
@@ -49,6 +52,59 @@ async function checkDatabase(): Promise<HealthCheck> {
       status: "fail",
       latency_ms: Date.now() - start,
       message: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+async function checkRedis(): Promise<HealthCheck> {
+  const start = Date.now();
+  const strict = process.env.NODE_ENV === "production" && isStrictSecurityMode();
+  try {
+    const client = strict ? await getRedisClientStrict() : await getRedisClient();
+    await client.set("tg:health:ping", "1", { EX: 10 });
+    const latency = Date.now() - start;
+    if (latency > MONITORING_CONFIG.HIGH_LATENCY_THRESHOLD_MS) {
+      return { status: "warn", latency_ms: latency, message: "Redis latency is high" };
+    }
+    return { status: "pass", latency_ms: latency };
+  } catch (error) {
+    return {
+      status: strict ? "fail" : "warn",
+      latency_ms: Date.now() - start,
+      message: error instanceof Error ? error.message : "Redis check failed",
+    };
+  }
+}
+
+async function checkQueues(): Promise<HealthCheck> {
+  const start = Date.now();
+  try {
+    const redis = await getRedisClient();
+    const [q, processing, dlq] = await Promise.all([
+      redis.lLen("ingest:queue"),
+      redis.lLen("ingest:processing"),
+      redis.lLen("ingest:dlq"),
+    ]);
+    const latency = Date.now() - start;
+    const total = q + processing + dlq;
+    // Warn when backlog is large; do not fail health solely on backlog.
+    if (total > 50_000 || dlq > 1000) {
+      return {
+        status: "warn",
+        latency_ms: latency,
+        message: `Ingest queues backlog: queue=${q}, processing=${processing}, dlq=${dlq}`,
+      };
+    }
+    return {
+      status: "pass",
+      latency_ms: latency,
+      message: `Ingest queues: queue=${q}, processing=${processing}, dlq=${dlq}`,
+    };
+  } catch (error) {
+    return {
+      status: "warn",
+      latency_ms: Date.now() - start,
+      message: error instanceof Error ? error.message : "Queue stats unavailable",
     };
   }
 }
@@ -127,8 +183,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
   if (detailed) {
     const uptime = Math.round((Date.now() - startTime) / 1000);
-    const [dbCheck, memCheck] = await Promise.all([checkDatabase(), Promise.resolve(checkMemory())]);
-    const checks = [dbCheck, memCheck];
+    const [dbCheck, memCheck, redisCheck, queueCheck] = await Promise.all([
+      checkDatabase(),
+      Promise.resolve(checkMemory()),
+      checkRedis(),
+      checkQueues(),
+    ]);
+    const checks = [dbCheck, memCheck, redisCheck, queueCheck];
     const hasFailed = checks.some((c) => c.status === "fail");
     const hasWarning = checks.some((c) => c.status === "warn");
     const status = hasFailed ? "unhealthy" : hasWarning ? "degraded" : "healthy";
@@ -140,6 +201,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       checks: {
         database: dbCheck,
         memory: memCheck,
+        redis: redisCheck,
+        queues: queueCheck,
       },
     };
     const statusCode = status === "unhealthy" ? 503 : 200;

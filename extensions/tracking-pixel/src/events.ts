@@ -77,6 +77,18 @@ const MAX_TOTAL_RETRY_MS = 5000;
 const RETRY_DELAYS_MS = [0, 300, 1200];
 const MAX_RETRIES = RETRY_DELAYS_MS.length;
 
+let lastConsoleWarnAt = 0;
+function warnOncePerMinute(message: string, extra?: unknown): void {
+  const now = Date.now();
+  if (now - lastConsoleWarnAt < 60_000) return;
+  lastConsoleWarnAt = now;
+  try {
+    console.warn("[Tracking Guardian]", message, extra ?? "");
+  } catch {
+    // no-op
+  }
+}
+
 async function sendCheckoutCompletedWithRetry(
   url: string,
   body: string,
@@ -115,6 +127,9 @@ async function sendCheckoutCompletedWithRetry(
         if (isDevMode) {
           log(`checkout_completed client error ${response.status}, not retrying`);
         }
+        if (!isDevMode) {
+          warnOncePerMinute(`checkout_completed 发送失败（客户端错误 ${response.status}，不重试）`);
+        }
         return;
       }
       if (attempt < MAX_RETRIES - 1 && Date.now() - startTime <= MAX_TOTAL_RETRY_MS) {
@@ -129,6 +144,9 @@ async function sendCheckoutCompletedWithRetry(
       }
       if (isDevMode) {
         log(`checkout_completed failed after ${MAX_RETRIES} attempts with server error ${response.status}`);
+      }
+      if (!isDevMode) {
+        warnOncePerMinute(`checkout_completed 发送失败（服务端错误 ${response.status}，已重试）`);
       }
       return;
     } catch (error) {
@@ -145,6 +163,11 @@ async function sendCheckoutCompletedWithRetry(
       }
       if (isDevMode) {
         log(`checkout_completed failed after ${MAX_RETRIES} attempts with network error:`, error);
+      }
+      if (!isDevMode) {
+        warnOncePerMinute("checkout_completed 发送失败（网络错误，已重试）", {
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
       return;
     } finally {
@@ -218,17 +241,14 @@ export function createEventSender(config: EventSenderConfig) {
   const { backendUrl, shopDomain, ingestionKey, isDevMode, consentManager, logger, environment = "live" } = config;
   const log = logger || (() => {});
   if (!backendUrl) {
-    if (isDevMode) {
-      log(
-        "⚠️ BACKEND_URL not configured - event sending disabled. " +
-          "Run pnpm ext:inject to inject the backend URL at build time. " +
-          "If placeholder was not replaced, pixel extension will silently fail and events will be lost."
-      );
-    }
+    warnOncePerMinute(
+      "BACKEND_URL 未配置/未通过校验，像素上报已禁用（事件将丢失）。请检查扩展构建是否执行 ext:inject/ext:validate。"
+    );
     return async function sendToBackendDisabled(_eventName: string, _data: Record<string, unknown>): Promise<void> {};
   }
   const normalizedIngestionKey = typeof ingestionKey === "string" ? ingestionKey.trim() : "";
   if (!normalizedIngestionKey && !isDevMode) {
+    warnOncePerMinute("缺少 ingestion_key，生产严格模式将拒绝 /ingest，像素上报已禁用（事件将丢失）。");
     return async function sendToBackendDisabled(_eventName: string, _data: Record<string, unknown>): Promise<void> {};
   }
   const encoder = typeof TextEncoder !== "undefined" ? new TextEncoder() : null;
@@ -387,12 +407,20 @@ export function createEventSender(config: EventSenderConfig) {
                 if (!response.ok && isDevMode) {
                   log(`Batch send non-2xx (${batchEvents.length} events): ${response.status}`);
                 }
+                if (!response.ok && !isDevMode) {
+                  warnOncePerMinute(`Batch send non-2xx (${batchEvents.length} events): ${response.status}`);
+                }
                 return response;
               })
               .finally(() => clearTimeout(timeoutId))
               .catch((error) => {
                 if (isDevMode) {
                   log(`Batch send failed (${batchEvents.length} events):`, error);
+                }
+                if (!isDevMode) {
+                  warnOncePerMinute(`Batch send failed (${batchEvents.length} events)`, {
+                    error: error instanceof Error ? error.message : String(error),
+                  });
                 }
               });
           } else {
@@ -406,11 +434,19 @@ export function createEventSender(config: EventSenderConfig) {
                 if (!response.ok && isDevMode) {
                   log(`Batch send non-2xx (${batchEvents.length} events): ${response.status}`);
                 }
+                if (!response.ok && !isDevMode) {
+                  warnOncePerMinute(`Batch send non-2xx (${batchEvents.length} events): ${response.status}`);
+                }
                 return response;
               })
               .catch((error) => {
                 if (isDevMode) {
                   log(`Batch send failed (${batchEvents.length} events):`, error);
+                }
+                if (!isDevMode) {
+                  warnOncePerMinute(`Batch send failed (${batchEvents.length} events)`, {
+                    error: error instanceof Error ? error.message : String(error),
+                  });
                 }
               });
           }

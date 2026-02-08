@@ -12,6 +12,8 @@ export type RejectionReason =
   | "invalid_json"
   | "empty_events"
   | "shop_domain_mismatch"
+  | "nonce_check_unavailable"
+  | "replay_detected"
   | "unknown";
 
 interface RejectionRecord {

@@ -67,7 +67,7 @@ export const bodyReaderMiddleware: IngestMiddleware = async (context: IngestCont
           continue: false,
           response: jsonWithCors(
             { error: "Invalid request" },
-            { status: 400, request: context.request, requestId: context.requestId }
+            { status: 413, request: context.request, requestId: context.requestId }
           ),
         };
       }
@@ -107,7 +107,7 @@ export const bodyReaderMiddleware: IngestMiddleware = async (context: IngestCont
             continue: false,
             response: jsonWithCors(
               { error: "Invalid request" },
-              { status: 400, request: context.request, requestId: context.requestId }
+              { status: 413, request: context.request, requestId: context.requestId }
             ),
           };
         }

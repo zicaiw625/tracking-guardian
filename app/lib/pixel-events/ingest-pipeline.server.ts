@@ -4,6 +4,7 @@ import {
   generateEventIdForType,
   generateOrderMatchKey,
   createEventNonce,
+  ReplayProtectionUnavailableError,
   upsertPixelEventReceipt,
 } from "./receipt-handler";
 import { checkInitialConsent, filterPlatformsByConsent, logConsentFilterMetrics } from "./consent-filter";
@@ -323,6 +324,10 @@ export async function deduplicateEvents(
           }
         }
       } catch (error) {
+        if (error instanceof ReplayProtectionUnavailableError) {
+          // Fail the whole batch so the worker retries later (do not silently drop events).
+          throw error;
+        }
         logger.warn(`Failed to check duplicate for purchase event`, {
           shopDomain,
           error: error instanceof Error ? error.message : String(error),

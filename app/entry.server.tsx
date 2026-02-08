@@ -118,7 +118,11 @@ export default async function handleRequest(
         });
         const headers = new Headers(getCorsHeadersPreBody(request));
         headers.set("Content-Type", "application/json");
-        return new Response(JSON.stringify({ error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE }), {
+        const isProd = process.env.NODE_ENV === "production";
+        const body = isProd
+          ? { error: "Invalid request" }
+          : { error: "Payload too large", maxSize: API_CONFIG.MAX_BODY_SIZE };
+        return new Response(JSON.stringify(body), {
           status: 413,
           headers,
         });

@@ -25,12 +25,17 @@ vi.mock("../../../app/utils/redis-client.server", () => ({
 }));
 
 import prisma from "../../../app/db.server";
-import { createEventNonce } from "../../../app/lib/pixel-events/receipt-handler";
+import { createEventNonce, ReplayProtectionUnavailableError } from "../../../app/lib/pixel-events/receipt-handler";
 import { getRedisClientStrict } from "../../../app/utils/redis-client.server";
 
 describe("createEventNonce Redis down", () => {
+  const originalNodeEnv = process.env.NODE_ENV;
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.NODE_ENV = "test";
+  });
+  afterEach(() => {
+    process.env.NODE_ENV = originalNodeEnv;
   });
 
   it("fails open when Redis strict fails (no DB fallback)", async () => {
@@ -38,5 +43,12 @@ describe("createEventNonce Redis down", () => {
     expect(getRedisClientStrict).toHaveBeenCalled();
     expect(prisma.eventNonce.create).not.toHaveBeenCalled();
     expect(result.isReplay).toBe(false);
+  });
+
+  it("fails closed (throws) in production strict mode when Redis strict fails", async () => {
+    process.env.NODE_ENV = "production";
+    await expect(createEventNonce("shop_1", "order_1", Date.now(), "nonce_1", "purchase")).rejects.toBeInstanceOf(
+      ReplayProtectionUnavailableError
+    );
   });
 });
