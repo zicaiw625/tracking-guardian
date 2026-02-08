@@ -1,6 +1,7 @@
 import { jsonWithCors } from "../cors";
 import { enqueueIngestBatch } from "../ingest-queue.server";
 import { ipKeyExtractor } from "~/middleware/rate-limit.server";
+import { encrypt } from "~/utils/crypto.server";
 import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types";
 
 function clampString(s: string | null | undefined, max: number): string | null {
@@ -35,14 +36,39 @@ export const enqueueMiddleware: IngestMiddleware = async (context: IngestContext
 
   const firstPayload = context.validatedEvents[0]?.payload;
   const pageUrlRaw = typeof firstPayload?.data?.url === "string" ? firstPayload.data.url : null;
+
+  const rawIp = ipKeyExtractor(context.request);
+  const ipForEncryption = rawIp === "untrusted" || rawIp === "unknown" ? null : rawIp;
+  const rawUa = clampString(context.request.headers.get("user-agent"), 512);
+
+  // Avoid storing raw IP/UA in Redis queue; store encrypted values only.
+  // Worker will decrypt as needed for S2S requirements.
+  const ip_encrypted = (() => {
+    if (!ipForEncryption) return null;
+    try {
+      return encrypt(ipForEncryption);
+    } catch {
+      return null;
+    }
+  })();
+  const user_agent_encrypted = (() => {
+    if (!rawUa) return null;
+    try {
+      return encrypt(rawUa);
+    } catch {
+      return null;
+    }
+  })();
   const requestContext = {
-    // Keep raw IP for queue/distribution (S2S requirements), will be handled/hashed at storage time if needed
-    ip: ipKeyExtractor(context.request),
-    user_agent: clampString(context.request.headers.get("user-agent"), 512),
+    ip: null as string | null,
+    user_agent: null as string | null,
+    ip_encrypted,
+    user_agent_encrypted,
     page_url: sanitizeUrl(pageUrlRaw),
     referrer: null as string | null,
   };
   const entry = {
+    entryId: context.requestId,
     requestId: context.requestId,
     shopId: context.shop.id,
     shopDomain: context.shopDomain,

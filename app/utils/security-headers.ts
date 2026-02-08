@@ -21,7 +21,8 @@ export const APP_PAGE_CSP_DIRECTIVES: Record<string, string[]> = {
   // 1. Generate nonce in entry.server.tsx
   // 2. Pass nonce to <Scripts /> in root.tsx
   // 3. Add nonce to CSP header here
-  "script-src": ["'self'", "'unsafe-inline'", "https://cdn.shopify.com"],
+  // NOTE: entry.server.tsx injects a per-request nonce into script-src.
+  "script-src": ["'self'", "https://cdn.shopify.com"],
   "style-src": ["'self'", "'unsafe-inline'", "https://cdn.shopify.com"],
   "img-src": ["'self'", "data:", "https:", "blob:"],
   "font-src": ["'self'", "https://cdn.shopify.com"],
@@ -96,18 +97,8 @@ export const PUBLIC_PAGE_HEADERS: Record<string, string> = {
   Pragma: "no-cache",
   Expires: "0",
   "X-Robots-Tag": "noindex",
-  "Content-Security-Policy": buildCspHeader({
-    "default-src": ["'self'"],
-    "script-src": ["'self'", "'unsafe-inline'"],
-    "style-src": ["'self'", "'unsafe-inline'"],
-    "img-src": ["'self'", "data:", "https:"],
-    "font-src": ["'self'"],
-    "connect-src": ["'self'"],
-    "frame-ancestors": ["'none'"],
-    "base-uri": ["'self'"],
-    "form-action": ["'self'"],
-    "object-src": ["'none'"],
-  }),
+  // PUBLIC pages are mostly static. Keep CSP strict (no inline scripts/styles needed for JSON data responses).
+  "Content-Security-Policy": buildCspHeader(API_CSP_DIRECTIVES),
 };
 export function addSecurityHeadersToHeaders(headers: Headers, securityHeaders: Record<string, string>): void {
   for (const [key, value] of Object.entries(securityHeaders)) {

@@ -18,8 +18,9 @@ export const hmacValidationMiddleware: IngestMiddleware = async (context: Ingest
 
   const hasAnySecret = Boolean(context.shop.ingestionSecret || context.shop.previousIngestionSecret);
 
-  // P0-1: Enforce timestamp presence in production when signature or secret is present
-  if (context.isProduction && (context.signature || hasAnySecret) && !context.timestamp) {
+  // P0-1: Enforce timestamp HEADER presence in production when signature or secret is present.
+  // IMPORTANT: Do NOT rely on payload timestamp (context.validatedEvents[*].payload.timestamp) for this.
+  if (context.isProduction && (context.signature || hasAnySecret) && !context.timestampHeader) {
     if (shouldRecordRejection(context.isProduction, false, "timestamp_missing")) {
       rejectionTracker.record({
         requestId: context.requestId,
@@ -36,14 +37,14 @@ export const hmacValidationMiddleware: IngestMiddleware = async (context: Ingest
     return {
       continue: false,
       response: jsonWithCors(
-        { error: "Missing timestamp header" },
+        { error: "Invalid request" },
         { status: 403, request: context.request, requestId: context.requestId }
       ),
     };
   }
 
-  if (!context.timestamp) {
-    // In non-production or if no secret/signature (though caught above for prod), allow continuation but it won't be verified
+  if (!context.timestampHeader || context.timestamp == null || Number.isNaN(context.timestamp)) {
+    // In non-production or if no secret/signature (though caught above for prod), allow continuation but it won't be verified.
     return { continue: true, context };
   }
 
@@ -63,7 +64,6 @@ export const hmacValidationMiddleware: IngestMiddleware = async (context: Ingest
         bodyHash,
         token,
         context.shopDomain!,
-        context.timestamp!,
         TIMESTAMP_WINDOW_MS
       );
       return result;
@@ -190,9 +190,17 @@ export const hmacValidationMiddleware: IngestMiddleware = async (context: Ingest
         logger.warn(`HMAC verification failed for ${context.shopDomain}: no ingestion token available`);
       } else {
         const hmacResult = await verifyWithToken(tokenToCheck);
+        const mappedReason =
+          hmacResult.errorCode === "missing_timestamp_header"
+            ? "timestamp_missing"
+            : hmacResult.errorCode === "timestamp_out_of_window"
+              ? "invalid_timestamp"
+              : hmacResult.errorCode === "missing_signature"
+                ? "signature_missing"
+                : "hmac_invalid";
         keyValidation = {
           matched: false,
-          reason: "hmac_invalid",
+          reason: mappedReason,
           trustLevel: hmacResult.trustLevel || "untrusted",
         };
         if (isStrictSecurityMode()) {
@@ -237,7 +245,14 @@ export const hmacValidationMiddleware: IngestMiddleware = async (context: Ingest
   }
 
   if (context.isProduction && !keyValidation.matched) {
-    const rejectionReason = keyValidation.reason === "secret_missing" ? "no_ingestion_key" : "invalid_key";
+    const rejectionReason =
+      keyValidation.reason === "secret_missing"
+        ? "no_ingestion_key"
+        : keyValidation.reason === "timestamp_missing"
+          ? "timestamp_missing"
+          : keyValidation.reason === "invalid_timestamp"
+            ? "invalid_timestamp"
+            : "invalid_key";
     if (shouldRecordRejection(context.isProduction, false, rejectionReason)) {
       rejectionTracker.record({
         requestId: context.requestId,

@@ -84,6 +84,20 @@ export function withPlanLimit(config: PlanLimitConfig): Middleware {
         error: error instanceof Error ? error.message : String(error),
         errorName: error instanceof Error ? error.name : "Unknown",
       });
+      // In production, fail-closed to avoid bypassing plan enforcement on transient failures.
+      if (process.env.NODE_ENV === "production") {
+        return {
+          continue: false,
+          response: json(
+            {
+              error: "Service unavailable",
+              code: "PLAN_LIMIT_CHECK_FAILED",
+            },
+            { status: 503 }
+          ),
+        };
+      }
+      // In non-production, fail-open to preserve developer experience.
       return { continue: true, context };
     }
   };

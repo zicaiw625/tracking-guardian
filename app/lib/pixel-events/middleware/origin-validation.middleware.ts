@@ -30,11 +30,10 @@ export const originValidationPreBodyMiddleware: IngestMiddleware = async (
     }
   }
 
-  const preBodyValidation = validatePixelOriginPreBody(
-    context.origin,
-    context.hasSignatureHeader,
-    context.originHeaderPresent
-  );
+  // Treat a request as "pre-authenticated" only when it has the signature header AND a timestamp header.
+  // This reduces the ability to bypass Stage 1 checks by sending a junk signature header.
+  const hasPreAuthSignal = context.hasSignatureHeader && !!context.timestampHeader;
+  const preBodyValidation = validatePixelOriginPreBody(context.origin, hasPreAuthSignal, context.originHeaderPresent);
 
   if (!preBodyValidation.valid) {
     const anomalyCheck = trackAnomaly(context.shopDomainHeader, "invalid_origin");

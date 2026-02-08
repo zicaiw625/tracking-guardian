@@ -24,12 +24,7 @@ const TIMESTAMP_HEADER = "X-Tracking-Guardian-Timestamp";
 export interface HMACValidationResult {
   valid: boolean;
   reason?: string;
-  errorCode?:
-    | "missing_signature"
-    | "invalid_signature"
-    | "timestamp_out_of_window"
-    | "missing_timestamp_header"
-    | "timestamp_mismatch";
+  errorCode?: "missing_signature" | "invalid_signature" | "timestamp_out_of_window" | "missing_timestamp_header";
   trustLevel?: "trusted" | "partial" | "untrusted";
 }
 
@@ -130,7 +125,6 @@ export async function validatePixelEventHMAC(
   bodyHash: string,
   token: string,
   shopDomain: string,
-  payloadTimestamp: number,
   timestampWindowMs: number
 ): Promise<HMACValidationResult> {
   const signature = extractHMACSignature(request);
@@ -148,14 +142,6 @@ export async function validatePixelEventHMAC(
       valid: false,
       reason: "Missing timestamp header",
       errorCode: "missing_timestamp_header",
-      trustLevel: "untrusted",
-    };
-  }
-  if (headerTimestamp !== payloadTimestamp) {
-    return {
-      valid: false,
-      reason: `Timestamp mismatch: header=${headerTimestamp}, payload=${payloadTimestamp}`,
-      errorCode: "timestamp_mismatch",
       trustLevel: "untrusted",
     };
   }

@@ -223,14 +223,7 @@ describe("HMAC Validation", () => {
       const bodyHash = createBodyHash(bodyText);
       const signature = generateHMACSignature(testToken, timestamp, testShopDomain, bodyHash);
       const request = createValidRequest(signature, timestamp, bodyText);
-      const result = await validatePixelEventHMAC(
-        request,
-        bodyHash,
-        testToken,
-        testShopDomain,
-        timestamp,
-        timestampWindowMs
-      );
+      const result = await validatePixelEventHMAC(request, bodyHash, testToken, testShopDomain, timestampWindowMs);
       expect(result.valid).toBe(true);
       expect(result.trustLevel).toBe("trusted");
     });
@@ -244,14 +237,7 @@ describe("HMAC Validation", () => {
         },
         body: bodyText,
       });
-      const result = await validatePixelEventHMAC(
-        request,
-        bodyText,
-        testToken,
-        testShopDomain,
-        timestamp,
-        timestampWindowMs
-      );
+      const result = await validatePixelEventHMAC(request, bodyText, testToken, testShopDomain, timestampWindowMs);
       expect(result.valid).toBe(false);
       expect(result.errorCode).toBe("missing_signature");
       expect(result.trustLevel).toBe("untrusted");
@@ -268,49 +254,28 @@ describe("HMAC Validation", () => {
         },
         body: bodyText,
       });
-      const result = await validatePixelEventHMAC(
-        request,
-        bodyText,
-        testToken,
-        testShopDomain,
-        timestamp,
-        timestampWindowMs
-      );
+      const result = await validatePixelEventHMAC(request, bodyText, testToken, testShopDomain, timestampWindowMs);
       expect(result.valid).toBe(false);
       expect(result.errorCode).toBe("missing_timestamp_header");
       expect(result.trustLevel).toBe("untrusted");
     });
 
-    it("should return valid=false for timestamp mismatch", async () => {
-      const { bodyText, timestamp } = makeBodyAndTimestamp();
+    it("should NOT require payload timestamp to match header timestamp", async () => {
+      const timestampHeader = Date.now();
+      const differentPayloadTimestamp = timestampHeader + 60_000;
+      const bodyText = `{"eventName":"test","timestamp":${differentPayloadTimestamp}}`;
       const bodyHash = createBodyHash(bodyText);
-      const signature = generateHMACSignature(testToken, timestamp, testShopDomain, bodyHash);
-      const request = createValidRequest(signature, timestamp, bodyText);
-      const differentPayloadTimestamp = timestamp + 1000;
-      const result = await validatePixelEventHMAC(
-        request,
-        bodyText,
-        testToken,
-        testShopDomain,
-        differentPayloadTimestamp,
-        timestampWindowMs
-      );
-      expect(result.valid).toBe(false);
-      expect(result.errorCode).toBe("timestamp_mismatch");
-      expect(result.trustLevel).toBe("untrusted");
+      const signature = generateHMACSignature(testToken, timestampHeader, testShopDomain, bodyHash);
+      const request = createValidRequest(signature, timestampHeader, bodyText);
+      const result = await validatePixelEventHMAC(request, bodyHash, testToken, testShopDomain, timestampWindowMs);
+      expect(result.valid).toBe(true);
+      expect(result.trustLevel).toBe("trusted");
     });
 
     it("should return valid=false for invalid signature", async () => {
       const { bodyText, timestamp } = makeBodyAndTimestamp();
       const request = createValidRequest("invalid-signature", timestamp, bodyText);
-      const result = await validatePixelEventHMAC(
-        request,
-        bodyText,
-        testToken,
-        testShopDomain,
-        timestamp,
-        timestampWindowMs
-      );
+      const result = await validatePixelEventHMAC(request, bodyText, testToken, testShopDomain, timestampWindowMs);
       expect(result.valid).toBe(false);
       expect(result.errorCode).toBe("invalid_signature");
       expect(result.trustLevel).toBe("untrusted");
@@ -322,14 +287,7 @@ describe("HMAC Validation", () => {
       const bodyHash = createBodyHash(bodyText);
       const signature = generateHMACSignature(testToken, oldTimestamp, testShopDomain, bodyHash);
       const request = createValidRequest(signature, oldTimestamp, bodyText);
-      const result = await validatePixelEventHMAC(
-        request,
-        bodyText,
-        testToken,
-        testShopDomain,
-        oldTimestamp,
-        timestampWindowMs
-      );
+      const result = await validatePixelEventHMAC(request, bodyText, testToken, testShopDomain, timestampWindowMs);
       expect(result.valid).toBe(false);
       expect(result.errorCode).toBe("timestamp_out_of_window");
       expect(result.trustLevel).toBe("untrusted");

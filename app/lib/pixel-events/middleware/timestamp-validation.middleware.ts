@@ -11,6 +11,24 @@ const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
 export const timestampValidationMiddleware: IngestMiddleware = async (
   context: IngestContext
 ): Promise<MiddlewareResult> => {
+  // If the client intends to send signed events, enforce presence of the timestamp header early
+  // to avoid doing expensive work (body parse, DB lookups, hashing) for requests that can never verify.
+  if (context.isProduction && context.hasSignatureHeader && !context.timestampHeader) {
+    if (shouldRecordRejection(context.isProduction, false, "timestamp_missing")) {
+      rejectionTracker.record({
+        requestId: context.requestId,
+        shopDomain: context.shopDomainHeader,
+        reason: "timestamp_missing",
+        timestamp: Date.now(),
+      });
+    }
+    logger.debug("Missing timestamp header in signed request, dropping early", { requestId: context.requestId });
+    return {
+      continue: false,
+      response: emptyResponseWithCors(context.request, undefined, context.requestId),
+    };
+  }
+
   if (context.timestampHeader) {
     const timestamp = parseInt(context.timestampHeader, 10);
     if (isNaN(timestamp)) {

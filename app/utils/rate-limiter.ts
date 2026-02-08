@@ -1,6 +1,7 @@
 import { getRedisClient } from "./redis-client.server";
 import { logger } from "./logger.server";
 import { API_SECURITY_HEADERS } from "./security-headers";
+import { createHash } from "crypto";
 
 export interface RateLimitConfig {
   maxRequests: number;
@@ -439,7 +440,9 @@ export function withRateLimit<T>(
       customConfig
     );
     if (isLimited) {
-      logger.warn(`Rate limit exceeded for ${endpoint}: ${getRateLimitKey(args.request, endpoint)}`);
+      const rawKey = getRateLimitKey(args.request, endpoint);
+      const keyHash = createHash("sha256").update(rawKey, "utf8").digest("hex").slice(0, 12);
+      logger.warn(`Rate limit exceeded for ${endpoint}`, { endpoint, keyHash });
       return createRateLimitResponse(retryAfter);
     }
     const response = await handler(args);

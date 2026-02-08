@@ -3,6 +3,7 @@ import { renderToPipeableStream } from "react-dom/server";
 import { RemixServer } from "@remix-run/react";
 import { createReadableStreamFromReadable, type EntryContext } from "@remix-run/node";
 import { isbot } from "isbot";
+import { randomBytes } from "crypto";
 import { addDocumentResponseHeaders } from "./shopify.server";
 import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets.server";
 import { validateEncryptionConfig } from "./utils/crypto.server";
@@ -133,6 +134,8 @@ export default async function handleRequest(
   const shopCandidate = request.headers.get("x-shopify-shop-domain") || url.searchParams.get("shop") || null;
   const shopDomain = shopCandidate && SecureShopDomainSchema.safeParse(shopCandidate).success ? shopCandidate : null;
 
+  const cspNonce = randomBytes(16).toString("base64");
+
   // P0-1: Strict CSP frame-ancestors
   // If shop is known, we only allow that specific shop and admin.shopify.com
   // If not known, we fallback to wildcard but this should be rare for embedded app
@@ -145,6 +148,8 @@ export default async function handleRequest(
   const cspDirectives = {
     ...APP_PAGE_CSP_DIRECTIVES,
     "frame-ancestors": frameAncestors,
+    // Remove 'unsafe-inline' by using per-request nonce for Remix scripts.
+    "script-src": ["'self'", `'nonce-${cspNonce}'`, "https://cdn.shopify.com"],
   };
   responseHeaders.set("Content-Security-Policy", buildCspHeader(cspDirectives));
   const documentSecurityHeaders =
@@ -155,7 +160,7 @@ export default async function handleRequest(
   return new Promise((resolve, reject) => {
     let abortTimeoutId: NodeJS.Timeout | null = null;
     const { pipe, abort } = renderToPipeableStream(
-      <RemixServer context={remixContext} url={request.url} abortDelay={ABORT_DELAY} />,
+      <RemixServer context={remixContext} url={request.url} abortDelay={ABORT_DELAY} nonce={cspNonce} />,
       {
         [callbackName]: () => {
           const body = new PassThrough();

@@ -1,6 +1,15 @@
 import { logger } from "./logger.server";
 export const SHOPIFY_PLATFORM_HOSTS = ["checkout.shopify.com", "admin.shopify.com", "shopifypreview.com"] as const;
 
+function safeUrlHost(urlStr: string | null | undefined): string | null {
+  if (!urlStr) return null;
+  try {
+    return new URL(urlStr).hostname;
+  } catch {
+    return null;
+  }
+}
+
 export function shouldAllowNullOrigin(): boolean {
   const v = process.env.PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY?.toLowerCase().trim();
   if (v === "false" || v === "0") return false;
@@ -274,7 +283,7 @@ export function validatePixelOriginForShop(
       } else {
         logger.warn(`[Origin Fallback] Referer fallback blocked in production without HMAC signature`, {
           originalOrigin: origin,
-          referer: options.referer,
+          refererHost: safeUrlHost(options.referer),
           shopDomain: options.shopDomain,
           securityNote: "In production, Referer fallback is only allowed when HMAC signature is present and verified.",
         });
@@ -328,7 +337,7 @@ export function validatePixelOriginForShop(
           });
         if (!isRefererAllowed) {
           logger.warn(`[Origin Null] Referer not in allowlist for null origin request`, {
-            referer: options.referer,
+            refererHost,
             shopDomain: options.shopDomain,
             shopAllowedDomains,
           });

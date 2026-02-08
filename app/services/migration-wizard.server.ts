@@ -3,12 +3,14 @@ import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { encryptJson, decryptJson } from "../utils/crypto.server";
+import { getRedisClient } from "../utils/redis-client.server";
 import { saveConfigSnapshot } from "./pixel-rollback.server";
 import type { Platform } from "./migration.server";
 import type { PlanId } from "./billing/plans";
 import { canCreatePixelConfig } from "./billing/feature-gates.server";
 import { getValidCredentials } from "./credentials.server";
 import { PLATFORM_ENDPOINTS } from "../utils/config.shared";
+import { postJson } from "../utils/http";
 
 export interface WizardConfig {
   platform: Platform | "pinterest";
@@ -24,6 +26,35 @@ export interface WizardState {
   selectedPlatforms: string[];
   configs: Record<string, WizardConfig>;
   completedAt?: Date;
+}
+
+function canonicalizeEventMappings(mappings: unknown): string {
+  if (!mappings || typeof mappings !== "object" || Array.isArray(mappings)) return "";
+  const entries = Object.entries(mappings as Record<string, unknown>)
+    .map(([k, v]) => [k, typeof v === "string" ? v : JSON.stringify(v)] as const)
+    .sort(([a], [b]) => a.localeCompare(b));
+  return entries.map(([k, v]) => `${k}=${v}`).join("&");
+}
+
+function redactSecrets(text: string): string {
+  // Best-effort redaction for common credential patterns.
+  return text
+    .replace(/(access[_-]?token\s*[:=]\s*)([^,\s"']+)/gi, "$1[REDACTED]")
+    .replace(/(api[_-]?secret\s*[:=]\s*)([^,\s"']+)/gi, "$1[REDACTED]")
+    .replace(/(secret\s*[:=]\s*)([^,\s"']+)/gi, "$1[REDACTED]")
+    .replace(/(password\s*[:=]\s*)([^,\s"']+)/gi, "$1[REDACTED]")
+    .replace(/(token\s*[:=]\s*)([^,\s"']{8,})/gi, "$1[REDACTED]");
+}
+
+async function checkTestSendRateLimit(shopId: string, platform: string, ttlMs = 30_000): Promise<boolean> {
+  try {
+    const redis = await getRedisClient();
+    const key = `tg:wizard:test:${shopId}:${platform}`;
+    return await redis.setNX(key, "1", ttlMs);
+  } catch {
+    // If Redis is unavailable, do not hard-block testing (DX), but keep logs/telemetry elsewhere.
+    return true;
+  }
 }
 
 export function validateWizardConfig(config: WizardConfig): {
@@ -120,7 +151,7 @@ export async function saveWizardConfigs(
       if (existingConfig && existingConfig.isActive) {
         const existingMappings = existingConfig.eventMappings as Record<string, string> | null;
         const newMappings = config.eventMappings || {};
-        const mappingsChanged = JSON.stringify(existingMappings) !== JSON.stringify(newMappings);
+        const mappingsChanged = canonicalizeEventMappings(existingMappings) !== canonicalizeEventMappings(newMappings);
         if (mappingsChanged) {
           await saveConfigSnapshot(shopId, config.platform, config.environment || "live");
         }
@@ -143,7 +174,7 @@ export async function saveWizardConfigs(
           migrationStatus: "in_progress",
           ...(existingConfig &&
           existingConfig.isActive &&
-          JSON.stringify(existingConfig.eventMappings) !== JSON.stringify(config.eventMappings)
+          canonicalizeEventMappings(existingConfig.eventMappings) !== canonicalizeEventMappings(config.eventMappings)
             ? {
                 configVersion: { increment: 1 },
                 rollbackAllowed: true,
@@ -371,6 +402,18 @@ export async function validateTestEnvironment(
     };
   }
   try {
+    const rateOk = await checkTestSendRateLimit(shopId, String(platform));
+    if (!rateOk) {
+      return {
+        valid: false,
+        message: "请求过于频繁，请稍后再试",
+        details: {
+          eventSent: false,
+          error: "RATE_LIMITED",
+        },
+      };
+    }
+
     const credentialsResult = getValidCredentials(
       { credentialsEncrypted: config.credentialsEncrypted },
       platform as Platform
@@ -378,7 +421,7 @@ export async function validateTestEnvironment(
     if (!credentialsResult.ok) {
       return {
         valid: false,
-        message: `凭证验证失败: ${credentialsResult.error.message}`,
+        message: `凭证验证失败: ${redactSecrets(credentialsResult.error.message)}`,
       };
     }
     const details: {
@@ -435,18 +478,14 @@ export async function validateTestEnvironment(
         ],
       };
       try {
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
+        const res = await postJson(url, body);
         eventSent = res.ok;
         if (!res.ok) {
-          const text = await res.text();
-          sendError = `GA4 ${res.status}: ${text.slice(0, 200)}`;
+          const text = typeof res.data === "string" ? res.data : JSON.stringify(res.data);
+          sendError = `GA4 ${res.status}: ${redactSecrets(text).slice(0, 200)}`;
         }
       } catch (e) {
-        sendError = e instanceof Error ? e.message : "GA4 request failed";
+        sendError = e instanceof Error ? redactSecrets(e.message) : "GA4 request failed";
       }
     } else if (platform === "meta") {
       const credentials = credentialsResult.value.credentials as {
@@ -468,21 +507,14 @@ export async function validateTestEnvironment(
       }
       const body = { data: [eventPayload] };
       try {
-        const res = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify(body),
-        });
+        const res = await postJson(url, body, { headers: { Authorization: `Bearer ${accessToken}` } });
         eventSent = res.ok;
         if (!res.ok) {
-          const text = await res.text();
-          sendError = `Meta ${res.status}: ${text.slice(0, 200)}`;
+          const text = typeof res.data === "string" ? res.data : JSON.stringify(res.data);
+          sendError = `Meta ${res.status}: ${redactSecrets(text).slice(0, 200)}`;
         }
       } catch (e) {
-        sendError = e instanceof Error ? e.message : "Meta request failed";
+        sendError = e instanceof Error ? redactSecrets(e.message) : "Meta request failed";
       }
     } else if (platform === "tiktok") {
       const credentials = credentialsResult.value.credentials as {
@@ -507,21 +539,14 @@ export async function validateTestEnvironment(
         body.test_event_code = credentials.testEventCode;
       }
       try {
-        const res = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Token": accessToken,
-          },
-          body: JSON.stringify(body),
-        });
+        const res = await postJson(url, body, { headers: { "Access-Token": accessToken } });
         eventSent = res.ok;
         if (!res.ok) {
-          const text = await res.text();
-          sendError = `TikTok ${res.status}: ${text.slice(0, 200)}`;
+          const text = typeof res.data === "string" ? res.data : JSON.stringify(res.data);
+          sendError = `TikTok ${res.status}: ${redactSecrets(text).slice(0, 200)}`;
         }
       } catch (e) {
-        sendError = e instanceof Error ? e.message : "TikTok request failed";
+        sendError = e instanceof Error ? redactSecrets(e.message) : "TikTok request failed";
       }
     }
     details.eventSent = eventSent;
@@ -535,17 +560,19 @@ export async function validateTestEnvironment(
       details,
     };
   } catch (error) {
+    const errorMessage = error instanceof Error ? redactSecrets(error.message) : redactSecrets(String(error));
     logger.error("Test environment validation error", {
       shopId,
       platform,
-      error,
+      errorMessage,
+      errorName: error instanceof Error ? error.name : "Unknown",
     });
     return {
       valid: false,
-      message: `验证过程出错: ${error instanceof Error ? error.message : "未知错误"}`,
+      message: `验证过程出错: ${errorMessage || "未知错误"}`,
       details: {
         eventSent: false,
-        error: error instanceof Error ? error.message : "未知错误",
+        error: errorMessage || "未知错误",
       },
     };
   }

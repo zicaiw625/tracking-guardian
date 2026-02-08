@@ -184,12 +184,6 @@ export const eventValidationMiddleware: IngestMiddleware = async (
 
   const firstPayload = validatedEvents[0].payload;
   const shopDomain = firstPayload.shopDomain;
-  // Fix P0-3: Use header timestamp if available to satisfy HMAC validation, otherwise fall back to payload
-  // This ensures top-level array bodies (which lack batch timestamp) validate against the header timestamp
-  const headerTimestampVal = context.timestampHeader ? parseInt(context.timestampHeader, 10) : NaN;
-  const timestamp = !isNaN(headerTimestampVal)
-    ? headerTimestampVal
-    : (context.batchTimestamp ?? firstPayload.timestamp);
 
   for (const { payload } of validatedEvents) {
     if (payload.shopDomain !== shopDomain) {
@@ -282,7 +276,6 @@ export const eventValidationMiddleware: IngestMiddleware = async (
       ...context,
       validatedEvents,
       shopDomain,
-      timestamp, // This might be "old" but it doesn't matter as events are filtered
     },
   };
 };

@@ -1,7 +1,7 @@
 import { randomUUID, createHash } from "crypto";
 import { Prisma } from "@prisma/client";
 import prisma from "~/db.server";
-import { normalizeOrderId, encrypt } from "~/utils/crypto.server";
+import { normalizeOrderId, encrypt, decrypt } from "~/utils/crypto.server";
 import type { ProcessedEvent } from "~/lib/pixel-events/ingest-pipeline.server";
 import type { IngestRequestContext } from "~/lib/pixel-events/ingest-queue.server";
 import type { DispatchDestination } from "./queue";
@@ -53,8 +53,20 @@ export async function persistInternalEventsAndDispatchJobs(
   if (s2sDestinations.length === 0) return;
 
   // P1-3: Anonymize IP and UA for privacy compliance
-  const rawIp = requestContext?.ip ?? null;
-  const ip_encrypted = rawIp ? encrypt(rawIp) : null;
+  // Prefer encrypted values from queue to avoid storing raw IP/UA in Redis.
+  const rawIp =
+    requestContext?.ip ??
+    (() => {
+      const enc = requestContext?.ip_encrypted;
+      if (!enc) return null;
+      try {
+        return decrypt(enc);
+      } catch {
+        return null;
+      }
+    })();
+
+  const ip_encrypted = requestContext?.ip_encrypted ?? (rawIp ? encrypt(rawIp) : null);
   let ip = rawIp;
   if (ip) {
     if (ip.includes(".") && ip.split(".").length === 4) {
@@ -69,8 +81,19 @@ export async function persistInternalEventsAndDispatchJobs(
   }
 
   // Hash user agent
-  const rawUa = requestContext?.user_agent ?? null;
-  const user_agent_encrypted = rawUa ? encrypt(rawUa) : null;
+  const rawUa =
+    requestContext?.user_agent ??
+    (() => {
+      const enc = requestContext?.user_agent_encrypted;
+      if (!enc) return null;
+      try {
+        return decrypt(enc);
+      } catch {
+        return null;
+      }
+    })();
+
+  const user_agent_encrypted = requestContext?.user_agent_encrypted ?? (rawUa ? encrypt(rawUa) : null);
   const user_agent = rawUa ? createHash("sha256").update(rawUa).digest("hex") : null;
   const page_url = requestContext?.page_url ?? null;
   const referrer = requestContext?.referrer ?? null;
@@ -96,9 +119,7 @@ export async function persistInternalEventsAndDispatchJobs(
       const currency = event.payload.data?.currency ?? "USD";
       const items = event.payload.data?.items ?? [];
       const transactionId =
-        event.payload.eventName === "checkout_completed"
-          ? (event.payload.data?.orderId ?? event.orderId ?? null)
-          : null;
+        internalEventName === "purchase" ? (event.payload.data?.orderId ?? event.orderId ?? null) : null;
 
       // P0-4: Unify event_id for purchase events to match webhook (orderId)
       // This prevents duplicate events/dispatch jobs for the same order

@@ -1,6 +1,7 @@
 import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { isIP } from "net";
+import { createHash } from "crypto";
 import { RATE_LIMIT_CONFIG } from "../utils/config.server";
 import { logger } from "../utils/logger.server";
 import { getRedisClient, getRedisConnectionInfo, type RedisClientWrapper } from "../utils/redis-client.server";
@@ -349,6 +350,10 @@ function getTrustedIpHeaders(): string[] {
 const MAX_IP_KEY_LENGTH = 64;
 const MAX_RATE_LIMIT_KEY_LENGTH = 256;
 
+function hashKeyForLogs(key: string): string {
+  return createHash("sha256").update(key, "utf8").digest("hex").slice(0, 12);
+}
+
 function resolveIpFromHeader(headers: Headers, headerName: string): string | null {
   const value = headers.get(headerName);
   if (!value) {
@@ -522,7 +527,7 @@ export function withRateLimit<T>(
       if (!result.allowed) {
         headers.set("Retry-After", String(result.retryAfter));
         logger.warn("Rate limit exceeded", {
-          key,
+          keyHash: hashKeyForLogs(key),
           maxRequests,
           windowMs,
           retryAfter: result.retryAfter,

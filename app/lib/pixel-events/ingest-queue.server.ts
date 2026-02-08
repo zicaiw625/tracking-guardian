@@ -5,20 +5,25 @@ import type { PixelEventPayload, KeyValidationResult } from "./types";
 const QUEUE_KEY = "ingest:queue";
 const PROCESSING_KEY = "ingest:processing";
 const DLQ_KEY = "ingest:dlq";
+const ENTRY_KEY_PREFIX = "ingest:entry:";
 const MAX_QUEUE_SIZE = 100_000;
 const MAX_BATCHES_PER_RUN = 50;
 const MAX_RETRIES = 5;
+const ENTRY_TTL_SECONDS = 24 * 60 * 60;
 
 export type EnqueueIngestResult = { ok: true } | { ok: false; reason: "overloaded" | "redis_error" };
 
 export interface IngestRequestContext {
   ip?: string | null;
   user_agent?: string | null;
+  ip_encrypted?: string | null;
+  user_agent_encrypted?: string | null;
   page_url?: string | null;
   referrer?: string | null;
 }
 
 export interface IngestQueueEntry {
+  entryId: string;
   requestId: string;
   shopId: string;
   shopDomain: string;
@@ -40,28 +45,59 @@ export interface IngestQueueEntry {
   }>;
 }
 
+function entryKey(entryId: string): string {
+  return `${ENTRY_KEY_PREFIX}${entryId}`;
+}
+
 const ENQUEUE_LUA = `
 local q = KEYS[1]
+local entryKey = KEYS[2]
 local max = tonumber(ARGV[1])
-local val = ARGV[2]
+local entryId = ARGV[2]
+local val = ARGV[3]
+local ttlSeconds = tonumber(ARGV[4])
 local len = redis.call('LLEN', q)
 if len >= max then
   return 0
 end
-redis.call('LPUSH', q, val)
+redis.call('SET', entryKey, val)
+if ttlSeconds and ttlSeconds > 0 then
+  redis.call('EXPIRE', entryKey, ttlSeconds)
+end
+redis.call('LPUSH', q, entryId)
 return 1
 `;
 
 export async function enqueueIngestBatch(entry: IngestQueueEntry): Promise<EnqueueIngestResult> {
   try {
     const redis = await getRedisClient();
+    if (!entry.entryId) {
+      // Prefer requestId for deterministic uniqueness within this pipeline.
+      entry.entryId = entry.requestId;
+    }
     entry.enqueuedAt = Date.now();
     const serialized = JSON.stringify(entry);
 
     // P0: Fail-fast on overload to avoid silently dropping old queue items.
     // Use Lua for atomic check+push under concurrency.
-    const result = await redis.eval(ENQUEUE_LUA, [QUEUE_KEY], [String(MAX_QUEUE_SIZE), serialized]);
-    const pushed = typeof result === "number" ? result === 1 : result === 1 || result === "1";
+    const conn = redis.getConnectionInfo();
+    let pushed = false;
+    if (conn.mode === "redis") {
+      const result = await redis.eval(
+        ENQUEUE_LUA,
+        [QUEUE_KEY, entryKey(entry.entryId)],
+        [String(MAX_QUEUE_SIZE), entry.entryId, serialized, String(ENTRY_TTL_SECONDS)]
+      );
+      pushed = typeof result === "number" ? result === 1 : result === 1 || result === "1";
+    } else {
+      // In-memory mode (dev/test): best-effort non-atomic fallback.
+      const len = await redis.lLen(QUEUE_KEY);
+      if (len < MAX_QUEUE_SIZE) {
+        await redis.set(entryKey(entry.entryId), serialized, { EX: ENTRY_TTL_SECONDS });
+        await redis.lPush(QUEUE_KEY, entry.entryId);
+        pushed = true;
+      }
+    }
     if (!pushed) {
       logger.warn("Ingest queue overloaded - rejecting new batch", {
         requestId: entry.requestId,
@@ -93,18 +129,26 @@ export async function processIngestQueue(options?: {
   let errors = 0;
 
   for (let i = 0; i < maxBatches; i++) {
-    const raw = await redis.rPopLPush(QUEUE_KEY, PROCESSING_KEY);
-    if (!raw) break;
+    const entryId = await redis.rPopLPush(QUEUE_KEY, PROCESSING_KEY);
+    if (!entryId) break;
 
     let entry: IngestQueueEntry;
     try {
+      const raw = await redis.get(entryKey(entryId));
+      if (!raw) {
+        logger.warn("Missing ingest queue entry payload (stale id in list)", { entryId });
+        await redis.lRem(PROCESSING_KEY, 1, entryId);
+        errors++;
+        continue;
+      }
       entry = JSON.parse(raw) as IngestQueueEntry;
     } catch (e) {
-      logger.warn("Invalid ingest queue entry JSON", {
+      logger.warn("Invalid ingest queue entry payload JSON", {
+        entryId,
         error: e instanceof Error ? e.message : String(e),
       });
-      // Invalid JSON, remove from processing queue as it can't be processed
-      await redis.lRem(PROCESSING_KEY, 1, raw);
+      // Invalid payload, drop from processing queue to avoid blocking. Keep payload key for TTL cleanup.
+      await redis.lRem(PROCESSING_KEY, 1, entryId);
       errors++;
       continue;
     }
@@ -161,7 +205,8 @@ export async function processIngestQueue(options?: {
       }
 
       // Success - remove from processing queue (ACK)
-      await redis.lRem(PROCESSING_KEY, 1, raw);
+      await redis.lRem(PROCESSING_KEY, 1, entryId);
+      await redis.del(entryKey(entryId));
       processed++;
     } catch (e) {
       const currentRetry = entry.retryCount || 0;
@@ -169,6 +214,7 @@ export async function processIngestQueue(options?: {
         requestId: entry.requestId,
         shopDomain: entry.shopDomain,
         shopId: entry.shopId,
+        entryId,
         retryCount: currentRetry,
         error: e instanceof Error ? e.message : String(e),
       });
@@ -178,20 +224,26 @@ export async function processIngestQueue(options?: {
           logger.warn(`Ingest batch exceeded max retries (${MAX_RETRIES}), moving to DLQ`, {
             requestId: entry.requestId,
             shopDomain: entry.shopDomain,
+            entryId,
           });
           entry.retryCount = currentRetry + 1;
-          await redis.lPush(DLQ_KEY, JSON.stringify(entry));
-          await redis.lRem(PROCESSING_KEY, 1, raw);
+          entry.enqueuedAt = Date.now();
+          await redis.set(entryKey(entryId), JSON.stringify(entry), { EX: ENTRY_TTL_SECONDS });
+          await redis.lPush(DLQ_KEY, entryId);
+          await redis.lRem(PROCESSING_KEY, 1, entryId);
         } else {
           // Re-queue with incremented retry count
           // Push to Head of Queue (will be processed last, acting as backoff)
           entry.retryCount = currentRetry + 1;
-          await redis.lPush(QUEUE_KEY, JSON.stringify(entry));
-          await redis.lRem(PROCESSING_KEY, 1, raw);
+          entry.enqueuedAt = Date.now();
+          await redis.set(entryKey(entryId), JSON.stringify(entry), { EX: ENTRY_TTL_SECONDS });
+          await redis.lPush(QUEUE_KEY, entryId);
+          await redis.lRem(PROCESSING_KEY, 1, entryId);
         }
       } catch (queueError) {
         logger.error("Failed to handle failed ingest batch (DLQ/Retry)", {
           requestId: entry.requestId,
+          entryId,
           error: queueError instanceof Error ? queueError.message : String(queueError),
         });
         // If we fail here, we leave it in PROCESSING_KEY.
@@ -213,17 +265,22 @@ export async function recoverStuckProcessingItems(limit = 100, maxAgeMs = 15 * 6
 
   // Check items at the tail of the processing list (oldest items)
   while (recovered < limit) {
-    const lastItem = await redis.lIndex(PROCESSING_KEY, -1);
-    if (!lastItem) break;
+    const lastEntryId = await redis.lIndex(PROCESSING_KEY, -1);
+    if (!lastEntryId) break;
 
     let shouldRecover = false;
     try {
-      const entry = JSON.parse(lastItem) as IngestQueueEntry;
-      if (entry.enqueuedAt && Date.now() - entry.enqueuedAt > maxAgeMs) {
+      const raw = await redis.get(entryKey(lastEntryId));
+      if (!raw) {
         shouldRecover = true;
-      } else if (!entry.enqueuedAt) {
-        // Legacy item without timestamp, treat as stuck if it's at the tail
-        shouldRecover = true;
+      } else {
+        const entry = JSON.parse(raw) as IngestQueueEntry;
+        if (entry.enqueuedAt && Date.now() - entry.enqueuedAt > maxAgeMs) {
+          shouldRecover = true;
+        } else if (!entry.enqueuedAt) {
+          // Legacy item without timestamp, treat as stuck if it's at the tail
+          shouldRecover = true;
+        }
       }
     } catch {
       // Invalid JSON, move it out to avoid blocking
