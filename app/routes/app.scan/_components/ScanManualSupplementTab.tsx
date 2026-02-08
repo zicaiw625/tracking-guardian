@@ -11,9 +11,7 @@ import {
   Badge,
   List,
 } from "@shopify/polaris";
-import { Suspense } from "react";
 import { ArrowRightIcon, SettingsIcon, CheckCircleIcon, ShareIcon } from "~/components/icons";
-import { CardSkeleton } from "~/components/ui";
 import { AnalysisResultSummary } from "~/components/scan/AnalysisResultSummary";
 import { ManualPastePanel } from "~/components/scan/ManualPastePanel";
 import { getSeverityBadge } from "~/components/scan";
@@ -23,7 +21,6 @@ import type { ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 
 interface ScanManualSupplementTabProps {
-  shop: { id: string } | null;
   deprecationStatus: {
     additionalScripts?: {
       badge: {
@@ -46,7 +43,6 @@ interface ScanManualSupplementTabProps {
   onShowGuidance: (title: string) => void;
   onOpenGuidedSupplement: () => void;
   onOpenManualInputWizard: () => void;
-  onAssetsCreated: (count: number) => void;
   // 懒加载的脚本编辑器组件，放宽为 any 以兼容现有实现
   ScriptCodeEditor: ComponentType<any>;
   analysisSaved: boolean;
@@ -64,7 +60,6 @@ interface ScanManualSupplementTabProps {
 }
 
 export function ScanManualSupplementTab({
-  shop,
   deprecationStatus,
   scriptContent,
   setScriptContent,
@@ -76,7 +71,6 @@ export function ScanManualSupplementTab({
   onShowGuidance,
   onOpenGuidedSupplement,
   onOpenManualInputWizard,
-  onAssetsCreated,
   ScriptCodeEditor,
   analysisSaved,
   isSavingAnalysis,
@@ -207,23 +201,14 @@ export function ScanManualSupplementTab({
               </BlockStack>
             </Banner>
             <ManualPastePanel
-              shopId={shop?.id || ""}
-              onAssetsCreated={onAssetsCreated}
+              value={scriptContent}
+              onChange={setScriptContent}
+              onAnalyze={handleAnalyzeScript}
+              analysisResult={analysisResult}
+              isAnalyzing={isAnalyzing}
               scriptCodeEditor={ScriptCodeEditor}
             />
             <Divider />
-            <Suspense fallback={<CardSkeleton lines={5} />}>
-              <ScriptCodeEditor
-                value={scriptContent}
-                onChange={setScriptContent}
-                onAnalyze={handleAnalyzeScript}
-                analysisResult={analysisResult}
-                isAnalyzing={isAnalyzing}
-                placeholder={t("scan.manualSupplement.editorPlaceholder")}
-                enableRealtimeAnalysis={false}
-                enableBatchPaste={true}
-              />
-            </Suspense>
             {analysisProgress && (
               <Box paddingBlockStart="200">
                 <Text as="p" variant="bodySm" tone="subdued">

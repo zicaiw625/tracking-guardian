@@ -7,48 +7,30 @@ import {
   TextField,
   Banner,
   Badge,
-  Box,
   Divider,
   List,
-  Spinner,
 } from "@shopify/polaris";
 import type { ScriptAnalysisResult } from "~/services/scanner/types";
 import type { ScriptCodeEditorProps } from "~/components/scan/ScriptCodeEditor";
 
 export interface ManualPastePanelProps {
-  shopId: string;
-  onAssetsCreated?: (count: number) => void;
+  value: string;
+  onChange: (value: string) => void;
+  onAnalyze: () => void;
+  analysisResult: ScriptAnalysisResult | null;
+  isAnalyzing: boolean;
   scriptCodeEditor: React.ComponentType<ScriptCodeEditorProps>;
 }
 
-interface AnalysisResult {
-  assets: Array<{
-    category: string;
-    platform?: string;
-    displayName: string;
-    riskLevel: "high" | "medium" | "low";
-    suggestedMigration: string;
-    confidence: "high" | "medium" | "low";
-  }>;
-  summary: {
-    totalSnippets: number;
-    identifiedCategories: Record<string, number>;
-    identifiedPlatforms: string[];
-    overallRiskLevel: "high" | "medium" | "low";
-  };
-}
-
 export function ManualPastePanel({
-  shopId: _shopId,
-  onAssetsCreated: _onAssetsCreated,
+  value,
+  onChange,
+  onAnalyze,
+  analysisResult,
+  isAnalyzing,
   scriptCodeEditor,
 }: ManualPastePanelProps) {
   const Editor = scriptCodeEditor;
-  const [scriptContent, setScriptContent] = useState("");
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isProcessing] = useState(false);
-  const [realtimeAnalysisResult, setRealtimeAnalysisResult] = useState<ScriptAnalysisResult | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [piiWarnings, setPiiWarnings] = useState<string[]>([]);
   const [detectedSnippets, setDetectedSnippets] = useState<
@@ -59,14 +41,35 @@ export function ManualPastePanel({
     if (!content.trim()) {
       return warnings;
     }
+    const redactMatch = (type: string, match: string): string => {
+      if (type === "email") {
+        const [localPart, domain] = match.split("@");
+        if (!localPart || !domain) return "[REDACTED]";
+        const maskedLocal =
+          localPart.length <= 2 ? `${localPart[0] ?? ""}*` : `${localPart[0]}***${localPart[localPart.length - 1]}`;
+        return `${maskedLocal}@${domain}`;
+      }
+      if (type === "phone") {
+        const digits = match.replace(/\D/g, "");
+        const suffix = digits.slice(-2);
+        return suffix ? `***${suffix}` : "[REDACTED]";
+      }
+      if (type === "credit_card") {
+        const digits = match.replace(/\D/g, "");
+        const last4 = digits.slice(-4);
+        return last4 ? `**** **** **** ${last4}` : "[REDACTED]";
+      }
+      return "[REDACTED]";
+    };
     const piiPatterns = [
       {
-        pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+        pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
         message: "检测到可能的邮箱地址，请替换为占位符",
         type: "email",
       },
       {
-        pattern: /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b|\b\+?\d{1,3}[-.\s]?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}\b/g,
+        pattern:
+          /\b(?:\+?\d{1,3}[-.\s])(?:\(?\d{2,4}\)?[-.\s])?\d{3,4}[-.\s]\d{3,4}\b|\b(?:\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})\b/g,
         message: "检测到可能的电话号码，请替换为占位符",
         type: "phone",
       },
@@ -74,11 +77,6 @@ export function ManualPastePanel({
         pattern: /\b\d{4}[-.\s]?\d{4}[-.\s]?\d{4}[-.\s]?\d{4}\b/g,
         message: "检测到可能的信用卡号，请立即删除",
         type: "credit_card",
-      },
-      {
-        pattern: /\b[A-Za-z0-9]{20,}\b/g,
-        message: "检测到可能的长字符串（可能是 API 密钥或令牌），请检查并替换",
-        type: "token",
       },
       {
         pattern:
@@ -92,11 +90,12 @@ export function ManualPastePanel({
         type: "password",
       },
     ];
-    piiPatterns.forEach(({ pattern, message, type: _type }) => {
+    piiPatterns.forEach(({ pattern, message, type }) => {
       const matches = content.match(pattern);
       if (matches && matches.length > 0) {
-        const uniqueMatches = Array.from(new Set(matches)).slice(0, 3);
-        warnings.push(`${message}（检测到 ${matches.length} 处，示例：${uniqueMatches.join(", ")})`);
+        const uniqueMatches = Array.from(new Set(matches)).slice(0, 3).map((m) => redactMatch(type, m));
+        const exampleText = uniqueMatches.length > 0 ? `，示例：${uniqueMatches.join(", ")}` : "";
+        warnings.push(`${message}（检测到 ${matches.length} 处${exampleText}）`);
       }
     });
     return warnings;
@@ -228,10 +227,10 @@ export function ManualPastePanel({
     []
   );
   useEffect(() => {
-    if (scriptContent.trim()) {
-      const errors = validateScript(scriptContent);
-      const warnings = detectPII(scriptContent);
-      const snippets = detectScriptSnippets(scriptContent);
+    if (value.trim()) {
+      const errors = validateScript(value);
+      const warnings = detectPII(value);
+      const snippets = detectScriptSnippets(value);
       setValidationErrors(errors);
       setPiiWarnings(warnings);
       setDetectedSnippets(snippets);
@@ -240,104 +239,22 @@ export function ManualPastePanel({
       setPiiWarnings([]);
       setDetectedSnippets([]);
     }
-  }, [scriptContent, validateScript, detectPII, detectScriptSnippets]);
-  const performLocalAnalysis = useCallback(
-    (content: string): AnalysisResult | null => {
-      if (!content.trim()) {
-        return null;
-      }
-      const snippets = detectScriptSnippets(content);
-      const assets: AnalysisResult["assets"] = [];
-      const identifiedCategories: Record<string, number> = {
-        pixel: 0,
-        affiliate: 0,
-        survey: 0,
-        support: 0,
-        analytics: 0,
-        other: 0,
-      };
-      const identifiedPlatforms = new Set<string>();
-      for (const snippet of snippets) {
-        const platform = snippet.platform;
-        if (platform && platform !== "未知脚本") {
-          identifiedPlatforms.add(platform);
-        }
-        let category: string = "other";
-        if (platform.includes("Pixel") || platform.includes("Analytics") || platform.includes("Tag")) {
-          category = "pixel";
-          identifiedCategories.pixel++;
-        } else if (platform.includes("Survey") || platform.includes("问卷")) {
-          category = "survey";
-          identifiedCategories.survey++;
-        } else {
-          identifiedCategories.other++;
-        }
-        assets.push({
-          category,
-          platform: platform !== "未知脚本" ? platform : undefined,
-          displayName: platform,
-          riskLevel: "medium" as const,
-          suggestedMigration: category === "pixel" ? "web_pixel" : "none",
-          confidence: "medium" as const,
-        });
-      }
-      const overallRiskLevel = assets.length > 0 ? ("medium" as const) : ("low" as const);
-      return {
-        assets,
-        summary: {
-          totalSnippets: snippets.length,
-          identifiedCategories,
-          identifiedPlatforms: Array.from(identifiedPlatforms),
-          overallRiskLevel,
-        },
-      };
-    },
-    [detectScriptSnippets]
-  );
+  }, [value, validateScript, detectPII, detectScriptSnippets]);
   const handleAnalyze = useCallback(() => {
-    if (!scriptContent.trim()) {
+    if (!value.trim()) {
       return;
     }
-    const errors = validateScript(scriptContent);
+    const pii = detectPII(value);
+    if (pii.length > 0) {
+      setPiiWarnings(pii);
+      return;
+    }
+    const errors = validateScript(value);
     if (errors.length > 0) {
       setValidationErrors(errors);
     }
-    setIsAnalyzing(true);
-    const result = performLocalAnalysis(scriptContent);
-    if (result) {
-      setAnalysisResult(result);
-    }
-    setIsAnalyzing(false);
-  }, [scriptContent, validateScript, performLocalAnalysis]);
-  const handleRealtimeAnalysis = useCallback(
-    (content: string) => {
-      if (!content.trim()) return;
-      const result = performLocalAnalysis(content);
-      if (result) {
-        setRealtimeAnalysisResult({
-          identifiedPlatforms: result.summary.identifiedPlatforms,
-          platformDetails: result.assets.map((a) => ({
-            platform: a.platform || "unknown",
-            type: a.category,
-            confidence: a.confidence,
-            matchedPattern: a.displayName,
-          })),
-          risks: [],
-          riskScore:
-            result.summary.overallRiskLevel === "high" ? 70 : result.summary.overallRiskLevel === "medium" ? 40 : 20,
-          recommendations: [],
-        });
-      }
-    },
-    [performLocalAnalysis]
-  );
-  const riskLevelBadge = analysisResult
-    ? {
-        high: { tone: "critical" as const, label: "高风险" },
-        medium: { tone: "warning" as const, label: "中风险" },
-        low: { tone: "success" as const, label: "低风险" },
-      }[analysisResult.summary.overallRiskLevel]
-    : null;
+    onAnalyze();
+  }, [value, validateScript, detectPII, onAnalyze]);
   return (
     <Card>
       <BlockStack gap="400">
@@ -749,140 +666,27 @@ export function ManualPastePanel({
           fallback={
             <TextField
               label="脚本内容"
-              value={scriptContent}
-              onChange={setScriptContent}
+              value={value}
+              onChange={onChange}
               multiline={10}
               placeholder="请粘贴您的脚本内容..."
-              helpText={`已输入 ${scriptContent.length} 个字符`}
-              disabled={isAnalyzing || isProcessing}
+              helpText={`已输入 ${value.length} 个字符`}
+              disabled={isAnalyzing}
               autoComplete="off"
             />
           }
         >
           <Editor
-            value={scriptContent}
-            onChange={setScriptContent}
+            value={value}
+            onChange={onChange}
             onAnalyze={handleAnalyze}
-            analysisResult={realtimeAnalysisResult}
+            analysisResult={analysisResult}
             isAnalyzing={isAnalyzing}
             placeholder="请粘贴您的脚本内容，例如：&#10;&#10;&lt;script&gt;&#10;  gtag('config', 'G-XXXXXXXXXX');&#10;  fbq('track', 'Purchase', {value: 100, currency: 'USD'});&#10;&lt;/script&gt;"
-            enableRealtimeAnalysis={true}
-            onRealtimeAnalysis={handleRealtimeAnalysis}
+            enableRealtimeAnalysis={false}
             enableBatchPaste={true}
           />
         </Suspense>
-        {analysisResult && (
-          <Banner tone="info">
-            <Text as="p" variant="bodySm">
-              分析完成。本工具仅提供本地分析结果，不会将脚本内容保存到服务器。如需保存分析结果，请手动记录识别到的平台和风险等级。
-            </Text>
-          </Banner>
-        )}
-        {isProcessing && (
-          <Box padding="400">
-            <InlineStack gap="300" blockAlign="center">
-              <Spinner size="small" />
-              <Text as="span" variant="bodySm" tone="subdued">
-                正在创建迁移资产...
-              </Text>
-            </InlineStack>
-          </Box>
-        )}
-        {analysisResult && (
-          <BlockStack gap="400">
-            <Divider />
-            <Text as="h3" variant="headingSm">
-              分析结果
-            </Text>
-            <Box background="bg-surface-secondary" padding="400" borderRadius="200">
-              <BlockStack gap="300">
-                <InlineStack align="space-between">
-                  <Text as="span" variant="bodySm" fontWeight="semibold">
-                    识别的代码片段：
-                  </Text>
-                  <Badge>{`${String(analysisResult.summary.totalSnippets)} 个`}</Badge>
-                </InlineStack>
-                <InlineStack align="space-between">
-                  <Text as="span" variant="bodySm" fontWeight="semibold">
-                    识别的平台：
-                  </Text>
-                  {analysisResult.summary.identifiedPlatforms.length > 0 ? (
-                    <InlineStack gap="100" wrap>
-                      {analysisResult.summary.identifiedPlatforms.map((p) => (
-                        <Badge key={p}>{p}</Badge>
-                      ))}
-                    </InlineStack>
-                  ) : (
-                    <Text as="span" variant="bodySm" tone="subdued">
-                      无
-                    </Text>
-                  )}
-                </InlineStack>
-                <InlineStack align="space-between">
-                  <Text as="span" variant="bodySm" fontWeight="semibold">
-                    总体风险等级：
-                  </Text>
-                  {riskLevelBadge && <Badge tone={riskLevelBadge.tone}>{riskLevelBadge.label}</Badge>}
-                </InlineStack>
-              </BlockStack>
-            </Box>
-            {(() => {
-              if (analysisResult?.assets && analysisResult.assets.length > 0) {
-                return (
-                  <BlockStack gap="300">
-                    <Text as="h3" variant="headingSm">
-                      识别的资产 ({String(analysisResult.assets.length)} 项)
-                    </Text>
-                    <BlockStack gap="200">
-                      {analysisResult.assets.map((asset, index) => {
-                        const riskBadgeMap: Record<
-                          string,
-                          { tone: "critical" | "success" | undefined; label: string }
-                        > = {
-                          high: { tone: "critical", label: "高" },
-                          medium: { tone: undefined, label: "中" },
-                          low: { tone: "success", label: "低" },
-                        };
-                        const riskBadge = riskBadgeMap[asset.riskLevel] || riskBadgeMap.medium;
-                        const confidenceBadgeMap: Record<
-                          string,
-                          { tone: "success" | "info" | undefined; label: string }
-                        > = {
-                          high: { tone: "success", label: "高置信度" },
-                          medium: { tone: "info", label: "中置信度" },
-                          low: { tone: undefined, label: "低置信度" },
-                        };
-                        const confidenceBadge = confidenceBadgeMap[asset.confidence] || confidenceBadgeMap.medium;
-                        return (
-                          <Box key={index} background="bg-surface-secondary" padding="300" borderRadius="200">
-                            <BlockStack gap="200">
-                              <InlineStack align="space-between" blockAlign="start">
-                                <BlockStack gap="100">
-                                  <InlineStack gap="200" wrap>
-                                    <Text as="span" variant="bodyMd" fontWeight="semibold">
-                                      {asset.displayName}
-                                    </Text>
-                                    {asset.platform && <Badge>{asset.platform}</Badge>}
-                                    <Badge tone={riskBadge.tone}>{`${riskBadge.label}风险`}</Badge>
-                                    <Badge tone={confidenceBadge.tone}>{confidenceBadge.label}</Badge>
-                                  </InlineStack>
-                                  <Text as="span" variant="bodySm">
-                                    类别: {asset.category} | 建议迁移方式: {asset.suggestedMigration}
-                                  </Text>
-                                </BlockStack>
-                              </InlineStack>
-                            </BlockStack>
-                          </Box>
-                        );
-                      })}
-                    </BlockStack>
-                  </BlockStack>
-                );
-              }
-              return null;
-            })()}
-          </BlockStack>
-        )}
       </BlockStack>
     </Card>
   );

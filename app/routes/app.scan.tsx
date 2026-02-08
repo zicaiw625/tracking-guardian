@@ -741,7 +741,6 @@ export function ScanPage({
               }
             >
               <ScanManualSupplementTab
-                shop={shop as any}
                 deprecationStatus={deprecationStatus}
                 scriptContent={scriptContent}
                 setScriptContent={setScriptContent}
@@ -756,10 +755,6 @@ export function ScanPage({
                 }}
                 onOpenGuidedSupplement={() => setGuidedSupplementOpen(true)}
                 onOpenManualInputWizard={() => setManualInputWizardOpen(true)}
-                onAssetsCreated={(count) => {
-                  showSuccess(t("scan.success.assetsCreated", { count }));
-                  reloadData();
-                }}
                 ScriptCodeEditor={ScriptCodeEditor}
                 analysisSaved={analysisSaved}
                 isSavingAnalysis={isSavingAnalysis}
