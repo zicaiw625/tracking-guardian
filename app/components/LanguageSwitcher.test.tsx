@@ -6,8 +6,9 @@ import { LanguageSwitcher } from "./LanguageSwitcher";
 import { AppProvider } from "@shopify/polaris";
 import enTranslations from "../locales/en.json";
 
-const { submitMock } = vi.hoisted(() => ({
+const { submitMock, revalidateMock } = vi.hoisted(() => ({
   submitMock: vi.fn(),
+  revalidateMock: vi.fn(),
 }));
 
 vi.mock("@shopify/polaris", async (importOriginal) => {
@@ -30,8 +31,12 @@ vi.mock("@remix-run/react", async (importOriginal) => {
         useFetcher: () => ({
           submit: submitMock,
           state: "idle",
+          data: { ok: true }
         }),
         useSubmit: () => submitMock,
+        useRevalidator: () => ({
+          revalidate: revalidateMock
+        }),
       };
     });
 

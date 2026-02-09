@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { json, redirect } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { i18nCookie } from "../i18n.server";
 
 const supportedLocales = new Set(["en", "zh"]);
@@ -13,7 +13,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const locale = String(formData.get("locale") || formData.get("lng") || "");
 
   if (!supportedLocales.has(locale)) {
-    return json({ ok: false, error: "Unsupported locale" }, { status: 400 });
+    return json({ error: "Unsupported locale" }, { status: 400 });
   }
 
   return json(

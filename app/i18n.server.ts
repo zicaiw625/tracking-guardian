@@ -4,8 +4,9 @@ import en from "./locales/en.json";
 import zh from "./locales/zh.json";
 
 export const i18nCookie = createCookie("i18n", {
-  sameSite: "lax",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   path: "/",
+  secure: process.env.NODE_ENV === "production",
 });
 
 export const i18nServer = new RemixI18Next({
