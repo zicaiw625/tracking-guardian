@@ -13,14 +13,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const locale = String(formData.get("locale") || formData.get("lng") || "");
 
   if (!supportedLocales.has(locale)) {
-    return json({ error: "Unsupported locale" }, { status: 400 });
+    return json({ ok: false, error: "Unsupported locale" }, { status: 400 });
   }
 
-  return redirect(request.headers.get("Referer") || "/", {
-    headers: {
-      "Set-Cookie": await i18nCookie.serialize(locale),
-    },
-  });
+  return json(
+    { ok: true, locale },
+    {
+      headers: {
+        "Set-Cookie": await i18nCookie.serialize(locale),
+      },
+    }
+  );
 };
 
 export const loader = async ({ request: _request }: LoaderFunctionArgs) => {
