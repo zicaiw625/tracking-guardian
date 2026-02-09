@@ -85,8 +85,19 @@ export async function dispatchWebhook(
     }
     return new Response("OK", { status: 200 });
   }
+  const startTime = Date.now();
   try {
     const result = await handler(context, shopRecord);
+    const duration = Date.now() - startTime;
+    logger.info(`[Webhook Processed] ${normalizedTopic}`, {
+      topic: normalizedTopic,
+      shop,
+      webhookId,
+      processingTimeMs: duration,
+      result: result.success ? "success" : "failure",
+      status: result.status,
+    });
+
     const isGDPR = GDPR_TOPICS.has(normalizedTopic);
     if (webhookId) {
       const status = result.success
@@ -114,8 +125,19 @@ export async function dispatchWebhook(
     }
     return new Response(result.message, { status: result.status });
   } catch (error) {
+    const duration = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     const isGDPR = GDPR_TOPICS.has(normalizedTopic);
+    
+    logger.error(`[Webhook Failed] ${normalizedTopic}`, {
+      topic: normalizedTopic,
+      shop,
+      webhookId,
+      processingTimeMs: duration,
+      error: errorMessage,
+      result: "system_error",
+    });
+
     if (isGDPR) {
       logger.error(`GDPR webhook ${topic} handler threw error for ${shop}, acknowledging 200`, {
         message: errorMessage,

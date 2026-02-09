@@ -65,8 +65,9 @@ export async function getEventMonitoringStats(shopId: string, hours: number = 24
   const retryingCount = jobStats.filter(s => s.status === 'retrying').reduce((acc, s) => acc + s._count._all, 0);
   const deadLetterCount = jobStats.filter(s => s.status === 'failed' || s.status === 'dead_letter').reduce((acc, s) => acc + s._count._all, 0);
 
-  let successCount = 0;
-  let failureCount = 0;
+  let transactionTotalCount = 0;
+  let transactionSuccessCount = 0;
+
   for (const receipt of receipts) {
     const payload = receipt.payloadJson as Record<string, unknown> | null;
     const platform = extractPlatformFromPayload(payload) || "unknown";
@@ -77,17 +78,50 @@ export async function getEventMonitoringStats(shopId: string, hours: number = 24
     const data = payload?.data as Record<string, unknown> | undefined;
     const hasValue = data?.value !== undefined && data?.value !== null;
     const hasCurrency = !!data?.currency;
-    if (hasValue && hasCurrency) {
-      successCount++;
-      byPlatform[platform].success++;
+    const eventName = payload?.eventName as string | undefined;
+    const isTransactionEvent = eventName === 'checkout_completed' || eventName === 'purchase';
+
+    // Per user requirement (P0-1): Success rate only counts "transaction link events"
+    // We treat non-transaction events as "successful" by default in terms of general stats,
+    // OR we track transaction stats separately for the top-level successRate.
+    
+    // For platform-level breakdown, we keep using the strict check for now, 
+    // or we should align it too? Let's align platform stats too to avoid confusion.
+    
+    // Actually, let's stick to the "Success Rate" definition for the health score first.
+    // The user said: "Success rate only counts 'transaction link events'"
+    
+    if (isTransactionEvent) {
+      transactionTotalCount++;
+      if (hasValue && hasCurrency) {
+        transactionSuccessCount++;
+        byPlatform[platform].success++;
+      } else {
+        byPlatform[platform].failure++;
+      }
     } else {
-      failureCount++;
-      byPlatform[platform].failure++;
+      // For non-transaction events, we consider them "valid" if they reached here (ingest passed)
+      // So we don't count them as failures.
+      byPlatform[platform].success++;
     }
   }
+  
   const totalEvents = receipts.length;
-  const successRate = totalEvents > 0 ? (successCount / totalEvents) * 100 : 0;
-  const failureRate = totalEvents > 0 ? (failureCount / totalEvents) * 100 : 0;
+
+  // P0-1: Success rate only counts transaction events
+  // If no transaction events, default to 100% to avoid "false alarm" if only page views exist.
+  const successRate = transactionTotalCount > 0 
+    ? (transactionSuccessCount / transactionTotalCount) * 100 
+    : 100;
+    
+  // Failure rate is inverse of success rate for transactions? 
+  // Or global failure rate? 
+  // The user says "health score will be dragged down by massive 'false failures'".
+  // So failureRate should also reflect transactions.
+  const failureRate = transactionTotalCount > 0
+    ? ((transactionTotalCount - transactionSuccessCount) / transactionTotalCount) * 100
+    : 0;
+
   return {
     totalEvents,
     successRate,

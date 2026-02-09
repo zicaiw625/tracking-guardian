@@ -12,6 +12,10 @@ export function shouldAllowNullOrigin(): boolean {
     // Default to true to allow null origin with signature validation (required for production)
     return true;
 }
+
+export function isPixelSandboxMode(): boolean {
+    return shouldAllowNullOrigin();
+}
 const ALLOWED_ORIGIN_PATTERNS: Array<{
     pattern: RegExp;
     description: string;

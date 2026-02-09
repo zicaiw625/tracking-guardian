@@ -231,7 +231,7 @@
       "scanning": "This usually takes 10-30 seconds, please do not close the page",
       "includes": "Scan includes:",
       "itemScriptTags": "ScriptTags (Third-party tracking scripts)",
-      "itemWebPixels": "Web Pixels (Installed pixel apps)",
+      "itemWebPixels": "Web Pixels (This App's Configuration)",
       "itemCheckout": "Checkout Configuration Status",
       "itemPlatforms": "Tracking Platform Identification (GA4/Meta/TikTok etc.)",
       "acknowledge": "I understand the scan will not modify any shop settings",

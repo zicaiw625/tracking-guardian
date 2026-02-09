@@ -154,7 +154,7 @@ async function sendCheckoutCompletedWithRetry(
 
 const BATCH_CONFIG = {
   MAX_BATCH_SIZE: 10,
-  MAX_BATCH_DELAY_MS: 1000,
+  MAX_BATCH_DELAY_MS: 250,
   MAX_BATCH_BYTES: 60 * 1024,
   FLUSH_IMMEDIATE_EVENTS: ["checkout_completed"],
 } as const;
@@ -164,6 +164,7 @@ interface QueuedEvent {
   data: Record<string, unknown>;
   timestamp: number;
   nonce: string;
+  eventId?: string;
 }
 
 let cryptoUnavailableWarningLogged = false;
@@ -218,7 +219,8 @@ export function createEventSender(config: EventSenderConfig) {
     }
     return async function sendToBackendDisabled(
       _eventName: string,
-      _data: Record<string, unknown>
+      _data: Record<string, unknown>,
+      _eventId?: string
     ): Promise<void> {
     };
   }
@@ -227,7 +229,8 @@ export function createEventSender(config: EventSenderConfig) {
   if (!normalizedIngestionKey && !isDevMode) {
     return async function sendToBackendDisabled(
       _eventName: string,
-      _data: Record<string, unknown>
+      _data: Record<string, unknown>,
+      _eventId?: string
     ): Promise<void> {
     };
   }
@@ -238,6 +241,7 @@ export function createEventSender(config: EventSenderConfig) {
   };
   const buildEventPayload = (event: QueuedEvent): Record<string, unknown> => ({
     eventName: event.eventName,
+    eventId: event.eventId,
     timestamp: event.timestamp,
     nonce: event.nonce,
     shopDomain,
@@ -437,7 +441,7 @@ export function createEventSender(config: EventSenderConfig) {
     }
     return "either";
   };
-  return async function sendToBackend(eventName: string, data: Record<string, unknown>): Promise<void> {
+  return async function sendToBackend(eventName: string, data: Record<string, unknown>, eventId?: string): Promise<void> {
     const requiredConsent = getRequiredConsentForEvent(eventName);
     let hasRequiredConsent = false;
     if (requiredConsent === "marketing") {
@@ -472,6 +476,7 @@ export function createEventSender(config: EventSenderConfig) {
           data,
           timestamp,
           nonce,
+          eventId,
         });
         await flushQueue(true);
         return;
@@ -485,6 +490,7 @@ export function createEventSender(config: EventSenderConfig) {
         data,
         timestamp,
         nonce,
+        eventId,
       });
       const shouldFlushImmediate =
         (BATCH_CONFIG.FLUSH_IMMEDIATE_EVENTS as readonly string[]).includes(eventName) ||
@@ -510,12 +516,12 @@ export function subscribeToCheckoutCompleted(
   analytics: {
     subscribe: (event: string, handler: (event: unknown) => void) => void;
   },
-  sendToBackend: (eventName: string, data: Record<string, unknown>) => Promise<void>,
+  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string) => Promise<void>,
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
   analytics.subscribe("checkout_completed", (event: unknown) => {
-    const typedEvent = event as { data?: { checkout?: CheckoutData } };
+    const typedEvent = event as { id?: string; data?: { checkout?: CheckoutData } };
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
     const orderId = checkout.order?.id;
@@ -533,7 +539,7 @@ export function subscribeToCheckoutCompleted(
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: mapCheckoutLineItems(checkout),
-    });
+    }, typedEvent.id);
   });
   log("Tracking Guardian pixel initialized - checkout_completed subscribed");
 }
@@ -542,12 +548,12 @@ function subscribeToCheckoutStarted(
   analytics: {
     subscribe: (event: string, handler: (event: unknown) => void) => void;
   },
-  sendToBackend: (eventName: string, data: Record<string, unknown>) => Promise<void>,
+  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string) => Promise<void>,
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
   analytics.subscribe("checkout_started", (event: unknown) => {
-    const typedEvent = event as { data?: { checkout?: CheckoutData } };
+    const typedEvent = event as { id?: string; data?: { checkout?: CheckoutData } };
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
     sendToBackend("checkout_started", {
@@ -555,7 +561,7 @@ function subscribeToCheckoutStarted(
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: mapCheckoutLineItems(checkout),
-    });
+    }, typedEvent.id);
   });
   log("checkout_started event subscribed");
 }
@@ -564,12 +570,12 @@ function subscribeToProductAddedToCart(
   analytics: {
     subscribe: (event: string, handler: (event: unknown) => void) => void;
   },
-  sendToBackend: (eventName: string, data: Record<string, unknown>) => Promise<void>,
+  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string) => Promise<void>,
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
   analytics.subscribe("product_added_to_cart", (event: unknown) => {
-    const typedEvent = event as { data?: { cartLine?: CartLine; cart?: { currencyCode?: string } } };
+    const typedEvent = event as { id?: string; data?: { cartLine?: CartLine; cart?: { currencyCode?: string } } };
     const cartLine = typedEvent.data?.cartLine;
     if (!cartLine) return;
     const price = toNumber(cartLine.merchandise?.price?.amount);
@@ -591,7 +597,7 @@ function subscribeToProductAddedToCart(
         productId: productId,
         productTitle: cartLine.merchandise?.product?.title || null,
       }],
-    });
+    }, typedEvent.id);
   });
   log("product_added_to_cart event subscribed");
 }
@@ -600,12 +606,13 @@ function subscribeToPageViewed(
   analytics: {
     subscribe: (event: string, handler: (event: unknown) => void) => void;
   },
-  sendToBackend: (eventName: string, data: Record<string, unknown>) => Promise<void>,
+  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string) => Promise<void>,
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
   analytics.subscribe("page_viewed", (event: unknown) => {
     const typedEvent = event as {
+      id?: string;
       data?: {
         page?: { url?: string; title?: string; currencyCode?: string };
         cart?: { currencyCode?: string };
@@ -620,7 +627,7 @@ function subscribeToPageViewed(
       value: 0,
       currency: currency,
       items: [],
-    });
+    }, typedEvent.id);
   });
   log("page_viewed event subscribed");
 }
@@ -629,12 +636,13 @@ function subscribeToProductViewed(
   analytics: {
     subscribe: (event: string, handler: (event: unknown) => void) => void;
   },
-  sendToBackend: (eventName: string, data: Record<string, unknown>) => Promise<void>,
+  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string) => Promise<void>,
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
   analytics.subscribe("product_viewed", (event: unknown) => {
     const typedEvent = event as {
+      id?: string;
       data?: {
         productVariant?: {
           id?: string;
@@ -662,7 +670,7 @@ function subscribeToProductViewed(
         productId: productId,
         productTitle: productVariant.product?.title || null,
       }],
-    });
+    }, typedEvent.id);
   });
   log("product_viewed event subscribed");
 }
@@ -671,12 +679,12 @@ function subscribeToCheckoutContactInfoSubmitted(
   analytics: {
     subscribe: (event: string, handler: (event: unknown) => void) => void;
   },
-  sendToBackend: (eventName: string, data: Record<string, unknown>) => Promise<void>,
+  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string) => Promise<void>,
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
   analytics.subscribe("checkout_contact_info_submitted", (event: unknown) => {
-    const typedEvent = event as { data?: { checkout?: CheckoutData } };
+    const typedEvent = event as { id?: string; data?: { checkout?: CheckoutData } };
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
     sendToBackend("checkout_contact_info_submitted", {
@@ -684,7 +692,7 @@ function subscribeToCheckoutContactInfoSubmitted(
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: mapCheckoutLineItems(checkout),
-    });
+    }, typedEvent.id);
   });
   log("checkout_contact_info_submitted event subscribed");
 }
@@ -693,12 +701,12 @@ function subscribeToCheckoutShippingInfoSubmitted(
   analytics: {
     subscribe: (event: string, handler: (event: unknown) => void) => void;
   },
-  sendToBackend: (eventName: string, data: Record<string, unknown>) => Promise<void>,
+  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string) => Promise<void>,
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
   analytics.subscribe("checkout_shipping_info_submitted", (event: unknown) => {
-    const typedEvent = event as { data?: { checkout?: CheckoutData } };
+    const typedEvent = event as { id?: string; data?: { checkout?: CheckoutData } };
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
     sendToBackend("checkout_shipping_info_submitted", {
@@ -706,7 +714,7 @@ function subscribeToCheckoutShippingInfoSubmitted(
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: mapCheckoutLineItems(checkout),
-    });
+    }, typedEvent.id);
   });
   log("checkout_shipping_info_submitted event subscribed");
 }
@@ -715,12 +723,12 @@ function subscribeToPaymentInfoSubmitted(
   analytics: {
     subscribe: (event: string, handler: (event: unknown) => void) => void;
   },
-  sendToBackend: (eventName: string, data: Record<string, unknown>) => Promise<void>,
+  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string) => Promise<void>,
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
   analytics.subscribe("payment_info_submitted", (event: unknown) => {
-    const typedEvent = event as { data?: { checkout?: CheckoutData } };
+    const typedEvent = event as { id?: string; data?: { checkout?: CheckoutData } };
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
     sendToBackend("payment_info_submitted", {
@@ -728,7 +736,7 @@ function subscribeToPaymentInfoSubmitted(
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: mapCheckoutLineItems(checkout),
-    });
+    }, typedEvent.id);
   });
   log("payment_info_submitted event subscribed");
 }
@@ -737,7 +745,7 @@ export function subscribeToAnalyticsEvents(
   analytics: {
     subscribe: (event: string, handler: (event: unknown) => void) => void;
   },
-  sendToBackend: (eventName: string, data: Record<string, unknown>) => Promise<void>,
+  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string) => Promise<void>,
   logger?: (...args: unknown[]) => void,
   mode: "purchase_only" | "full_funnel" = "purchase_only"
 ): void {
