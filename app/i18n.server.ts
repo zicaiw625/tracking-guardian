@@ -6,6 +6,7 @@ import zh from "./locales/zh.json";
 export const i18nCookie = createCookie("i18n", {
   sameSite: "lax",
   path: "/",
+  httpOnly: false,
 });
 
 export const i18nServer = new RemixI18Next({
