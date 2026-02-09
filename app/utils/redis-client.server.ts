@@ -20,7 +20,6 @@ export interface RedisClientWrapper {
   scan(cursor: string, pattern: string, count?: number): Promise<{ cursor: string; keys: string[] }>;
   publish(channel: string, message: string): Promise<number>;
   subscribe(channel: string, onMessage: (message: string) => void): Promise<() => Promise<void>>;
-  eval(script: string, keys: string[], args: string[]): Promise<unknown>;
   lPush(key: string, ...values: string[]): Promise<number>;
   rPop(key: string): Promise<string | null>;
   lTrim(key: string, start: number, stop: number): Promise<void>;
@@ -259,9 +258,6 @@ class InMemoryFallback implements RedisClientWrapper {
     return async () => {
       InMemoryFallback.emitter.off(channel, listener);
     };
-  }
-  async eval(_script: string, _keys: string[], _args: string[]): Promise<unknown> {
-    throw new Error("Redis eval is not supported in memory mode");
   }
   async lPush(key: string, ...values: string[]): Promise<number> {
     let list = this.listStore.get(key);
@@ -642,14 +638,6 @@ class RedisClientFactory {
           return this.fallback.subscribe(channel, onMessage);
         }
       },
-      eval: async (script: string, keys: string[], args: string[]): Promise<unknown> => {
-        try {
-          return await client.eval(script, { keys, arguments: args });
-        } catch (error) {
-          logger.error("[REDIS] EVAL failed", error);
-          throw error;
-        }
-      },
       lPush: async (key: string, ...values: string[]): Promise<number> => {
         try {
           return await client.lPush(key, values);
@@ -761,9 +749,6 @@ class RedisClientFactory {
           }
         };
       },
-      eval: async (script: string, keys: string[], args: string[]): Promise<unknown> => {
-        return client.eval(script, { keys, arguments: args });
-      },
       lPush: async (key: string, ...values: string[]): Promise<number> => client.lPush(key, values),
       rPop: async (key: string): Promise<string | null> => client.rPop(key),
       lTrim: async (key: string, start: number, stop: number): Promise<void> => {
@@ -853,4 +838,3 @@ export async function closeRedisConnection(): Promise<void> {
 }
 
 export { RedisClientFactory };
-

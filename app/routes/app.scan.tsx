@@ -487,7 +487,7 @@ export function ScanPage({
           asset_count: auditAssetCount,
         },
       }),
-    });
+    }).catch(() => {});
   }, [auditAssetCount, isAgency, latestScan?.riskScore, planIdSafe, shouldShowMigrationButtons, shop?.id]);
     const handleGenerateChecklistText = useCallback((format: "markdown" | "plain"): string => {
         return generateChecklistText(migrationActions, shop?.domain, format, t);

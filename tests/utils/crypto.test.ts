@@ -184,7 +184,9 @@ describe("Crypto Utils", () => {
       const plaintext = "sensitive data";
       const encrypted = encrypt(plaintext);
       const parts = encrypted.split(":");
-      const tamperedCiphertext = parts[2].slice(0, -2) + "ff";
+      const lastByte = parts[2].slice(-2).toLowerCase();
+      const replacement = lastByte === "ff" ? "00" : "ff";
+      const tamperedCiphertext = parts[2].slice(0, -2) + replacement;
       const tampered = `${parts[0]}:${parts[1]}:${tamperedCiphertext}`;
       expect(() => decrypt(tampered)).toThrow();
     });
