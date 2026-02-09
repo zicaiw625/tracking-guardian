@@ -131,7 +131,8 @@ describe("LanguageSwitcher", () => {
     });
 
     expect(submitMock).toHaveBeenCalled();
-    expect(changeLanguageMock).toHaveBeenCalledWith("zh");
+    // i18n.changeLanguage is no longer called directly in the component
+    expect(changeLanguageMock).not.toHaveBeenCalled();
   });
 
   it("opens popover and switches language to English", async () => {
@@ -165,6 +166,7 @@ describe("LanguageSwitcher", () => {
     });
 
     expect(submitMock).toHaveBeenCalled();
-    expect(changeLanguageMock).toHaveBeenCalledWith("en");
+    // i18n.changeLanguage is no longer called directly in the component
+    expect(changeLanguageMock).not.toHaveBeenCalled();
   });
 });
