@@ -4,6 +4,7 @@ import type { InternalEventPayload, SendEventResult } from "./types";
 import { S2S_FETCH_TIMEOUT_MS } from "./types";
 
 const GA4_MP_URL = "https://www.google-analytics.com/mp/collect";
+const GA4_MP_URL_EU = "https://region1.google-analytics.com/mp/collect";
 
 function toGa4Items(items: unknown): Array<{ item_id: string; item_name: string; price: number; quantity: number }> {
   if (!Array.isArray(items)) return [];
@@ -28,12 +29,13 @@ export async function sendEvent(
   event: InternalEventPayload,
   credentials: GoogleCredentials
 ): Promise<SendEventResult> {
-  const { measurementId, apiSecret } = credentials;
+  const { measurementId, apiSecret, region } = credentials;
   const clientId = event.client_id ?? `s2s_${event.event_id}`;
   const params: Record<string, unknown> = {
     // P1-1: Add engagement_time_msec to ensure events are treated as engaging
     engagement_time_msec: 1,
-    session_id: event.transaction_id ? undefined : `1${Date.now()}`, // Simple session fallback if needed, but mainly engagement_time_msec is key
+    // P1: session_id must be a number (Date.now() or timestamp)
+    session_id: event.transaction_id ? undefined : Date.now(), 
     value: numericValue(event.value),
     currency: event.currency ?? "USD",
   };
@@ -53,7 +55,9 @@ export async function sendEvent(
       },
     ],
   };
-  const url = `${GA4_MP_URL}?measurement_id=${encodeURIComponent(measurementId)}&api_secret=${encodeURIComponent(apiSecret)}`;
+  // P1: Support EU endpoint
+  const baseUrl = region === "eu" ? GA4_MP_URL_EU : GA4_MP_URL;
+  const url = `${baseUrl}?measurement_id=${encodeURIComponent(measurementId)}&api_secret=${encodeURIComponent(apiSecret)}`;
   try {
     const res = await postJson(url, body, {
       timeout: S2S_FETCH_TIMEOUT_MS,

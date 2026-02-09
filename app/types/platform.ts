@@ -16,6 +16,7 @@ export const PLATFORM_NAMES: Record<PlatformType, string> = {
 export interface GoogleCredentials {
   measurementId: string;
   apiSecret: string;
+  region?: "us" | "eu";
 }
 
 export interface MetaCredentials {
@@ -104,6 +105,7 @@ export const GoogleCredentialsSchema = z.object({
     .min(1, "Measurement ID is required")
     .regex(/^G-[A-Z0-9]+$/i, "Invalid Measurement ID format (should start with G- followed by alphanumeric characters)"),
   apiSecret: z.string().min(1, "API Secret is required"),
+  region: z.enum(["us", "eu"]).optional(),
 });
 
 export const MetaCredentialsSchema = z.object({

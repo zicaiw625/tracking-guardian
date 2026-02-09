@@ -72,6 +72,14 @@ export async function sendEvent(
   }
   if (user_agent) userData.client_user_agent = user_agent;
 
+  // P2: Validation - Meta requires client_user_agent and event_source_url when action_source=website
+  if (!userData.client_user_agent) {
+    return { ok: false, error: "Validation Error: Missing client_user_agent (required for action_source=website)" };
+  }
+  if (!event.page_url) {
+    return { ok: false, error: "Validation Error: Missing event_source_url (required for action_source=website)" };
+  }
+
   const eventTime = Math.floor(Number(event.timestamp) / 1000);
 
   // Prepare custom_data for business data

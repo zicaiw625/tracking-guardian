@@ -327,8 +327,30 @@ export async function createWebPixel(admin: AdminApiContext, ingestionKey?: stri
     }
 }
 
-export async function updateWebPixel(admin: AdminApiContext, webPixelId: string, ingestionKey?: string, shopDomain?: string, environment: "test" | "live" = "live", mode?: "purchase_only" | "full_funnel"): Promise<CreateWebPixelResult> {
-    const pixelSettings = buildWebPixelSettings(ingestionKey || "", shopDomain || "", undefined, environment, mode);
+export async function updateWebPixel(admin: AdminApiContext, webPixelId: string, ingestionKey?: string, shopDomain?: string, environment?: "test" | "live", mode?: "purchase_only" | "full_funnel"): Promise<CreateWebPixelResult> {
+    // P0: Fetch existing settings if environment or mode are missing to prevent resetting them to defaults
+    let finalEnvironment = environment;
+    let finalMode = mode;
+
+    if (!finalEnvironment || !finalMode) {
+        try {
+            const existingPixels = await getExistingWebPixels(admin);
+            const currentPixel = existingPixels.find(p => p.id === webPixelId);
+            if (currentPixel && currentPixel.settings) {
+                const settings = JSON.parse(currentPixel.settings);
+                if (!finalEnvironment) {
+                    finalEnvironment = settings.environment as "test" | "live";
+                }
+                if (!finalMode) {
+                    finalMode = settings.mode as "purchase_only" | "full_funnel";
+                }
+            }
+        } catch (e) {
+            logger.warn("Failed to fetch existing settings during updateWebPixel", { error: String(e) });
+        }
+    }
+
+    const pixelSettings = buildWebPixelSettings(ingestionKey || "", shopDomain || "", undefined, finalEnvironment || "live", finalMode);
     // settings should be passed as an object, not stringified
     try {
         const response = await admin.graphql(`

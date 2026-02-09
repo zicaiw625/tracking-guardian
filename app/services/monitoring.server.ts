@@ -46,11 +46,27 @@ export async function getEventMonitoringStats(shopId: string, hours: number = 24
     },
   });
   const byPlatform: Record<string, { total: number; success: number; failure: number }> = {};
+  const jobStats = await prisma.eventDispatchJob.groupBy({
+    by: ['status'],
+    where: {
+      InternalEvent: {
+        shopId,
+      },
+      createdAt: {
+        gte: since,
+      },
+    },
+    _count: {
+      _all: true
+    }
+  });
+
+  const pendingCount = jobStats.filter(s => s.status === 'pending' || s.status === 'queued').reduce((acc, s) => acc + s._count._all, 0);
+  const retryingCount = jobStats.filter(s => s.status === 'retrying').reduce((acc, s) => acc + s._count._all, 0);
+  const deadLetterCount = jobStats.filter(s => s.status === 'failed' || s.status === 'dead_letter').reduce((acc, s) => acc + s._count._all, 0);
+
   let successCount = 0;
   let failureCount = 0;
-  const pendingCount = 0;
-  const retryingCount = 0;
-  const deadLetterCount = 0;
   for (const receipt of receipts) {
     const payload = receipt.payloadJson as Record<string, unknown> | null;
     const platform = extractPlatformFromPayload(payload) || "unknown";

@@ -263,9 +263,8 @@ export async function upsertPixelEventReceipt(
           receipt = existing;
         }
       } else {
-        // P0: Idempotency - if it already exists (P2002) and not a verification run, treat as success.
-        // This avoids error logs for duplicate events (e.g. client retries).
-        return { success: true, eventId };
+        // P0: Do not swallow other errors. Throw them so the caller can handle them (e.g. fallback to Redis)
+        throw createError;
       }
     }
     try {

@@ -113,10 +113,11 @@ export function evaluatePlatformConsent(platform: string, consentState: ConsentS
     }
     if (category === "marketing") {
         const requiresSaleOfData = config?.requiresSaleOfData ?? true;
-        if (requiresSaleOfData && consentState.saleOfDataAllowed === false) {
+        // P1: Strict check - if sale_of_data is required, it must be explicitly true. Undefined/null means denied.
+        if (requiresSaleOfData && consentState.saleOfDataAllowed !== true) {
             return {
                 allowed: false,
-                reason: `Sale of data not explicitly allowed for ${platformName} (P0-04: saleOfData=${String(consentState.saleOfDataAllowed)})`,
+                reason: `Sale of data not explicitly allowed for ${platformName} (P1: saleOfData=${String(consentState.saleOfDataAllowed)})`,
                 usedConsent: "none",
             };
         }
@@ -138,10 +139,11 @@ export function evaluatePlatformConsent(platform: string, consentState: ConsentS
     }
     else {
         const requiresSaleOfData = config?.requiresSaleOfData ?? true;
-        if (requiresSaleOfData && consentState.saleOfDataAllowed === false) {
+        // P1: Strict check
+        if (requiresSaleOfData && consentState.saleOfDataAllowed !== true) {
             return {
                 allowed: false,
-                reason: `Sale of data not explicitly allowed for ${platformName} (P0-04: saleOfData=${String(consentState.saleOfDataAllowed)})`,
+                reason: `Sale of data not explicitly allowed for ${platformName} (P1: saleOfData=${String(consentState.saleOfDataAllowed)})`,
                 usedConsent: "none",
             };
         }
@@ -167,10 +169,10 @@ export function evaluatePlatformConsentWithStrategy(platform: string, consentStr
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const category = getEffectiveConsentCategory(platform, treatAsMarketing);
     const requiresSaleOfData = config?.requiresSaleOfData ?? true;
-    if (requiresSaleOfData && consentState?.saleOfDataAllowed === false) {
+    if (requiresSaleOfData && consentState?.saleOfDataAllowed !== true) {
         return {
             allowed: false,
-            reason: `sale_of_data_not_allowed (P0-04: ${String(consentState?.saleOfDataAllowed)})`,
+            reason: `sale_of_data_not_allowed (P1: ${String(consentState?.saleOfDataAllowed)})`,
             usedConsent: "none",
         };
     }
