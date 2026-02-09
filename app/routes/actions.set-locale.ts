@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import { json, redirect } from "@remix-run/node";
 import { i18nCookie } from "../i18n.server";
 
 const supportedLocales = new Set(["en", "zh"]);
@@ -16,14 +16,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json({ error: "Unsupported locale" }, { status: 400 });
   }
 
-  return json(
-    { ok: true, locale },
-    {
-      headers: {
-        "Set-Cookie": await i18nCookie.serialize(locale),
-      },
-    }
-  );
+  return redirect(request.headers.get("Referer") || "/", {
+    headers: {
+      "Set-Cookie": await i18nCookie.serialize(locale),
+    },
+  });
 };
 
 export const loader = async ({ request: _request }: LoaderFunctionArgs) => {

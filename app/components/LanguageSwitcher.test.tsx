@@ -25,15 +25,16 @@ vi.mock("@shopify/polaris", async (importOriginal) => {
 });
 
 vi.mock("@remix-run/react", async (importOriginal) => {
-  const actual: any = await importOriginal();
-  return {
-    ...actual,
-    useFetcher: () => ({
-      submit: submitMock,
-      state: "idle",
-    }),
-  };
-});
+      const actual: any = await importOriginal();
+      return {
+        ...actual,
+        useFetcher: () => ({
+          submit: submitMock,
+          state: "idle",
+        }),
+        useSubmit: () => submitMock,
+      };
+    });
 
 // Mock react-i18next
 const changeLanguageMock = vi.fn();

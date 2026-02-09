@@ -2,11 +2,11 @@ import { Button, Popover, ActionList } from "@shopify/polaris";
 import { GlobeIcon } from "~/components/icons";
 import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useFetcher } from "@remix-run/react";
+import { useSubmit } from "@remix-run/react";
 
 export function LanguageSwitcher() {
   const { i18n } = useTranslation();
-  const fetcher = useFetcher();
+  const submit = useSubmit();
   const [active, setActive] = useState(false);
 
   const toggleActive = useCallback(() => setActive((active) => !active), []);
@@ -15,10 +15,10 @@ export function LanguageSwitcher() {
     (lng: string) => {
       const formData = new FormData();
       formData.append("locale", lng);
-      fetcher.submit(formData, { method: "post", action: "/actions/set-locale" });
+      submit(formData, { method: "post", action: "/actions/set-locale" });
       setActive(false);
     },
-    [fetcher]
+    [submit]
   );
 
   const activator = (
