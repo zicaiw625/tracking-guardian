@@ -75,6 +75,26 @@ model Shop {
   OrderSummary             OrderSummary[]
   InternalEvent            InternalEvent[]
   BatchAuditJob            BatchAuditJob[]
+  ExtensionError           ExtensionError[]
+}
+
+model ExtensionError {
+  id          String   @id @default(uuid())
+  shopId      String
+  shopDomain  String
+  extension   String
+  endpoint    String
+  error       String
+  stack       String?
+  target      String?
+  orderIdHash String?
+  timestamp   DateTime
+  createdAt   DateTime @default(now())
+  Shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
+  @@index([shopId, timestamp])
+  @@index([createdAt])
 }
 
 model OrderSummary {

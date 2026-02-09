@@ -8,6 +8,7 @@ import { parallelLimit } from "~/utils/helpers";
 import prisma from "~/db.server";
 import { API_CONFIG } from "~/utils/config.server";
 import { getRedisClient } from "~/utils/redis-client.server";
+import { normalizeToCanonical, type CanonicalEvent } from "~/services/event-normalizer.server";
 
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
 
@@ -25,6 +26,7 @@ export interface NormalizedEvent {
   altOrderKey: string | null;
   eventIdentifier: string | null;
   normalizedItems: Array<{ id: string; quantity: number }>;
+  canonical: CanonicalEvent | null;
 }
 
 export interface DeduplicatedEvent extends NormalizedEvent {
@@ -98,31 +100,7 @@ export function normalizeEvents(
     const eventType = payload.eventName === "checkout_completed" ? "purchase" : payload.eventName;
     const isPurchaseEvent = eventType === "purchase";
     
-    const items = payload.data.items as Array<{
-      id?: string;
-      quantity?: number | string;
-      variantId?: string;
-      variant_id?: string;
-      productId?: string;
-      product_id?: string;
-    }> | undefined;
-    
-    const normalizedItems = items?.map(item => ({
-      id: String(
-        item.variantId ||
-        item.variant_id ||
-        item.productId ||
-        item.product_id ||
-        item.id ||
-        ""
-      ).trim(),
-      quantity: typeof item.quantity === "number"
-        ? Math.max(1, Math.floor(item.quantity))
-        : typeof item.quantity === "string"
-        ? Math.max(1, parseInt(item.quantity, 10) || 1)
-        : 1,
-    })).filter(item => item.id) || [];
-    
+    // Logic for Order ID and Event Identifier
     let orderId: string | null = null;
     let altOrderKey: string | null = null;
     let eventIdentifier: string | null = null;
@@ -158,14 +136,56 @@ export function normalizeEvents(
       }
     }
     
+    // Normalize items first to generate event ID
+    // We use a temporary canonical generation here just to get normalized items for ID generation
+    // Ideally generateEventIdForType should take the canonical event, but it expects raw items list or similar
+    // We will use the canonical items for ID generation
+    
+    // We can't fully create canonical yet because we need eventId for it.
+    // But we need items for eventId.
+    // So we use the helper logic or just do a partial normalization.
+    
+    // Let's rely on the existing manual item normalization for ID generation to avoid circular dependency
+    // OR we can refactor generateEventIdForType.
+    // For now, let's keep the inline item normalization for ID generation stability, 
+    // but ALSO produce the full CanonicalEvent for downstream use.
+    
+    const items = payload.data.items as Array<{
+      id?: string;
+      quantity?: number | string;
+      variantId?: string;
+      variant_id?: string;
+      productId?: string;
+      product_id?: string;
+    }> | undefined;
+    
+    const normalizedItemsForId = items?.map(item => ({
+      id: String(
+        item.variantId ||
+        item.variant_id ||
+        item.productId ||
+        item.product_id ||
+        item.id ||
+        ""
+      ).trim(),
+      quantity: typeof item.quantity === "number"
+        ? Math.max(1, Math.floor(item.quantity))
+        : typeof item.quantity === "string"
+        ? Math.max(1, parseInt(item.quantity, 10) || 1)
+        : 1,
+    })).filter(item => item.id) || [];
+
     const eventId = generateEventIdForType(
       eventIdentifier,
       eventType,
       shopDomain,
       payload.data.checkoutToken,
-      normalizedItems.length > 0 ? normalizedItems : undefined,
+      normalizedItemsForId.length > 0 ? normalizedItemsForId : undefined,
       payload.nonce ?? null
     );
+    
+    // Now we have eventId, we can create the full CanonicalEvent
+    const canonical = normalizeToCanonical(payload, eventId);
     
     normalized.push({
       payload,
@@ -173,7 +193,8 @@ export function normalizeEvents(
       orderId,
       altOrderKey,
       eventIdentifier,
-      normalizedItems,
+      normalizedItems: normalizedItemsForId,
+      canonical,
     });
   }
   

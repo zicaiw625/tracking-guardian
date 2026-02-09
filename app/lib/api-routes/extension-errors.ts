@@ -118,12 +118,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
     }
     try {
-      logger.warn("Extension error reporting is disabled (ExtensionError model removed)", {
-        shopId: shop.id,
-        shopDomain,
-        extension: body.extension,
-        endpoint: body.endpoint,
-        orderIdHash: errorData.orderIdHash,
+      await prisma.extensionError.create({
+        data: errorData,
       });
     } catch (dbError) {
       logger.error("Failed to log extension error", {

@@ -92,9 +92,17 @@ export async function persistInternalEventsAndDispatchJobs(
 
       if (allowedDestinations.length === 0) continue;
 
-      const value = numericValue(event.payload.data?.value ?? 0);
-      const currency = event.payload.data?.currency ?? "USD";
-      const items = event.payload.data?.items ?? [];
+      // Use canonical event data if available, otherwise fallback to payload
+      const value = event.canonical ? event.canonical.value : numericValue(event.payload.data?.value ?? 0);
+      const currency = event.canonical ? event.canonical.currency : (event.payload.data?.currency ?? "USD");
+      
+      // For items, we need to map CanonicalEvent items (camelCase) to InternalEvent items (snake_case/legacy format if needed)
+      // InternalEvent.items is Json, so we can store the clean canonical items or the raw ones.
+      // Usually InternalEvent items should be somewhat standardized.
+      // Let's use canonical items if available, but they have id/name/price/quantity.
+      // The old logic used payload.data.items which was raw.
+      const items = event.canonical?.items ?? (Array.isArray(event.payload.data?.items) ? event.payload.data?.items : []);
+
       const transactionId = event.payload.eventName === "checkout_completed" ? (event.payload.data?.orderId ?? event.orderId ?? null) : null;
       
       // P0-4: Unify event_id for purchase events to match webhook (orderId)
