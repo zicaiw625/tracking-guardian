@@ -16,9 +16,10 @@ export function LanguageSwitcher() {
       const formData = new FormData();
       formData.append("locale", lng);
       fetcher.submit(formData, { method: "post", action: "/actions/set-locale" });
+      i18n.changeLanguage(lng);
       setActive(false);
     },
-    [fetcher]
+    [fetcher, i18n]
   );
 
   const activator = (
