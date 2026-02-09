@@ -165,6 +165,7 @@ export async function processIngestQueue(
           // Re-queue with incremented retry count
           // Push to Head of Queue (will be processed last, acting as backoff)
           entry.retryCount = currentRetry + 1;
+          entry.enqueuedAt = Date.now(); // Update timestamp to prevent immediate stuck recovery
           await redis.lPush(QUEUE_KEY, JSON.stringify(entry));
           await redis.lRem(PROCESSING_KEY, 1, raw);
         }

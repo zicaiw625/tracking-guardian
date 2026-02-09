@@ -214,7 +214,21 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
             }
             for (const edge of edges) {
                 const gidMatch = edge.node.id.match(/ScriptTag\/(\d+)/);
-                const numericId = gidMatch ? parseInt(gidMatch[1], 10) : 0;
+                let numericId = gidMatch ? parseInt(gidMatch[1], 10) : 0;
+
+                if (numericId === 0) {
+                    // Fallback: generate a stable numeric ID from the GID string to avoid collisions
+                    let hash = 0;
+                    const str = edge.node.id;
+                    for (let i = 0; i < str.length; i++) {
+                        const char = str.charCodeAt(i);
+                        hash = ((hash << 5) - hash) + char;
+                        hash = hash & hash; // Convert to 32bit integer
+                    }
+                    numericId = Math.abs(hash);
+                    logger.warn(`Failed to parse numeric ID from ScriptTag GID ${edge.node.id}, using hash: ${numericId}`);
+                }
+
                 allTags.push({
                     id: numericId,
                     gid: edge.node.id,
