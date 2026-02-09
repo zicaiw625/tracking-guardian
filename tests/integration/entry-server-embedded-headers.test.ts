@@ -42,23 +42,6 @@ vi.mock("../../app/utils/security-headers", () => ({
     "object-src": ["'none'"],
     "upgrade-insecure-requests": [],
   },
-  getAppPageCspDirectives: ({ nonce, frameAncestors }: { nonce: string; frameAncestors?: string[] }) => ({
-    "default-src": ["'self'"],
-    "script-src": ["'self'", `'nonce-${nonce}'`, "https://cdn.shopify.com"],
-    "style-src": ["'self'", "'unsafe-inline'", "https://cdn.shopify.com"],
-    "img-src": ["'self'", "data:", "https:", "blob:"],
-    "font-src": ["'self'", "https://cdn.shopify.com"],
-    "connect-src": [
-      "'self'",
-      "https://cdn.shopify.com",
-      "https://monorail-edge.shopifysvc.com",
-    ],
-    "frame-ancestors": frameAncestors ?? ["https://admin.shopify.com", "https://*.shopify.com", "https://*.myshopify.com"],
-    "base-uri": ["'self'"],
-    "form-action": ["'self'", "https://*.shopify.com", "https://*.myshopify.com"],
-    "object-src": ["'none'"],
-    "upgrade-insecure-requests": [],
-  }),
   API_SECURITY_HEADERS: {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
@@ -158,3 +141,4 @@ describe("entry.server embedded headers", () => {
     expect(vi.mocked(addDocumentResponseHeaders)).toHaveBeenCalledTimes(1);
   });
 });
+

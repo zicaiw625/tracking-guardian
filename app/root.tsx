@@ -65,12 +65,14 @@ export function ErrorBoundary() {
   } else if (error instanceof Error) {
     message = error.message || t("errorPage.defaultMessage");
     code = error.name || t("common.error");
+    console.error("[Root ErrorBoundary] Caught error:", error);
     if (error.stack) {
       import("./utils/debug-log.client").then(({ debugError }) => {
         debugError("Error stack:", error.stack);
       });
     }
   } else if (typeof error === "object" && error !== null) {
+    console.error("[Root ErrorBoundary] Caught non-standard error:", error);
     const errObj = error as Record<string, unknown>;
     message = typeof errObj.message === "string"
       ? errObj.message

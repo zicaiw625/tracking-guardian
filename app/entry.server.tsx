@@ -1,5 +1,4 @@
 import { PassThrough } from "stream";
-import { randomBytes } from "node:crypto";
 import { renderToPipeableStream } from "react-dom/server";
 import { RemixServer } from "@remix-run/react";
 import { createReadableStreamFromReadable, type EntryContext, } from "@remix-run/node";
@@ -14,7 +13,7 @@ import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets.serve
 import { validateEncryptionConfig } from "./utils/crypto.server";
 import { validateConfig, logConfigStatus, API_CONFIG } from "./utils/config.server";
 import { logger } from "./utils/logger.server";
-import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, getProductionSecurityHeaders, validateSecurityHeaders, buildCspHeader, getAppPageCspDirectives } from "./utils/security-headers";
+import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, getProductionSecurityHeaders, validateSecurityHeaders, buildCspHeader, APP_PAGE_CSP_DIRECTIVES } from "./utils/security-headers";
 import { RedisClientFactory } from "./utils/redis-client.server";
 import prisma from "./db.server";
 import { getCorsHeadersPreBody } from "./lib/pixel-events/cors";
@@ -144,11 +143,11 @@ export default async function handleRequest(request: Request, responseStatusCode
     }
 
     responseHeaders.delete("X-Frame-Options");
-    const nonce = randomBytes(16).toString("base64");
-    responseHeaders.set(
-      "Content-Security-Policy",
-      buildCspHeader(getAppPageCspDirectives({ nonce, frameAncestors }))
-    );
+    const cspDirectives = {
+      ...APP_PAGE_CSP_DIRECTIVES,
+      "frame-ancestors": frameAncestors,
+    };
+    responseHeaders.set("Content-Security-Policy", buildCspHeader(cspDirectives));
     const documentSecurityHeaders =
       process.env.NODE_ENV === "production"
         ? getProductionSecurityHeaders(EMBEDDED_APP_HEADERS)
@@ -179,7 +178,7 @@ export default async function handleRequest(request: Request, responseStatusCode
         let abortTimeoutId: NodeJS.Timeout | null = null;
         const { pipe, abort } = renderToPipeableStream(
             <I18nextProvider i18n={instance}>
-                <RemixServer context={remixContext} url={request.url} abortDelay={ABORT_DELAY} nonce={nonce}/>
+                <RemixServer context={remixContext} url={request.url} abortDelay={ABORT_DELAY}/>
             </I18nextProvider>,
             {
             [callbackName]: () => {

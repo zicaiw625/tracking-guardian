@@ -39,7 +39,6 @@ import {
   getVerificationRun,
 } from "~/services/verification.server";
 import { i18nServer } from "~/i18n.server";
-import { logger } from "~/utils/logger.server";
 
 interface VerificationRunSummary {
   passedTests: number;
@@ -78,10 +77,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     try {
       latestRun = await getVerificationRun(latestRunRaw.id);
     } catch (e) {
-      logger.warn("Failed to get latest verification run", {
-        runId: latestRunRaw.id,
-        errorMessage: e instanceof Error ? e.message : String(e),
-      });
+      console.error("Failed to get latest verification run:", e);
     }
   }
 
@@ -105,10 +101,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     try {
       summary = (h.summaryJson || {}) as unknown as VerificationRunSummary;
     } catch (e) {
-      logger.warn("Failed to parse summaryJson for verification run", {
-        runId: h.id,
-        errorMessage: e instanceof Error ? e.message : String(e),
-      });
+      console.error(`Failed to parse summaryJson for run ${h.id}`, e);
     }
     return {
       runId: h.id,
@@ -151,10 +144,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         expectedEvents = parsed;
       }
     } catch (e) {
-      logger.warn("Failed to parse expectedEvents", {
-        itemId,
-        errorMessage: e instanceof Error ? e.message : String(e),
-      });
+      console.error("Failed to parse expectedEvents:", e);
       return json({ success: false, error: t("verification.errors.invalidEventData") }, { status: 400 });
     }
 
@@ -202,7 +192,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       return json({ success: true, message: t("verification.page.actions.runStarted"), runId });
     } catch (error) {
-      logger.error("Verification failed", error);
+      console.error("Verification failed:", error);
       const errorMessage = error instanceof Error ? error.message : t("verification.errors.verificationFailed");
       return json({ success: false, error: errorMessage }, { status: 500 });
     }

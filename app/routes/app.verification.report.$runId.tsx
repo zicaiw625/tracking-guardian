@@ -153,7 +153,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   return json({ success: false, error: "Unknown action" }, { status: 400 });
 };
 
-import { useTranslation, Trans } from "react-i18next";
+import { useTranslation } from "react-i18next";
 
 // ... existing imports ...
 
@@ -472,10 +472,10 @@ export default function VerificationReportPage() {
           <Banner tone="warning">
             <BlockStack gap="200">
               <Text as="p" variant="bodySm" fontWeight="semibold">
-                {t("verification.originWarningTitle")}
+                {t("verification.report.originWarning.title")}
               </Text>
               <Text as="p" variant="bodySm">
-                {t("verification.originWarningBody")}
+                <span dangerouslySetInnerHTML={{ __html: t("verification.report.originWarning.desc") }} />
               </Text>
             </BlockStack>
           </Banner>
@@ -637,38 +637,44 @@ export default function VerificationReportPage() {
 
 function SandboxLimitationsInfo() {
     const { t } = useTranslation();
+    // This component renders the detailed sandbox limitations info 
+    // Uses translations to avoid hardcoded text
     return (
         <Banner tone="info">
             <BlockStack gap="200">
-                <Text as="p" variant="bodySm">{t("verification.sandboxDescription")}</Text>
-                <Text as="p" variant="bodySm" fontWeight="semibold">{t("verification.limitFieldsTitle")}</Text>
-                <List type="bullet">
-                    <List.Item>
-                        <Text as="span" variant="bodySm">
-                            <strong>checkout_completed / checkout_started: </strong>{t("verification.limitFields.checkout_completed")}
-                        </Text>
-                    </List.Item>
-                    <List.Item>
-                        <Text as="span" variant="bodySm">
-                            <strong>checkout_contact_info_submitted: </strong>{t("verification.limitFields.checkout_contact_info_submitted")}
-                        </Text>
-                    </List.Item>
-                    <List.Item>
-                        <Text as="span" variant="bodySm">
-                            <strong>checkout_shipping_info_submitted: </strong>{t("verification.limitFields.checkout_shipping_info_submitted")}
-                        </Text>
-                    </List.Item>
-                    <List.Item>
-                        <Text as="span" variant="bodySm">
-                            <strong>payment_info_submitted: </strong>{t("verification.limitFields.payment_info_submitted")}
-                        </Text>
-                    </List.Item>
-                </List>
-                <Text as="p" variant="bodySm" fontWeight="semibold">{t("verification.unavailableEventsTitle")}</Text>
-                <Text as="p" variant="bodySm">{t("verification.unavailableEvents.description")}</Text>
-                <Text as="p" variant="bodySm" tone="subdued">
-                    <Trans i18nKey="verification.autoTagNote" components={{ strong: <strong /> }} />
+                <Text as="p" variant="bodySm">
+                    <span dangerouslySetInnerHTML={{__html: t("verification.report.sandbox.infoBanner.p1")}} />
                 </Text>
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                    <span dangerouslySetInnerHTML={{__html: t("verification.report.sandbox.infoBanner.p2")}} />
+                </Text>
+                <Text as="p" variant="bodySm">
+                    <span dangerouslySetInnerHTML={{__html: t("verification.report.sandbox.infoBanner.p3")}} />
+                </Text>
+                <Text as="p" variant="bodySm">
+                    <span dangerouslySetInnerHTML={{__html: t("verification.report.sandbox.infoBanner.p4")}} />
+                </Text>
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                    {t("verification.report.sandbox.infoBanner.knownLimits")}
+                </Text>
+                <List type="bullet">
+                    {(t("verification.report.sandbox.infoBanner.limitsList", { returnObjects: true }) as string[]).map((item, i) => (
+                        <List.Item key={i}>
+                             <Text as="span" variant="bodySm">
+                                <span dangerouslySetInnerHTML={{__html: item}} />
+                             </Text>
+                        </List.Item>
+                    ))}
+                </List>
+                 <Text as="p" variant="bodySm" fontWeight="semibold">
+                    {t("verification.report.sandbox.infoBanner.unavailableEventsTitle")}
+                </Text>
+                 <Text as="p" variant="bodySm">
+                    {t("verification.report.sandbox.infoBanner.unavailableEventsDesc")}
+                </Text>
+                 <Text as="p" variant="bodySm" tone="subdued">
+                    <span dangerouslySetInnerHTML={{__html: t("verification.report.sandbox.infoBanner.autoLabelDesc")}} />
+                 </Text>
             </BlockStack>
         </Banner>
     );
