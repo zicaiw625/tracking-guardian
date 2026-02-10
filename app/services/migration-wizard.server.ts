@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { randomUUID } from "crypto";
 import prisma from "../db.server";
+import { postJson } from "../utils/http";
 import { logger } from "../utils/logger.server";
 import { encryptJson, decryptJson } from "../utils/crypto.server";
 import { saveConfigSnapshot } from "./pixel-rollback.server";
@@ -426,14 +427,10 @@ export async function validateTestEnvironment(
         ],
       };
       try {
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
+        const res = await postJson(url, body);
         eventSent = res.ok;
         if (!res.ok) {
-          const text = await res.text();
+          const text = typeof res.data === "string" ? res.data : JSON.stringify(res.data);
           sendError = `GA4 ${res.status}: ${text.slice(0, 200)}`;
         }
       } catch (e) {
@@ -459,17 +456,14 @@ export async function validateTestEnvironment(
       }
       const body = { data: [eventPayload] };
       try {
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
+        const res = await postJson(url, body, {
+          headers: {
             "Authorization": `Bearer ${accessToken}`,
           },
-          body: JSON.stringify(body),
         });
         eventSent = res.ok;
         if (!res.ok) {
-          const text = await res.text();
+          const text = typeof res.data === "string" ? res.data : JSON.stringify(res.data);
           sendError = `Meta ${res.status}: ${text.slice(0, 200)}`;
         }
       } catch (e) {
@@ -498,17 +492,14 @@ export async function validateTestEnvironment(
         body.test_event_code = credentials.testEventCode;
       }
       try {
-        const res = await fetch(url, {
-          method: "POST",
+        const res = await postJson(url, body, {
           headers: {
-            "Content-Type": "application/json",
             "Access-Token": accessToken,
           },
-          body: JSON.stringify(body),
         });
         eventSent = res.ok;
         if (!res.ok) {
-          const text = await res.text();
+          const text = typeof res.data === "string" ? res.data : JSON.stringify(res.data);
           sendError = `TikTok ${res.status}: ${text.slice(0, 200)}`;
         }
       } catch (e) {

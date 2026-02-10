@@ -10,6 +10,7 @@ import { readTextWithLimit } from "../../utils/body-reader";
 import prisma from "../../db.server";
 import { processIngestQueue, recoverStuckProcessingItems } from "../../lib/pixel-events/ingest-queue.server";
 import { runDispatchWorker } from "../../services/dispatch/run-worker.server";
+import { processGDPRJobs } from "../../services/gdpr/job-processor";
 import { batchAggregateMetrics } from "../../services/dashboard-aggregation.server";
 import { runAlertDetectionForAllShops } from "../../services/alert-detection.server";
 
@@ -22,10 +23,8 @@ async function runCronTasks(task: string, requestId: string): Promise<Record<str
 
   if (task === "all" || task === "process_gdpr") {
     logger.info("[Cron] Processing GDPR jobs", { requestId });
-    results.process_gdpr = {
-      status: "skipped",
-      message: "GDPR requests are processed synchronously via webhook handlers",
-    };
+    const gdprResult = await processGDPRJobs();
+    results.process_gdpr = gdprResult;
   }
 
   if (task === "all" || task === "cleanup") {

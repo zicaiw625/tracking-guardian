@@ -1,20 +1,118 @@
 import { logger } from "../../utils/logger.server";
-import type {
-  ProcessGDPRJobResult,
-  ProcessGDPRJobsResult,
-} from "./types";
+import prisma from "../../db.server";
+import { GDPRJobStatus } from "../../types/enums";
+import { processDataRequest } from "./handlers/data-request";
+import { processCustomerRedact } from "./handlers/customer-redact";
+import { processShopRedact } from "./handlers/shop-redact";
+import type { ProcessGDPRJobsResult, GDPRJobResult } from "./types";
 
-export async function processGDPRJob(_jobId: string): Promise<ProcessGDPRJobResult> {
-  logger.warn("[GDPR] processGDPRJob called but GDPR job queue is no longer supported. GDPR requests are now processed synchronously via webhook handlers.");
-  return { success: false, error: "GDPR job queue is no longer supported" };
+function summarizeGdprResult(jobType: string, result: GDPRJobResult | unknown): Record<string, unknown> | undefined {
+  if (!result || typeof result !== "object") return undefined;
+  const r = result as Record<string, unknown>;
+  if (jobType === "data_request") {
+    const dataLocated = (r.dataLocated && typeof r.dataLocated === "object") ? (r.dataLocated as Record<string, unknown>) : undefined;
+    const summarizeLocated = (v: unknown) => {
+      if (!v || typeof v !== "object") return { count: 0 };
+      const o = v as Record<string, unknown>;
+      const count = typeof o.count === "number" ? o.count : 0;
+      return { count };
+    };
+    return {
+      ordersIncludedCount: Array.isArray(r.ordersIncluded) ? r.ordersIncluded.length : 0,
+      dataLocated: dataLocated
+        ? {
+            conversionLogs: summarizeLocated(dataLocated.conversionLogs),
+            pixelEventReceipts: summarizeLocated(dataLocated.pixelEventReceipts),
+          }
+        : undefined,
+      exportedAt: typeof r.exportedAt === "string" ? r.exportedAt : undefined,
+      exportFormat: r.exportFormat === "json" ? "json" : undefined,
+      exportVersion: typeof r.exportVersion === "string" ? r.exportVersion : undefined,
+    };
+  }
+  if (jobType === "customer_redact") {
+    const deletedCounts = (r.deletedCounts && typeof r.deletedCounts === "object") ? (r.deletedCounts as Record<string, unknown>) : undefined;
+    return {
+      ordersRedactedCount: Array.isArray(r.ordersRedacted) ? r.ordersRedacted.length : 0,
+      deletedCounts,
+    };
+  }
+  if (jobType === "shop_redact") {
+    const deletedCounts = (r.deletedCounts && typeof r.deletedCounts === "object") ? (r.deletedCounts as Record<string, unknown>) : undefined;
+    return {
+      deletedCounts,
+    };
+  }
+  return undefined;
 }
 
 export async function processGDPRJobs(): Promise<ProcessGDPRJobsResult> {
-  logger.warn("[GDPR] processGDPRJobs called but GDPR job queue is no longer supported. GDPR requests are now processed synchronously via webhook handlers.");
-  return { processed: 0, succeeded: 0, failed: 0 };
+  const jobs = await prisma.gDPRJob.findMany({
+    where: {
+      status: { in: ["queued", "pending", "PENDING", "QUEUED"] },
+    },
+    take: 5,
+    orderBy: { createdAt: "asc" },
+  });
+
+  let processed = 0;
+  let succeeded = 0;
+  let failed = 0;
+
+  for (const job of jobs) {
+    processed++;
+    const { id, shopDomain, jobType, payload } = job;
+    
+    try {
+      await prisma.gDPRJob.update({
+        where: { id },
+        data: { status: GDPRJobStatus.PROCESSING, processedAt: new Date() },
+      });
+
+      let result: any;
+      const actualPayload = (payload as any)?.parsedPayload;
+
+      if (!actualPayload) {
+          throw new Error("Missing parsed payload in job data");
+      }
+
+      if (jobType === "data_request") {
+        result = await processDataRequest(shopDomain, actualPayload);
+      } else if (jobType === "customer_redact") {
+        result = await processCustomerRedact(shopDomain, actualPayload);
+      } else if (jobType === "shop_redact") {
+        result = await processShopRedact(shopDomain, actualPayload);
+      } else {
+        throw new Error(`Unknown job type: ${jobType}`);
+      }
+
+      await prisma.gDPRJob.update({
+        where: { id },
+        data: {
+          status: GDPRJobStatus.COMPLETED,
+          completedAt: new Date(),
+          result: summarizeGdprResult(jobType, result) as any,
+        },
+      });
+      succeeded++;
+    } catch (error) {
+      failed++;
+      logger.error(`Failed to process GDPR job ${id}`, { error: String(error) });
+      await prisma.gDPRJob.update({
+        where: { id },
+        data: {
+          status: GDPRJobStatus.FAILED,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          completedAt: new Date(),
+        },
+      });
+    }
+  }
+
+  return { processed, succeeded, failed };
 }
 
-export async function getGDPRJobStatus(_shopDomain?: string): Promise<{
+export async function getGDPRJobStatus(shopDomain?: string): Promise<{
   queued: number;
   processing: number;
   completed: number;
@@ -28,12 +126,37 @@ export async function getGDPRJobStatus(_shopDomain?: string): Promise<{
     completedAt: Date | null;
   }>;
 }> {
-  logger.warn("[GDPR] getGDPRJobStatus called but GDPR job queue is no longer supported. GDPR requests are now processed synchronously via webhook handlers.");
+  const where = shopDomain ? { shopDomain } : {};
+  const [queued, processing, completed, failed, recentJobs] = await Promise.all([
+    prisma.gDPRJob.count({ where: { ...where, status: "queued" } }),
+    prisma.gDPRJob.count({ where: { ...where, status: "processing" } }),
+    prisma.gDPRJob.count({ where: { ...where, status: "completed" } }),
+    prisma.gDPRJob.count({ where: { ...where, status: "failed" } }),
+    prisma.gDPRJob.findMany({
+      where,
+      take: 10,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        shopDomain: true,
+        jobType: true,
+        status: true,
+        createdAt: true,
+        completedAt: true,
+      },
+    }),
+  ]);
+
   return {
-    queued: 0,
-    processing: 0,
-    completed: 0,
-    failed: 0,
-    recentJobs: [],
+    queued,
+    processing,
+    completed,
+    failed,
+    recentJobs,
   };
+}
+
+export async function processGDPRJob(jobId: string): Promise<any> {
+    // Deprecated, use processGDPRJobs
+    return { success: false, error: "Use processGDPRJobs" };
 }

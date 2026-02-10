@@ -35,7 +35,8 @@ export async function sendEvent(
     // P1-1: Add engagement_time_msec to ensure events are treated as engaging
     engagement_time_msec: 1,
     // P1: session_id must be a number (Date.now() or timestamp)
-    session_id: event.transaction_id ? undefined : Date.now(), 
+    session_id: Number(event.transaction_id ? (event.timestamp ? Number(event.timestamp) : Date.now()) : Date.now()),
+    timestamp_micros: Number(event.timestamp ?? Date.now()) * 1000,
     value: numericValue(event.value),
     currency: event.currency ?? "USD",
   };

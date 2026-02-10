@@ -53,6 +53,19 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
   if (process.env.SERVER_SIDE_CONVERSIONS_ENABLED !== "true") {
     return { processed: 0, sent: 0, failed: 0 };
   }
+
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+  await prisma.eventDispatchJob.updateMany({
+    where: {
+      status: "PROCESSING",
+      updatedAt: { lt: fiveMinutesAgo },
+    },
+    data: {
+      status: "PENDING",
+      next_retry_at: new Date(),
+    },
+  });
+
   const maxJobs = options?.maxJobs ?? DEFAULT_MAX_JOBS;
   const now = new Date();
   const jobs = await listPendingJobs(maxJobs, now);
@@ -127,7 +140,17 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
         }
         if (currentRate > RATE_LIMIT_MAX_REQUESTS) {
           logger.warn(`[Dispatch Rate Limit] Exceeded for ${job.InternalEvent.shopId}:${job.destination}`);
-          // Skip this job for now, it will be retried later
+          const delayMs = (RATE_LIMIT_WINDOW_SECONDS * 1000) + Math.floor(Math.random() * 500);
+          await prisma.eventDispatchJob.update({
+            where: { id: job.id },
+            data: {
+              status: "PENDING",
+              next_retry_at: new Date(Date.now() + delayMs),
+              last_error: "Rate limited (redis)",
+              last_response_code: 429,
+              updatedAt: new Date(),
+            },
+          });
           continue;
         }
       } catch (e) {
