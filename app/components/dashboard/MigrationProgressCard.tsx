@@ -3,28 +3,25 @@ import { Badge, BlockStack, Box, Button, Card, Divider, Icon, InlineStack, Progr
 import { CheckCircleIcon, ClockIcon } from "~/components/icons";
 import { EnhancedEmptyState } from "~/components/ui";
 import type { MigrationProgress } from "~/types/dashboard";
-import { useTranslation } from "react-i18next";
 
 export const MigrationProgressCard = memo(function MigrationProgressCard({
   migrationProgress,
 }: {
   migrationProgress?: MigrationProgress;
 }) {
-  const { t } = useTranslation();
-
   if (!migrationProgress) {
     return (
       <Card>
         <BlockStack gap="400">
           <Text as="h2" variant="headingMd">
-            {t("dashboard.migration.title")}
+            迁移进度
           </Text>
           <EnhancedEmptyState
             icon="📊"
-            title={t("dashboard.migration.empty.title")}
-            description={t("dashboard.migration.empty.description")}
+            title="暂无迁移进度"
+            description="开始迁移后，进度将在这里显示。"
             primaryAction={{
-              content: t("dashboard.migration.empty.action"),
+              content: "开始体检",
               url: "/app/scan",
             }}
           />
@@ -37,7 +34,7 @@ export const MigrationProgressCard = memo(function MigrationProgressCard({
       <BlockStack gap="400">
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h2" variant="headingMd">
-            {t("dashboard.migration.title")}
+            迁移进度
           </Text>
           <Text as="span" variant="bodyMd" tone="subdued">
             {migrationProgress.progressPercentage}%
@@ -48,24 +45,20 @@ export const MigrationProgressCard = memo(function MigrationProgressCard({
           <BlockStack gap="300">
             <Divider />
             <Text as="h3" variant="headingSm">
-              {t("dashboard.migration.details")}
+              详细进度
             </Text>
             <BlockStack gap="200">
               {migrationProgress.auditCompletion && (
                 <InlineStack align="space-between" blockAlign="center">
-                  <Text as="span" variant="bodySm">{t("dashboard.migration.audit")}</Text>
+                  <Text as="span" variant="bodySm">Audit 完成度</Text>
                   <Badge tone={migrationProgress.auditCompletion.completed ? "success" : migrationProgress.auditCompletion.status === "in_progress" ? "info" : undefined}>
-                    {migrationProgress.auditCompletion.completed 
-                      ? t("dashboard.migration.status.completed") 
-                      : migrationProgress.auditCompletion.status === "in_progress" 
-                        ? t("dashboard.migration.status.in_progress") 
-                        : t("dashboard.migration.status.pending")}
+                    {migrationProgress.auditCompletion.completed ? "已完成" : migrationProgress.auditCompletion.status === "in_progress" ? "进行中" : "待开始"}
                   </Badge>
                 </InlineStack>
               )}
               {migrationProgress.pixelsStatus && (
                 <InlineStack align="space-between" blockAlign="center">
-                  <Text as="span" variant="bodySm">{t("dashboard.migration.pixels")}</Text>
+                  <Text as="span" variant="bodySm">Pixels 状态</Text>
                   <InlineStack gap="200">
                     <Badge tone={migrationProgress.pixelsStatus.test > 0 ? "warning" : undefined}>
                       {`Test: ${migrationProgress.pixelsStatus.test}`}
@@ -78,23 +71,17 @@ export const MigrationProgressCard = memo(function MigrationProgressCard({
               )}
               {migrationProgress.modulesEnabled !== undefined && (
                 <InlineStack align="space-between" blockAlign="center">
-                  <Text as="span" variant="bodySm">{t("dashboard.migration.modules")}</Text>
+                  <Text as="span" variant="bodySm">Modules 启用数</Text>
                   <Badge tone={migrationProgress.modulesEnabled > 0 ? "success" : undefined}>
-                    {t("dashboard.migration.count", { count: migrationProgress.modulesEnabled })}
+                    {`${migrationProgress.modulesEnabled} 个`}
                   </Badge>
                 </InlineStack>
               )}
               {migrationProgress.verificationLatest && (
                 <InlineStack align="space-between" blockAlign="center">
-                  <Text as="span" variant="bodySm">{t("dashboard.migration.verification")}</Text>
+                  <Text as="span" variant="bodySm">Verification 最近结果</Text>
                   <Badge tone={migrationProgress.verificationLatest.status === "completed" ? "success" : migrationProgress.verificationLatest.status === "running" ? "info" : undefined}>
-                    {migrationProgress.verificationLatest.status === "completed" 
-                      ? t("dashboard.migration.status.completed") 
-                      : migrationProgress.verificationLatest.status === "running" 
-                        ? t("dashboard.migration.status.running") 
-                        : migrationProgress.verificationLatest.status === "pending" 
-                          ? t("dashboard.migration.status.pending") 
-                          : t("dashboard.migration.status.no_record")}
+                    {migrationProgress.verificationLatest.status === "completed" ? "已完成" : migrationProgress.verificationLatest.status === "running" ? "运行中" : migrationProgress.verificationLatest.status === "pending" ? "待开始" : "无记录"}
                   </Badge>
                 </InlineStack>
               )}
@@ -123,7 +110,7 @@ export const MigrationProgressCard = memo(function MigrationProgressCard({
                   {stage.label}
                 </Text>
                 {isCurrent && (
-                  <Badge tone="info">{t("dashboard.migration.status.in_progress")}</Badge>
+                  <Badge tone="info">进行中</Badge>
                 )}
               </InlineStack>
             );
@@ -131,7 +118,7 @@ export const MigrationProgressCard = memo(function MigrationProgressCard({
         </BlockStack>
         {migrationProgress.progressPercentage < 100 && (
           <Button url="/app/scan" variant="primary">
-            {migrationProgress.currentStage === "audit" ? t("dashboard.migration.start") : t("dashboard.migration.continue")}
+            {migrationProgress.currentStage === "audit" ? "开始体检" : "继续迁移"}
           </Button>
         )}
       </BlockStack>

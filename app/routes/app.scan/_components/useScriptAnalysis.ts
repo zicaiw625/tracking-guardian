@@ -4,7 +4,6 @@ import { analyzeScriptContent } from "~/services/scanner/content-analysis";
 import { calculateRiskScore } from "~/services/scanner/risk-assessment";
 import { containsSensitiveInfo } from "~/utils/security";
 import { TIMEOUTS } from "~/utils/scan-constants";
-import { useTranslation } from "react-i18next";
 
 type IdleCallbackHandle = ReturnType<typeof requestIdleCallback>;
 
@@ -25,7 +24,6 @@ export function useScriptAnalysis(
     scriptAnalysisMaxContentLength: number,
     scriptAnalysisChunkSize: number
 ) {
-    const { t } = useTranslation();
     const [scriptContent, setScriptContent] = useState("");
     const [analysisResult, setAnalysisResult] = useState<ScriptAnalysisResult | null>(null);
     const [analysisError, setAnalysisError] = useState<string | null>(null);
@@ -62,11 +60,11 @@ export function useScriptAnalysis(
         }
         let errorMessage: string;
         if (error instanceof TypeError) {
-            errorMessage = t("scriptAnalysis.error.format");
+            errorMessage = "脚本格式错误，请检查输入内容";
         } else if (error instanceof RangeError) {
-            errorMessage = t("scriptAnalysis.error.tooLong");
+            errorMessage = "脚本内容过长，请分段分析";
         } else {
-            errorMessage = error instanceof Error ? error.message : t("scriptAnalysis.error.failed");
+            errorMessage = error instanceof Error ? error.message : "分析失败，请稍后重试";
         }
         if (isMountedRef.current) {
             setAnalysisError(errorMessage);
@@ -82,22 +80,22 @@ export function useScriptAnalysis(
               });
             });
         }
-    }, [t]);
+    }, []);
 
     const handleAnalyzeScript = useCallback(async () => {
         if (isAnalyzing) return;
         const MAX_CONTENT_LENGTH = scriptAnalysisMaxContentLength;
         const trimmedContent = scriptContent.trim();
         if (!trimmedContent) {
-            setAnalysisError(t("scriptAnalysis.error.empty"));
+            setAnalysisError("请输入脚本内容");
             return;
         }
         if (trimmedContent.length > MAX_CONTENT_LENGTH) {
-            setAnalysisError(t("scriptAnalysis.error.maxChars", { limit: MAX_CONTENT_LENGTH }));
+            setAnalysisError(`脚本内容过长（最多 ${MAX_CONTENT_LENGTH} 个字符）。请分段分析或联系支持。`);
             return;
         }
         if (containsSensitiveInfo(trimmedContent)) {
-            setAnalysisError(t("scriptAnalysis.error.sensitive"));
+            setAnalysisError("检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再分析。");
             return;
         }
         setIsAnalyzing(true);
@@ -251,7 +249,7 @@ export function useScriptAnalysis(
                 setAnalysisProgress(null);
             }
         }
-    }, [scriptContent, isAnalyzing, handleAnalysisError, scriptAnalysisMaxContentLength, scriptAnalysisChunkSize, t]);
+    }, [scriptContent, isAnalyzing, handleAnalysisError, scriptAnalysisMaxContentLength, scriptAnalysisChunkSize]);
 
     return {
         scriptContent,

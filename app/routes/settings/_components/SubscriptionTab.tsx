@@ -170,7 +170,9 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
                   {t("settings.subscription.moreInfoTitle")}
                 </Text>
                 <Text as="p" variant="bodySm">
-                  <Trans i18nKey="settings.subscription.moreInfoContent" components={{ 1: <a href="/app/billing" /> }} />
+                  <Trans i18nKey="settings.subscription.moreInfoContent">
+                    您可以访问 <a href="/app/billing">订阅与计费</a> 页面查看完整的账单历史、使用量统计和发票信息。
+                  </Trans>
                 </Text>
               </BlockStack>
             </Banner>

@@ -1,106 +1,88 @@
 import type { TestChecklist, TestChecklistItem } from "~/services/verification-checklist.server";
 import { escapeCSV } from "~/utils/csv";
-import type { TFunction } from "i18next";
 
 export type TestChecklistInput = Omit<TestChecklist, "generatedAt"> & { generatedAt?: Date | string };
 
-export function generateChecklistMarkdown(checklist: TestChecklistInput, t: TFunction): string {
+export function generateChecklistMarkdown(checklist: TestChecklistInput): string {
   const formatTime = (minutes: number) => {
     if (minutes < 60) {
-      return `${minutes} ${t("verification.checklist.minutes", "min")}`;
+      return `${minutes} 分钟`;
     }
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    return mins > 0 
-      ? `${hours} ${t("verification.checklist.hours", "h")} ${mins} ${t("verification.checklist.minutes", "min")}`
-      : `${hours} ${t("verification.checklist.hours", "h")}`;
+    return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
   };
-
-  const tr = (key: string) => t(key);
-
-  let markdown = `# ${tr("verification.checklist.title")}\n\n`;
-  markdown += `**${tr("verification.checklist.generatedAt")}**: ${new Date(checklist.generatedAt ?? 0).toLocaleString()}\n`;
-  markdown += `**${tr("verification.checklist.testType")}**: ${t(`verification.checklist.types.${checklist.testType}`)}\n`;
-  markdown += `**${tr("verification.checklist.totalTime")}**: ${formatTime(checklist.totalEstimatedTime)}\n`;
-  markdown += `**${tr("verification.checklist.required")}**: ${checklist.requiredItemsCount} | **${tr("verification.checklist.optional")}**: ${checklist.optionalItemsCount}\n\n`;
+  let markdown = `# 验收测试清单\n\n`;
+  markdown += `**生成时间**: ${new Date(checklist.generatedAt ?? 0).toLocaleString("zh-CN")}\n`;
+  markdown += `**测试类型**: ${checklist.testType === "quick" ? "快速测试" : checklist.testType === "full" ? "完整测试" : "自定义测试"}\n`;
+  markdown += `**预计总时间**: ${formatTime(checklist.totalEstimatedTime)}\n`;
+  markdown += `**必需项**: ${checklist.requiredItemsCount} | **可选项**: ${checklist.optionalItemsCount}\n\n`;
   markdown += `---\n\n`;
-
   const categories: Record<string, TestChecklistItem[]> = {
     purchase: [],
     cart: [],
   };
   for (const item of checklist.items) {
-    if (categories[item.category]) {
-      categories[item.category].push(item);
-    }
+    categories[item.category].push(item);
   }
-
   const categoryLabels: Record<string, string> = {
-    purchase: tr("verification.checklist.purchaseEvents"),
-    cart: tr("verification.checklist.cartEvents"),
+    purchase: "购买事件",
+    cart: "购物车事件",
   };
-
   for (const [category, items] of Object.entries(categories)) {
     if (items.length === 0) continue;
-    markdown += `## ${categoryLabels[category] || category}\n\n`;
+    markdown += `## ${categoryLabels[category]}\n\n`;
     for (const item of items) {
-      markdown += `### ${item.required ? "✅" : "⚪"} ${tr(item.name)}\n\n`;
-      markdown += `**${tr("verification.checklist.desc")}**: ${tr(item.description)}\n\n`;
-      markdown += `**${tr("verification.checklist.platforms")}**: ${item.platforms.join(", ")}\n\n`;
-      markdown += `**${tr("verification.checklist.estTime")}**: ${formatTime(item.estimatedTime)}\n\n`;
-      
-      markdown += `**${tr("verification.checklist.steps")}**:\n`;
+      markdown += `### ${item.required ? "✅" : "⚪"} ${item.name}\n\n`;
+      markdown += `**描述**: ${item.description}\n\n`;
+      markdown += `**支持平台**: ${item.platforms.join(", ")}\n\n`;
+      markdown += `**预计时间**: ${formatTime(item.estimatedTime)}\n\n`;
+      markdown += `**操作步骤**:\n`;
       for (const step of item.steps) {
-        markdown += `- ${tr(step)}\n`;
+        markdown += `- ${step}\n`;
       }
       markdown += `\n`;
-      
-      markdown += `**${tr("verification.checklist.expectedResults")}**:\n`;
+      markdown += `**预期结果**:\n`;
       for (const result of item.expectedResults) {
-        markdown += `- ${tr(result)}\n`;
+        markdown += `- ${result}\n`;
       }
       markdown += `\n`;
       markdown += `---\n\n`;
     }
   }
-
-  markdown += `## ${tr("verification.checklist.completeCheck")}\n\n`;
-  markdown += `- [ ] ${tr("verification.checklist.checks.required")}\n`;
-  markdown += `- [ ] ${tr("verification.checklist.checks.triggered")}\n`;
-  markdown += `- [ ] ${tr("verification.checklist.checks.params")}\n`;
-  markdown += `- [ ] ${tr("verification.checklist.checks.amount")}\n`;
-  markdown += `- [ ] ${tr("verification.checklist.checks.platforms")}\n`;
-  markdown += `- [ ] ${tr("verification.checklist.checks.thirdParty")}\n\n`;
-
+  markdown += `## 测试完成检查清单\n\n`;
+  markdown += `- [ ] 所有必需测试项已完成\n`;
+  markdown += `- [ ] 所有事件都正确触发\n`;
+  markdown += `- [ ] 事件参数完整（value、currency、items 等）\n`;
+  markdown += `- [ ] 订单金额与事件 value 一致\n`;
+  markdown += `- [ ] 所有配置的平台都收到事件\n`;
+  markdown += `- [ ] 在第三方平台（GA4/Meta/TikTok）中验证事件已接收\n\n`;
   return markdown;
 }
 
-export function generateChecklistCSV(checklist: TestChecklistInput, t: TFunction): string {
-  const tr = (key: string) => t(key);
+export function generateChecklistCSV(checklist: TestChecklistInput): string {
   const headers = [
-    tr("verification.checklist.headers.id"),
-    tr("verification.checklist.headers.name"),
-    tr("verification.checklist.headers.desc"),
-    tr("verification.checklist.headers.eventType"),
-    tr("verification.checklist.headers.required"),
-    tr("verification.checklist.headers.platforms"),
-    tr("verification.checklist.headers.estTime"),
-    tr("verification.checklist.headers.category"),
-    tr("verification.checklist.headers.status"),
+    "ID",
+    "名称",
+    "描述",
+    "事件类型",
+    "必需",
+    "平台",
+    "预计时间（分钟）",
+    "类别",
+    "状态",
   ];
-
   const rows = checklist.items.map((item) => [
     item.id,
-    tr(item.name),
-    tr(item.description),
+    item.name,
+    item.description,
     item.eventType,
-    item.required ? tr("verification.checklist.status.yes") : tr("verification.checklist.status.no"),
+    item.required ? "是" : "否",
     item.platforms.join(";"),
     String(item.estimatedTime),
     item.category,
-    tr("verification.checklist.status.untested"),
+    "未测试",
   ]);
-
   const csv = [headers, ...rows]
     .map((row) => row.map((cell) => escapeCSV(String(cell))).join(","))
     .join("\n");

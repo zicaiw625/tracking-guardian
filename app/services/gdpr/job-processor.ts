@@ -156,7 +156,7 @@ export async function getGDPRJobStatus(shopDomain?: string): Promise<{
   };
 }
 
-export async function processGDPRJob(_jobId: string): Promise<any> {
+export async function processGDPRJob(jobId: string): Promise<any> {
     // Deprecated, use processGDPRJobs
     return { success: false, error: "Use processGDPRJobs" };
 }

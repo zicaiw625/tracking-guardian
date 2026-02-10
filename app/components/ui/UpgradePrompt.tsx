@@ -11,7 +11,6 @@ import { LockIcon } from "~/components/icons";
 import { type PlanId } from "~/services/billing/plans";
 import { isPlanAtLeast, getPlanDefinition } from "~/utils/plans";
 import type { FeatureGateResult } from "~/services/billing/feature-gates.server";
-import { useTranslation, Trans } from "react-i18next";
 
 export interface UpgradePromptProps {
   feature: "pixel_destinations" | "ui_modules" | "verification" | "alerts" | "reconciliation" | "agency";
@@ -24,50 +23,76 @@ export interface UpgradePromptProps {
   compact?: boolean;
 }
 
-const FEATURE_KEYS: Record<
+const FEATURE_INFO: Record<
   UpgradePromptProps["feature"],
   {
-    nameKey: string;
-    descKey: string;
-    listKey: string;
+    name: string;
+    description: string;
     requiredPlan: PlanId;
+    featureList?: string[];
   }
 > = {
   pixel_destinations: {
-    nameKey: "upgradePrompt.features.pixel_destinations.name",
-    descKey: "upgradePrompt.features.pixel_destinations.description",
-    listKey: "upgradePrompt.features.pixel_destinations.list",
+    name: "像素目的地",
+    description: "标准事件映射 + 参数完整率（v1 最小可用迁移）",
     requiredPlan: "starter",
+    featureList: [
+      "支持 GA4、Meta、TikTok（v1 仅此 3 个平台，避开 Elevar/Littledata 高价位竞争）",
+      "标准事件映射：自动映射标准电商事件（purchase、view_item、add_to_cart 等）",
+      "参数完整率检查：验证事件参数（value、currency、items 等）的完整性",
+      "可下载 payload 证据：支持下载事件 payload，用于验证和存档",
+      "Test/Live 环境切换：支持测试环境验证后再发布到生产环境",
+      "技术说明：Web Pixel 运行在严格沙箱（Web Worker）环境中，很多能力受限",
+    ],
   },
   ui_modules: {
-    nameKey: "upgradePrompt.features.ui_modules.name",
-    descKey: "upgradePrompt.features.ui_modules.description",
-    listKey: "upgradePrompt.features.ui_modules.list",
+    name: "UI 模块",
+    description: "Thank you / Order status 页面侧自定义（以 Shopify 官方能力为准）",
     requiredPlan: "starter",
+    featureList: [
+      "当前版本不提供页面模块库",
+    ],
   },
   verification: {
-    nameKey: "upgradePrompt.features.verification.name",
-    descKey: "upgradePrompt.features.verification.description",
-    listKey: "upgradePrompt.features.verification.list",
+    name: "验收功能",
+    description: "验证迁移配置是否正确工作",
     requiredPlan: "starter",
+    featureList: [
+      "测试订单生成与验证",
+      "事件参数完整性检查",
+      "金额准确性验证",
+    ],
   },
   alerts: {
-    nameKey: "upgradePrompt.features.alerts.name",
-    descKey: "upgradePrompt.features.alerts.description",
-    listKey: "upgradePrompt.features.alerts.list",
+    name: "告警功能",
+    description: "实时监控追踪健康状态",
     requiredPlan: "growth",
+    featureList: [
+      "多渠道告警（邮件/Slack/Telegram）",
+      "事件失败率监控",
+      "自动异常检测",
+    ],
   },
   reconciliation: {
-    nameKey: "upgradePrompt.features.reconciliation.name",
-    descKey: "upgradePrompt.features.reconciliation.description",
-    listKey: "upgradePrompt.features.reconciliation.list",
+    name: "事件对账",
+    description: "对比 Shopify 订单与平台转化数据",
     requiredPlan: "growth",
+    featureList: [
+      "每日自动对账",
+      "偏差率分析",
+      "送达缺口定位",
+    ],
   },
   agency: {
-    nameKey: "upgradePrompt.features.agency.name",
-    descKey: "upgradePrompt.features.agency.description",
-    listKey: "upgradePrompt.features.agency.list",
+    name: "Agency 多店功能",
+    description: "管理多个店铺的批量操作",
     requiredPlan: "agency",
+    featureList: [
+      "多店工作区管理",
+      "批量 Audit 扫描",
+      "批量应用像素模板",
+      "迁移验收报告导出",
+    ],
   },
 };
 
@@ -81,21 +106,14 @@ export function UpgradePrompt({
   tone = "info",
   compact = false,
 }: UpgradePromptProps) {
-  const { t } = useTranslation();
-  const info = FEATURE_KEYS[feature];
+  const info = FEATURE_INFO[feature];
   const requiredPlan = getPlanDefinition(info.requiredPlan);
   const currentPlanDef = getPlanDefinition(currentPlan);
   const isUpgradeNeeded = currentPlan !== "free" && !isPlanAtLeast(currentPlan, info.requiredPlan);
   const needsUpgrade = isUpgradeNeeded || (gateResult && !gateResult.allowed);
-  
   if (!needsUpgrade && !gateResult) {
     return null;
   }
-  
-  const featureName = t(info.nameKey);
-  const featureDesc = t(info.descKey);
-  const featureList = t(info.listKey, { returnObjects: true }) as string[];
-
   const showLimitInfo = limit !== undefined && current !== undefined && current >= limit;
   const handleUpgrade = () => {
     if (onUpgrade) {
@@ -110,10 +128,10 @@ export function UpgradePrompt({
         <InlineStack gap="300" blockAlign="center">
           <LockIcon />
           <Text as="span" variant="bodySm">
-            {gateResult?.reason || t("upgradePrompt.required", { feature: featureName, plan: requiredPlan.name })}
+            {gateResult?.reason || `${info.name}需要 ${requiredPlan.name} 及以上套餐`}
           </Text>
           <Button size="slim" variant="plain" onClick={handleUpgrade}>
-            {t("upgradePrompt.upgrade")}
+            升级套餐
           </Button>
         </InlineStack>
       </Banner>
@@ -125,17 +143,17 @@ export function UpgradePrompt({
         <InlineStack gap="200" blockAlign="center">
           <LockIcon />
           <Text as="h3" variant="headingMd">
-            {t("upgradePrompt.title", { feature: featureName })}
+            {info.name}需要升级套餐
           </Text>
         </InlineStack>
         <Text as="p" tone="subdued">
-          {featureDesc}
+          {info.description}
         </Text>
         {showLimitInfo && (
           <Banner tone="warning">
             <Text as="p" variant="bodySm">
-              {t("upgradePrompt.usage", { current, limit, feature: featureName })}
-              {limit === 0 && t("upgradePrompt.notSupported")}
+              当前已使用 {current} / {limit} 个{info.name}。
+              {limit === 0 && "当前套餐不支持此功能。"}
             </Text>
           </Banner>
         )}
@@ -146,13 +164,13 @@ export function UpgradePrompt({
             </Text>
           </Banner>
         )}
-        {featureList && featureList.length > 0 && (
+        {info.featureList && (
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
-              {t("upgradePrompt.planIncludes", { plan: requiredPlan.name })}
+              {requiredPlan.name} 套餐包含：
             </Text>
             <List type="bullet">
-              {featureList.map((item, index) => (
+              {info.featureList.map((item, index) => (
                 <List.Item key={index}>{item}</List.Item>
               ))}
             </List>
@@ -160,14 +178,14 @@ export function UpgradePrompt({
         )}
         <BlockStack gap="200">
           <Text as="p" variant="bodySm" tone="subdued">
-            <Trans i18nKey="upgradePrompt.currentPlan" values={{ plan: currentPlanDef.name }} components={{ bold: <strong /> }} />
+            当前套餐：<strong>{currentPlanDef.name}</strong>
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
-            <Trans i18nKey="upgradePrompt.neededPlan" values={{ plan: requiredPlan.name, price: requiredPlan.priceLabel }} components={{ bold: <strong /> }} />
+            需要套餐：<strong>{requiredPlan.name}</strong>（{requiredPlan.priceLabel}/月）
           </Text>
         </BlockStack>
         <Button variant="primary" onClick={handleUpgrade} fullWidth>
-          {t("upgradePrompt.upgradeTo", { plan: requiredPlan.name })}
+          升级到 {requiredPlan.name}
         </Button>
       </BlockStack>
     </Card>

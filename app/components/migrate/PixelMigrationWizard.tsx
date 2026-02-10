@@ -26,7 +26,6 @@ import { TestingStep } from "./PixelMigrationWizard/TestingStep";
 import { useWizardState, type PlatformConfig } from "./PixelMigrationWizard/useWizardState";
 import { WIZARD_STEPS, type WizardStep } from "./PixelMigrationWizard/steps";
 import { DEFAULT_EVENT_MAPPINGS, PLATFORM_INFO } from "./PixelMigrationWizard/constants";
-import { useTranslation } from "react-i18next";
 
 export interface WizardTemplate {
   id: string;
@@ -90,7 +89,6 @@ export function PixelMigrationWizard({
   prefillAsset,
   pixelConfigs,
 }: PixelMigrationWizardProps) {
-  const { t } = useTranslation();
   const submit = useSubmit();
   const navigation = useNavigation();
   const { showSuccess, showError } = useToastContext();
@@ -271,13 +269,7 @@ export function PixelMigrationWizard({
     handleEnvironmentToggle,
     clearDraft,
   } = wizardState;
-  
-  const steps = useMemo(() => WIZARD_STEPS.map(step => ({
-    ...step,
-    label: t(`migrate.steps.${step.id}.label`),
-    description: t(`migrate.steps.${step.id}.description`),
-  })), [t]);
-
+  const steps = WIZARD_STEPS;
   const currentStepIndex = useMemo(() => {
     return steps.findIndex((step) => step.id === currentStep);
   }, [currentStep, steps]);
@@ -307,23 +299,20 @@ export function PixelMigrationWizard({
     const info = PLATFORM_INFO[platform];
     if (!config || !info) return errors;
     if (!config.enabled) return errors;
-    if (!config.platformId) {
-      errors.push(t("migrate.errors.missingField", { platform: info.name, field: "Pixel ID" }));
-    }
     info.credentialFields.forEach((field) => {
       if (field.key === "testEventCode") return;
       if (!config.credentials[field.key as keyof typeof config.credentials]) {
-        errors.push(t("migrate.errors.missingField", { platform: info.name, field: field.label }));
+        errors.push(`${info.name}: 缺少 ${field.label}`);
       }
     });
     return errors;
-  }, [platformConfigs, t]);
+  }, [platformConfigs]);
   const canProceedToNextStep = useCallback((): { canProceed: boolean; errors: string[] } => {
     const errors: string[] = [];
     switch (currentStep) {
       case "select":
         if (selectedPlatforms.size === 0) {
-          errors.push(t("migrate.errors.selectPlatform"));
+          errors.push("请至少选择一个平台");
         }
         break;
       case "credentials":
@@ -334,7 +323,7 @@ export function PixelMigrationWizard({
           info.credentialFields.forEach((field) => {
             if (field.key === "testEventCode") return;
             if (!config.credentials[field.key as keyof typeof config.credentials]) {
-              errors.push(t("migrate.errors.missingField", { platform: info.name, field: field.label }));
+              errors.push(`${info.name}: 缺少 ${field.label}`);
             }
           });
         });
@@ -343,11 +332,11 @@ export function PixelMigrationWizard({
         Array.from(selectedPlatforms).forEach((platform) => {
           const config = platformConfigs[platform];
           if (!config) {
-            errors.push(t("migrate.errors.configMissing", { platform: PLATFORM_INFO[platform]?.name || platform }));
+            errors.push(`${PLATFORM_INFO[platform]?.name || platform}: 配置不存在`);
             return;
           }
           if (!config.eventMappings || Object.keys(config.eventMappings).length === 0) {
-            errors.push(t("migrate.errors.mappingMissing", { platform: PLATFORM_INFO[platform]?.name || platform }));
+            errors.push(`${PLATFORM_INFO[platform]?.name || platform}: 至少需要配置一个事件映射`);
           }
         });
         break;
@@ -364,7 +353,7 @@ export function PixelMigrationWizard({
       canProceed: errors.length === 0,
       errors,
     };
-  }, [currentStep, selectedPlatforms, platformConfigs, validateConfig, t]);
+  }, [currentStep, selectedPlatforms, platformConfigs, validateConfig]);
   const handleSkip = useCallback(() => {
     const nextStepIndex = currentStepIndex + 1;
     if (nextStepIndex < steps.length) {
@@ -379,13 +368,13 @@ export function PixelMigrationWizard({
       allErrors.push(...errors);
     });
     if (allErrors.length > 0) {
-      showError(t("newPixelWizard.errors.configError", { errors: allErrors.join("; ") }));
+      showError(`配置错误：${allErrors.join("; ")}`);
       return;
     }
     const configs = enabledPlatforms.map((platform) => {
       const config = platformConfigs[platform];
       if (!config) {
-        throw new Error(t("newPixelWizard.errors.configNotFound", { platform }));
+        throw new Error(`配置不存在: ${platform}`);
       }
       return {
         platform,
@@ -402,20 +391,20 @@ export function PixelMigrationWizard({
       method: "post",
     });
     await clearDraft();
-    showSuccess(t("newPixelWizard.success.saved"));
+    showSuccess("配置已保存，正在验证...");
     setCurrentStep("testing");
-  }, [selectedPlatforms, platformConfigs, validateConfig, submit, showSuccess, showError, clearDraft, setCurrentStep, t]);
+  }, [selectedPlatforms, platformConfigs, validateConfig, submit, showSuccess, showError, clearDraft, setCurrentStep]);
   const handleNext = useCallback(() => {
     const validation = canProceedToNextStep();
     if (!validation.canProceed) {
-      showError(t("newPixelWizard.errors.completeStep", { errors: validation.errors.join("; ") }));
+      showError(`请先完成当前步骤：${validation.errors.join("; ")}`);
       return;
     }
     const nextStepIndex = currentStepIndex + 1;
     if (nextStepIndex < steps.length) {
       setCurrentStep(steps[nextStepIndex].id);
     }
-  }, [currentStepIndex, steps, canProceedToNextStep, showError, setCurrentStep, t]);
+  }, [currentStepIndex, steps, canProceedToNextStep, showError, setCurrentStep]);
   const renderStepContent = () => {
     switch (currentStep) {
       case "select":
@@ -478,14 +467,14 @@ export function PixelMigrationWizard({
         <BlockStack gap="300">
           <InlineStack align="space-between" blockAlign="center">
             <Text as="h2" variant="headingMd">
-              {t("migrate.title")}
+              像素迁移向导
             </Text>
             <InlineStack gap="200" blockAlign="center">
               <Badge tone="info">
-                {t("newPixelWizard.stepIndicator", { current: currentStepIndex + 1, total: steps.length })}
+                {`步骤 ${currentStepIndex + 1} / ${steps.length}`}
               </Badge>
               <Badge>
-                {`${String(Math.round(progress))}% ${t("migrate.actions.completed")}`}
+                {`${String(Math.round(progress))}% 完成`}
               </Badge>
             </InlineStack>
           </InlineStack>
@@ -592,7 +581,7 @@ export function PixelMigrationWizard({
         <Divider />
         <InlineStack align="space-between" wrap>
           <Button onClick={onCancel} disabled={isSubmitting}>
-            {t("migrate.actions.cancel")}
+            取消
           </Button>
           <InlineStack gap="200" wrap>
             {currentStepIndex > 0 && (
@@ -603,7 +592,7 @@ export function PixelMigrationWizard({
                 }}
                 disabled={isSubmitting}
               >
-                {t("migrate.actions.prev")}
+                上一步
               </Button>
             )}
             {currentStep !== "select" &&
@@ -614,7 +603,7 @@ export function PixelMigrationWizard({
                 onClick={handleSkip}
                 disabled={isSubmitting}
               >
-                {t("migrate.actions.skip")}
+                跳过此步
               </Button>
             )}
             {currentStep === "review" ? (
@@ -624,7 +613,7 @@ export function PixelMigrationWizard({
                 loading={isSubmitting}
                 icon={CheckCircleIcon}
               >
-                {t("migrate.actions.save")}
+                保存配置
               </Button>
             ) : currentStep !== "testing" ? (
               <Button
@@ -633,7 +622,7 @@ export function PixelMigrationWizard({
                 disabled={isSubmitting}
                 icon={ArrowRightIcon}
               >
-                {t("migrate.actions.next")}
+                下一步
               </Button>
             ) : null}
           </InlineStack>

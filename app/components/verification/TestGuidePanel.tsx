@@ -1,7 +1,6 @@
 import { Card, BlockStack, InlineStack, Button, Box, Divider, List, Text, Collapsible, Badge } from "@shopify/polaris";
 import { ClipboardIcon } from "~/components/icons";
 import { PlatformBadge } from "./VerificationBadges";
-import { useTranslation } from "react-i18next";
 
 export interface TestGuideStep {
   step: number;
@@ -30,31 +29,30 @@ export function TestGuidePanel({
   guideExpanded,
   onGuideExpandedChange,
 }: TestGuidePanelProps) {
-  const { t } = useTranslation();
   return (
     <Card>
       <BlockStack gap="400">
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h2" variant="headingMd">
-            📋 {t("verification.guidePanel.title")}
+            📋 测试订单指引
           </Text>
           <InlineStack gap="200">
             <Button icon={ClipboardIcon} onClick={onCopyGuide} size="slim">
-              {t("verification.guidePanel.copy")}
+              复制指引
             </Button>
             <Button
               onClick={() => onGuideExpandedChange(!guideExpanded)}
               size="slim"
               variant="plain"
             >
-              {guideExpanded ? t("verification.guidePanel.collapse") : t("verification.guidePanel.expand")}
+              {guideExpanded ? "收起" : "展开"}
             </Button>
           </InlineStack>
         </InlineStack>
         <Collapsible open={guideExpanded} id="guide-collapsible">
           <BlockStack gap="300">
             <InlineStack gap="200">
-              <Badge tone="info">{t("verification.guidePanel.estimatedTime", { time: testGuide.estimatedTime })}</Badge>
+              <Badge tone="info">{`预计时间: ${testGuide.estimatedTime}`}</Badge>
               {configuredPlatforms.map((p) => (
                 <PlatformBadge key={p} platform={p} />
               ))}
@@ -94,7 +92,7 @@ export function TestGuidePanel({
             <Divider />
             <BlockStack gap="100">
               <Text as="p" fontWeight="semibold">
-                💡 {t("verification.guidePanel.tips")}
+                💡 提示
               </Text>
               <List type="bullet">
                 {testGuide.tips.map((tip, i) => (
