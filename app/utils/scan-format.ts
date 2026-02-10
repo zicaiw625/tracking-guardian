@@ -17,7 +17,7 @@ export function formatScanHistoryForTable(
       const createdAt = parseDateSafely(scan.createdAt);
       const status = getStatusText(scan.status || "", t);
       return [
-        createdAt ? safeFormatDate(createdAt) : (t ? t("common.unknown") : "未知"),
+        createdAt ? safeFormatDate(createdAt) : (t ? t("common.unknown") : "Unknown"),
         riskScore,
         platforms.join(", ") || "-",
         status,

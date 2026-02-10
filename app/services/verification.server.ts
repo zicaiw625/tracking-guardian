@@ -23,48 +23,48 @@ export interface VerificationTestItem {
 export const VERIFICATION_TEST_ITEMS: VerificationTestItem[] = [
   {
     id: "purchase",
-    name: "标准购买",
-    description: "完成一个包含单个商品的标准订单，验证 purchase 事件触发",
+    name: "verification.testItems.purchase.name",
+    description: "verification.testItems.purchase.description",
     eventType: "purchase",
     required: true,
     platforms: ["google", "meta", "tiktok"],
   },
   {
     id: "purchase_multi",
-    name: "多商品购买",
-    description: "完成一个包含多个不同商品的订单，验证 items 数组完整性",
+    name: "verification.testItems.purchase_multi.name",
+    description: "verification.testItems.purchase_multi.description",
     eventType: "purchase",
     required: false,
     platforms: ["google", "meta", "tiktok"],
   },
   {
     id: "purchase_discount",
-    name: "折扣订单",
-    description: "使用折扣码完成订单，验证最终金额（原价 - 折扣）计算正确",
+    name: "verification.testItems.purchase_discount.name",
+    description: "verification.testItems.purchase_discount.description",
     eventType: "purchase",
     required: false,
     platforms: ["google", "meta", "tiktok"],
   },
   {
     id: "purchase_shipping",
-    name: "含运费订单",
-    description: "完成一个包含运费的订单，验证总金额（商品 + 运费）正确",
+    name: "verification.testItems.purchase_shipping.name",
+    description: "verification.testItems.purchase_shipping.description",
     eventType: "purchase",
     required: false,
     platforms: ["google", "meta", "tiktok"],
   },
   {
     id: "purchase_complex",
-    name: "复杂订单（多商品 + 折扣 + 运费）",
-    description: "完成一个包含多商品、折扣码和运费的完整订单，验证所有参数正确",
+    name: "verification.testItems.purchase_complex.name",
+    description: "verification.testItems.purchase_complex.description",
     eventType: "purchase",
     required: false,
     platforms: ["google", "meta", "tiktok"],
   },
   {
     id: "currency_test",
-    name: "多币种测试",
-    description: "使用非 USD 币种完成订单，验证 currency 参数正确",
+    name: "verification.testItems.currency_test.name",
+    description: "verification.testItems.currency_test.description",
     eventType: "purchase",
     required: false,
     platforms: ["google", "meta", "tiktok"],
@@ -153,7 +153,7 @@ export async function createVerificationRun(
     testItems?: string[];
   }
 ): Promise<string> {
-  const { runName = "验收测试", runType = "quick", platforms = [] } = options;
+  const { runName = "Verification Run", runType = "quick", platforms = [] } = options;
   let targetPlatforms = platforms;
   if (targetPlatforms.length === 0) {
     const configs = await prisma.pixelConfig.findMany({
@@ -413,13 +413,13 @@ export async function analyzeRecentEvents(
              value: missing.orderValue,
              currency: missing.currency
           },
-          discrepancies: ["订单未被追踪 (漏单)"],
+          discrepancies: ["Order not tracked (Missing Order)"],
           errors: ["Missing Pixel Event"]
         });
 
         consistencyIssues.push({
           orderId: missing.orderId,
-          issue: `[${p}] 漏单: 订单金额 ${missing.orderValue} ${missing.currency} 未被追踪`,
+          issue: `[${p}] Missing Order: Amount ${missing.orderValue} ${missing.currency} not tracked`,
           type: "missing"
         });
       }
@@ -482,8 +482,8 @@ export async function analyzeRecentEvents(
         if (!platformResults[p]) platformResults[p] = { sent: 0, failed: 0 };
         platformResults[p].failed++;
         const disc: string[] = [];
-        if (!payload?.eventId) disc.push("缺少 eventId");
-        if (!(payload?.eventName ?? receipt.eventType)) disc.push("缺少 eventName");
+        if (!payload?.eventId) disc.push("Missing eventId");
+        if (!(payload?.eventName ?? receipt.eventType)) disc.push("Missing eventName");
         results.push({
           testItemId: receipt.eventType,
           eventType: receipt.eventType,
@@ -509,7 +509,7 @@ export async function analyzeRecentEvents(
         if (existingReceipt) {
           dedupInfo = {
             existingEventId: existingReceipt.eventId,
-            reason: `已在 ${existingReceipt.pixelTimestamp.toISOString()} 记录过相同订单事件`,
+            reason: `Duplicate event recorded at ${existingReceipt.pixelTimestamp.toISOString()}`,
           };
         }
       }
@@ -552,12 +552,12 @@ export async function analyzeRecentEvents(
           } else {
             isFailed = true;
             if (!hasPixelValue) {
-                const msg = `Pixel 事件缺失金额数据`;
+                const msg = `Pixel event missing value`;
                 consistencyIssues.push({ orderId: orderId!, issue: msg, type: "value_mismatch" });
                 if (!discrepancyNote) discrepancyNote = msg;
                 else discrepancyNote += `; ${msg}`;
             } else if (!valueMatch && orderId) {
-              const msg = `金额不一致: Pixel=${value}, Order=${orderSummary.totalPrice}`;
+              const msg = `Value Mismatch: Pixel=${value}, Order=${orderSummary.totalPrice}`;
               consistencyIssues.push({
                 orderId,
                 issue: msg,
@@ -567,7 +567,7 @@ export async function analyzeRecentEvents(
               else discrepancyNote += `; ${msg}`;
             }
             if (!currencyMatch && orderId) {
-              const msg = `币种不一致: Pixel=${currency}, Order=${orderSummary.currency}`;
+              const msg = `Currency Mismatch: Pixel=${currency}, Order=${orderSummary.currency}`;
               consistencyIssues.push({
                 orderId,
                 issue: msg,
@@ -580,7 +580,7 @@ export async function analyzeRecentEvents(
         } else {
           // Fix P1-5: Do not default to 100% accuracy if order summary is missing.
           // We simply skip the value check and mark as "not verified" for value.
-          discrepancyNote = "订单详情尚未同步（请等待1-2分钟后重试），跳过金额对账";
+          discrepancyNote = "Order details not yet synced (please wait 1-2 mins), skipping value check";
         }
 
         if (isFailed) {
@@ -600,7 +600,7 @@ export async function analyzeRecentEvents(
               items: items || undefined,
               hasEventId,
             },
-            discrepancies: discrepancyNote ? [discrepancyNote] : ["金额或币种与订单不一致"],
+            discrepancies: discrepancyNote ? [discrepancyNote] : ["Value or currency mismatch"],
             errors: undefined,
             dedupInfo,
           });
@@ -656,8 +656,8 @@ export async function analyzeRecentEvents(
     } else {
       missingParamTests++;
       platformResults[p].failed++;
-      if (!hasValue) discrepancies.push("缺少 value 参数");
-      if (!hasCurrency) discrepancies.push("缺少 currency 参数");
+      if (!hasValue) discrepancies.push("Missing value");
+      if (!hasCurrency) discrepancies.push("Missing currency");
       results.push({
         testItemId: "purchase",
         eventType: receipt.eventType,
@@ -865,20 +865,20 @@ export function generateTestOrderGuide(runType: "quick" | "full" | "custom"): {
   const quickSteps = [
     {
       step: 1,
-      title: "创建测试订单",
-      description: "在店铺前台添加商品到购物车，完成结账流程。建议使用 Bogus Gateway 或 Shopify Payments 测试模式。",
+      title: "verification.guide.quick.step1.title",
+      description: "verification.guide.quick.step1.desc",
       testItemId: "purchase",
     },
     {
       step: 2,
-      title: "等待事件处理",
-      description: "等待 1-2 分钟，让系统处理订单 webhook 和像素事件。",
+      title: "verification.guide.quick.step2.title",
+      description: "verification.guide.quick.step2.desc",
       testItemId: "purchase",
     },
     {
       step: 3,
-      title: "刷新验收页面",
-      description: "返回验收页面，点击「运行验收」查看结果。",
+      title: "verification.guide.quick.step3.title",
+      description: "verification.guide.quick.step3.desc",
       testItemId: "purchase",
     },
   ];
@@ -886,26 +886,26 @@ export function generateTestOrderGuide(runType: "quick" | "full" | "custom"): {
     ...quickSteps,
     {
       step: 4,
-      title: "测试多商品订单",
-      description: "添加 2-3 个不同商品，完成结账。验证商品数量和总价正确。",
+      title: "verification.guide.full.step4.title",
+      description: "verification.guide.full.step4.desc",
       testItemId: "purchase_multi",
     },
     {
       step: 5,
-      title: "测试折扣订单",
-      description: "使用折扣码完成订单，验证折扣后金额正确传递。",
+      title: "verification.guide.full.step5.title",
+      description: "verification.guide.full.step5.desc",
       testItemId: "purchase_discount",
     },
   ];
   const steps = runType === "full" ? fullSteps : quickSteps;
   return {
     steps,
-    estimatedTime: runType === "full" ? "15-20 分钟" : "5-10 分钟",
+    estimatedTime: runType === "full" ? "15-20 min" : "5-10 min",
     tips: [
-      "使用开发商店或测试模式，避免产生真实费用",
-      "确保 Web Pixel 已安装并完成测试订单验收",
-      "在 Shopify 后台启用 Bogus Gateway 或 Shopify Payments 测试模式",
-      "如果使用隐身模式，确保接受 cookie 和追踪同意",
+      "verification.guide.tips.testMode",
+      "verification.guide.tips.webPixel",
+      "verification.guide.tips.gateway",
+      "verification.guide.tips.cookie",
     ],
   };
 }
@@ -924,14 +924,14 @@ export async function exportVerificationReport(
   const filename = `verification-report-${timestamp}`;
   if (format === "csv") {
     const headers = [
-      "测试项",
-      "事件类型",
-      "平台",
-      "订单ID",
-      "状态",
-      "金额",
-      "币种",
-      "问题",
+      "Test Item",
+      "Event Type",
+      "Platform",
+      "Order ID",
+      "Status",
+      "Amount",
+      "Currency",
+      "Issues",
     ];
     const rows = summary.results.map((r) => [
       escapeCSV(r.testItemId),

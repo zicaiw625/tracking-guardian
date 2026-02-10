@@ -359,7 +359,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     return redirect("/app/scan");
   }
-  return json({ error: "未知操作" }, { status: 400 });
+  return json({ error: "onboarding.errors.unknownAction" }, { status: 400 });
 };
 
 function UrgencyBadge({ level }: { level: string }) {
@@ -438,7 +438,7 @@ export default function OnboardingPage() {
           showSuccess(t("onboarding.success.operation"));
         }
       } else if ("error" in actionData && actionData.error) {
-        showError(actionData.error);
+        showError(t(actionData.error));
       }
     }
   }, [actionData, showSuccess, showError, t]);

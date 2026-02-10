@@ -42,70 +42,70 @@ export const PLATFORM_INFO: Partial<Record<PlatformType, {
   google: {
     name: "Google Analytics 4",
     icon: "🔵",
-    description: "用于事件映射与验收（服务端投递为规划项）",
+    description: "For event mapping & verification",
     credentialFields: [
       {
         key: "measurementId",
         label: "Measurement ID",
         placeholder: "G-XXXXXXXXXX",
         type: "text",
-        helpText: "在 GA4 管理后台的「数据流」中查找",
+        helpText: "Find in GA4 Admin > Data Streams",
       },
       {
         key: "apiSecret",
         label: "API Secret",
-        placeholder: "输入 API Secret",
+        placeholder: "Enter API Secret",
         type: "password",
-        helpText: "在 GA4 管理后台的「数据流」→「Measurement Protocol API secrets」中创建",
+        helpText: "Create in GA4 Admin > Data Streams > Measurement Protocol API secrets",
       },
     ],
   },
   meta: {
     name: "Meta (Facebook) Pixel",
     icon: "📘",
-    description: "用于事件映射与验收（服务端投递为规划项）",
+    description: "For event mapping & verification",
     credentialFields: [
       {
         key: "pixelId",
         label: "Pixel ID",
         placeholder: "123456789012345",
         type: "text",
-        helpText: "在 Meta Events Manager 中查找",
+        helpText: "Find in Meta Events Manager",
       },
       {
         key: "accessToken",
         label: "Access Token",
-        placeholder: "输入 Access Token",
+        placeholder: "Enter Access Token",
         type: "password",
-        helpText: "在 Meta Events Manager → Settings → Conversions API 中生成",
+        helpText: "Generate in Meta Events Manager > Settings > Conversions API",
       },
       {
         key: "testEventCode",
-        label: "Test Event Code (可选)",
+        label: "Test Event Code (Optional)",
         placeholder: "TEST12345",
         type: "text",
-        helpText: "用于测试模式，可在 Events Manager 中获取",
+        helpText: "For testing mode, find in Events Manager",
       },
     ],
   },
   tiktok: {
     name: "TikTok Pixel",
     icon: "🎵",
-    description: "用于事件映射与验收（服务端投递为规划项）",
+    description: "For event mapping & verification",
     credentialFields: [
       {
         key: "pixelId",
         label: "Pixel ID",
         placeholder: "C1234567890ABCDEF",
         type: "text",
-        helpText: "在 TikTok Events Manager 中查找",
+        helpText: "Find in TikTok Events Manager",
       },
       {
         key: "accessToken",
         label: "Access Token",
-        placeholder: "输入 Access Token",
+        placeholder: "Enter Access Token",
         type: "password",
-        helpText: "在 TikTok Events Manager → Settings → Web Events 中生成",
+        helpText: "Generate in TikTok Events Manager > Settings > Web Events",
       },
     ],
   },
@@ -114,8 +114,8 @@ export const PLATFORM_INFO: Partial<Record<PlatformType, {
 export const PRESET_TEMPLATES = [
   {
     id: "standard",
-    name: "标准配置（v1）",
-    description: "适用于大多数电商店铺的标准事件映射（GA4/Meta/TikTok）",
+    name: "Standard Config (v1)",
+    description: "Standard event mappings for most stores",
     platforms: ["google", "meta", "tiktok"],
     eventMappings: {
       google: {
@@ -131,8 +131,8 @@ export const PRESET_TEMPLATES = [
   },
   {
     id: "advanced",
-    name: "高级配置（v1.1+）",
-    description: "包含更多事件类型的完整映射（v1.1+ 将支持 Pinterest/Snapchat）",
+    name: "Advanced Config (v1.1+)",
+    description: "Complete mappings with more event types",
     platforms: ["google", "meta", "tiktok"],
     eventMappings: {
       google: {

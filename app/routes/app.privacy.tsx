@@ -624,10 +624,10 @@ export default function PrivacyPage() {
                     {t("PrivacyPage.ExportDelete.Delete.Warning")}
                   </Text>
                   <List type="bullet">
-                    <List.Item>所有转化记录</List.Item>
-                    <List.Item>所有事件日志</List.Item>
-                    <List.Item>所有问卷响应</List.Item>
-                    <List.Item>所有配置和设置</List.Item>
+                    <List.Item>{t("common.list.allConversions")}</List.Item>
+                    <List.Item>{t("common.list.allEvents")}</List.Item>
+                    <List.Item>{t("common.list.allSurveys")}</List.Item>
+                    <List.Item>{t("common.list.allConfigs")}</List.Item>
                   </List>
                 </Banner>
                 <Button
@@ -652,7 +652,7 @@ export default function PrivacyPage() {
                   }}
                   secondaryActions={[
                     {
-                      content: "取消",
+                      content: t("common.cancel"),
                       onAction: () => setShowDeleteModal(false),
                     },
                   ]}
@@ -662,10 +662,10 @@ export default function PrivacyPage() {
                       {t("PrivacyPage.ExportDelete.Delete.ModalContent")}
                     </Text>
                     <List type="bullet">
-                      <List.Item>所有转化记录</List.Item>
-                      <List.Item>所有事件日志</List.Item>
-                      <List.Item>所有问卷响应</List.Item>
-                      <List.Item>所有配置和设置</List.Item>
+                      <List.Item>{t("common.list.allConversions")}</List.Item>
+                      <List.Item>{t("common.list.allEvents")}</List.Item>
+                      <List.Item>{t("common.list.allSurveys")}</List.Item>
+                      <List.Item>{t("common.list.allConfigs")}</List.Item>
                     </List>
                     <Text variant="bodyMd" as="p" tone="critical" fontWeight="semibold">
                       {t("PrivacyPage.ExportDelete.Delete.Irreversible")}

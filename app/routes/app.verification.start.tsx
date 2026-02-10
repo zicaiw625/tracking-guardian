@@ -80,7 +80,7 @@ export default function VerificationStartPage() {
     );
   }
   const handleCopyChecklist = async () => {
-    const markdown = generateChecklistMarkdown(testChecklist);
+    const markdown = generateChecklistMarkdown(testChecklist, t);
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
         await navigator.clipboard.writeText(markdown);
@@ -93,7 +93,7 @@ export default function VerificationStartPage() {
     }
   };
   const handleDownloadCSV = () => {
-    const csv = generateChecklistCSV(testChecklist);
+    const csv = generateChecklistCSV(testChecklist, t);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -157,11 +157,11 @@ export default function VerificationStartPage() {
                         </Badge>
                       </InlineStack>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        {item.description}
+                        {t(item.description)}
                       </Text>
                       <Text as="p" variant="bodySm">
                         <strong>{t("verification.start.checklist.verificationPoints")}</strong>
-                        {item.verificationPoints.join("、")}
+                        {item.verificationPoints.map((p) => t(p)).join("、")}
                       </Text>
                       {item.expectedParams && (
                         <Box
@@ -176,7 +176,7 @@ export default function VerificationStartPage() {
                             {item.expectedParams?.map((param: string) => (
                               <List.Item key={param}>
                                 <Text as="span" variant="bodySm">
-                                  {param}
+                                  {t(param)}
                                 </Text>
                               </List.Item>
                             ))}
@@ -214,11 +214,11 @@ export default function VerificationStartPage() {
                           </Badge>
                         </InlineStack>
                         <Text as="p" variant="bodySm" tone="subdued">
-                          {item.description}
+                          {t(item.description)}
                         </Text>
                         <Text as="p" variant="bodySm">
                           <strong>{t("verification.start.checklist.verificationPoints")}</strong>
-                          {item.verificationPoints.join("、")}
+                          {item.verificationPoints.map((p) => t(p)).join("、")}
                         </Text>
                         {item.expectedFields && (
                           <Box
@@ -233,7 +233,7 @@ export default function VerificationStartPage() {
                               {item.expectedFields?.map((field: string) => (
                                 <List.Item key={field}>
                                   <Text as="span" variant="bodySm">
-                                    {field}
+                                    {t(field)}
                                   </Text>
                                 </List.Item>
                               ))}
