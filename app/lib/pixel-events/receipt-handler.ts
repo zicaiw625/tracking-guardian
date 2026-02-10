@@ -29,6 +29,7 @@ function buildMinimalPayloadForReceipt(
       value: payload.data?.value ?? 0,
       currency: payload.data?.currency ?? "USD",
       items,
+      url: (payload.data as any)?.url,
     },
     eventName: payload.eventName,
     trustLevel: trustLevel ?? "untrusted",

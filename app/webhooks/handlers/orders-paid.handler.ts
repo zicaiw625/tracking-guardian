@@ -156,6 +156,14 @@ export async function handleOrdersPaid(
     });
     const consentState = consentFromReceiptPayload(receipt?.payloadJson ?? null);
 
+    let receiptPageUrl: string | null = null;
+    if (receipt?.payloadJson && typeof receipt.payloadJson === "object") {
+      const d = (receipt.payloadJson as { data?: { url?: string } }).data;
+      if (typeof d?.url === "string") {
+        receiptPageUrl = d.url;
+      }
+    }
+
     const s2sConfigs = await prisma.pixelConfig.findMany({
       where: {
         shopId,
@@ -178,6 +186,15 @@ export async function handleOrdersPaid(
       // P0-2: TikTok requires IP/UA. If missing, skip.
       if (dest === "TIKTOK" && !parsed.ip && !parsed.user_agent) {
         continue;
+      }
+
+      // P0: Meta requires UA + URL for website events.
+      if (dest === "META") {
+        const hasUA = !!parsed.user_agent;
+        const hasUrl = !!receiptPageUrl; // parsed.page_url is null
+        if (!hasUA || !hasUrl) {
+           continue;
+        }
       }
 
       const platform = dest === "GA4" ? "google" : dest === "META" ? "meta" : "tiktok";
@@ -242,7 +259,7 @@ export async function handleOrdersPaid(
           ip_encrypted: parsed.ip ? encrypt(parsed.ip) : null,
           user_agent: user_agent,
           user_agent_encrypted: parsed.user_agent ? encrypt(parsed.user_agent) : null,
-          page_url: null,
+          page_url: receiptPageUrl,
           referrer: null,
           querystring: null,
           currency: parsed.currency,

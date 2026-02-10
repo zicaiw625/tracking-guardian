@@ -5,8 +5,8 @@ import type { InternalEventPayload, SendEventResult } from "./types";
 import { S2S_FETCH_TIMEOUT_MS } from "./types";
 
 const TIKTOK_EVENTS_API = process.env.TIKTOK_API_VERSION
-  ? `https://business-api.tiktok.com/open_api/${process.env.TIKTOK_API_VERSION}/event/track`
-  : "https://business-api.tiktok.com/open_api/v1.3/event/track";
+  ? `https://business-api.tiktok.com/open_api/${process.env.TIKTOK_API_VERSION}/event/track/`
+  : "https://business-api.tiktok.com/open_api/v2/event/track/";
 
 const EVENT_NAME_MAP: Record<string, string> = {
   purchase: "CompletePayment",

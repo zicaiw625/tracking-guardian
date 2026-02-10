@@ -21,7 +21,7 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
   const hasAnySecret = Boolean(context.shop.ingestionSecret || context.shop.previousIngestionSecret);
 
   // P0-1: Enforce timestamp presence in production when signature or secret is present
-  if (context.isProduction && (context.signature || hasAnySecret) && !context.timestamp) {
+  if (context.isProduction && (context.signature || hasAnySecret) && !context.timestampHeader) {
     if (shouldRecordRejection(context.isProduction, false, "timestamp_missing")) {
       rejectionTracker.record({
         requestId: context.requestId,
