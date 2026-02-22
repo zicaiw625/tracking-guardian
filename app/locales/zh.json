@@ -2062,6 +2062,91 @@
     "emptyStateCompleted": "本次验收未检测到任何事件数据。请确保在测试期间触发了相关事件（如购买、加购等），并检查 Pixel 是否正确安装。",
     "emptyStateInit": "暂无验收结果数据。请先运行验收测试。",
     "page": {
+      "title": "像素验收",
+      "subtitle": "验证您的像素实施和数据准确性",
+      "actions": {
+        "run": "运行验收",
+        "running": "运行中...",
+        "runStarted": "验收已开始",
+        "refresh": "刷新",
+        "export": "导出报告"
+      },
+      "intro": {
+        "title": "验收概览",
+        "desc": "通过运行测试订单或检查最近事件来验证您的追踪设置。",
+        "items": {
+          "0": "检查缺失事件",
+          "1": "验证数据参数"
+        },
+        "action": "了解更多"
+      },
+      "tabs": {
+        "overview": "概览",
+        "pixelLayer": "像素层",
+        "results": "详细结果",
+        "guide": "测试指南",
+        "history": "历史记录"
+      },
+      "score": {
+        "passRate": "通过率",
+        "passRateDesc": "{{value}}% 测试通过",
+        "completeness": "完整性",
+        "completenessDesc": "数据参数覆盖率",
+        "accuracy": "准确性",
+        "accuracyDesc": "数据值匹配率"
+      },
+      "status": {
+        "title": "上次运行状态",
+        "time": "时间",
+        "type": "类型",
+        "full": "全量扫描",
+        "quick": "快速扫描"
+      },
+      "related": {
+        "title": "相关操作",
+        "settings": "像素设置",
+        "install": "安装像素"
+      },
+      "banners": {
+        "failed": {
+          "title": "验收失败",
+          "reasons": "常见失败原因：",
+          "items": {
+            "0": "像素未正确安装",
+            "1": "事件被浏览器拦截",
+            "2": "触发器配置错误"
+          }
+        },
+        "passed": {
+          "title": "验收通过",
+          "desc": "所有检查均成功通过。"
+        },
+        "attribution": {
+          "title": "归因信息",
+          "subtitle": "了解归因",
+          "provide": "我们提供数据以协助归因。",
+          "noGuarantee": "由于浏览器限制，无法保证 100% 匹配。",
+          "report": "查看详细报告以获取更多信息。"
+        }
+      },
+      "checklist": {
+        "title": "检查清单"
+      },
+      "empty": {
+        "title": "无验收数据",
+        "action": "运行验收",
+        "desc": "运行验收以在此处查看结果。"
+      },
+      "noRun": {
+        "title": "暂无运行记录",
+        "action": "开始验收",
+        "desc": "开始验收运行以检查您的像素设置。",
+        "help": "需要帮助？查看我们的指南。"
+      },
+      "guideModal": {
+        "title": "验收指南",
+        "action": "关闭"
+      },
       "error": {
         "title": "验证页面错误",
         "description": "加载验证页面时发生意外错误。",

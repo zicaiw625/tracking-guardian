@@ -2062,6 +2062,91 @@
     "emptyStateCompleted": "No event data detected. Please ensure relevant events (e.g., purchase, add to cart) are triggered during testing and check Pixel installation.",
     "emptyStateInit": "No verification results yet. Please run a test first.",
     "page": {
+      "title": "Pixel Verification",
+      "subtitle": "Validate your pixel implementation and data accuracy",
+      "actions": {
+        "run": "Run Verification",
+        "running": "Running...",
+        "runStarted": "Verification started",
+        "refresh": "Refresh",
+        "export": "Export Report"
+      },
+      "intro": {
+        "title": "Verification Overview",
+        "desc": "Verify your tracking setup by running a test order or checking recent events.",
+        "items": {
+          "0": "Check for missing events",
+          "1": "Validate data parameters"
+        },
+        "action": "Learn more"
+      },
+      "tabs": {
+        "overview": "Overview",
+        "pixelLayer": "Pixel Layer",
+        "results": "Results",
+        "guide": "Test Guide",
+        "history": "History"
+      },
+      "score": {
+        "passRate": "Pass Rate",
+        "passRateDesc": "{{value}}% tests passed",
+        "completeness": "Completeness",
+        "completenessDesc": "Data parameter coverage",
+        "accuracy": "Accuracy",
+        "accuracyDesc": "Data value match rate"
+      },
+      "status": {
+        "title": "Last Run Status",
+        "time": "Time",
+        "type": "Type",
+        "full": "Full Scan",
+        "quick": "Quick Scan"
+      },
+      "related": {
+        "title": "Related Actions",
+        "settings": "Pixel Settings",
+        "install": "Install Pixel"
+      },
+      "banners": {
+        "failed": {
+          "title": "Verification Failed",
+          "reasons": "Common reasons for failure:",
+          "items": {
+            "0": "Pixel not installed correctly",
+            "1": "Events blocked by browser",
+            "2": "Misconfigured triggers"
+          }
+        },
+        "passed": {
+          "title": "Verification Passed",
+          "desc": "All checks passed successfully."
+        },
+        "attribution": {
+          "title": "Attribution Info",
+          "subtitle": "Understanding attribution",
+          "provide": "We provide data to help with attribution.",
+          "noGuarantee": "No guarantee of 100% match due to browser restrictions.",
+          "report": "Check the detailed report for more info."
+        }
+      },
+      "checklist": {
+        "title": "Checklist"
+      },
+      "empty": {
+        "title": "No Verification Data",
+        "action": "Run Verification",
+        "desc": "Run a verification to see results here."
+      },
+      "noRun": {
+        "title": "No Runs Yet",
+        "action": "Start Verification",
+        "desc": "Start a verification run to check your pixel setup.",
+        "help": "Need help? Check our guide."
+      },
+      "guideModal": {
+        "title": "Verification Guide",
+        "action": "Close"
+      },
       "error": {
         "title": "Verification page error",
         "description": "An unexpected error occurred while loading the verification page.",
