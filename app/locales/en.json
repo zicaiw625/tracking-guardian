@@ -61,7 +61,7 @@
     },
     "monitor": {
       "name": "Monitor (Optional Add-on)",
-      "tagline": "Outage Monitoring & Alerts (Post-launch Assurance, v1.0 Optional)",
+      "tagline": "Outage Monitoring & Alerts (Post-launch Assurance)",
       "features": {
         "drop": "Event Volume Drop Alerts",
         "threshold": "Failure Rate Threshold Monitoring",
@@ -70,7 +70,7 @@
         "rollback": "Version Rollback Support",
         "channels": "Multi-channel Alerts (Email/Slack/Telegram)",
         "realtime": "Real-time Event Monitoring",
-        "note": "⚠️ Note: Not in PRD v1.0 Official Plans"
+        "note": "Monitoring only, no pixel management"
       }
     },
     "unknown": "Unknown"
@@ -1001,7 +1001,7 @@
         "description": "Standard event mapping + parameter completeness + downloadable payload evidence (GA4/Meta/TikTok)",
         "technicalNoteTitle": "Technical Note:",
         "technicalNoteContent": "Web Pixel is strict sandbox (Web Worker), many capabilities restricted",
-        "badge": "Migration $49/mo",
+        "badge": "Migration $29/mo",
         "cta": {
           "start": "Start Migration",
           "upgrade": "Upgrade to Migration"
@@ -2568,7 +2568,7 @@
         },
         "upgrade": {
           "title": "Upgrade Required",
-          "desc": "Pixel migration requires Migration Plan ($49/mo) or above. Please upgrade before configuration."
+          "desc": "Pixel migration requires Migration Plan ($29/mo) or above. Please upgrade before configuration."
         }
       },
       "intro": {
@@ -2871,7 +2871,7 @@
         "subtitle": "Shopify Upgrade Deadlines",
         "desc": "<strong>Important:</strong> Dates are from official announcements. Check Shopify Admin for actual deadlines.",
         "plus": "Plus Merchants: Restrictions start Jan 2026 (legacy customizations lost)",
-        "nonPlus": "Non-Plus Merchants: Deadline Aug 26, 2026",
+        "nonPlus": "Non-Plus Merchants: Deadline Aug 28, 2025",
         "advice": "Migrate early to avoid last-minute issues."
       }
     },

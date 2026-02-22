@@ -23,6 +23,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { getAggregatedMetrics } from "~/services/dashboard-aggregation.server";
+import { checkPlanGate } from "~/middleware/plan-gate";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -39,6 +40,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   if (!shop) {
     return json({ shop: null, stats: null });
+  }
+
+  const gate = await checkPlanGate(shop.id, "alerts");
+  if (!gate.allowed) {
+    return json({ shop, stats: null, error: "Plan upgrade required", gate }, { status: 403 });
   }
 
   const now = new Date();
@@ -59,6 +65,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const currency = currencyRecord?.currency || "USD";
 
+  const shopifyOrders = metrics24Hours.shopifyOrderCount || 0;
+  const pixelOrders = metrics24Hours.totalOrders || 0;
+  const lossRateVal = shopifyOrders > 0 
+    ? Math.max(0, (shopifyOrders - pixelOrders) / shopifyOrders) 
+    : 0;
+
   const stats = {
     last7Days: {
       orders: metrics7Days.totalOrders,
@@ -71,7 +83,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       totalEvents: metrics24Hours.totalEventVolume,
       successRate: (metrics24Hours.successRate * 100).toFixed(1),
       failureRate: ((1 - metrics24Hours.successRate) * 100).toFixed(1),
-      lossRate: 0,
+      lossRate: (lossRateVal * 100).toFixed(1),
       received: metrics24Hours.totalEventVolume,
     },
   };
@@ -106,7 +118,7 @@ export default function MonitoringPage() {
   // Ensure stats is available if shop is available (loader guarantees this logic but Typescript might not know)
   const safeStats = stats || {
     last7Days: { orders: 0, value: "0", currency: "", successRate: 0, totalEvents: 0 },
-    last24Hours: { totalEvents: 0, successRate: 0, failureRate: 0, lossRate: 0, received: 0 }
+    last24Hours: { totalEvents: 0, successRate: 0, failureRate: 0, lossRate: "0.0", received: 0 }
   };
 
   const rowMarkup = alerts.map(
@@ -227,7 +239,7 @@ export default function MonitoringPage() {
                   <StatItem
                     label={t("monitoring.loss.rate")}
                     value={`${safeStats.last24Hours.lossRate}%`}
-                    tone={safeStats.last24Hours.lossRate < 1 ? "success" : undefined}
+                    tone={Number(safeStats.last24Hours.lossRate) < 1 ? "success" : undefined}
                   />
                 </InlineStack>
               </BlockStack>

@@ -21,19 +21,11 @@ vi.mock("../../app/db.server", () => ({
       create: vi.fn(),
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
-    conversionJob: {
-      upsert: vi.fn(),
-      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
-    },
-    conversionLog: {
-      upsert: vi.fn(),
-      findMany: vi.fn().mockResolvedValue([]),
-      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
-    },
     pixelEventReceipt: {
       findMany: vi.fn().mockResolvedValue([]),
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       count: vi.fn().mockResolvedValue(0),
+      findFirst: vi.fn().mockResolvedValue(null),
     },
     verificationRun: { count: vi.fn().mockResolvedValue(0) },
     scanReport: { count: vi.fn().mockResolvedValue(0) },
@@ -419,9 +411,6 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
       } as any);
       vi.mocked(prisma.webhookLog.create).mockResolvedValue({
         id: "log-id",
-      } as any);
-      vi.mocked(prisma.conversionJob.upsert).mockResolvedValue({
-        id: "job-id",
       } as any);
       const request = new Request("https://example.com/webhook", {
         method: "POST",

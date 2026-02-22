@@ -62,7 +62,7 @@ export function SelectPlatformStep({
             • <strong>可下载 payload 证据</strong>：用于验证和存档（Test/Live 环境）
           </Text>
           <Text as="p" variant="bodySm">
-            • <strong>v1 支持平台</strong>：GA4、Meta、TikTok（三选一，Migration $49/月）
+            • <strong>v1 支持平台</strong>：GA4、Meta、TikTok（三选一，Migration $29/月）
           </Text>
           <Text as="p" variant="bodySm">
             • <strong>v1.1+ 规划</strong>：Pinterest、Snapchat 等其他平台将在后续版本支持

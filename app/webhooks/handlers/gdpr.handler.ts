@@ -8,7 +8,6 @@ import type { WebhookContext, WebhookHandlerResult } from "../types";
 import prisma from "../../db.server";
 import { GDPRJobStatus } from "../../types/enums";
 import { generateSimpleId } from "../../utils/helpers";
-import type { GDPRJobResult } from "../../services/gdpr/types";
 
 function sanitizeTopicForId(topic: string): string {
   return topic.replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 50);

@@ -6,6 +6,7 @@ export interface DailyAggregatedMetrics {
   shopId: string;
   date: Date;
   totalOrders: number;
+  shopifyOrderCount: number;
   totalValue: number;
   successRate: number;
   platformBreakdown: Record<string, { count: number; value: number }>;
@@ -27,7 +28,8 @@ export async function aggregateDailyMetrics(
   const [
     totalEvents,
     groupedByPlatform,
-    validOrders
+    validOrders,
+    shopifyOrderCount
   ] = await Promise.all([
     // 1. Total Event Volume (all events)
     prisma.pixelEventReceipt.count({
@@ -70,6 +72,14 @@ export async function aggregateDailyMetrics(
       },
       _max: {
         totalValue: true,
+      },
+    }),
+
+    // 4. Shopify Orders Count
+    prisma.orderSummary.count({
+      where: {
+        shopId,
+        createdAt: { gte: startOfDay, lte: endOfDay },
       },
     }),
   ]);
@@ -135,6 +145,7 @@ export async function aggregateDailyMetrics(
     shopId,
     date: startOfDay,
     totalOrders,
+    shopifyOrderCount,
     totalValue,
     successRate,
     platformBreakdown,
@@ -151,6 +162,7 @@ export async function getAggregatedMetrics(
   endDate: Date
 ): Promise<{
   totalOrders: number;
+  shopifyOrderCount: number;
   totalValue: number;
   successRate: number;
   platformBreakdown: Record<string, { count: number; value: number }>;
@@ -168,7 +180,8 @@ export async function getAggregatedMetrics(
     validOrdersGrouped,
     potentialOrdersGrouped, // For success rate calc
     allMatchedReceipts,
-    validOrdersGlobal // Deduped global stats
+    validOrdersGlobal, // Deduped global stats
+    shopifyOrderCount
   ] = await Promise.all([
     // 1. Event Volume by Type
     prisma.pixelEventReceipt.groupBy({
@@ -244,6 +257,14 @@ export async function getAggregatedMetrics(
       },
       _max: { totalValue: true },
     }),
+
+    // 6. Shopify Orders Count (for loss rate calc)
+    prisma.orderSummary.count({
+      where: {
+        shopId,
+        createdAt: { gte: startDate, lte: endDate },
+      },
+    }),
   ]);
 
   const eventVolumeByType: Record<string, number> = {};
@@ -309,6 +330,7 @@ export async function getAggregatedMetrics(
 
   return {
     totalOrders,
+    shopifyOrderCount,
     totalValue,
     successRate,
     platformBreakdown,

@@ -11,9 +11,9 @@ function parseEnvDate(envVar: string | undefined, defaultDate: string): Date {
 const DEFAULT_DATES = {
     scriptTagCreationBlocked: "2025-02-01",
     plusScriptTagExecutionOff: "2025-08-28",
-    nonPlusScriptTagExecutionOff: "2026-08-26",
+    nonPlusScriptTagExecutionOff: "2025-08-28",
     plusAdditionalScriptsReadOnly: "2025-08-28",
-    nonPlusAdditionalScriptsReadOnly: "2026-08-26",
+    nonPlusAdditionalScriptsReadOnly: "2025-08-28",
     scriptTagBlocked: "2025-02-01",
     plusAutoUpgradeStart: "2026-01-01",
 } as const;
@@ -93,7 +93,7 @@ export const DEADLINE_METADATA: Record<string, DateDisplayInfo> = {
     nonPlusAdditionalScriptsReadOnly: {
         date: DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly,
         precision: "exact",
-        displayLabel: "2026-08-26",
+        displayLabel: "2025-08-28",
         isEstimate: false,
     },
     plusScriptTagExecutionOff: {
@@ -105,7 +105,7 @@ export const DEADLINE_METADATA: Record<string, DateDisplayInfo> = {
     nonPlusScriptTagExecutionOff: {
         date: DEPRECATION_DATES.nonPlusScriptTagExecutionOff,
         precision: "exact",
-        displayLabel: "2026-08-26",
+        displayLabel: "2025-08-28",
         isEstimate: false,
     },
     plusAutoUpgradeStart: {

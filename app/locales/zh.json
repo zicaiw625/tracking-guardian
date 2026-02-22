@@ -61,7 +61,7 @@
     },
     "monitor": {
       "name": "Monitor 监控版（可选叠加）",
-      "tagline": "断档监控与告警（上线后保障，v1.0 可选功能）",
+      "tagline": "断档监控与告警（上线后保障）",
       "features": {
         "drop": "事件量骤降告警",
         "threshold": "失败率阈值监控",
@@ -70,7 +70,7 @@
         "rollback": "版本回滚支持",
         "channels": "多渠道告警（邮件/Slack/Telegram）",
         "realtime": "实时事件监控",
-        "note": "⚠️ 注意：此功能不在 PRD v1.0 正式套餐中"
+        "note": "仅监控，不包含像素管理"
       }
     },
     "unknown": "未知"
@@ -443,7 +443,7 @@
           "checkWebPixel": "如已升级：确认 Web Pixel 正常运行",
           "migrate": "如未升级：旧脚本可能仍在运行，但建议尽快迁移",
           "plusDeadline": "Plus 商家截止日期：{{date}}（日期来自 Shopify 官方公告，请以 Admin 提示为准）",
-          "nonPlusDeadline": "非 Plus 商家：距截止日期（{{date}}，日期来自 Shopify 官方公告，请以 Admin 提示为准）还有约 {{days}} 天"
+          "nonPlusDeadline": "非 Plus 商家：距截止日期（2025-08-28，日期来自 Shopify 官方公告，请以 Admin 提示为准）还有约 {{days}} 天"
         },
         "reason": {
           "NOT_PLUS": "原因：店铺可能不是 Plus，或没有 checkoutProfiles 权限。",
@@ -1008,7 +1008,7 @@
         "description": "标准事件映射 + 参数完整率 + 可下载 payload 证据（GA4/Meta/TikTok 三选一）",
         "technicalNoteTitle": "技术说明：",
         "technicalNoteContent": "Web Pixel 是 strict sandbox（Web Worker），很多能力受限",
-        "badge": "Migration $49/月",
+        "badge": "Migration $29/月",
         "cta": {
           "start": "开始迁移",
           "upgrade": "升级到 Migration"
@@ -2568,7 +2568,7 @@
         },
         "upgrade": {
           "title": "需要升级套餐",
-          "desc": "启用像素迁移需要 Migration ($49/月) 及以上套餐。请先升级后再配置。"
+          "desc": "启用像素迁移需要 Migration ($29/月) 及以上套餐。请先升级后再配置。"
         }
       },
       "intro": {
@@ -2871,7 +2871,7 @@
         "subtitle": "Shopify 升级截止日期",
         "desc": "<strong>重要提示：</strong>以下日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 Shopify 官方文档。",
         "plus": "Plus 店铺：从 2026-01 开始自动升级（legacy 定制会丢失）",
-        "nonPlus": "非 Plus 店铺：最晚 2026-08-26 必须完成升级",
+        "nonPlus": "非 Plus 店铺：最晚 2025-08-28 必须完成升级",
         "advice": "建议尽早完成迁移，避免在截止日期前匆忙处理。"
       }
     },

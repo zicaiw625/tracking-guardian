@@ -52,7 +52,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (!isPlanAtLeast(shop.plan, "starter")) {
       return json({
         success: false,
-        error: "启用像素迁移需要 Migration ($49/月) 及以上套餐。请先升级套餐。",
+        error: "启用像素迁移需要 Migration ($29/月) 及以上套餐。请先升级套餐。",
       }, { status: 403 });
     }
     try {

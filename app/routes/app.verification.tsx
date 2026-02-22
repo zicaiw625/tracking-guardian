@@ -39,6 +39,7 @@ import {
   getVerificationRun,
 } from "~/services/verification.server";
 import { i18nServer } from "~/i18n.server";
+import { checkPlanGate } from "~/middleware/plan-gate";
 
 interface VerificationRunSummary {
   passedTests: number;
@@ -64,6 +65,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   if (!shop) {
     return json({ shop: null, latestRun: null, history: [] });
+  }
+
+  const gate = await checkPlanGate(shop.id, "verification");
+  if (!gate.allowed) {
+    return json(
+      {
+        shop,
+        latestRun: null,
+        history: [],
+        error: "Plan upgrade required",
+        gate,
+      },
+      { status: 403 }
+    );
   }
 
   const latestRunRaw = await prisma.verificationRun.findFirst({
