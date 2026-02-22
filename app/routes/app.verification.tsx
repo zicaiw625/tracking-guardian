@@ -297,6 +297,8 @@ export default function VerificationPage() {
     : 0;
   
   const passRateDisplay = latestRun && latestRun.totalTests > 0 ? `${passRate}%` : "-";
+  const completenessDisplay = latestRun && latestRun.totalTests > 0 ? `${latestRun.parameterCompleteness}%` : "-";
+  const accuracyDisplay = latestRun && latestRun.totalTests > 0 ? `${latestRun.valueAccuracy}%` : "-";
 
   return (
     <Page
@@ -365,22 +367,29 @@ export default function VerificationPage() {
                               title={t("verification.page.score.passRate")}
                               score={passRateDisplay}
                               description={t("verification.page.score.passRateDesc", {
-                                passed: latestRun.passedTests,
-                                total: latestRun.totalTests,
+                                value: latestRun.totalTests > 0 ? passRate : "-",
                               })}
                               tone={passRate === 100 && latestRun.totalTests > 0 ? "success" : "critical"}
                             />
                             <ScoreCard
                               title={t("verification.page.score.completeness")}
-                              score="100%"
+                              score={completenessDisplay}
                               description={t("verification.page.score.completenessDesc")}
-                              tone="success"
+                              tone={
+                                latestRun.parameterCompleteness === 100 && latestRun.totalTests > 0
+                                  ? "success"
+                                  : "critical"
+                              }
                             />
                             <ScoreCard
                               title={t("verification.page.score.accuracy")}
-                              score="100%"
+                              score={accuracyDisplay}
                               description={t("verification.page.score.accuracyDesc")}
-                              tone="success"
+                              tone={
+                                latestRun.valueAccuracy === 100 && latestRun.totalTests > 0
+                                  ? "success"
+                                  : "critical"
+                              }
                             />
                           </InlineStack>
                           <Banner tone="info" title={t("verification.page.banners.attribution.title")}>
