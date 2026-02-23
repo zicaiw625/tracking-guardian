@@ -33,10 +33,12 @@ import { checkPlanGate } from "~/middleware/plan-gate";
 import { normalizePlanId, type PlanId } from "~/services/billing/plans";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 import { useTranslation } from "react-i18next";
+import { i18nServer } from "../i18n.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
+  const tServer = await i18nServer.getFixedT(request);
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true, plan: true },
@@ -63,7 +65,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
-  const testChecklist = generateTestChecklist(shop.id, "quick");
+  const testChecklist = generateTestChecklist(shop.id, "quick", undefined, tServer);
   return json({
     shop: { id: shop.id, domain: shopDomain },
     testChecklist,
@@ -108,7 +110,7 @@ export default function VerificationStartPage() {
     );
   }
   const handleCopyChecklist = async () => {
-    const markdown = generateChecklistMarkdown(testChecklist);
+    const markdown = generateChecklistMarkdown(testChecklist, t);
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
         await navigator.clipboard.writeText(markdown);
@@ -121,7 +123,7 @@ export default function VerificationStartPage() {
     }
   };
   const handleDownloadCSV = () => {
-    const csv = generateChecklistCSV(testChecklist);
+    const csv = generateChecklistCSV(testChecklist, t);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);

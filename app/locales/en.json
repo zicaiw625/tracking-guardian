@@ -570,7 +570,8 @@
     },
     "none": "None",
     "operationSuccess": "Operation successful",
-    "back": "Back"
+    "back": "Back",
+    "notSet": "Not Set"
   },
   "billing": {
     "pageTitle": "Subscription & Billing",
@@ -2158,13 +2159,188 @@
         "title": "Page Error",
         "description": "An unexpected error occurred while loading the start page.",
         "reload": "Reload"
-      }
+      },
+      "pageTitle": "Verification Checklist",
+      "shopNotFound": "Shop not found. Please reinstall the app.",
+      "subtitle": "Review the test checklist before running verification",
+      "backAction": "Back to Verification",
+      "toast": {
+        "copySuccess": "Checklist copied to clipboard",
+        "copyFail": "Failed to copy checklist",
+        "browserNotSupported": "Browser does not support clipboard operations"
+      },
+      "intro": {
+        "title": "Verification Checklist",
+        "description": "Review the items below to prepare for your pixel verification run.",
+        "items": [
+          "Check all required pixel events",
+          "Verify expected parameters for each event",
+          "Follow the step-by-step testing guide"
+        ]
+      },
+      "banner": {
+        "prdRequirement": "This checklist follows Shopify's official pixel verification requirements. Complete all required items before going live."
+      },
+      "checklist": {
+        "title": "Test Checklist",
+        "copy": "Copy",
+        "downloadCSV": "Download CSV",
+        "pixelLayerTitle": "Pixel Layer Events",
+        "required": "Required",
+        "optional": "Optional",
+        "verificationPoints": "Verification Points: ",
+        "expectedParams": "Expected Parameters",
+        "orderLayerTitle": "Order Layer Events",
+        "orderLayerBanner": "Order layer events require order webhooks and PCD approval. These are optional for basic pixel verification.",
+        "expectedFields": "Expected Fields"
+      },
+      "steps": {
+        "title": "Testing Steps",
+        "step1": "Enable test mode in Shopify Admin (Settings → Checkout → Test mode)",
+        "step2": "Install or verify your pixel configuration",
+        "step3": "Open your storefront in a new browser tab",
+        "step4": "Add a product to the cart and proceed to checkout",
+        "step5": "Complete the test order using Bogus Gateway",
+        "step6": "Return to the Verification page and check results",
+        "step7": "Compare event data with Shopify order data for accuracy"
+      },
+      "nextStep": "Next Step",
+      "goToVerification": "Go to Verification"
     },
     "report": {
       "error": {
         "title": "Report Error",
         "description": "An unexpected error occurred while loading the report.",
         "reload": "Reload"
+      },
+      "pageTitle": "Verification Report: {{runName}}",
+      "shopNotFound": "Shop not found. Please reinstall the app.",
+      "subtitle": "Detailed verification results and analysis",
+      "notFound": {
+        "title": "Report Not Found",
+        "description": "The requested verification report could not be found. It may have been deleted or the ID is invalid.",
+        "action": "Back to Verification"
+      },
+      "status": {
+        "completed": "Completed",
+        "running": "Running",
+        "failed": "Failed",
+        "pending": "Pending"
+      },
+      "info": {
+        "notStarted": "Not started",
+        "title": "Run Info",
+        "name": "Name",
+        "type": "Type",
+        "types": {
+          "quick": "Quick Scan",
+          "full": "Full Scan",
+          "custom": "Custom"
+        },
+        "completedAt": "Completed At"
+      },
+      "actions": {
+        "back": "Back to Verification",
+        "export": "Export CSV",
+        "reportCenter": "Report Center"
+      },
+      "intro": {
+        "title": "Verification Report",
+        "description": "Review the results of your pixel verification run, including event accuracy and platform stats.",
+        "items": [
+          "Event completeness and accuracy scores",
+          "Per-platform delivery statistics",
+          "Sandbox limitation annotations"
+        ]
+      },
+      "summary": {
+        "title": "Summary",
+        "totalTests": "Total Tests",
+        "passed": "Passed",
+        "failed": "Failed",
+        "completeness": "Parameter Completeness",
+        "accuracy": "Value Accuracy"
+      },
+      "platformStats": {
+        "title": "Platform Statistics",
+        "platform": "Platform",
+        "sent": "Sent",
+        "failed": "Failed",
+        "successRate": "Success Rate"
+      },
+      "events": {
+        "title": "Event Details",
+        "table": {
+          "testItem": "Test Item",
+          "eventType": "Event Type",
+          "platform": "Platform",
+          "orderId": "Order ID",
+          "status": "Status",
+          "amount": "Amount",
+          "currency": "Currency",
+          "issues": "Issues",
+          "limitations": "Sandbox Limitations"
+        },
+        "more": "Showing first 50 events. Export CSV for the full list."
+      },
+      "originWarning": {
+        "title": "Loose Origin Check Active",
+        "desc": "Requests from non-whitelisted origins or with failed HMAC may still be accepted and marked as <strong>low trust</strong>. It is recommended to set <code>PIXEL_STRICT_ORIGIN=true</code> and configure an origin whitelist in production."
+      },
+      "sandbox": {
+        "title": "Sandbox Limitations",
+        "banner": {
+          "title": "Strict Sandbox Environment",
+          "desc": "Web Pixel runs in a strict sandbox (Web Worker). Some fields and events may be unavailable due to platform restrictions, not bugs."
+        },
+        "limitations": [
+          "Cannot access DOM, localStorage, or third-party cookies",
+          "Some checkout fields (email, phone, address) may be null",
+          "Certain post-purchase events require order webhooks"
+        ],
+        "missingFields": {
+          "title": "Known Missing Fields",
+          "desc": "The following fields are known to be unavailable in strict sandbox. They are automatically tagged in the report.",
+          "eventType": "Event Type:",
+          "fields": "Unavailable Fields:",
+          "reason": "Reason:"
+        },
+        "unavailableEvents": {
+          "title": "Unavailable Event Types",
+          "desc": "These event types are not available in strict sandbox and require order webhooks."
+        },
+        "autoLabel": {
+          "title": "Auto-tagged Notes"
+        },
+        "infoBanner": {
+          "p1": "Web Pixel runs in a <strong>strict sandbox (Web Worker)</strong> environment and cannot access DOM, localStorage, third-party cookies, etc.",
+          "p2": "Some fields may be unavailable — this is a platform limitation, not a bug.",
+          "p3": "The report automatically tags fields and events affected by sandbox restrictions.",
+          "p4": "If a field is <code>null</code> or missing, check the known limitations below before investigating.",
+          "knownLimits": "Known Limited Fields (may be null, auto-tagged):",
+          "limitsList": [
+            "<strong>checkout_completed:</strong> buyer.email, buyer.phone, deliveryAddress, shippingAddress, billingAddress",
+            "<strong>checkout_contact_info_submitted:</strong> buyer.email, buyer.phone",
+            "<strong>checkout_shipping_info_submitted:</strong> deliveryAddress, shippingAddress",
+            "<strong>payment_info_submitted:</strong> billingAddress"
+          ],
+          "unavailableEventsTitle": "Unavailable Event Types (require order webhooks):",
+          "unavailableEventsDesc": "refund, order_cancelled, order_edited, subscription_created, subscription_updated, subscription_cancelled",
+          "autoLabelDesc": "The report has automatically tagged fields/events unavailable due to strict sandbox. These are <strong>Shopify platform limitations</strong>, not bugs."
+        }
+      },
+      "reconciliation": {
+        "title": "Order Reconciliation",
+        "local": {
+          "title": "Local Consistency Check",
+          "total": "Total Checked",
+          "consistent": "Consistent",
+          "inconsistent": "Inconsistent"
+        }
+      },
+      "upgrade": {
+        "desc": "Upgrade to Growth or Agency plan to export full verification reports.",
+        "action": "Upgrade Plan"
       },
       "limitReached": {
         "title": "Data Limit Reached",
@@ -2684,6 +2860,10 @@
         "desc": "Platform: {{platform}}, Environment: {{environment}}, Version: v{{version}}"
       },
       "rollbackBanner": "Rollback will create a new version snapshot for easy recovery.",
+      "configNotFound": {
+        "title": "Config Not Found",
+        "desc": "Pixel config not found, please return to the list."
+      },
       "errors": {
         "missingConfigId": "Missing Config ID",
         "configNotFound": "Config Not Found",
@@ -2695,6 +2875,7 @@
       "title": "Pixel Test",
       "subtitle": "Pixel Test & Payload Preview",
       "back": "Back to Pixels",
+      "backAction": "Back to Pixels",
       "intro": {
         "title": "Test Environment Verification",
         "desc": "Follow the checklist to trigger standard events and check payload parameter completeness and platform status.",
@@ -4080,6 +4261,7 @@
     "cors": {
       "title": "Connectivity Test (CORS)",
       "status": {
+        "notConfigured": "Backend URL is not configured. Please set SHOPIFY_APP_URL.",
         "pending": "Checking...",
         "success": "Connected ({{ms}}ms)",
         "fail": "Connection Failed: HTTP {{status}}",
@@ -4323,5 +4505,262 @@
       "startMigrate": "Start Migration"
     },
     "lastUpdated": "Status updated: {{date}}"
+  },
+  "statusBadge": {
+    "job": {
+      "queued": { "label": "Queued", "tooltip": "Task is waiting in queue" },
+      "processing": { "label": "Processing", "tooltip": "Task is being processed" },
+      "completed": { "label": "Completed", "tooltip": "Task completed successfully" },
+      "failed": { "label": "Failed", "tooltip": "Task execution failed, may retry" },
+      "limit_exceeded": { "label": "Limit Exceeded", "tooltip": "Monthly usage limit reached" },
+      "dead_letter": { "label": "Abandoned", "tooltip": "Task failed after multiple retries" },
+      "pending": { "label": "Pending", "tooltip": "Waiting to be processed" },
+      "sent": { "label": "Sent", "tooltip": "Successfully sent to platform" },
+      "retrying": { "label": "Retrying", "tooltip": "Retrying delivery" }
+    },
+    "health": {
+      "healthy": { "label": "Healthy", "tooltip": "All systems running normally" },
+      "degraded": { "label": "At Risk", "tooltip": "Some metrics abnormal, needs attention" },
+      "unhealthy": { "label": "Needs Attention", "tooltip": "Multiple metrics abnormal, immediate action required" },
+      "unknown": { "label": "Not Initialized", "tooltip": "Not enough data collected yet" }
+    },
+    "platform": {
+      "active": { "label": "Active", "tooltip": "Platform connected, sending data" },
+      "inactive": { "label": "Inactive", "tooltip": "Platform server-side tracking not enabled" },
+      "error": { "label": "Error", "tooltip": "Platform connection error, check configuration" },
+      "pending": { "label": "Configuring", "tooltip": "Platform connection being configured" }
+    },
+    "risk": {
+      "high": "High Risk: Immediate action recommended",
+      "medium": "Medium Risk: Address soon",
+      "low": "Low Risk: Good condition",
+      "score": "Risk Score {{score}}"
+    },
+    "plan": {
+      "free": "Free",
+      "starter": "Starter",
+      "pro": "Pro",
+      "enterprise": "Enterprise"
+    },
+    "boolean": {
+      "true": "Yes",
+      "false": "No"
+    }
+  },
+  "verificationChecklist": {
+    "items": {
+      "purchase": {
+        "name": "Standard Purchase",
+        "description": "Complete a standard order with a single product to verify purchase event",
+        "steps": [
+          "1. Go to the store homepage",
+          "2. Add a product to the cart",
+          "3. Proceed to checkout",
+          "4. Fill in shipping information",
+          "5. Select payment method (use test payment)",
+          "6. Complete the order",
+          "7. Check event triggering on the verification page"
+        ],
+        "expectedResults": [
+          "Purchase event fired",
+          "Event contains value (order amount)",
+          "Event contains currency",
+          "Event contains items (product list)",
+          "Event contains order_id",
+          "All configured platforms received the event",
+          "Order amount matches Shopify order data"
+        ]
+      },
+      "purchase_multi": {
+        "name": "Multi-product Purchase",
+        "description": "Complete an order with multiple products to verify items array completeness",
+        "steps": [
+          "1. Go to the store homepage",
+          "2. Add 2-3 different products to the cart",
+          "3. Proceed to checkout",
+          "4. Complete the order",
+          "5. Verify items array contains all products"
+        ],
+        "expectedResults": [
+          "Purchase event fired",
+          "Items array contains all products",
+          "Value equals total price of all products",
+          "Each product contains item_id, item_name, price, quantity"
+        ]
+      },
+      "purchase_discount": {
+        "name": "Discount Order",
+        "description": "Complete an order with a discount code to verify amount calculation",
+        "steps": [
+          "1. Go to the store homepage",
+          "2. Add a product to the cart",
+          "3. Enter discount code at checkout",
+          "4. Verify discount is applied",
+          "5. Complete the order",
+          "6. Verify event value is the discounted amount"
+        ],
+        "expectedResults": [
+          "Purchase event fired",
+          "Value equals discounted order amount",
+          "Event contains coupon parameter (if platform supports)"
+        ]
+      },
+      "purchase_shipping": {
+        "name": "Order with Shipping",
+        "description": "Complete an order with shipping to verify total amount (products + shipping)",
+        "steps": [
+          "1. Go to the store homepage",
+          "2. Add a product to the cart",
+          "3. Proceed to checkout",
+          "4. Select a paid shipping method",
+          "5. Complete the order",
+          "6. Verify event value includes shipping"
+        ],
+        "expectedResults": [
+          "Purchase event fired",
+          "Value equals product price + shipping",
+          "Event contains shipping parameter (if platform supports)",
+          "Order amount matches Shopify order data"
+        ]
+      },
+      "purchase_complex": {
+        "name": "Complex Order (multi-product + discount + shipping)",
+        "description": "Complete an order with multiple products, discount code, and shipping to verify all parameters",
+        "steps": [
+          "1. Go to the store homepage",
+          "2. Add 2-3 different products to the cart",
+          "3. Proceed to checkout",
+          "4. Enter a discount code (e.g. THANKYOU10)",
+          "5. Select a paid shipping method",
+          "6. Complete the order",
+          "7. Verify all parameters are correct"
+        ],
+        "expectedResults": [
+          "Purchase event fired",
+          "Items array contains all products",
+          "Value equals (total price - discount + shipping)",
+          "Currency parameter is correct",
+          "All configured platforms received the event",
+          "Order amount matches Shopify order data exactly"
+        ]
+      },
+      "currency_test": {
+        "name": "Multi-currency Test",
+        "description": "Complete an order with a non-USD currency to verify currency parameter",
+        "steps": [
+          "1. Switch store currency to non-USD (e.g. EUR, GBP, CNY)",
+          "2. Add a product to the cart",
+          "3. Complete the order",
+          "4. Verify currency parameter matches store currency"
+        ],
+        "expectedResults": [
+          "Purchase event fired",
+          "Currency parameter is correct (e.g. EUR, GBP, CNY)",
+          "Value uses the correct currency",
+          "All platforms received the event with correct currency"
+        ]
+      },
+      "add_to_cart": {
+        "name": "Add to Cart",
+        "description": "Add a product to the cart",
+        "steps": [
+          "1. Go to the store homepage",
+          "2. Select a product",
+          "3. Click 'Add to Cart'",
+          "4. Check the event on the verification page"
+        ],
+        "expectedResults": [
+          "AddToCart event fired",
+          "Event contains product information"
+        ]
+      },
+      "begin_checkout": {
+        "name": "Begin Checkout",
+        "description": "Enter the checkout flow",
+        "steps": [
+          "1. Add a product to the cart",
+          "2. Click 'Checkout'",
+          "3. Check the event on the verification page"
+        ],
+        "expectedResults": [
+          "BeginCheckout event fired",
+          "Event contains cart information"
+        ]
+      },
+      "purchase_zero_value": {
+        "name": "Zero-value Order",
+        "description": "Complete a zero-value order (e.g. using a 100% discount code)",
+        "steps": [
+          "1. Create a 100% discount code",
+          "2. Add a product to the cart",
+          "3. Apply the 100% discount code at checkout",
+          "4. Complete the order (amount is 0)",
+          "5. Verify event value is 0"
+        ],
+        "expectedResults": [
+          "Purchase event fired",
+          "Value is 0 (or near 0 if shipping included)",
+          "Event still contains product information"
+        ]
+      },
+      "purchase_currency_mismatch": {
+        "name": "Multi-currency Order",
+        "description": "Complete an order with a non-default currency (if store supports multi-currency)",
+        "steps": [
+          "1. Switch to a non-default currency (e.g. EUR, GBP)",
+          "2. Add a product to the cart",
+          "3. Complete the order",
+          "4. Verify event currency is the correct currency code",
+          "5. Verify value is in the correct currency"
+        ],
+        "expectedResults": [
+          "Purchase event fired",
+          "Currency field is the correct code (e.g. EUR, GBP)",
+          "Value is in the correct currency"
+        ]
+      }
+    },
+    "markdown": {
+      "title": "Verification Test Checklist",
+      "generatedAt": "Generated At",
+      "testType": "Test Type",
+      "testTypeQuick": "Quick Test",
+      "testTypeFull": "Full Test",
+      "testTypeCustom": "Custom Test",
+      "estimatedTotalTime": "Estimated Total Time",
+      "requiredItems": "Required",
+      "optionalItems": "Optional",
+      "categoryPurchase": "Purchase Events",
+      "categoryCart": "Cart Events",
+      "description": "Description",
+      "platforms": "Platforms",
+      "estimatedTime": "Estimated Time",
+      "stepsLabel": "Steps",
+      "expectedResults": "Expected Results",
+      "completionChecklist": "Completion Checklist",
+      "allRequiredDone": "All required test items completed",
+      "allEventsFired": "All events fired correctly",
+      "paramsComplete": "Event parameters complete (value, currency, items, etc.)",
+      "amountsMatch": "Order amounts match event values",
+      "allPlatformsReceived": "All configured platforms received events",
+      "thirdPartyVerified": "Events verified in third-party platforms (GA4/Meta/TikTok)",
+      "minutes": "{{count}} minutes",
+      "hoursMinutes": "{{hours}} hours {{minutes}} minutes",
+      "hours": "{{count}} hours"
+    },
+    "csv": {
+      "id": "ID",
+      "name": "Name",
+      "description": "Description",
+      "eventType": "Event Type",
+      "required": "Required",
+      "platforms": "Platforms",
+      "estimatedTime": "Estimated Time (min)",
+      "category": "Category",
+      "status": "Status",
+      "yes": "Yes",
+      "no": "No",
+      "notTested": "Not Tested"
+    }
   }
 }

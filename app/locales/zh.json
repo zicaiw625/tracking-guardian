@@ -570,7 +570,8 @@
     },
     "none": "无",
     "operationSuccess": "操作成功",
-    "back": "返回"
+    "back": "返回",
+    "notSet": "未设置"
   },
   "billing": {
     "pageTitle": "订阅与计费",
@@ -2158,13 +2159,188 @@
         "title": "页面错误",
         "description": "加载开始页面时发生意外错误。",
         "reload": "重新加载"
-      }
+      },
+      "pageTitle": "验收测试清单",
+      "shopNotFound": "店铺未找到，请重新安装应用。",
+      "subtitle": "在运行验收之前，请查看测试清单",
+      "backAction": "返回验收",
+      "toast": {
+        "copySuccess": "清单已复制到剪贴板",
+        "copyFail": "复制清单失败",
+        "browserNotSupported": "浏览器不支持剪贴板操作"
+      },
+      "intro": {
+        "title": "验收测试清单",
+        "description": "查看以下项目，为像素验收做好准备。",
+        "items": [
+          "检查所有必需的像素事件",
+          "验证每个事件的预期参数",
+          "按照分步测试指南操作"
+        ]
+      },
+      "banner": {
+        "prdRequirement": "本清单遵循 Shopify 官方像素验收要求。请在上线前完成所有必需项目。"
+      },
+      "checklist": {
+        "title": "测试清单",
+        "copy": "复制",
+        "downloadCSV": "下载 CSV",
+        "pixelLayerTitle": "Pixel 层事件",
+        "required": "必需",
+        "optional": "可选",
+        "verificationPoints": "验证点：",
+        "expectedParams": "预期参数",
+        "orderLayerTitle": "订单层事件",
+        "orderLayerBanner": "订单层事件需要订单 Webhook 和 PCD 审批。这些对于基本像素验收是可选的。",
+        "expectedFields": "预期字段"
+      },
+      "steps": {
+        "title": "测试步骤",
+        "step1": "在 Shopify 后台启用测试模式（设置 → 结账 → 测试模式）",
+        "step2": "安装或验证您的像素配置",
+        "step3": "在新的浏览器标签页中打开您的店面",
+        "step4": "将商品添加到购物车并进入结账",
+        "step5": "使用 Bogus Gateway 完成测试订单",
+        "step6": "返回验收页面查看结果",
+        "step7": "将事件数据与 Shopify 订单数据进行比对以确认准确性"
+      },
+      "nextStep": "下一步",
+      "goToVerification": "前往验收"
     },
     "report": {
       "error": {
         "title": "报告错误",
         "description": "加载报告时发生意外错误。",
         "reload": "重新加载"
+      },
+      "pageTitle": "验收报告：{{runName}}",
+      "shopNotFound": "店铺未找到，请重新安装应用。",
+      "subtitle": "详细验收结果与分析",
+      "notFound": {
+        "title": "报告未找到",
+        "description": "未找到请求的验收报告。报告可能已被删除或 ID 无效。",
+        "action": "返回验收"
+      },
+      "status": {
+        "completed": "已完成",
+        "running": "运行中",
+        "failed": "失败",
+        "pending": "待处理"
+      },
+      "info": {
+        "notStarted": "未开始",
+        "title": "运行信息",
+        "name": "名称",
+        "type": "类型",
+        "types": {
+          "quick": "快速扫描",
+          "full": "全面扫描",
+          "custom": "自定义"
+        },
+        "completedAt": "完成时间"
+      },
+      "actions": {
+        "back": "返回验收",
+        "export": "导出 CSV",
+        "reportCenter": "报告中心"
+      },
+      "intro": {
+        "title": "验收报告",
+        "description": "查看像素验收运行的结果，包括事件准确性和平台统计数据。",
+        "items": [
+          "事件完整性和准确性评分",
+          "各平台投递统计",
+          "沙箱限制自动标注"
+        ]
+      },
+      "summary": {
+        "title": "摘要",
+        "totalTests": "总测试数",
+        "passed": "通过",
+        "failed": "失败",
+        "completeness": "参数完整性",
+        "accuracy": "数值准确性"
+      },
+      "platformStats": {
+        "title": "平台统计",
+        "platform": "平台",
+        "sent": "已发送",
+        "failed": "失败",
+        "successRate": "成功率"
+      },
+      "events": {
+        "title": "事件详情",
+        "table": {
+          "testItem": "测试项",
+          "eventType": "事件类型",
+          "platform": "平台",
+          "orderId": "订单 ID",
+          "status": "状态",
+          "amount": "金额",
+          "currency": "币种",
+          "issues": "问题",
+          "limitations": "沙箱限制"
+        },
+        "more": "仅显示前 50 个事件。导出 CSV 以查看完整列表。"
+      },
+      "originWarning": {
+        "title": "宽松 Origin 检查已启用",
+        "desc": "来自未白名单来源或 HMAC 验证失败的请求仍可被接受，并标记为<strong>低信任</strong>。建议在生产环境中设置 <code>PIXEL_STRICT_ORIGIN=true</code> 并配置 Origin 白名单。"
+      },
+      "sandbox": {
+        "title": "沙箱限制",
+        "banner": {
+          "title": "严格沙箱环境",
+          "desc": "Web Pixel 在严格沙箱（Web Worker）中运行。部分字段和事件可能因平台限制而不可用，并非 Bug。"
+        },
+        "limitations": [
+          "无法访问 DOM、localStorage 或第三方 Cookie",
+          "部分结账字段（邮箱、电话、地址）可能为 null",
+          "某些购后事件需要订单 Webhook"
+        ],
+        "missingFields": {
+          "title": "已知缺失字段",
+          "desc": "以下字段在严格沙箱中已知不可用，报告中已自动标注。",
+          "eventType": "事件类型：",
+          "fields": "不可用字段：",
+          "reason": "原因："
+        },
+        "unavailableEvents": {
+          "title": "不可用事件类型",
+          "desc": "这些事件类型在严格沙箱中不可用，需要通过订单 Webhook 获取。"
+        },
+        "autoLabel": {
+          "title": "自动标注说明"
+        },
+        "infoBanner": {
+          "p1": "Web Pixel 在<strong>严格沙箱（Web Worker）</strong>环境中运行，无法访问 DOM、localStorage、第三方 Cookie 等。",
+          "p2": "部分字段可能不可用——这是平台限制，而非 Bug。",
+          "p3": "报告已自动标注受沙箱限制影响的字段和事件。",
+          "p4": "如果某个字段为 <code>null</code> 或缺失，请先查看以下已知限制。",
+          "knownLimits": "已知受限字段（可能为 null，已自动标注）：",
+          "limitsList": [
+            "<strong>checkout_completed:</strong> buyer.email, buyer.phone, deliveryAddress, shippingAddress, billingAddress",
+            "<strong>checkout_contact_info_submitted:</strong> buyer.email, buyer.phone",
+            "<strong>checkout_shipping_info_submitted:</strong> deliveryAddress, shippingAddress",
+            "<strong>payment_info_submitted:</strong> billingAddress"
+          ],
+          "unavailableEventsTitle": "不可用事件类型（需要订单 Webhook）：",
+          "unavailableEventsDesc": "refund, order_cancelled, order_edited, subscription_created, subscription_updated, subscription_cancelled",
+          "autoLabelDesc": "报告已自动标注因严格沙箱而不可用的字段/事件。这些是 <strong>Shopify 平台限制</strong>，而非 Bug。"
+        }
+      },
+      "reconciliation": {
+        "title": "订单对账",
+        "local": {
+          "title": "本地一致性检查",
+          "total": "已检查总数",
+          "consistent": "一致",
+          "inconsistent": "不一致"
+        }
+      },
+      "upgrade": {
+        "desc": "升级到 Growth 或 Agency 计划以导出完整验收报告。",
+        "action": "升级计划"
       },
       "limitReached": {
         "title": "数据限制",
@@ -2684,6 +2860,10 @@
         "desc": "平台：{{platform}}，环境：{{environment}}，版本：v{{version}}"
       },
       "rollbackBanner": "回滚后会创建新的版本快照，方便再次恢复。",
+      "configNotFound": {
+        "title": "配置不存在",
+        "desc": "像素配置未找到，请返回列表。"
+      },
       "errors": {
         "missingConfigId": "缺少配置 ID",
         "configNotFound": "配置不存在",
@@ -2695,6 +2875,7 @@
       "title": "Pixel 测试",
       "subtitle": "Pixel 测试与 Payload 预览",
       "back": "返回 Pixels",
+      "backAction": "返回 Pixels",
       "intro": {
         "title": "Test 环境验收",
         "desc": "跟随测试清单触发标准事件，检查 payload 参数完整率与平台发送状态。",
@@ -4080,6 +4261,7 @@
     "cors": {
       "title": "连通性测试 (CORS)",
       "status": {
+        "notConfigured": "后端 URL 未配置。请设置 SHOPIFY_APP_URL。",
         "pending": "正在检查...",
         "success": "连接成功 ({{ms}}ms)",
         "fail": "连接失败: HTTP {{status}}",
@@ -4323,5 +4505,262 @@
       "startMigrate": "开始迁移"
     },
     "lastUpdated": "状态更新时间：{{date}}"
+  },
+  "statusBadge": {
+    "job": {
+      "queued": { "label": "排队中", "tooltip": "任务正在队列中等待处理" },
+      "processing": { "label": "处理中", "tooltip": "任务正在处理" },
+      "completed": { "label": "已完成", "tooltip": "任务已成功完成" },
+      "failed": { "label": "失败", "tooltip": "任务执行失败，可能会重试" },
+      "limit_exceeded": { "label": "超出限额", "tooltip": "已达到月度使用限额" },
+      "dead_letter": { "label": "已放弃", "tooltip": "任务多次重试后仍失败" },
+      "pending": { "label": "待处理", "tooltip": "等待处理" },
+      "sent": { "label": "已发送", "tooltip": "已成功发送到平台" },
+      "retrying": { "label": "重试中", "tooltip": "正在重试发送" }
+    },
+    "health": {
+      "healthy": { "label": "健康", "tooltip": "所有系统正常运行" },
+      "degraded": { "label": "有风险", "tooltip": "部分指标异常，需要关注" },
+      "unhealthy": { "label": "需关注", "tooltip": "多项指标异常，需要立即处理" },
+      "unknown": { "label": "未初始化", "tooltip": "尚未收集到足够数据" }
+    },
+    "platform": {
+      "active": { "label": "已启用", "tooltip": "平台连接正常，正在发送数据" },
+      "inactive": { "label": "未启用", "tooltip": "平台未启用服务端追踪" },
+      "error": { "label": "错误", "tooltip": "平台连接异常，请检查配置" },
+      "pending": { "label": "配置中", "tooltip": "正在配置平台连接" }
+    },
+    "risk": {
+      "high": "高风险：建议立即采取行动",
+      "medium": "中等风险：建议尽快处理",
+      "low": "低风险：状态良好",
+      "score": "风险分 {{score}}"
+    },
+    "plan": {
+      "free": "免费版",
+      "starter": "入门版",
+      "pro": "专业版",
+      "enterprise": "企业版"
+    },
+    "boolean": {
+      "true": "是",
+      "false": "否"
+    }
+  },
+  "verificationChecklist": {
+    "items": {
+      "purchase": {
+        "name": "标准购买",
+        "description": "完成一个包含单个商品的标准订单，验证 purchase 事件触发",
+        "steps": [
+          "1. 前往商店首页",
+          "2. 选择一个商品加入购物车",
+          "3. 进入结账流程",
+          "4. 填写收货信息",
+          "5. 选择支付方式（可使用测试支付）",
+          "6. 完成订单",
+          "7. 在验收页面查看事件触发情况"
+        ],
+        "expectedResults": [
+          "Purchase 事件已触发",
+          "事件包含 value（订单金额）",
+          "事件包含 currency（币种）",
+          "事件包含 items（商品列表）",
+          "事件包含 order_id（订单ID）",
+          "所有配置的平台都收到事件",
+          "订单金额与 Shopify 订单数据一致"
+        ]
+      },
+      "purchase_multi": {
+        "name": "多商品购买",
+        "description": "完成一个包含多个不同商品的订单，验证 items 数组完整性",
+        "steps": [
+          "1. 前往商店首页",
+          "2. 选择 2-3 个不同商品加入购物车",
+          "3. 进入结账流程",
+          "4. 完成订单",
+          "5. 验证事件中的 items 数组包含所有商品"
+        ],
+        "expectedResults": [
+          "Purchase 事件已触发",
+          "items 数组包含所有商品",
+          "value 等于所有商品总价",
+          "每个商品包含 item_id、item_name、price、quantity"
+        ]
+      },
+      "purchase_discount": {
+        "name": "折扣订单",
+        "description": "使用折扣码完成订单，验证金额计算正确",
+        "steps": [
+          "1. 前往商店首页",
+          "2. 选择一个商品加入购物车",
+          "3. 在结账页面输入折扣码",
+          "4. 验证折扣已应用",
+          "5. 完成订单",
+          "6. 验证事件中的 value 是折扣后的金额"
+        ],
+        "expectedResults": [
+          "Purchase 事件已触发",
+          "value 等于折扣后的订单金额",
+          "事件包含 coupon 参数（如果平台支持）"
+        ]
+      },
+      "purchase_shipping": {
+        "name": "含运费订单",
+        "description": "完成一个包含运费的订单，验证总金额（商品 + 运费）正确",
+        "steps": [
+          "1. 前往商店首页",
+          "2. 选择一个商品加入购物车",
+          "3. 进入结账流程",
+          "4. 选择需要付费的配送方式",
+          "5. 完成订单",
+          "6. 验证事件中的 value 包含运费"
+        ],
+        "expectedResults": [
+          "Purchase 事件已触发",
+          "value 等于商品价格 + 运费",
+          "事件包含 shipping 参数（如果平台支持）",
+          "订单金额与 Shopify 订单数据一致"
+        ]
+      },
+      "purchase_complex": {
+        "name": "复杂订单（多商品 + 折扣 + 运费）",
+        "description": "完成一个包含多商品、折扣码和运费的完整订单，验证所有参数正确",
+        "steps": [
+          "1. 前往商店首页",
+          "2. 选择 2-3 个不同商品加入购物车",
+          "3. 进入结账流程",
+          "4. 输入折扣码（如 THANKYOU10）",
+          "5. 选择付费配送方式",
+          "6. 完成订单",
+          "7. 验证所有参数正确"
+        ],
+        "expectedResults": [
+          "Purchase 事件已触发",
+          "items 数组包含所有商品",
+          "value 等于（商品总价 - 折扣 + 运费）",
+          "currency 参数正确",
+          "所有配置的平台都收到事件",
+          "订单金额与 Shopify 订单数据完全一致"
+        ]
+      },
+      "currency_test": {
+        "name": "多币种测试",
+        "description": "使用非 USD 币种完成订单，验证 currency 参数正确",
+        "steps": [
+          "1. 切换商店币种为非 USD（如 EUR、GBP、CNY）",
+          "2. 选择一个商品加入购物车",
+          "3. 完成订单",
+          "4. 验证 currency 参数与商店币种一致"
+        ],
+        "expectedResults": [
+          "Purchase 事件已触发",
+          "currency 参数正确（如 EUR、GBP、CNY）",
+          "value 使用正确的币种",
+          "所有平台收到正确币种的事件"
+        ]
+      },
+      "add_to_cart": {
+        "name": "添加到购物车",
+        "description": "将商品添加到购物车",
+        "steps": [
+          "1. 前往商店首页",
+          "2. 选择一个商品",
+          "3. 点击「加入购物车」",
+          "4. 在验收页面查看事件"
+        ],
+        "expectedResults": [
+          "AddToCart 事件已触发",
+          "事件包含商品信息"
+        ]
+      },
+      "begin_checkout": {
+        "name": "开始结账",
+        "description": "进入结账流程",
+        "steps": [
+          "1. 将商品加入购物车",
+          "2. 点击「结账」",
+          "3. 在验收页面查看事件"
+        ],
+        "expectedResults": [
+          "BeginCheckout 事件已触发",
+          "事件包含购物车信息"
+        ]
+      },
+      "purchase_zero_value": {
+        "name": "零金额订单",
+        "description": "完成一个零金额订单（如使用100%折扣码）",
+        "steps": [
+          "1. 创建一个100%折扣码",
+          "2. 选择一个商品加入购物车",
+          "3. 在结账页面使用100%折扣码",
+          "4. 完成订单（金额为0）",
+          "5. 验证事件中的 value 为 0"
+        ],
+        "expectedResults": [
+          "Purchase 事件已触发",
+          "value 为 0（或接近0，如果包含运费）",
+          "事件仍然包含商品信息"
+        ]
+      },
+      "purchase_currency_mismatch": {
+        "name": "多币种订单",
+        "description": "完成一个使用非默认币种的订单（如果商店支持多币种）",
+        "steps": [
+          "1. 切换到非默认币种（如 EUR、GBP）",
+          "2. 选择一个商品加入购物车",
+          "3. 完成订单",
+          "4. 验证事件中的 currency 是正确的币种代码",
+          "5. 验证 value 是正确币种的金额"
+        ],
+        "expectedResults": [
+          "Purchase 事件已触发",
+          "currency 字段是正确的币种代码（如 EUR、GBP）",
+          "value 是正确币种的金额"
+        ]
+      }
+    },
+    "markdown": {
+      "title": "验收测试清单",
+      "generatedAt": "生成时间",
+      "testType": "测试类型",
+      "testTypeQuick": "快速测试",
+      "testTypeFull": "完整测试",
+      "testTypeCustom": "自定义测试",
+      "estimatedTotalTime": "预计总时间",
+      "requiredItems": "必需项",
+      "optionalItems": "可选项",
+      "categoryPurchase": "购买事件",
+      "categoryCart": "购物车事件",
+      "description": "描述",
+      "platforms": "支持平台",
+      "estimatedTime": "预计时间",
+      "stepsLabel": "操作步骤",
+      "expectedResults": "预期结果",
+      "completionChecklist": "测试完成检查清单",
+      "allRequiredDone": "所有必需测试项已完成",
+      "allEventsFired": "所有事件都正确触发",
+      "paramsComplete": "事件参数完整（value、currency、items 等）",
+      "amountsMatch": "订单金额与事件 value 一致",
+      "allPlatformsReceived": "所有配置的平台都收到事件",
+      "thirdPartyVerified": "在第三方平台（GA4/Meta/TikTok）中验证事件已接收",
+      "minutes": "{{count}} 分钟",
+      "hoursMinutes": "{{hours}} 小时 {{minutes}} 分钟",
+      "hours": "{{count}} 小时"
+    },
+    "csv": {
+      "id": "ID",
+      "name": "名称",
+      "description": "描述",
+      "eventType": "事件类型",
+      "required": "必需",
+      "platforms": "平台",
+      "estimatedTime": "预计时间（分钟）",
+      "category": "类别",
+      "status": "状态",
+      "yes": "是",
+      "no": "否",
+      "notTested": "未测试"
+    }
   }
 }

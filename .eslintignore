@@ -5,3 +5,4 @@ dist
 .cache
 .trae
 coverage
+find_chinese.js

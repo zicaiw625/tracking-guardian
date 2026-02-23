@@ -1,4 +1,5 @@
 import { escapeCSV } from "~/utils/csv.server";
+import type { TFunction } from "i18next";
 
 export interface TestChecklistItem {
   id: string;
@@ -51,9 +52,10 @@ const SHOPIFY_PIXEL_TEST_GUIDE = "https://help.shopify.com/en/manual/online-stor
 export function generateTestChecklist(
   shopId: string,
   testType: "quick" | "full" | "custom" = "quick",
-  customTestItems?: string[]
+  customTestItems?: string[],
+  t?: TFunction
 ): TestChecklist {
-  const allItems = getAllTestItems();
+  const allItems = getAllTestItems(t);
   let selectedItems: TestChecklistItem[];
   if (testType === "quick") {
         selectedItems = allItems.filter((item) => item.required);
@@ -92,330 +94,155 @@ export function generateTestChecklist(
   };
 }
 
-function getAllTestItems(): TestChecklistItem[] {
-  return [
-    {
-      id: "purchase",
-      name: "标准购买",
-      description: "完成一个包含单个商品的标准订单，验证 purchase 事件触发",
-      eventType: "purchase",
-      required: true,
-      platforms: ["google", "meta", "tiktok"],
-      steps: [
-        "1. 前往商店首页",
-        "2. 选择一个商品加入购物车",
-        "3. 进入结账流程",
-        "4. 填写收货信息",
-        "5. 选择支付方式（可使用测试支付）",
-        "6. 完成订单",
-        "7. 在验收页面查看事件触发情况",
-      ],
-      expectedResults: [
-        "Purchase 事件已触发",
-        "事件包含 value（订单金额）",
-        "事件包含 currency（币种）",
-        "事件包含 items（商品列表）",
-        "事件包含 order_id（订单ID）",
-        "所有配置的平台都收到事件",
-        "订单金额与 Shopify 订单数据一致",
-      ],
-      estimatedTime: 5,
-      category: "purchase",
-    },
-    {
-      id: "purchase_multi",
-      name: "多商品购买",
-      description: "完成一个包含多个不同商品的订单，验证 items 数组完整性",
-      eventType: "purchase",
-      required: false,
-      platforms: ["google", "meta", "tiktok"],
-      steps: [
-        "1. 前往商店首页",
-        "2. 选择 2-3 个不同商品加入购物车",
-        "3. 进入结账流程",
-        "4. 完成订单",
-        "5. 验证事件中的 items 数组包含所有商品",
-      ],
-      expectedResults: [
-        "Purchase 事件已触发",
-        "items 数组包含所有商品",
-        "value 等于所有商品总价",
-        "每个商品包含 item_id、item_name、price、quantity",
-      ],
-      estimatedTime: 5,
-      category: "purchase",
-    },
-    {
-      id: "purchase_discount",
-      name: "折扣订单",
-      description: "使用折扣码完成订单，验证金额计算正确",
-      eventType: "purchase",
-      required: false,
-      platforms: ["google", "meta", "tiktok"],
-      steps: [
-        "1. 前往商店首页",
-        "2. 选择一个商品加入购物车",
-        "3. 在结账页面输入折扣码",
-        "4. 验证折扣已应用",
-        "5. 完成订单",
-        "6. 验证事件中的 value 是折扣后的金额",
-      ],
-      expectedResults: [
-        "Purchase 事件已触发",
-        "value 等于折扣后的订单金额",
-        "事件包含 coupon 参数（如果平台支持）",
-      ],
-      estimatedTime: 5,
-      category: "purchase",
-    },
-    {
-      id: "purchase_shipping",
-      name: "含运费订单",
-      description: "完成一个包含运费的订单，验证总金额（商品 + 运费）正确",
-      eventType: "purchase",
-      required: false,
-      platforms: ["google", "meta", "tiktok"],
-      steps: [
-        "1. 前往商店首页",
-        "2. 选择一个商品加入购物车",
-        "3. 进入结账流程",
-        "4. 选择需要付费的配送方式",
-        "5. 完成订单",
-        "6. 验证事件中的 value 包含运费",
-      ],
-      expectedResults: [
-        "Purchase 事件已触发",
-        "value 等于商品价格 + 运费",
-        "事件包含 shipping 参数（如果平台支持）",
-        "订单金额与 Shopify 订单数据一致",
-      ],
-      estimatedTime: 5,
-      category: "purchase",
-    },
-    {
-      id: "purchase_complex",
-      name: "复杂订单（多商品 + 折扣 + 运费）",
-      description: "完成一个包含多商品、折扣码和运费的完整订单，验证所有参数正确",
-      eventType: "purchase",
-      required: false,
-      platforms: ["google", "meta", "tiktok"],
-      steps: [
-        "1. 前往商店首页",
-        "2. 选择 2-3 个不同商品加入购物车",
-        "3. 进入结账流程",
-        "4. 输入折扣码（如 THANKYOU10）",
-        "5. 选择付费配送方式",
-        "6. 完成订单",
-        "7. 验证所有参数正确",
-      ],
-      expectedResults: [
-        "Purchase 事件已触发",
-        "items 数组包含所有商品",
-        "value 等于（商品总价 - 折扣 + 运费）",
-        "currency 参数正确",
-        "所有配置的平台都收到事件",
-        "订单金额与 Shopify 订单数据完全一致",
-      ],
-      estimatedTime: 8,
-      category: "purchase",
-    },
-    {
-      id: "currency_test",
-      name: "多币种测试",
-      description: "使用非 USD 币种完成订单，验证 currency 参数正确",
-      eventType: "purchase",
-      required: false,
-      platforms: ["google", "meta", "tiktok"],
-      steps: [
-        "1. 切换商店币种为非 USD（如 EUR、GBP、CNY）",
-        "2. 选择一个商品加入购物车",
-        "3. 完成订单",
-        "4. 验证 currency 参数与商店币种一致",
-      ],
-      expectedResults: [
-        "Purchase 事件已触发",
-        "currency 参数正确（如 EUR、GBP、CNY）",
-        "value 使用正确的币种",
-        "所有平台收到正确币种的事件",
-      ],
-      estimatedTime: 5,
-      category: "purchase",
-    },
-    {
-      id: "add_to_cart",
-      name: "添加到购物车",
-      description: "将商品添加到购物车",
-      eventType: "add_to_cart",
-      required: false,
-      platforms: ["google", "meta", "tiktok"],
-      steps: [
-        "1. 前往商店首页",
-        "2. 选择一个商品",
-        "3. 点击「加入购物车」",
-        "4. 在验收页面查看事件",
-      ],
-      expectedResults: [
-        "AddToCart 事件已触发",
-        "事件包含商品信息",
-      ],
-      estimatedTime: 2,
-      category: "cart",
-    },
-    {
-      id: "begin_checkout",
-      name: "开始结账",
-      description: "进入结账流程",
-      eventType: "begin_checkout",
-      required: false,
-      platforms: ["google", "meta", "tiktok"],
-      steps: [
-        "1. 将商品加入购物车",
-        "2. 点击「结账」",
-        "3. 在验收页面查看事件",
-      ],
-      expectedResults: [
-        "BeginCheckout 事件已触发",
-        "事件包含购物车信息",
-      ],
-      estimatedTime: 2,
-      category: "cart",
-    },
-    {
-      id: "purchase_zero_value",
-      name: "零金额订单",
-      description: "完成一个零金额订单（如使用100%折扣码）",
-      eventType: "purchase",
-      required: false,
-      platforms: ["google", "meta"],
-      steps: [
-        "1. 创建一个100%折扣码",
-        "2. 选择一个商品加入购物车",
-        "3. 在结账页面使用100%折扣码",
-        "4. 完成订单（金额为0）",
-        "5. 验证事件中的 value 为 0",
-      ],
-      expectedResults: [
-        "Purchase 事件已触发",
-        "value 为 0（或接近0，如果包含运费）",
-        "事件仍然包含商品信息",
-      ],
-      estimatedTime: 5,
-      category: "purchase",
-    },
-    {
-      id: "purchase_currency_mismatch",
-      name: "多币种订单",
-      description: "完成一个使用非默认币种的订单（如果商店支持多币种）",
-      eventType: "purchase",
-      required: false,
-      platforms: ["google", "meta", "tiktok"],
-      steps: [
-        "1. 切换到非默认币种（如 EUR、GBP）",
-        "2. 选择一个商品加入购物车",
-        "3. 完成订单",
-        "4. 验证事件中的 currency 是正确的币种代码",
-        "5. 验证 value 是正确币种的金额",
-      ],
-      expectedResults: [
-        "Purchase 事件已触发",
-        "currency 字段是正确的币种代码（如 EUR、GBP）",
-        "value 是正确币种的金额",
-      ],
-      estimatedTime: 5,
-      category: "purchase",
-    },
-  ];
+const TEST_ITEM_IDS = [
+  "purchase",
+  "purchase_multi",
+  "purchase_discount",
+  "purchase_shipping",
+  "purchase_complex",
+  "currency_test",
+  "add_to_cart",
+  "begin_checkout",
+  "purchase_zero_value",
+  "purchase_currency_mismatch",
+] as const;
+
+interface TestItemMeta {
+  eventType: string;
+  required: boolean;
+  platforms: string[];
+  estimatedTime: number;
+  category: "purchase" | "cart" | "refund" | "order_edit";
 }
 
-export function getTestItemDetails(itemId: string): TestChecklistItem | null {
-  const allItems = getAllTestItems();
+const TEST_ITEM_META: Record<string, TestItemMeta> = {
+  purchase: { eventType: "purchase", required: true, platforms: ["google", "meta", "tiktok"], estimatedTime: 5, category: "purchase" },
+  purchase_multi: { eventType: "purchase", required: false, platforms: ["google", "meta", "tiktok"], estimatedTime: 5, category: "purchase" },
+  purchase_discount: { eventType: "purchase", required: false, platforms: ["google", "meta", "tiktok"], estimatedTime: 5, category: "purchase" },
+  purchase_shipping: { eventType: "purchase", required: false, platforms: ["google", "meta", "tiktok"], estimatedTime: 5, category: "purchase" },
+  purchase_complex: { eventType: "purchase", required: false, platforms: ["google", "meta", "tiktok"], estimatedTime: 8, category: "purchase" },
+  currency_test: { eventType: "purchase", required: false, platforms: ["google", "meta", "tiktok"], estimatedTime: 5, category: "purchase" },
+  add_to_cart: { eventType: "add_to_cart", required: false, platforms: ["google", "meta", "tiktok"], estimatedTime: 2, category: "cart" },
+  begin_checkout: { eventType: "begin_checkout", required: false, platforms: ["google", "meta", "tiktok"], estimatedTime: 2, category: "cart" },
+  purchase_zero_value: { eventType: "purchase", required: false, platforms: ["google", "meta"], estimatedTime: 5, category: "purchase" },
+  purchase_currency_mismatch: { eventType: "purchase", required: false, platforms: ["google", "meta", "tiktok"], estimatedTime: 5, category: "purchase" },
+};
+
+function getAllTestItems(t?: TFunction): TestChecklistItem[] {
+  return TEST_ITEM_IDS.map((id) => {
+    const meta = TEST_ITEM_META[id];
+    const name = t ? t(`verificationChecklist.items.${id}.name`) : id;
+    const description = t ? t(`verificationChecklist.items.${id}.description`) : "";
+    const steps: string[] = t
+      ? (t(`verificationChecklist.items.${id}.steps`, { returnObjects: true }) as string[])
+      : [];
+    const expectedResults: string[] = t
+      ? (t(`verificationChecklist.items.${id}.expectedResults`, { returnObjects: true }) as string[])
+      : [];
+    return {
+      id,
+      name,
+      description,
+      eventType: meta.eventType,
+      required: meta.required,
+      platforms: meta.platforms,
+      steps: Array.isArray(steps) ? steps : [],
+      expectedResults: Array.isArray(expectedResults) ? expectedResults : [],
+      estimatedTime: meta.estimatedTime,
+      category: meta.category,
+    };
+  });
+}
+
+export function getTestItemDetails(itemId: string, t?: TFunction): TestChecklistItem | null {
+  const allItems = getAllTestItems(t);
   return allItems.find((item) => item.id === itemId) || null;
 }
 
-export function generateChecklistMarkdown(checklist: TestChecklist): string {
-  const formatTime = (minutes: number) => {
-    if (minutes < 60) {
-      return `${minutes} 分钟`;
-    }
+function formatTime(minutes: number, t?: TFunction): string {
+  if (t) {
+    if (minutes < 60) return t("verificationChecklist.markdown.minutes", { count: minutes });
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
-  };
-  let markdown = `# 验收测试清单\n\n`;
-  markdown += `**生成时间**: ${checklist.generatedAt.toLocaleString("zh-CN")}\n`;
-  markdown += `**测试类型**: ${checklist.testType === "quick" ? "快速测试" : checklist.testType === "full" ? "完整测试" : "自定义测试"}\n`;
-  markdown += `**预计总时间**: ${formatTime(checklist.totalEstimatedTime)}\n`;
-  markdown += `**必需项**: ${checklist.requiredItemsCount} | **可选项**: ${checklist.optionalItemsCount}\n\n`;
+    return mins > 0
+      ? t("verificationChecklist.markdown.hoursMinutes", { hours, minutes: mins })
+      : t("verificationChecklist.markdown.hours", { count: hours });
+  }
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+}
+
+export function generateChecklistMarkdown(checklist: TestChecklist, t?: TFunction): string {
+  const mk = (key: string) => t ? t(`verificationChecklist.markdown.${key}`) : key;
+  const testTypeLabel = checklist.testType === "quick"
+    ? mk("testTypeQuick")
+    : checklist.testType === "full"
+      ? mk("testTypeFull")
+      : mk("testTypeCustom");
+
+  let markdown = `# ${mk("title")}\n\n`;
+  markdown += `**${mk("generatedAt")}**: ${checklist.generatedAt.toLocaleString()}\n`;
+  markdown += `**${mk("testType")}**: ${testTypeLabel}\n`;
+  markdown += `**${mk("estimatedTotalTime")}**: ${formatTime(checklist.totalEstimatedTime, t)}\n`;
+  markdown += `**${mk("requiredItems")}**: ${checklist.requiredItemsCount} | **${mk("optionalItems")}**: ${checklist.optionalItemsCount}\n\n`;
   markdown += `---\n\n`;
-  const categories: Record<string, TestChecklistItem[]> = {
-    purchase: [],
-    cart: [],
-  };
+
+  const categories: Record<string, TestChecklistItem[]> = { purchase: [], cart: [] };
   for (const item of checklist.items) {
-    if (categories[item.category]) {
-      categories[item.category].push(item);
-    }
+    if (categories[item.category]) categories[item.category].push(item);
   }
   const categoryLabels: Record<string, string> = {
-    purchase: "购买事件",
-    cart: "购物车事件",
+    purchase: mk("categoryPurchase"),
+    cart: mk("categoryCart"),
   };
+
   for (const [category, items] of Object.entries(categories)) {
     if (items.length === 0) continue;
     markdown += `## ${categoryLabels[category]}\n\n`;
     for (const item of items) {
       markdown += `### ${item.required ? "✅" : "⚪"} ${item.name}\n\n`;
-      markdown += `**描述**: ${item.description}\n\n`;
-      markdown += `**支持平台**: ${item.platforms.join(", ")}\n\n`;
-      markdown += `**预计时间**: ${formatTime(item.estimatedTime)}\n\n`;
-      markdown += `**操作步骤**:\n`;
-      for (const step of item.steps) {
-        markdown += `- ${step}\n`;
-      }
-      markdown += `\n`;
-      markdown += `**预期结果**:\n`;
-      for (const result of item.expectedResults) {
-        markdown += `- ${result}\n`;
-      }
-      markdown += `\n`;
-      markdown += `---\n\n`;
+      markdown += `**${mk("description")}**: ${item.description}\n\n`;
+      markdown += `**${mk("platforms")}**: ${item.platforms.join(", ")}\n\n`;
+      markdown += `**${mk("estimatedTime")}**: ${formatTime(item.estimatedTime, t)}\n\n`;
+      markdown += `**${mk("stepsLabel")}**:\n`;
+      for (const step of item.steps) markdown += `- ${step}\n`;
+      markdown += `\n**${mk("expectedResults")}**:\n`;
+      for (const result of item.expectedResults) markdown += `- ${result}\n`;
+      markdown += `\n---\n\n`;
     }
   }
-  markdown += `## 测试完成检查清单\n\n`;
-  markdown += `- [ ] 所有必需测试项已完成\n`;
-  markdown += `- [ ] 所有事件都正确触发\n`;
-  markdown += `- [ ] 事件参数完整（value、currency、items 等）\n`;
-  markdown += `- [ ] 订单金额与事件 value 一致\n`;
-  markdown += `- [ ] 所有配置的平台都收到事件\n`;
-  markdown += `- [ ] 在第三方平台（GA4/Meta/TikTok）中验证事件已接收\n\n`;
+
+  markdown += `## ${mk("completionChecklist")}\n\n`;
+  markdown += `- [ ] ${mk("allRequiredDone")}\n`;
+  markdown += `- [ ] ${mk("allEventsFired")}\n`;
+  markdown += `- [ ] ${mk("paramsComplete")}\n`;
+  markdown += `- [ ] ${mk("amountsMatch")}\n`;
+  markdown += `- [ ] ${mk("allPlatformsReceived")}\n`;
+  markdown += `- [ ] ${mk("thirdPartyVerified")}\n\n`;
   return markdown;
 }
 
-export function generateChecklistCSV(checklist: TestChecklist): string {
+export function generateChecklistCSV(checklist: TestChecklist, t?: TFunction): string {
+  const ck = (key: string) => t ? t(`verificationChecklist.csv.${key}`) : key;
   const headers = [
-    "ID",
-    "名称",
-    "描述",
-    "事件类型",
-    "必需",
-    "平台",
-    "预计时间（分钟）",
-    "类别",
-    "状态",
+    ck("id"), ck("name"), ck("description"), ck("eventType"),
+    ck("required"), ck("platforms"), ck("estimatedTime"),
+    ck("category"), ck("status"),
   ];
   const rows = checklist.items.map((item) => [
     item.id,
     item.name,
     item.description,
     item.eventType,
-    item.required ? "是" : "否",
+    item.required ? ck("yes") : ck("no"),
     item.platforms.join(";"),
     String(item.estimatedTime),
     item.category,
-    "未测试",
+    ck("notTested"),
   ]);
-  const csv = [headers, ...rows]
+  return [headers, ...rows]
     .map((row) => row.map((cell) => escapeCSV(String(cell))).join(","))
     .join("\n");
-  return csv;
 }

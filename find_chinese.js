@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import glob from 'glob';
 
-const rootDir = '/Users/wangzicai/Documents/tracking-guardian/app';
+const rootDir = path.resolve(process.cwd(), 'app');
 
 function findChineseChars(dir) {
   const files = glob.sync(`${dir}/**/*.{ts,tsx}`);

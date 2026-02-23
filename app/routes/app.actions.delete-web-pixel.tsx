@@ -46,8 +46,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 totalAttempted: results.length,
                 failures: failures.length > 0 ? failures : undefined,
                 message: kept 
-                    ? t("scan.success.deletePartialWithKept", { success: successCount, total: results.length, kept })
-                    : t("scan.success.deletePartial", { success: successCount, total: results.length }),
+                    ? t("onboarding.success.deletePartialWithKept", { success: successCount, total: results.length, kept })
+                    : t("onboarding.success.deletePartial", { success: successCount, total: results.length }),
             });
         }
         if (!webPixelGid) {
@@ -69,7 +69,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             return json({
                 success: true,
                 deletedId: result.deletedId,
-                message: t("scan.success.deleteSuccess"),
+                message: t("onboarding.success.deleteSuccess"),
             });
         }
         if (result.userErrors && result.userErrors.length > 0) {
@@ -77,21 +77,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             if (firstError.message.includes("not found")) {
                 return json({
                     success: false,
-                    error: t("scan.errors.webPixelNotFoundOrDeleted"),
+                    error: t("onboarding.errors.webPixelNotFoundOrDeleted"),
                     details: result.userErrors,
                 }, { status: 404 });
             }
             if (firstError.message.includes("permission") || firstError.message.includes("access")) {
                 return json({
                     success: false,
-                    error: t("scan.errors.deletePermissionDenied"),
+                    error: t("onboarding.errors.deletePermissionDenied"),
                     details: result.userErrors,
                 }, { status: 403 });
             }
         }
         return json({
             success: false,
-            error: result.error || t("scan.errors.deleteFailed"),
+            error: result.error || t("onboarding.errors.deleteFailed"),
             details: result.userErrors,
         }, { status: 400 });
     } catch (error) {

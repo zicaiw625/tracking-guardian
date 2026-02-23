@@ -31,7 +31,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (!shop) {
             return json({
                 success: false,
-                error: t("scan.errors.shopNotFound"),
+                error: t("onboarding.errors.shopNotFound"),
             }, { status: 404 });
         }
         let ingestionKey = "";
@@ -47,14 +47,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (!ingestionKey) {
             return json({
                 success: false,
-                error: t("scan.errors.ingestionKeyMissing"),
+                error: t("onboarding.errors.ingestionKeyMissing"),
             }, { status: 400 });
         }
         const webPixels = await getExistingWebPixels(admin);
         if (webPixels.length === 0) {
             return json({
                 success: false,
-                error: t("scan.errors.webPixelNotFound"),
+                error: t("onboarding.errors.webPixelNotFound"),
             }, { status: 404 });
         }
         const pixelsToUpgrade: Array<{
@@ -80,7 +80,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (pixelsToUpgrade.length === 0) {
             return json({
                 success: true,
-                message: t("scan.success.noUpgradeNeeded"),
+                message: t("onboarding.success.noUpgradeNeeded"),
                 upgradedCount: 0,
             });
         }
@@ -117,13 +117,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (failures.length === 0) {
             return json({
                 success: true,
-                message: t("scan.success.upgradeSuccess", { count: successCount }),
+                message: t("onboarding.success.upgradeSuccess", { count: successCount }),
                 upgradedCount: successCount,
             });
         }
         return json({
             success: false,
-            message: t("scan.errors.upgradePartial", { success: successCount, total: results.length }),
+            message: t("onboarding.errors.upgradePartial", { success: successCount, total: results.length }),
             upgradedCount: successCount,
             failures: failures.map(f => ({
                 pixelId: f.pixelId,

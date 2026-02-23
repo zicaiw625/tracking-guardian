@@ -77,6 +77,7 @@ function DataTypeCard({
   items: string[];
   tone?: "info" | "success" | "warning";
 }) {
+  const { t } = useTranslation();
   return (
     <Card>
       <BlockStack gap="300">
@@ -84,7 +85,7 @@ function DataTypeCard({
           <Text as="h3" variant="headingSm">
             {title}
           </Text>
-          <Badge tone={tone}>{`${items.length} items`}</Badge>
+          <Badge tone={tone}>{t("common.countItems", { count: items.length })}</Badge>
         </InlineStack>
         <Text as="p" variant="bodySm" tone="subdued">
           {description}

@@ -1,4 +1,5 @@
 import { Badge, InlineStack, Text, Tooltip } from "@shopify/polaris";
+import { useTranslation } from "react-i18next";
 
 export type StatusType =
   | "success"
@@ -42,25 +43,28 @@ export interface JobStatusBadgeProps {
   showTooltip?: boolean;
 }
 
-const JOB_STATUS_CONFIG: Record<JobStatus, { label: string; tone: StatusType; tooltip: string }> = {
-  queued: { label: "排队中", tone: "info", tooltip: "任务正在队列中等待处理" },
-  processing: { label: "处理中", tone: "attention", tooltip: "任务正在处理" },
-  completed: { label: "已完成", tone: "success", tooltip: "任务已成功完成" },
-  failed: { label: "失败", tone: "critical", tooltip: "任务执行失败，可能会重试" },
-  limit_exceeded: { label: "超出限额", tone: "warning", tooltip: "已达到月度使用限额" },
-  dead_letter: { label: "已放弃", tone: "critical", tooltip: "任务多次重试后仍失败" },
-  pending: { label: "待处理", tone: "info", tooltip: "等待处理" },
-  sent: { label: "已发送", tone: "success", tooltip: "已成功发送到平台" },
-  retrying: { label: "重试中", tone: "attention", tooltip: "正在重试发送" },
+const JOB_STATUS_TONE: Record<JobStatus, StatusType> = {
+  queued: "info",
+  processing: "attention",
+  completed: "success",
+  failed: "critical",
+  limit_exceeded: "warning",
+  dead_letter: "critical",
+  pending: "info",
+  sent: "success",
+  retrying: "attention",
 };
 
 export function JobStatusBadge({ status, showTooltip = true }: JobStatusBadgeProps) {
-  const config = JOB_STATUS_CONFIG[status] || JOB_STATUS_CONFIG.pending;
+  const { t } = useTranslation();
+  const tone = JOB_STATUS_TONE[status] || JOB_STATUS_TONE.pending;
+  const label = t(`statusBadge.job.${status}.label`);
+  const tooltip = t(`statusBadge.job.${status}.tooltip`);
   return (
     <StatusBadge
-      status={config.tone}
-      label={config.label}
-      tooltip={showTooltip ? config.tooltip : undefined}
+      status={tone}
+      label={label}
+      tooltip={showTooltip ? tooltip : undefined}
     />
   );
 }
@@ -71,21 +75,24 @@ export interface HealthStatusBadgeProps {
   showTooltip?: boolean;
 }
 
-const HEALTH_STATUS_CONFIG: Record<HealthStatus, { label: string; tone: StatusType; tooltip: string }> = {
-  healthy: { label: "健康", tone: "success", tooltip: "所有系统正常运行" },
-  degraded: { label: "有风险", tone: "warning", tooltip: "部分指标异常，需要关注" },
-  unhealthy: { label: "需关注", tone: "critical", tooltip: "多项指标异常，需要立即处理" },
-  unknown: { label: "未初始化", tone: "info", tooltip: "尚未收集到足够数据" },
+const HEALTH_STATUS_TONE: Record<HealthStatus, StatusType> = {
+  healthy: "success",
+  degraded: "warning",
+  unhealthy: "critical",
+  unknown: "info",
 };
 
 export function HealthStatusBadge({ status, score, showTooltip = true }: HealthStatusBadgeProps) {
-  const config = HEALTH_STATUS_CONFIG[status] || HEALTH_STATUS_CONFIG.unknown;
-  const label = score !== undefined ? `${config.label} (${score}分)` : config.label;
+  const { t } = useTranslation();
+  const tone = HEALTH_STATUS_TONE[status] || HEALTH_STATUS_TONE.unknown;
+  const baseLabel = t(`statusBadge.health.${status}.label`);
+  const label = score !== undefined ? `${baseLabel} (${score})` : baseLabel;
+  const tooltip = t(`statusBadge.health.${status}.tooltip`);
   return (
     <StatusBadge
-      status={config.tone}
+      status={tone}
       label={label}
-      tooltip={showTooltip ? config.tooltip : undefined}
+      tooltip={showTooltip ? tooltip : undefined}
     />
   );
 }
@@ -96,22 +103,23 @@ export interface PlatformStatusBadgeProps {
   showTooltip?: boolean;
 }
 
-const PLATFORM_STATUS_CONFIG: Record<PlatformStatus, { label: string; tone: StatusType; tooltip: string }> = {
-  active: { label: "已启用", tone: "success", tooltip: "平台连接正常，正在发送数据" },
-  inactive: { label: "未启用", tone: "info", tooltip: "平台未启用服务端追踪" },
-  error: { label: "错误", tone: "critical", tooltip: "平台连接异常，请检查配置" },
-  pending: { label: "配置中", tone: "attention", tooltip: "正在配置平台连接" },
+const PLATFORM_STATUS_TONE: Record<PlatformStatus, StatusType> = {
+  active: "success",
+  inactive: "info",
+  error: "critical",
+  pending: "attention",
 };
 
 export function PlatformStatusBadge({ status, platform, showTooltip = true }: PlatformStatusBadgeProps) {
-  const config = PLATFORM_STATUS_CONFIG[status] || PLATFORM_STATUS_CONFIG.inactive;
-  const tooltip = platform
-    ? `${platform}: ${config.tooltip}`
-    : config.tooltip;
+  const { t } = useTranslation();
+  const tone = PLATFORM_STATUS_TONE[status] || PLATFORM_STATUS_TONE.inactive;
+  const label = t(`statusBadge.platform.${status}.label`);
+  const baseTooltip = t(`statusBadge.platform.${status}.tooltip`);
+  const tooltip = platform ? `${platform}: ${baseTooltip}` : baseTooltip;
   return (
     <StatusBadge
-      status={config.tone}
-      label={config.label}
+      status={tone}
+      label={label}
       tooltip={showTooltip ? tooltip : undefined}
     />
   );
@@ -123,23 +131,24 @@ export interface RiskScoreBadgeProps {
 }
 
 export function RiskScoreBadge({ score, showTooltip = true }: RiskScoreBadgeProps) {
+  const { t } = useTranslation();
   let tone: StatusType;
-  let tooltip: string;
+  let tooltipKey: string;
   if (score >= 70) {
     tone = "critical";
-    tooltip = "高风险：建议立即采取行动";
+    tooltipKey = "statusBadge.risk.high";
   } else if (score >= 40) {
     tone = "warning";
-    tooltip = "中等风险：建议尽快处理";
+    tooltipKey = "statusBadge.risk.medium";
   } else {
     tone = "success";
-    tooltip = "低风险：状态良好";
+    tooltipKey = "statusBadge.risk.low";
   }
   return (
     <StatusBadge
       status={tone}
-      label={`风险分 ${score}`}
-      tooltip={showTooltip ? tooltip : undefined}
+      label={t("statusBadge.risk.score", { score })}
+      tooltip={showTooltip ? t(tooltipKey) : undefined}
     />
   );
 }
@@ -148,16 +157,18 @@ export interface PlanBadgeProps {
   plan: string;
 }
 
-const PLAN_CONFIG: Record<string, { label: string; tone: StatusType }> = {
-  free: { label: "免费版", tone: "info" },
-  starter: { label: "入门版", tone: "attention" },
-  pro: { label: "专业版", tone: "success" },
-  enterprise: { label: "企业版", tone: "new" },
+const PLAN_TONE: Record<string, StatusType> = {
+  free: "info",
+  starter: "attention",
+  pro: "success",
+  enterprise: "new",
 };
 
 export function PlanBadge({ plan }: PlanBadgeProps) {
-  const config = PLAN_CONFIG[plan.toLowerCase()] || { label: plan, tone: "info" as StatusType };
-  return <Badge tone={config.tone}>{config.label}</Badge>;
+  const { t } = useTranslation();
+  const tone = PLAN_TONE[plan.toLowerCase()] || ("info" as StatusType);
+  const label = t(`statusBadge.plan.${plan.toLowerCase()}`);
+  return <Badge tone={tone}>{label}</Badge>;
 }
 
 export interface BooleanStatusProps {
@@ -168,12 +179,15 @@ export interface BooleanStatusProps {
 
 export function BooleanStatus({
   value,
-  trueLabel = "是",
-  falseLabel = "否",
+  trueLabel,
+  falseLabel,
 }: BooleanStatusProps) {
+  const { t } = useTranslation();
+  const resolvedTrue = trueLabel ?? t("statusBadge.boolean.true");
+  const resolvedFalse = falseLabel ?? t("statusBadge.boolean.false");
   return (
     <Badge tone={value ? "success" : "info"}>
-      {value ? trueLabel : falseLabel}
+      {value ? resolvedTrue : resolvedFalse}
     </Badge>
   );
 }
