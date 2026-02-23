@@ -195,7 +195,9 @@
         "checkUpgrade": "Checking Upgrade Status",
         "scanScriptTags": "Scanning ScriptTags",
         "identifyPlatforms": "Identifying Platforms",
-        "generateChecklist": "Generating Checklist"
+        "generateChecklist": "Generating Checklist",
+        "scanScripts": "Scanning Scripts",
+        "generateList": "Generating Migration List"
       },
       "estimatedTime": "Estimated time ~10s, please wait..."
     },
@@ -348,6 +350,14 @@
       "unknownAction": "Unknown action",
       "apiError": "API error, please try again later",
       "detectFailed": "Detection failed"
+    },
+    "progress": {
+      "status": {
+        "pending": "Pending",
+        "processing": "Processing",
+        "completed": "Completed",
+        "error": "Error"
+      }
     }
   },
   "nav": {
@@ -1228,7 +1238,8 @@
         "support": "Support Widget",
         "analytics": "On-site Analytics",
         "other": "Other"
-      }
+      },
+      "priority": "Priority: {{level}}"
     },
     "paidFeature": {
       "pixelMigration": {
@@ -1564,7 +1575,9 @@
       },
       "migrationActions": {
         "title": "Migration Actions",
-        "pendingCount": "{{count}} pending"
+        "pendingCount": "{{count}} pending",
+        "moreItems": "...and {{count}} more",
+        "noPending": "No pending items ✅"
       },
       "migrationProgress": {
         "title": "Migration Progress",
@@ -1743,7 +1756,8 @@
         "processPaste": "Process Paste",
         "processed": "Processed",
         "saveAudit": "Save to Audit"
-      }
+      },
+      "editorPlaceholder": "<!-- Example -->\n<script>\n  gtag('event', 'purchase', {...});\n  fbq('track', 'Purchase', {...});\n</script>"
     },
     "manualAnalysis": {
       "title": "Manual Analysis of Additional Scripts",
@@ -2011,6 +2025,16 @@
         "ui_extension": "Manual Migration",
         "server_side": "Not available",
         "none": "External redirect / not supported"
+      }
+    },
+    "summaryCards": {
+      "platforms": {
+        "title": "Identified Platforms",
+        "empty": "No platforms identified"
+      },
+      "scriptTags": {
+        "title": "ScriptTags",
+        "count": "Total ScriptTags"
       }
     }
   },
@@ -2453,6 +2477,44 @@
           "1": "Go to checkout",
           "2": "Complete purchase"
         }
+      }
+    },
+    "wizard": {
+      "title": "Verification Wizard",
+      "progress": "Progress",
+      "banner": {
+        "title": "Important: v1.0 Scope (PRD 4.5 Compliant)",
+        "scope": "<strong>v1.0 Scope:</strong> Supports checkout/purchase funnel events only:",
+        "items": {
+          "checkout_started": "✅ checkout_started",
+          "checkout_completed": "✅ checkout_completed",
+          "checkout_contact_info_submitted": "✅ checkout_contact_info_submitted",
+          "checkout_shipping_info_submitted": "✅ checkout_shipping_info_submitted",
+          "payment_info_submitted": "✅ payment_info_submitted",
+          "product_added_to_cart": "✅ product_added_to_cart",
+          "product_viewed": "✅ product_viewed",
+          "page_viewed": "✅ page_viewed"
+        },
+        "unsupported": "<strong>⚠️ Unsupported in v1.0:</strong> Refund, order cancel, order edit, subscription events are NOT supported in v1.0.",
+        "reason": "<strong>Reason:</strong> Web Pixel Extension runs in a strict sandbox and can only subscribe to standard checkout funnel events. Other events require order webhooks or backend reconciliation (planned for v1.1+).",
+        "trigger": "<strong>checkout_completed trigger:</strong> May fire on the first upsell page instead of the Thank You page if post-purchase upsells are active. May not fire if the page fails to load.",
+        "consent": "<strong>Web Pixel Privacy & Consent:</strong> In regions requiring consent, callbacks execute after consent is granted, replaying previously registered events."
+      },
+      "checklist": {
+        "title": "Checklist"
+      },
+      "status": {
+        "completed": "Completed"
+      },
+      "expectedResult": "Expected Result:",
+      "actions": {
+        "markComplete": "Mark as Completed",
+        "startTest": "Start Test",
+        "finish": "Finish Verification"
+      },
+      "completion": {
+        "title": "All tests completed!",
+        "desc": "You can now view event details or generate a verification report."
       }
     }
   },
@@ -3304,7 +3366,8 @@
       "rollbackMessage": "You are about to rollback <strong>{{platform}}</strong> configuration to version {{version}}.",
       "rollbackItem1": "Current configuration (Version {{version}}) will be saved as a new snapshot",
       "rollbackItem2": "Configuration will be restored to the previous version state",
-      "rollbackItem3": "This operation can be rolled back again (restore to current version)"
+      "rollbackItem3": "This operation can be rolled back again (restore to current version)",
+      "confirmRollbackBtn": "Confirm Rollback"
     },
     "reportComparison": {
       "title": "Report Comparison",
@@ -3907,319 +3970,6 @@
     "migrationMethods": {
       "web_pixel": "Web Pixel",
       "ui_extension": "UI Extension"
-    },
-    "scriptEditor": {
-      "title": "Script Code Editor",
-      "copy": "Copy",
-      "copied": "Copied",
-      "showPreview": "Show Preview",
-      "hidePreview": "Hide Preview",
-      "fragmentsDetected": "Detected {{count}} script fragments, will analyze separately",
-      "fragmentLabel": "Fragment {{index}}",
-      "realtimeAnalysis": "💡 Real-time analysis enabled. Will analyze automatically after input (500ms delay)",
-      "howToCopyTitle": "How to copy scripts from Shopify Admin?",
-      "step1": "Go to Shopify Admin → Settings → Checkout",
-      "step2": "Find the 'Additional scripts' section",
-      "step3": "Copy all script content and paste below",
-      "inputLabel": "Paste script content",
-      "placeholder": "Supports detection of Google, Meta, TikTok, Pinterest, etc.",
-      "helpText": "Supports detection of tracking codes from Google, Meta, TikTok, Pinterest, etc.",
-      "codePreviewTitle": "Code Highlight Preview:",
-      "analyzeButton": "Analyze Script",
-      "preview": {
-        "title": "Real-time Identification",
-        "platformCount": "{{count}} platforms",
-        "highConfidence": "High Confidence",
-        "mediumConfidence": "Medium Confidence",
-        "detectedType": "Detected: {{type}}",
-        "riskScore": "Risk Score"
-      }
-    },
-    "wizard": {
-      "title": "Verification Wizard",
-      "progress": "Progress",
-      "banner": {
-        "title": "Important: v1.0 Scope (PRD 4.5 Compliant)",
-        "scope": "<strong>v1.0 Scope:</strong> Supports checkout/purchase funnel events only:",
-        "items": {
-          "checkout_started": "✅ checkout_started",
-          "checkout_completed": "✅ checkout_completed",
-          "checkout_contact_info_submitted": "✅ checkout_contact_info_submitted",
-          "checkout_shipping_info_submitted": "✅ checkout_shipping_info_submitted",
-          "payment_info_submitted": "✅ payment_info_submitted",
-          "product_added_to_cart": "✅ product_added_to_cart",
-          "product_viewed": "✅ product_viewed",
-          "page_viewed": "✅ page_viewed"
-        },
-        "unsupported": "<strong>⚠️ Unsupported in v1.0:</strong> Refund, order cancel, order edit, subscription events are NOT supported in v1.0.",
-        "reason": "<strong>Reason:</strong> Web Pixel Extension runs in a strict sandbox and can only subscribe to standard checkout funnel events. Other events require order webhooks or backend reconciliation (planned for v1.1+).",
-        "trigger": "<strong>checkout_completed trigger:</strong> May fire on the first upsell page instead of the Thank You page if post-purchase upsells are active. May not fire if the page fails to load.",
-        "consent": "<strong>Web Pixel Privacy & Consent:</strong> In regions requiring consent, callbacks execute after consent is granted, replaying previously registered events."
-      },
-      "checklist": {
-        "title": "Checklist"
-      },
-      "status": {
-        "completed": "Completed"
-      },
-      "expectedResult": "Expected Result:",
-      "actions": {
-        "markComplete": "Mark as Completed",
-        "startTest": "Start Test",
-        "finish": "Finish Verification"
-      },
-      "completion": {
-        "title": "All tests completed!",
-        "desc": "You can now view event details or generate a verification report."
-      }
-    },
-    "migrationWizard": {
-      "title": "Migration Wizard",
-      "badge": "P1-3 Migration Loop",
-      "description": "Based on scan results, here are the steps required to complete migration. Click items to jump to location.",
-      "webPixel": {
-        "title": "Web Pixel Settings",
-        "description": "Web Pixel is Shopify's recommended client-side tracking method, replacing traditional ScriptTags.",
-        "manage": "Manage Pixels (Shopify Admin)",
-        "configure": "Configure Pixel in App"
-      },
-      "checklist": {
-        "title": "Migration Checklist",
-        "description": "Generate an exportable checklist for team collaboration or progress tracking.",
-        "pendingItems": "Pending Items:",
-        "noPending": "No pending items ✅",
-        "moreItems": "...and {{count}} more",
-        "copy": "Copy Checklist",
-        "export": "Export Checklist",
-        "content": {
-          "header": "Migration Checklist",
-          "shop": "Shop",
-          "unknown": "Unknown",
-          "generatedAt": "Generated at",
-          "pendingHeader": "Pending Items",
-          "quickLinks": "Quick Links",
-          "pixelManagement": "Pixels Management",
-          "needDomain": "(Need Shop Domain)",
-          "migrationTool": "App Migration Tool",
-          "priority": {
-            "high": "High",
-            "medium": "Medium",
-            "low": "Low"
-          }
-        }
-      },
-      "alternatives": {
-        "title": "Alternatives Overview",
-        "official": {
-          "badge": "Official",
-          "text": "• Shopify Pixels (Client-side)<br />• Customer Events API"
-        },
-        "webPixel": {
-          "badge": "Web Pixel",
-          "text": "• ScriptTag → Web Pixel<br />• checkout.liquid → Pixel + Extension"
-        },
-        "uiExtension": {
-          "badge": "UI Extension",
-          "text": "• Additional Scripts → Checkout UI<br />• Order Status Scripts → TYP Extension"
-        }
-      }
-    },
-    "newPixelWizard": {
-      "steps": {
-        "select": "Select Platform",
-        "mappings": "Event Mappings",
-        "credentials": "Platform Credentials",
-        "review": "Review Configuration"
-      },
-      "progress": "Configuration Progress",
-      "stepIndicator": "Step {{current}} / {{total}}",
-      "errors": {
-        "selectPlatform": "Please select at least one platform",
-        "missingMapping": "{{platform}}: At least one event mapping is required",
-        "completeStep": "Please complete the current step: {{errors}}",
-        "configError": "Configuration Error: {{errors}}"
-      },
-      "actions": {
-        "cancel": "Cancel",
-        "prev": "Previous",
-        "next": "Next",
-        "saveAndTest": "Save & Test",
-        "apply": "Apply",
-        "close": "Close"
-      },
-      "templates": {
-        "title": "Select Preset Template",
-        "description": "Select a preset template to quickly configure event mappings for multiple platforms.",
-        "public": "Public",
-        "applied": "Applied template '{{name}}'",
-        "presets": {
-          "standard": {
-            "name": "Standard Configuration (v1)",
-            "description": "Standard event mappings for most e-commerce stores (GA4/Meta/TikTok)"
-          },
-          "advanced": {
-            "name": "Advanced Configuration (v1.1+)",
-            "description": "Complete mappings with more event types (v1.1+ will support Pinterest/Snapchat)"
-          }
-        }
-      },
-      "selectStep": {
-        "title": "Select Platforms to Configure",
-        "viewTemplates": "View Templates",
-        "description": "Select the ad platforms you want to migrate. Use preset templates to quickly configure event mappings.",
-        "v1Support": {
-          "title": "v1 Supported Platforms:",
-          "text": "v1 only supports GA4, Meta, and TikTok. Other platforms (Pinterest, Snapchat, Twitter, etc.) will be supported in v1.1+.",
-          "badge": "v1 Supported"
-        }
-      },
-      "mappingsStep": {
-        "title": "Configure Event Mappings",
-        "description": "Map Shopify events to platform events. You can adjust based on recommended mappings.",
-        "sandboxWarning": {
-          "title": "⚠️ Strict Sandbox Limitations (App Review Important Info)",
-          "description": "Web Pixel runs in a strict sandbox (Web Worker) environment with the following limitations:",
-          "limitations": {
-            "dom": "Cannot access DOM elements",
-            "storage": "Cannot use localStorage/sessionStorage",
-            "cookie": "Cannot access third-party cookies",
-            "api": "Cannot execute certain browser APIs"
-          }
-        },
-        "supportedEvents": {
-          "title": "v1.0 Supported Events:",
-          "items": {
-            "checkout_started": "✅ checkout_started",
-            "checkout_completed": "✅ checkout_completed",
-            "checkout_contact_info_submitted": "✅ checkout_contact_info_submitted",
-            "checkout_shipping_info_submitted": "✅ checkout_shipping_info_submitted",
-            "payment_info_submitted": "✅ payment_info_submitted",
-            "product_added_to_cart": "✅ product_added_to_cart",
-            "product_viewed": "✅ product_viewed",
-            "page_viewed": "✅ page_viewed"
-          }
-        },
-        "unsupportedEvents": {
-          "title": "❌ v1.0 Unsupported Events (Require Order Webhooks):",
-          "items": {
-            "refund": "refund",
-            "order_cancelled": "order_cancelled",
-            "order_edited": "order_edited",
-            "subscription_updated": "subscription_updated",
-            "subscription_cancelled": "subscription_cancelled"
-          },
-          "reason": "💡 Reason: Web Pixel Extension runs in a strict sandbox and can only subscribe to standard checkout funnel events. Refund, cancel, edit, subscription events require order webhooks or backend reconciliation, which will be implemented in v1.1+ via webhooks (strictly minimizing PII)."
-        }
-      },
-      "credentialsStep": {
-        "title": "Platform Credentials (Optional)",
-        "description": "Server-side delivery is not performed in current version; credentials can be saved for future capabilities."
-      },
-      "reviewStep": {
-        "title": "Review Configuration",
-        "description": "Confirm platforms, credentials, and event mappings are correct before saving.",
-        "placeholderError": {
-          "title": "⚠️ Critical Error: Placeholder Detected, URL Not Replaced at Build Time",
-          "description": "<strong>Pixel extension config still contains __BACKEND_URL_PLACEHOLDER__, indicating the build process failed to replace it.</strong> If not replaced, the pixel extension cannot send events to the backend, resulting in data loss. This is a critical configuration error and must be fixed before production.",
-          "fixSteps": "Fix Steps (Must be completed before production deployment):",
-          "hint": "💡 Hint: If the placeholder is not replaced, the pixel extension will silently disable event sending without showing errors. This is a common cause of event loss and must be fixed."
-        },
-        "configuredSuccess": {
-          "title": "✅ BACKEND_URL Configured Correctly",
-          "description": "Extension BACKEND_URL has been correctly injected. When deploying to production, ensure you always use <code>pnpm deploy:ext</code>, which automatically runs <code>pnpm ext:inject</code>. Do NOT use <code>shopify app deploy</code> directly.",
-          "important": "<strong>Important: Extension BACKEND_URL injection is a lifeline.</strong> If the placeholder is not replaced, the pixel extension will silently disable event sending without showing errors. This is a common cause of event loss and must be fixed."
-        },
-        "sandboxInfo": {
-          "title": "⚠️ Strict Sandbox Limitations (App Review Important Info)",
-          "description": "Web Pixel runs in a strict sandbox (Web Worker) environment with the following limitations:",
-          "hint": "💡 Hint: This is a Shopify platform limitation, not a bug. The verification report automatically tags fields and events unavailable due to strict sandbox. During App Review, please explain to Shopify that these limitations are by design."
-        },
-        "platformId": "Platform ID",
-        "notFilled": "Not filled",
-        "eventMappings": "Event Mappings",
-        "eventCount": "{{count}} events",
-        "production": "Production",
-        "test": "Test"
-      },
-      "platforms": {
-        "google": {
-          "name": "Google Analytics 4",
-          "description": "For Web Pixel Standard Event Mapping"
-        },
-        "meta": {
-          "name": "Meta (Facebook) Pixel",
-          "description": "For Web Pixel Standard Event Mapping"
-        },
-        "tiktok": {
-          "name": "TikTok Pixel",
-          "description": "For Web Pixel Standard Event Mapping"
-        }
-      }
-    },
-    "manualInputWizard": {
-      "title": "Supplement Migration Info",
-      "steps": {
-        "platform": "Which tracking platforms do you use?",
-        "platformDesc": "Check all tracking platforms used on Thank you / Order status pages",
-        "feature": "Which features do you use?",
-        "featureDesc": "Check all features used on Thank you / Order status pages",
-        "source": "Information Source",
-        "sourceDesc": "Where does this info come from?",
-        "additional": "Additional Info (Optional)",
-        "additionalDesc": "Fill here if you have other info to supplement"
-      },
-      "banners": {
-        "platformV1": "<strong>v1 Support Scope</strong>: GA4, Meta, TikTok (Others in v1.1+). Please select all platforms you use; the system will mark v1 migratable items in the report.",
-        "featureV1": "<strong>v1 Support Scope</strong>: Web Pixel migration and verification. Please select features used on the page; the system will mark them in the report.",
-        "selectOne": "Please select at least one platform or feature to generate accurate migration suggestions",
-        "sourceHint": "How to get info from Shopify Upgrade Wizard:",
-        "sourceTip": "💡 <strong>Hint:</strong> If you saw the script list in Shopify Upgrade Wizard, you can:"
-      },
-      "labels": {
-        "fromUpgradeWizard": "From Shopify Admin Upgrade Wizard",
-        "fromUpgradeWizardHelp": "Check this if you got the script list from Shopify Admin upgrade wizard",
-        "additionalInput": "Additional Notes",
-        "additionalPlaceholder": "e.g., Used custom order tracking system, integrated 3rd party support tool, etc.",
-        "additionalHelp": "This info helps us evaluate migration risk more accurately"
-      },
-      "summary": {
-        "title": "Info Summary",
-        "platforms": "Selected Platforms:",
-        "features": "Selected Features:",
-        "none": "None",
-        "fromWizard": "Info from Shopify Upgrade Wizard"
-      },
-      "actions": {
-        "complete": "Complete",
-        "next": "Next",
-        "back": "Back",
-        "cancel": "Cancel"
-      },
-      "platforms": {
-        "google": "Google Analytics / GA4",
-        "meta": "Meta Pixel / Facebook",
-        "tiktok": "TikTok Pixel",
-        "other": "Other Platforms"
-      },
-      "features": {
-        "survey": "Post-purchase survey / Review collection",
-        "support": "Customer Service / Help Center",
-        "reorder": "Reorder",
-        "affiliate": "Affiliate Tracking / Commission",
-        "upsell": "Upsell / Recommended Products",
-        "tracking": "Order Tracking / Logistics Query",
-        "other": "Other Features"
-      },
-      "sourceSteps": {
-        "step1": "Go to Shopify Admin -> Settings -> Checkout and Accounts",
-        "step2": "Find 'Thank you / Order status page upgrade' section",
-        "step3": "Check script and feature list in upgrade wizard",
-        "step4": "Copy or screenshot the list, then supplement here"
-      },
-      "sourceTips": {
-        "tip1": "Check corresponding platforms and features above (Recommended)",
-        "tip2": "Or copy script content to \"Manual Paste Script\" area for analysis"
-      }
     }
   },
   "diagnostics": {
@@ -4508,27 +4258,78 @@
   },
   "statusBadge": {
     "job": {
-      "queued": { "label": "Queued", "tooltip": "Task is waiting in queue" },
-      "processing": { "label": "Processing", "tooltip": "Task is being processed" },
-      "completed": { "label": "Completed", "tooltip": "Task completed successfully" },
-      "failed": { "label": "Failed", "tooltip": "Task execution failed, may retry" },
-      "limit_exceeded": { "label": "Limit Exceeded", "tooltip": "Monthly usage limit reached" },
-      "dead_letter": { "label": "Abandoned", "tooltip": "Task failed after multiple retries" },
-      "pending": { "label": "Pending", "tooltip": "Waiting to be processed" },
-      "sent": { "label": "Sent", "tooltip": "Successfully sent to platform" },
-      "retrying": { "label": "Retrying", "tooltip": "Retrying delivery" }
+      "queued": {
+        "label": "Queued",
+        "tooltip": "Task is waiting in queue"
+      },
+      "processing": {
+        "label": "Processing",
+        "tooltip": "Task is being processed"
+      },
+      "completed": {
+        "label": "Completed",
+        "tooltip": "Task completed successfully"
+      },
+      "failed": {
+        "label": "Failed",
+        "tooltip": "Task execution failed, may retry"
+      },
+      "limit_exceeded": {
+        "label": "Limit Exceeded",
+        "tooltip": "Monthly usage limit reached"
+      },
+      "dead_letter": {
+        "label": "Abandoned",
+        "tooltip": "Task failed after multiple retries"
+      },
+      "pending": {
+        "label": "Pending",
+        "tooltip": "Waiting to be processed"
+      },
+      "sent": {
+        "label": "Sent",
+        "tooltip": "Successfully sent to platform"
+      },
+      "retrying": {
+        "label": "Retrying",
+        "tooltip": "Retrying delivery"
+      }
     },
     "health": {
-      "healthy": { "label": "Healthy", "tooltip": "All systems running normally" },
-      "degraded": { "label": "At Risk", "tooltip": "Some metrics abnormal, needs attention" },
-      "unhealthy": { "label": "Needs Attention", "tooltip": "Multiple metrics abnormal, immediate action required" },
-      "unknown": { "label": "Not Initialized", "tooltip": "Not enough data collected yet" }
+      "healthy": {
+        "label": "Healthy",
+        "tooltip": "All systems running normally"
+      },
+      "degraded": {
+        "label": "At Risk",
+        "tooltip": "Some metrics abnormal, needs attention"
+      },
+      "unhealthy": {
+        "label": "Needs Attention",
+        "tooltip": "Multiple metrics abnormal, immediate action required"
+      },
+      "unknown": {
+        "label": "Not Initialized",
+        "tooltip": "Not enough data collected yet"
+      }
     },
     "platform": {
-      "active": { "label": "Active", "tooltip": "Platform connected, sending data" },
-      "inactive": { "label": "Inactive", "tooltip": "Platform server-side tracking not enabled" },
-      "error": { "label": "Error", "tooltip": "Platform connection error, check configuration" },
-      "pending": { "label": "Configuring", "tooltip": "Platform connection being configured" }
+      "active": {
+        "label": "Active",
+        "tooltip": "Platform connected, sending data"
+      },
+      "inactive": {
+        "label": "Inactive",
+        "tooltip": "Platform server-side tracking not enabled"
+      },
+      "error": {
+        "label": "Error",
+        "tooltip": "Platform connection error, check configuration"
+      },
+      "pending": {
+        "label": "Configuring",
+        "tooltip": "Platform connection being configured"
+      }
     },
     "risk": {
       "high": "High Risk: Immediate action recommended",
@@ -4761,6 +4562,281 @@
       "yes": "Yes",
       "no": "No",
       "notTested": "Not Tested"
+    }
+  },
+  "scriptEditor": {
+    "title": "Script Code Editor",
+    "copy": "Copy",
+    "copied": "Copied",
+    "showPreview": "Show Preview",
+    "hidePreview": "Hide Preview",
+    "fragmentsDetected": "Detected {{count}} script fragments, will analyze separately",
+    "fragmentLabel": "Fragment {{index}}",
+    "realtimeAnalysis": "💡 Real-time analysis enabled. Will analyze automatically after input (500ms delay)",
+    "howToCopyTitle": "How to copy scripts from Shopify Admin?",
+    "step1": "Go to Shopify Admin → Settings → Checkout",
+    "step2": "Find the 'Additional scripts' section",
+    "step3": "Copy all script content and paste below",
+    "inputLabel": "Paste script content",
+    "placeholder": "Supports detection of Google, Meta, TikTok, Pinterest, etc.",
+    "helpText": "Supports detection of tracking codes from Google, Meta, TikTok, Pinterest, etc.",
+    "codePreviewTitle": "Code Highlight Preview:",
+    "analyzeButton": "Analyze Script",
+    "preview": {
+      "title": "Real-time Identification",
+      "platformCount": "{{count}} platforms",
+      "highConfidence": "High Confidence",
+      "mediumConfidence": "Medium Confidence",
+      "detectedType": "Detected: {{type}}",
+      "riskScore": "Risk Score"
+    }
+  },
+  "migrationWizard": {
+    "title": "Migration Wizard",
+    "badge": "P1-3 Migration Loop",
+    "description": "Based on scan results, here are the steps required to complete migration. Click items to jump to location.",
+    "webPixel": {
+      "title": "Web Pixel Settings",
+      "description": "Web Pixel is Shopify's recommended client-side tracking method, replacing traditional ScriptTags.",
+      "manage": "Manage Pixels (Shopify Admin)",
+      "configure": "Configure Pixel in App"
+    },
+    "checklist": {
+      "title": "Migration Checklist",
+      "description": "Generate an exportable checklist for team collaboration or progress tracking.",
+      "pendingItems": "Pending Items:",
+      "noPending": "No pending items ✅",
+      "moreItems": "...and {{count}} more",
+      "copy": "Copy Checklist",
+      "export": "Export Checklist",
+      "content": {
+        "header": "Migration Checklist",
+        "shop": "Shop",
+        "unknown": "Unknown",
+        "generatedAt": "Generated at",
+        "pendingHeader": "Pending Items",
+        "quickLinks": "Quick Links",
+        "pixelManagement": "Pixels Management",
+        "needDomain": "(Need Shop Domain)",
+        "migrationTool": "App Migration Tool",
+        "priority": {
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low"
+        }
+      }
+    },
+    "alternatives": {
+      "title": "Alternatives Overview",
+      "official": {
+        "badge": "Official",
+        "text": "• Shopify Pixels (Client-side)<br />• Customer Events API"
+      },
+      "webPixel": {
+        "badge": "Web Pixel",
+        "text": "• ScriptTag → Web Pixel<br />• checkout.liquid → Pixel + Extension"
+      },
+      "uiExtension": {
+        "badge": "UI Extension",
+        "text": "• Additional Scripts → Checkout UI<br />• Order Status Scripts → TYP Extension"
+      }
+    }
+  },
+  "newPixelWizard": {
+    "steps": {
+      "select": "Select Platform",
+      "mappings": "Event Mappings",
+      "credentials": "Platform Credentials",
+      "review": "Review Configuration"
+    },
+    "progress": "Configuration Progress",
+    "stepIndicator": "Step {{current}} / {{total}}",
+    "errors": {
+      "selectPlatform": "Please select at least one platform",
+      "missingMapping": "{{platform}}: At least one event mapping is required",
+      "completeStep": "Please complete the current step: {{errors}}",
+      "configError": "Configuration Error: {{errors}}"
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "prev": "Previous",
+      "next": "Next",
+      "saveAndTest": "Save & Test",
+      "apply": "Apply",
+      "close": "Close"
+    },
+    "templates": {
+      "title": "Select Preset Template",
+      "description": "Select a preset template to quickly configure event mappings for multiple platforms.",
+      "public": "Public",
+      "applied": "Applied template '{{name}}'",
+      "presets": {
+        "standard": {
+          "name": "Standard Configuration (v1)",
+          "description": "Standard event mappings for most e-commerce stores (GA4/Meta/TikTok)"
+        },
+        "advanced": {
+          "name": "Advanced Configuration (v1.1+)",
+          "description": "Complete mappings with more event types (v1.1+ will support Pinterest/Snapchat)"
+        }
+      }
+    },
+    "selectStep": {
+      "title": "Select Platforms to Configure",
+      "viewTemplates": "View Templates",
+      "description": "Select the ad platforms you want to migrate. Use preset templates to quickly configure event mappings.",
+      "v1Support": {
+        "title": "v1 Supported Platforms:",
+        "text": "v1 only supports GA4, Meta, and TikTok. Other platforms (Pinterest, Snapchat, Twitter, etc.) will be supported in v1.1+.",
+        "badge": "v1 Supported"
+      }
+    },
+    "mappingsStep": {
+      "title": "Configure Event Mappings",
+      "description": "Map Shopify events to platform events. You can adjust based on recommended mappings.",
+      "sandboxWarning": {
+        "title": "⚠️ Strict Sandbox Limitations (App Review Important Info)",
+        "description": "Web Pixel runs in a strict sandbox (Web Worker) environment with the following limitations:",
+        "limitations": {
+          "dom": "Cannot access DOM elements",
+          "storage": "Cannot use localStorage/sessionStorage",
+          "cookie": "Cannot access third-party cookies",
+          "api": "Cannot execute certain browser APIs"
+        }
+      },
+      "supportedEvents": {
+        "title": "v1.0 Supported Events:",
+        "items": {
+          "checkout_started": "✅ checkout_started",
+          "checkout_completed": "✅ checkout_completed",
+          "checkout_contact_info_submitted": "✅ checkout_contact_info_submitted",
+          "checkout_shipping_info_submitted": "✅ checkout_shipping_info_submitted",
+          "payment_info_submitted": "✅ payment_info_submitted",
+          "product_added_to_cart": "✅ product_added_to_cart",
+          "product_viewed": "✅ product_viewed",
+          "page_viewed": "✅ page_viewed"
+        }
+      },
+      "unsupportedEvents": {
+        "title": "❌ v1.0 Unsupported Events (Require Order Webhooks):",
+        "items": {
+          "refund": "refund",
+          "order_cancelled": "order_cancelled",
+          "order_edited": "order_edited",
+          "subscription_updated": "subscription_updated",
+          "subscription_cancelled": "subscription_cancelled"
+        },
+        "reason": "💡 Reason: Web Pixel Extension runs in a strict sandbox and can only subscribe to standard checkout funnel events. Refund, cancel, edit, subscription events require order webhooks or backend reconciliation, which will be implemented in v1.1+ via webhooks (strictly minimizing PII)."
+      }
+    },
+    "credentialsStep": {
+      "title": "Platform Credentials (Optional)",
+      "description": "Server-side delivery is not performed in current version; credentials can be saved for future capabilities."
+    },
+    "reviewStep": {
+      "title": "Review Configuration",
+      "description": "Confirm platforms, credentials, and event mappings are correct before saving.",
+      "placeholderError": {
+        "title": "⚠️ Critical Error: Placeholder Detected, URL Not Replaced at Build Time",
+        "description": "<strong>Pixel extension config still contains __BACKEND_URL_PLACEHOLDER__, indicating the build process failed to replace it.</strong> If not replaced, the pixel extension cannot send events to the backend, resulting in data loss. This is a critical configuration error and must be fixed before production.",
+        "fixSteps": "Fix Steps (Must be completed before production deployment):",
+        "hint": "💡 Hint: If the placeholder is not replaced, the pixel extension will silently disable event sending without showing errors. This is a common cause of event loss and must be fixed."
+      },
+      "configuredSuccess": {
+        "title": "✅ BACKEND_URL Configured Correctly",
+        "description": "Extension BACKEND_URL has been correctly injected. When deploying to production, ensure you always use <code>pnpm deploy:ext</code>, which automatically runs <code>pnpm ext:inject</code>. Do NOT use <code>shopify app deploy</code> directly.",
+        "important": "<strong>Important: Extension BACKEND_URL injection is a lifeline.</strong> If the placeholder is not replaced, the pixel extension will silently disable event sending without showing errors. This is a common cause of event loss and must be fixed."
+      },
+      "sandboxInfo": {
+        "title": "⚠️ Strict Sandbox Limitations (App Review Important Info)",
+        "description": "Web Pixel runs in a strict sandbox (Web Worker) environment with the following limitations:",
+        "hint": "💡 Hint: This is a Shopify platform limitation, not a bug. The verification report automatically tags fields and events unavailable due to strict sandbox. During App Review, please explain to Shopify that these limitations are by design."
+      },
+      "platformId": "Platform ID",
+      "notFilled": "Not filled",
+      "eventMappings": "Event Mappings",
+      "eventCount": "{{count}} events",
+      "production": "Production",
+      "test": "Test"
+    },
+    "platforms": {
+      "google": {
+        "name": "Google Analytics 4",
+        "description": "For Web Pixel Standard Event Mapping"
+      },
+      "meta": {
+        "name": "Meta (Facebook) Pixel",
+        "description": "For Web Pixel Standard Event Mapping"
+      },
+      "tiktok": {
+        "name": "TikTok Pixel",
+        "description": "For Web Pixel Standard Event Mapping"
+      }
+    }
+  },
+  "manualInputWizard": {
+    "title": "Supplement Migration Info",
+    "steps": {
+      "platform": "Which tracking platforms do you use?",
+      "platformDesc": "Check all tracking platforms used on Thank you / Order status pages",
+      "feature": "Which features do you use?",
+      "featureDesc": "Check all features used on Thank you / Order status pages",
+      "source": "Information Source",
+      "sourceDesc": "Where does this info come from?",
+      "additional": "Additional Info (Optional)",
+      "additionalDesc": "Fill here if you have other info to supplement"
+    },
+    "banners": {
+      "platformV1": "<strong>v1 Support Scope</strong>: GA4, Meta, TikTok (Others in v1.1+). Please select all platforms you use; the system will mark v1 migratable items in the report.",
+      "featureV1": "<strong>v1 Support Scope</strong>: Web Pixel migration and verification. Please select features used on the page; the system will mark them in the report.",
+      "selectOne": "Please select at least one platform or feature to generate accurate migration suggestions",
+      "sourceHint": "How to get info from Shopify Upgrade Wizard:",
+      "sourceTip": "💡 <strong>Hint:</strong> If you saw the script list in Shopify Upgrade Wizard, you can:"
+    },
+    "labels": {
+      "fromUpgradeWizard": "From Shopify Admin Upgrade Wizard",
+      "fromUpgradeWizardHelp": "Check this if you got the script list from Shopify Admin upgrade wizard",
+      "additionalInput": "Additional Notes",
+      "additionalPlaceholder": "e.g., Used custom order tracking system, integrated 3rd party support tool, etc.",
+      "additionalHelp": "This info helps us evaluate migration risk more accurately"
+    },
+    "summary": {
+      "title": "Info Summary",
+      "platforms": "Selected Platforms:",
+      "features": "Selected Features:",
+      "none": "None",
+      "fromWizard": "Info from Shopify Upgrade Wizard"
+    },
+    "actions": {
+      "complete": "Complete",
+      "next": "Next",
+      "back": "Back",
+      "cancel": "Cancel"
+    },
+    "platforms": {
+      "google": "Google Analytics / GA4",
+      "meta": "Meta Pixel / Facebook",
+      "tiktok": "TikTok Pixel",
+      "other": "Other Platforms"
+    },
+    "features": {
+      "survey": "Post-purchase survey / Review collection",
+      "support": "Customer Service / Help Center",
+      "reorder": "Reorder",
+      "affiliate": "Affiliate Tracking / Commission",
+      "upsell": "Upsell / Recommended Products",
+      "tracking": "Order Tracking / Logistics Query",
+      "other": "Other Features"
+    },
+    "sourceSteps": {
+      "step1": "Go to Shopify Admin -> Settings -> Checkout and Accounts",
+      "step2": "Find 'Thank you / Order status page upgrade' section",
+      "step3": "Check script and feature list in upgrade wizard",
+      "step4": "Copy or screenshot the list, then supplement here"
+    },
+    "sourceTips": {
+      "tip1": "Check corresponding platforms and features above (Recommended)",
+      "tip2": "Or copy script content to \"Manual Paste Script\" area for analysis"
     }
   }
 }
