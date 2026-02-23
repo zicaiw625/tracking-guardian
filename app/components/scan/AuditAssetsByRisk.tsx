@@ -20,6 +20,7 @@ interface AuditAssetsByRiskProps {
   assets: AuditAssetRecord[];
   onAssetClick?: (assetId: string) => void;
   onMigrateClick?: (asset: AuditAssetRecord) => void;
+  onNavigate?: (url: string) => void;
   currentPlan?: PlanId;
   freeTierLimit?: number;
   riskScore?: number;
@@ -76,6 +77,7 @@ export function AuditAssetsByRisk({
   assets,
   onAssetClick,
   onMigrateClick,
+  onNavigate,
   currentPlan = "free",
   freeTierLimit = 3,
   riskScore: providedRiskScore,
@@ -170,13 +172,21 @@ export function AuditAssetsByRisk({
     : 0;
   const totalAssets = assets.length;
   const hasAssets = totalAssets > 0;
+  const doNavigate = (url: string) => {
+    if (onNavigate) {
+      onNavigate(url);
+    } else {
+      window.location.href = url;
+    }
+  };
+
   const handleMigrateClick = (asset: AuditAssetRecord) => {
     if (onMigrateClick) {
       onMigrateClick(asset);
     } else if (asset.suggestedMigration === "web_pixel" && asset.platform) {
-      window.location.href = `/app/migrate?platform=${asset.platform}&assetId=${asset.id}`;
+      doNavigate(`/app/migrate?platform=${asset.platform}&assetId=${asset.id}`);
     } else if (asset.suggestedMigration === "ui_extension") {
-      window.location.href = `/app/migrate?assetId=${asset.id}`;
+      doNavigate(`/app/migrate?assetId=${asset.id}`);
     }
   };
 

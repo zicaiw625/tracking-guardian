@@ -81,7 +81,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       gateResult,
       currentPlan: planId,
       pixelStrictOrigin,
-    }, { status: 403 });
+    });
   }
   const canExportReports = planSupportsReportExport(planId);
   const run = await getVerificationRun(runId);
@@ -197,6 +197,14 @@ export default function VerificationReportPage() {
         <Banner tone="warning">
           <Text as="p">{t("verification.report.shopNotFound")}</Text>
         </Banner>
+      </Page>
+    );
+  }
+
+  if (gateResult && !gateResult.allowed) {
+    return (
+      <Page title={t("verification.report.pageTitle", { runName: "" })}>
+        <UpgradePrompt feature="verification" currentPlan={currentPlan} gateResult={gateResult} />
       </Page>
     );
   }

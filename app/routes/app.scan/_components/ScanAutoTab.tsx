@@ -45,6 +45,7 @@ interface ScanAutoTabProps {
     isExporting: boolean;
     onCopyChecklist: () => void;
     onExportChecklist: () => void;
+    onNavigate?: (url: string) => void;
 }
 
 const MAX_VISIBLE_ACTIONS = 5;
@@ -81,6 +82,7 @@ export function ScanAutoTab({
     isExporting,
     onCopyChecklist,
     onExportChecklist,
+    onNavigate,
 }: ScanAutoTabProps) {
     const { t } = useTranslation();
 
@@ -427,7 +429,8 @@ export function ScanAutoTab({
                     freeTierLimit={3}
                     riskScore={latestScan?.riskScore}
                     onAssetClick={(assetId) => {
-                        window.location.href = `/app/migrate?asset=${assetId}`;
+                        const url = `/app/migrate?asset=${assetId}`;
+                        if (onNavigate) { onNavigate(url); } else { window.location.href = url; }
                     }}
                 />
             )}

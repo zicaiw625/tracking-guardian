@@ -7,6 +7,7 @@ import {
   List,
   Card,
 } from "@shopify/polaris";
+import { useNavigate } from "@remix-run/react";
 import { LockIcon } from "~/components/icons";
 import { type PlanId } from "~/services/billing/plans";
 import { isPlanAtLeast, getPlanDefinition } from "~/utils/plans";
@@ -106,6 +107,7 @@ export function UpgradePrompt({
   tone = "info",
   compact = false,
 }: UpgradePromptProps) {
+  const navigate = useNavigate();
   const info = FEATURE_INFO[feature];
   const requiredPlan = getPlanDefinition(info.requiredPlan);
   const currentPlanDef = getPlanDefinition(currentPlan);
@@ -119,7 +121,7 @@ export function UpgradePrompt({
     if (onUpgrade) {
       onUpgrade();
     } else {
-      window.location.href = "/app/billing";
+      navigate("/app/billing");
     }
   };
   if (compact) {

@@ -47,7 +47,13 @@ export default function ReportsPage() {
 
   const handleExportVerificationCsv = () => {
     if (!latestRun || !canExportReports) return;
-    window.location.href = `/api/reports?type=verification&runId=${latestRun.runId}&format=csv`;
+    const url = `/api/reports?type=verification&runId=${latestRun.runId}&format=csv`;
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (

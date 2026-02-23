@@ -275,7 +275,6 @@ export default function PixelsListPage() {
                     "text",
                     "text",
                     "text",
-                    "text",
                   ]}
                   headings={[
                     t("pixels.list.table.platform"),

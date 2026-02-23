@@ -57,7 +57,11 @@ export default function SettingsPage() {
   }, [tabParam]);
   const handleTabChange = useCallback((index: number) => {
     const tabId = getTabId(index);
-    setSearchParams({ tab: tabId });
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("tab", tabId);
+      return next;
+    });
   }, [setSearchParams]);
   const handleRotateSecret = useCallback(() => {
     const formData = new FormData();

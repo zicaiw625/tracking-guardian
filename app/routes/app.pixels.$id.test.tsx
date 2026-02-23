@@ -21,8 +21,9 @@ import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "~/shopify.server";
 import prisma from "~/db.server";
 import { validateTestEnvironment } from "~/services/migration-wizard.server";
-import { normalizePlanId, planSupportsFeature } from "~/services/billing/plans";
+import { normalizePlanId, planSupportsFeature, type PlanId } from "~/services/billing/plans";
 import { getPixelEventIngestionUrl } from "~/utils/config.server";
+import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 import { useTranslation, Trans } from "react-i18next";
 import { i18nServer } from "~/i18n.server";
 
@@ -81,7 +82,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   }
   const backendUrlInfo = getPixelEventIngestionUrl();
   return json({
-    shop: { id: shop.id, domain: shop.shopDomain },
+    shop: { id: shop.id, domain: shop.shopDomain, plan: shop.plan },
     pixelConfig,
     hasVerificationAccess,
     backendUrlInfo,
@@ -100,10 +101,14 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const actionType = formData.get("_action");
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
-    select: { id: true },
+    select: { id: true, plan: true },
   });
   if (!shop) {
     return json({ success: false, error: "Shop not found" }, { status: 404 });
+  }
+  const actionPlanId = normalizePlanId(shop.plan ?? "free");
+  if (!planSupportsFeature(actionPlanId, "verification")) {
+    return json({ success: false, error: "Plan upgrade required" }, { status: 403 });
   }
   const pixelConfig = await prisma.pixelConfig.findFirst({
     where: { id: pixelConfigId, shopId: shop.id },
@@ -136,7 +141,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 type ActionResult = { success: true; valid?: boolean; message?: string; details?: unknown } | { success: false; error: string };
 export default function PixelTestPage() {
   const { t } = useTranslation();
-  const { shop, pixelConfig, backendUrlInfo } = useLoaderData<typeof loader>();
+  const { shop, pixelConfig, hasVerificationAccess, backendUrlInfo } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>() as ActionResult | undefined;
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -159,6 +164,19 @@ export default function PixelTestPage() {
           title={t("pixels.test.configNotFound.title")}
           description={t("pixels.test.configNotFound.desc")}
           primaryAction={{ content: t("pixels.test.configNotFound.action"), url: "/app/pixels" }}
+        />
+      </Page>
+    );
+  }
+  if (!hasVerificationAccess) {
+    return (
+      <Page
+        title={t("pixels.test.title")}
+        backAction={{ content: t("pixels.test.backAction"), url: `/app/pixels` }}
+      >
+        <UpgradePrompt
+          feature="verification"
+          currentPlan={normalizePlanId(shop.plan ?? "free") as PlanId}
         />
       </Page>
     );

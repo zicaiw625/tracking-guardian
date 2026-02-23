@@ -14,6 +14,7 @@ export interface MigrationChecklistTabProps {
   dependencyGraph: DependencyGraph | null;
   handleScan: () => void;
   submit: SubmitFunction;
+  onNavigate?: (url: string) => void;
 }
 
 export function MigrationChecklistTab({
@@ -24,6 +25,7 @@ export function MigrationChecklistTab({
   dependencyGraph,
   handleScan,
   submit,
+  onNavigate,
 }: MigrationChecklistTabProps) {
   const { t } = useTranslation();
   return (
@@ -45,7 +47,8 @@ export function MigrationChecklistTab({
             items={migrationChecklist.items}
             dependencyGraph={dependencyGraph}
             onItemClick={(assetId) => {
-              window.location.href = `/app/migrate?asset=${assetId}`;
+              const url = `/app/migrate?asset=${assetId}`;
+              if (onNavigate) { onNavigate(url); } else { window.location.href = url; }
             }}
             onItemComplete={(assetId) => {
               const formData = new FormData();

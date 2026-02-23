@@ -3,7 +3,7 @@ import type { action } from "./app.scan/action.server";
 
 export { loader } from "./app.scan/loader.server";
 export { action } from "./app.scan/action.server";
-import { useLoaderData, useSubmit, useNavigation, useFetcher, useActionData, useSearchParams } from "@remix-run/react";
+import { useLoaderData, useSubmit, useNavigation, useFetcher, useActionData, useSearchParams, useNavigate } from "@remix-run/react";
 import { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense } from "react";
 import { Page, Card, BlockStack, Tabs } from "@shopify/polaris";
 import { CardSkeleton, useToastContext } from "~/components/ui";
@@ -48,6 +48,7 @@ export function ScanPage({
     showMigrationButtons = false,
 }: ScanPageProps) {
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const tabParam = searchParams.get("tab");
     const tabFromUrl = tabParam === "1" ? 1 : tabParam === "2" ? 2 : 0;
@@ -671,6 +672,7 @@ export function ScanPage({
                 isExporting={isExporting}
                 onCopyChecklist={handleCopyChecklist}
                 onExportChecklist={handleExportChecklist}
+                onNavigate={navigate}
               />
             </Suspense>
           )}
@@ -722,6 +724,7 @@ export function ScanPage({
                 dependencyGraph={dependencyGraph}
                 handleScan={handleScan}
                 submit={submit}
+                onNavigate={navigate}
               />
             </Suspense>
           )}

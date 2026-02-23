@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useNavigate, Link } from "@remix-run/react";
 import {
   Layout,
   Card,
@@ -31,11 +32,12 @@ interface SubscriptionTabProps {
 export function SubscriptionTab({ currentPlan, subscriptionStatus }: SubscriptionTabProps) {
   useToastContext();
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [upgradingPlan, setUpgradingPlan] = useState<PlanId | null>(null);
   const handleUpgrade = useCallback((planId: PlanId) => {
     setUpgradingPlan(planId);
-    window.location.href = `/app/billing?upgrade=${planId}`;
-  }, []);
+    navigate(`/app/billing?upgrade=${planId}`);
+  }, [navigate]);
   const currentPlanConfig = BILLING_PLANS[currentPlan];
   const upgradeOptions = getUpgradeOptions(currentPlan);
 
@@ -171,7 +173,7 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
                 </Text>
                 <Text as="p" variant="bodySm">
                   <Trans i18nKey="settings.subscription.moreInfoContent">
-                    您可以访问 <a href="/app/billing">订阅与计费</a> 页面查看完整的账单历史、使用量统计和发票信息。
+                    您可以访问 <Link to="/app/billing">订阅与计费</Link> 页面查看完整的账单历史、使用量统计和发票信息。
                   </Trans>
                 </Text>
               </BlockStack>

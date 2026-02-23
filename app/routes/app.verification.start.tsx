@@ -30,6 +30,8 @@ import {
 } from "../utils/verification-checklist";
 import { VERIFICATION_TEST_ITEMS } from "../services/verification.server";
 import { checkPlanGate } from "~/middleware/plan-gate";
+import { normalizePlanId, type PlanId } from "~/services/billing/plans";
+import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 import { useTranslation } from "react-i18next";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -37,19 +39,28 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shopDomain = session.shop;
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
-    select: { id: true },
+    select: { id: true, plan: true },
   });
   if (!shop) {
     return json({
       shop: null,
       testChecklist: null,
       testItems: VERIFICATION_TEST_ITEMS,
+      gate: null,
+      currentPlan: "free" as PlanId,
     });
   }
 
+  const currentPlan = normalizePlanId(shop.plan || "free") as PlanId;
   const gate = await checkPlanGate(shop.id, "verification");
   if (!gate.allowed) {
-    return json({ shop: null, testChecklist: null, testItems: [], error: "Plan upgrade required", gate }, { status: 403 });
+    return json({
+      shop: { id: shop.id, domain: shopDomain },
+      testChecklist: null,
+      testItems: [],
+      gate,
+      currentPlan,
+    });
   }
 
   const testChecklist = generateTestChecklist(shop.id, "quick");
@@ -57,6 +68,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     shop: { id: shop.id, domain: shopDomain },
     testChecklist,
     testItems: VERIFICATION_TEST_ITEMS,
+    gate: null,
+    currentPlan,
   });
 };
 
@@ -73,9 +86,17 @@ export function ErrorBoundary() {
 }
 
 export default function VerificationStartPage() {
-  const { shop, testChecklist } = useLoaderData<typeof loader>();
+  const { shop, testChecklist, gate, currentPlan } = useLoaderData<typeof loader>();
   const { showSuccess, showError } = useToastContext();
   const { t } = useTranslation();
+
+  if (gate && !gate.allowed) {
+    return (
+      <Page title={t("verification.start.pageTitle")}>
+        <UpgradePrompt feature="verification" currentPlan={currentPlan} gateResult={gate} />
+      </Page>
+    );
+  }
 
   if (!shop || !testChecklist) {
     return (

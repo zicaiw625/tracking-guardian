@@ -24,6 +24,8 @@ import { useTranslation } from "react-i18next";
 
 import { getAggregatedMetrics } from "~/services/dashboard-aggregation.server";
 import { checkPlanGate } from "~/middleware/plan-gate";
+import { normalizePlanId, type PlanId } from "~/services/billing/plans";
+import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -39,12 +41,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 
   if (!shop) {
-    return json({ shop: null, stats: null });
+    return json({ shop: null, stats: null, gate: null, currentPlan: "free" });
   }
 
   const gate = await checkPlanGate(shop.id, "alerts");
   if (!gate.allowed) {
-    return json({ shop, stats: null, error: "Plan upgrade required", gate }, { status: 403 });
+    return json({ shop, stats: null, gate, currentPlan: shop.plan || "free" });
   }
 
   const now = new Date();
@@ -88,13 +90,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     },
   };
 
-  return json({ shop, stats });
+  return json({ shop, stats, gate: null, currentPlan: shop.plan || "free" });
 };
 
 export default function MonitoringPage() {
   const { t } = useTranslation();
-  const { shop, stats } = useLoaderData<typeof loader>();
+  const { shop, stats, gate, currentPlan } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
+
+  const planId = normalizePlanId((currentPlan as string) || "free") as PlanId;
 
   const alerts = shop?.AlertEvent || [];
   const resourceName = {
@@ -115,7 +119,14 @@ export default function MonitoringPage() {
     );
   }
 
-  // Ensure stats is available if shop is available (loader guarantees this logic but Typescript might not know)
+  if (gate && !gate.allowed) {
+    return (
+      <Page title={t("monitoring.title")}>
+        <UpgradePrompt feature="alerts" currentPlan={planId} gateResult={gate} />
+      </Page>
+    );
+  }
+
   const safeStats = stats || {
     last7Days: { orders: 0, value: "0", currency: "", successRate: 0, totalEvents: 0 },
     last24Hours: { totalEvents: 0, successRate: 0, failureRate: 0, lossRate: "0.0", received: 0 }
@@ -137,7 +148,7 @@ export default function MonitoringPage() {
         <IndexTable.Cell>{type}</IndexTable.Cell>
         <IndexTable.Cell>
           <InlineStack gap="200" align="start" blockAlign="center">
-             {severity === "critical" ? <XCircleIcon className="w-5 h-5 text-critical" /> : <AlertCircleIcon className="w-5 h-5 text-warning" />}
+             {severity === "critical" ? <XCircleIcon style={{ width: 20, height: 20, color: "var(--p-color-text-critical)" }} /> : <AlertCircleIcon style={{ width: 20, height: 20, color: "var(--p-color-text-warning)" }} />}
              <Text as="span" tone={severity === "critical" ? "critical" : undefined}>{severity}</Text>
           </InlineStack>
         </IndexTable.Cell>

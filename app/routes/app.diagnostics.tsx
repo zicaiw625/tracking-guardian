@@ -45,6 +45,11 @@ export default function DiagnosticsPage() {
   const [corsMessage, setCorsMessage] = useState("");
 
   const checkCors = useCallback(async () => {
+    if (!backendUrl) {
+      setCorsStatus("error");
+      setCorsMessage(t("diagnostics.cors.status.notConfigured", { defaultValue: "Backend URL is not configured. Please set SHOPIFY_APP_URL." }));
+      return;
+    }
     setCorsStatus("pending");
     setCorsMessage(t("diagnostics.cors.status.pending"));
     try {

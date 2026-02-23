@@ -18,6 +18,8 @@ import prisma from "../db.server";
 import { performPixelVsOrderReconciliation } from "../services/verification/order-reconciliation.server";
 import { PCD_CONFIG } from "../utils/config.server";
 import { checkPlanGate } from "~/middleware/plan-gate";
+import { normalizePlanId, type PlanId } from "~/services/billing/plans";
+import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 import { useTranslation } from "react-i18next";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -25,7 +27,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shopDomain = session.shop;
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
-    select: { id: true },
+    select: { id: true, plan: true },
   });
   if (!shop) {
     return json({
@@ -33,12 +35,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       reconciliation: null,
       hours: 24,
       pcdDisabled: false,
+      gate: null,
+      currentPlan: "free" as PlanId,
     });
   }
 
+  const currentPlan = normalizePlanId(shop.plan || "free") as PlanId;
   const gate = await checkPlanGate(shop.id, "reconciliation");
   if (!gate.allowed) {
-    return json({ shop: null, reconciliation: null, hours: 24, pcdDisabled: false, error: "Plan upgrade required", gate }, { status: 403 });
+    return json({
+      shop: { id: shop.id, domain: shopDomain },
+      reconciliation: null,
+      hours: 24,
+      pcdDisabled: false,
+      gate,
+      currentPlan,
+    });
   }
 
   const url = new URL(request.url);
@@ -56,12 +68,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     reconciliation,
     hours,
     pcdDisabled,
+    gate: null,
+    currentPlan,
   });
 };
 
 export default function VerificationOrdersPage() {
   const { t } = useTranslation();
-  const { shop, reconciliation, hours, pcdDisabled } = useLoaderData<typeof loader>();
+  const { shop, reconciliation, hours, pcdDisabled, gate, currentPlan } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const HOUR_OPTIONS = [
@@ -85,6 +99,14 @@ export default function VerificationOrdersPage() {
         <Button url="/app/verification" variant="primary">
           {t("verification.orders.returnToVerification")}
         </Button>
+      </Page>
+    );
+  }
+
+  if (gate && !gate.allowed) {
+    return (
+      <Page title={t("verification.orders.title")}>
+        <UpgradePrompt feature="reconciliation" currentPlan={currentPlan} gateResult={gate} />
       </Page>
     );
   }

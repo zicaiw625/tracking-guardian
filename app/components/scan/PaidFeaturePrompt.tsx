@@ -1,4 +1,5 @@
 import { Banner, Button, BlockStack, InlineStack, Text } from "@shopify/polaris";
+import { useNavigate } from "@remix-run/react";
 import { LockIcon } from "~/components/icons";
 import type { PlanId } from "~/services/billing/plans";
 import { getPlanDefinition } from "~/utils/plans";
@@ -16,6 +17,7 @@ export function PaidFeaturePrompt({
   compact = false,
 }: PaidFeaturePromptProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const requiredPlanId = {
     pixel_migration: "starter",
     batch_audit: "agency",
@@ -34,7 +36,7 @@ export function PaidFeaturePrompt({
   const currentPlanDef = getPlanDefinition(currentPlan);
 
   const handleUpgrade = () => {
-    window.location.href = "/app/billing";
+    navigate("/app/billing");
   };
 
   if (compact) {
