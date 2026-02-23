@@ -117,7 +117,8 @@ export async function processIngestQueue(
         configs,
         entry.keyValidation,
         entry.origin,
-        undefined
+        undefined,
+        entry.environment
       );
 
       try {

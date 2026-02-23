@@ -145,6 +145,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json({ success: false, error: t("verification.errors.shopNotFound") }, { status: 404 });
   }
 
+  const gate = await checkPlanGate(shop.id, "verification");
+  if (!gate.allowed) {
+    return json({ success: false, error: "Plan upgrade required" }, { status: 403 });
+  }
+
   const formData = await request.formData();
   const actionType = formData.get("_action");
 
@@ -234,7 +239,7 @@ export default function VerificationPage() {
         t("verification.testItems.purchase_test.steps.1"),
         t("verification.testItems.purchase_test.steps.2")
       ],
-      expectedEvents: ["checkout_completed"]
+      expectedEvents: ["purchase"]
     }
   ];
   

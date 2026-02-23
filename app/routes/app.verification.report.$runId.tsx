@@ -69,6 +69,20 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   }
   const planId = normalizePlanId(shop.plan || "free") as PlanId;
   const gateResult = checkFeatureAccess(planId, "verification");
+  if (!gateResult.allowed) {
+    const pixelStrictOrigin = ["true", "1", "yes"].includes(
+      (process.env.PIXEL_STRICT_ORIGIN ?? "").toLowerCase().trim()
+    );
+    return json({
+      shop: { id: shop.id, domain: shopDomain },
+      run: null,
+      reportData: null,
+      canExportReports: false,
+      gateResult,
+      currentPlan: planId,
+      pixelStrictOrigin,
+    }, { status: 403 });
+  }
   const canExportReports = planSupportsReportExport(planId);
   const run = await getVerificationRun(runId);
   if (!run || run.shopId !== shop.id) {

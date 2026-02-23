@@ -1,16 +1,5 @@
 import prisma from "../db.server";
 
-function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
-  if (!payload) return null;
-  if (payload.platform && typeof payload.platform === "string") {
-    return payload.platform;
-  }
-  if (payload.destination && typeof payload.destination === "string") {
-    return payload.destination;
-  }
-  return null;
-}
-
 export interface EventMonitoringStats {
   totalEvents: number;
   successRate: number;
@@ -42,6 +31,7 @@ export async function getEventMonitoringStats(shopId: string, hours: number = 24
       },
     },
     select: {
+      platform: true,
       payloadJson: true,
     },
   });
@@ -70,7 +60,7 @@ export async function getEventMonitoringStats(shopId: string, hours: number = 24
 
   for (const receipt of receipts) {
     const payload = receipt.payloadJson as Record<string, unknown> | null;
-    const platform = extractPlatformFromPayload(payload) || "unknown";
+    const platform = receipt.platform || "unknown";
     if (!byPlatform[platform]) {
       byPlatform[platform] = { total: 0, success: 0, failure: 0 };
     }

@@ -29,6 +29,7 @@ import {
   generateChecklistCSV,
 } from "../utils/verification-checklist";
 import { VERIFICATION_TEST_ITEMS } from "../services/verification.server";
+import { checkPlanGate } from "~/middleware/plan-gate";
 import { useTranslation } from "react-i18next";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -45,6 +46,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       testItems: VERIFICATION_TEST_ITEMS,
     });
   }
+
+  const gate = await checkPlanGate(shop.id, "verification");
+  if (!gate.allowed) {
+    return json({ shop: null, testChecklist: null, testItems: [], error: "Plan upgrade required", gate }, { status: 403 });
+  }
+
   const testChecklist = generateTestChecklist(shop.id, "quick");
   return json({
     shop: { id: shop.id, domain: shopDomain },

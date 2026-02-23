@@ -13,6 +13,7 @@ import { safeFireAndForget } from "../utils/helpers.server";
 import { normalizePlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
 import { isV1SupportedPlatform, getV1Platforms } from "../utils/v1-platforms";
+import { checkPlanGate } from "~/middleware/plan-gate";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -24,6 +25,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (!shop) {
     return json({ success: false, error: "Shop not found" }, { status: 404 });
   }
+
+  const gate = await checkPlanGate(shop.id, "verification");
+  if (!gate.allowed) {
+    return json({ success: false, error: "Plan upgrade required" }, { status: 403 });
+  }
+
   const formData = await request.formData();
   const actionType = formData.get("_action") as string;
   const platform = formData.get("platform") as string;

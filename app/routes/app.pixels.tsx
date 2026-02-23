@@ -21,17 +21,6 @@ import prisma from "~/db.server";
 import { getPixelEventIngestionUrl } from "~/utils/config.server";
 import { useTranslation, Trans } from "react-i18next";
 
-function extractPlatformFromPayload(payload: Record<string, unknown> | null): string | null {
-  if (!payload) return null;
-  if (payload.platform && typeof payload.platform === "string") {
-    return payload.platform;
-  }
-  if (payload.destination && typeof payload.destination === "string") {
-    return payload.destination;
-  }
-  return null;
-}
-
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
@@ -64,6 +53,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         select: {
           eventType: true,
           createdAt: true,
+          platform: true,
+          environment: true,
           payloadJson: true,
         },
         take: 200,
@@ -71,9 +62,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     : [];
   const latestByKey = recentReceipts.reduce((acc, receipt) => {
     const payload = receipt.payloadJson as Record<string, unknown> | null;
-    const platform = extractPlatformFromPayload(payload);
-    if (!platform || !platforms.includes(platform)) return acc;
-    const key = `${platform}:live`;
+    const platform = receipt.platform;
+    if (!platform || platform === "unknown" || !platforms.includes(platform)) return acc;
+    const key = `${platform}:${receipt.environment || "live"}`;
     if (!acc[key]) {
       const data = payload?.data as Record<string, unknown> | undefined;
       const hasValue = data && typeof data.value === "number";

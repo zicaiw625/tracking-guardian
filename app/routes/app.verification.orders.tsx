@@ -17,6 +17,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { performPixelVsOrderReconciliation } from "../services/verification/order-reconciliation.server";
 import { PCD_CONFIG } from "../utils/config.server";
+import { checkPlanGate } from "~/middleware/plan-gate";
 import { useTranslation } from "react-i18next";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -34,6 +35,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       pcdDisabled: false,
     });
   }
+
+  const gate = await checkPlanGate(shop.id, "reconciliation");
+  if (!gate.allowed) {
+    return json({ shop: null, reconciliation: null, hours: 24, pcdDisabled: false, error: "Plan upgrade required", gate }, { status: 403 });
+  }
+
   const url = new URL(request.url);
   const hoursParam = url.searchParams.get("hours");
   const hours = Math.min(

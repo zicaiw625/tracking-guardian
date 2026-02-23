@@ -124,7 +124,8 @@ export async function upsertPixelEventReceipt(
   altOrderKey?: string | null,
   storePayload: boolean = true,
   trustLevel?: string,
-  hmacMatched?: boolean
+  hmacMatched?: boolean,
+  environment?: "test" | "live"
 ): Promise<ReceiptCreateResult> {
   const originHost = extractOriginHost(origin);
   const checkoutToken = payload.data?.checkoutToken;
@@ -135,6 +136,7 @@ export async function upsertPixelEventReceipt(
   const payloadData = payload?.data as Record<string, unknown> | undefined;
   const extractedOrderKey = orderKey || (payloadData?.orderId as string | undefined);
   const platformValue = platform ?? "unknown";
+  const environmentValue = environment ?? "live";
   try {
     let payloadToStore: Record<string, unknown> | null = null;
     if (storePayload && payload) {
@@ -184,6 +186,7 @@ export async function upsertPixelEventReceipt(
           eventId,
           eventType,
           platform: platformValue,
+          environment: environmentValue,
           pixelTimestamp: new Date(payload.timestamp),
           originHost: originHost || null,
           verificationRunId: verificationRunId || null,
@@ -229,6 +232,7 @@ export async function upsertPixelEventReceipt(
               hmacMatched: hmacMatchedValue,
               totalValue: totalValue,
               currency: currency,
+              environment: environmentValue,
             },
             select: {
               id: true,

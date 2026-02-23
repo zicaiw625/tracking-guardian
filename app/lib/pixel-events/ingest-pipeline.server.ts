@@ -383,7 +383,8 @@ export async function distributeEvents(
   }>,
   keyValidation: KeyValidationResult,
   origin: string | null,
-  activeVerificationRunId: string | null | undefined
+  activeVerificationRunId: string | null | undefined,
+  environment?: "test" | "live"
 ): Promise<ProcessedEvent[]> {
   const processed: ProcessedEvent[] = [];
   
@@ -453,7 +454,8 @@ export async function distributeEvents(
             event.altOrderKey,
             shouldStorePayload,
             keyValidation.trustLevel,
-            keyValidation.matched
+            keyValidation.matched,
+            environment
           );
         }
       } catch (error) {
@@ -480,7 +482,8 @@ export async function distributeEvents(
             null,
             true,
             keyValidation.trustLevel,
-            keyValidation.matched
+            keyValidation.matched,
+            environment
           );
         });
       } catch (error) {

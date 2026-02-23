@@ -239,6 +239,7 @@ model PixelEventReceipt {
   eventId           String
   eventType         String
   platform          String           @default("unknown")
+  environment       String           @default("live")
   pixelTimestamp    DateTime
   verificationRunId String?
   originHost        String?
@@ -265,6 +266,7 @@ model PixelEventReceipt {
   @@index([eventId])
   @@index([platform])
   @@index([shopId, createdAt, hmacMatched])
+  @@index([environment])
 }
 
 model VerificationRun {
