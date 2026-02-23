@@ -168,17 +168,6 @@ export const eventValidationMiddleware: IngestMiddleware = async (
     };
   }
 
-  // Double check if empty after filtering (Fix P1-4: Prevent empty enqueue)
-  if (validatedEvents.length === 0) {
-     return {
-        continue: false,
-        response: jsonWithCors(
-          { error: "No valid events found" },
-          { status: 204, request: context.request, requestId: context.requestId }
-        ),
-      };
-  }
-
   const firstPayload = validatedEvents[0].payload;
   const shopDomain = firstPayload.shopDomain;
   // Fix P0-3: Use header timestamp if available to satisfy HMAC validation, otherwise fall back to payload

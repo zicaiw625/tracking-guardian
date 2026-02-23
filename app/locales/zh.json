@@ -443,7 +443,7 @@
           "checkWebPixel": "如已升级：确认 Web Pixel 正常运行",
           "migrate": "如未升级：旧脚本可能仍在运行，但建议尽快迁移",
           "plusDeadline": "Plus 商家截止日期：{{date}}（日期来自 Shopify 官方公告，请以 Admin 提示为准）",
-          "nonPlusDeadline": "非 Plus 商家：距截止日期（2025-08-28，日期来自 Shopify 官方公告，请以 Admin 提示为准）还有约 {{days}} 天"
+          "nonPlusDeadline": "非 Plus 商家：距截止日期（{{date}}，日期来自 Shopify 官方公告，请以 Admin 提示为准）还有约 {{days}} 天"
         },
         "reason": {
           "NOT_PLUS": "原因：店铺可能不是 Plus，或没有 checkoutProfiles 权限。",
@@ -2956,7 +2956,7 @@
         "subtitle": "Shopify 升级截止日期",
         "desc": "<strong>重要提示：</strong>以下日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 Shopify 官方文档。",
         "plus": "Plus 店铺：从 2026-01 开始自动升级（legacy 定制会丢失）",
-        "nonPlus": "非 Plus 店铺：最晚 2025-08-28 必须完成升级",
+        "nonPlus": "非 Plus 店铺：最晚 2026-08-26 必须完成升级",
         "advice": "建议尽早完成迁移，避免在截止日期前匆忙处理。"
       }
     },

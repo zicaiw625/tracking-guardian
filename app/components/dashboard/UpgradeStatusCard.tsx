@@ -1,6 +1,7 @@
 import { Card, BlockStack, InlineStack, Text, Box, Badge, Banner, Button, SkeletonBodyText, List, Icon } from "@shopify/polaris";
 import { AlertCircleIcon, ClockIcon, CheckCircleIcon } from "~/components/icons";
 import { useTranslation } from "react-i18next";
+import { DEPRECATION_DATES, getDateDisplayLabel } from "~/utils/deprecation-dates";
 
 export function UpgradeStatusCard({
   status,
@@ -42,7 +43,9 @@ export function UpgradeStatusCard({
     );
   }
   const isUpgraded = status.isUpgraded;
-  const deadlineDate = new Date("2025-08-13");
+  const deadlineDate = DEPRECATION_DATES.plusAdditionalScriptsReadOnly;
+  const deadlineDateLabel = getDateDisplayLabel(deadlineDate, "exact");
+  const autoUpgradeStartLabel = getDateDisplayLabel(DEPRECATION_DATES.plusAutoUpgradeStart, "month");
   const today = new Date();
   const daysRemaining = Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   const isCritical = daysRemaining < 30;
@@ -106,7 +109,7 @@ export function UpgradeStatusCard({
                 <InlineStack gap="200" align="center">
                   <Icon source={ClockIcon} tone={isCritical ? "critical" : "warning"} />
                   <Text as="h3" variant="headingSm" fontWeight="semibold">
-                    {t("dashboard.upgradeStatus.deadline")}: 2025-08-13
+                    {t("dashboard.upgradeStatus.deadline")}: {deadlineDateLabel}
                   </Text>
                 </InlineStack>
                 {daysRemaining > 0 ? (
@@ -126,10 +129,10 @@ export function UpgradeStatusCard({
             <Box background="bg-surface-secondary" padding="300" borderRadius="200">
               <BlockStack gap="200">
                 <Text as="h3" variant="headingSm" fontWeight="semibold">
-                  {t("dashboard.upgradeStatus.autoUpgradeStart")}: 2025-08-28
+                  {t("dashboard.upgradeStatus.autoUpgradeStart")}: {autoUpgradeStartLabel}
                 </Text>
                 <Text as="p" variant="bodySm">
-                  {t("dashboard.upgradeStatus.autoUpgradeDesc", { date: "2025-08-28" })}
+                  {t("dashboard.upgradeStatus.autoUpgradeDesc", { date: autoUpgradeStartLabel })}
                 </Text>
               </BlockStack>
             </Box>
