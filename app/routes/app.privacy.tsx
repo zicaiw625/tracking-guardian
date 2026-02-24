@@ -625,10 +625,10 @@ export default function PrivacyPage() {
                     {t("PrivacyPage.ExportDelete.Delete.Warning")}
                   </Text>
                   <List type="bullet">
-                    <List.Item>{t("privacy.deleteItems.conversions")}</List.Item>
-                    <List.Item>{t("privacy.deleteItems.eventLogs")}</List.Item>
-                    <List.Item>{t("privacy.deleteItems.surveyResponses")}</List.Item>
-                    <List.Item>{t("privacy.deleteItems.configSettings")}</List.Item>
+                    <List.Item>{t("privacyPage.deleteItems.0")}</List.Item>
+                    <List.Item>{t("privacyPage.deleteItems.1")}</List.Item>
+                    <List.Item>{t("privacyPage.deleteItems.2")}</List.Item>
+                    <List.Item>{t("privacyPage.deleteItems.3")}</List.Item>
                   </List>
                 </Banner>
                 <Button
@@ -653,7 +653,7 @@ export default function PrivacyPage() {
                   }}
                   secondaryActions={[
                     {
-                      content: t("privacy.cancel"),
+                      content: t("common.cancel"),
                       onAction: () => setShowDeleteModal(false),
                     },
                   ]}
@@ -663,10 +663,10 @@ export default function PrivacyPage() {
                       {t("PrivacyPage.ExportDelete.Delete.ModalContent")}
                     </Text>
                     <List type="bullet">
-                      <List.Item>{t("privacy.deleteItems.conversions")}</List.Item>
-                      <List.Item>{t("privacy.deleteItems.eventLogs")}</List.Item>
-                      <List.Item>{t("privacy.deleteItems.surveyResponses")}</List.Item>
-                      <List.Item>{t("privacy.deleteItems.configSettings")}</List.Item>
+                      <List.Item>{t("privacyPage.deleteItems.0")}</List.Item>
+                      <List.Item>{t("privacyPage.deleteItems.1")}</List.Item>
+                      <List.Item>{t("privacyPage.deleteItems.2")}</List.Item>
+                      <List.Item>{t("privacyPage.deleteItems.3")}</List.Item>
                     </List>
                     <Text variant="bodyMd" as="p" tone="critical" fontWeight="semibold">
                       {t("PrivacyPage.ExportDelete.Delete.Irreversible")}

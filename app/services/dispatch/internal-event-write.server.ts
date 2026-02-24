@@ -24,6 +24,16 @@ function numericValue(v: unknown): number {
   return Number.isNaN(n) ? 0 : n;
 }
 
+function sanitizeStoredUrl(urlStr: string | null | undefined): string | null {
+  if (!urlStr) return null;
+  try {
+    const url = new URL(urlStr);
+    return `${url.protocol}//${url.hostname}${url.pathname}`;
+  } catch {
+    return null;
+  }
+}
+
 export async function persistInternalEventsAndDispatchJobs(
   shopId: string,
   processedEvents: ProcessedEvent[],
@@ -72,8 +82,8 @@ export async function persistInternalEventsAndDispatchJobs(
   const rawUa = requestContext?.user_agent ?? null;
   const user_agent_encrypted = rawUa ? encrypt(rawUa) : null;
   const user_agent = rawUa ? createHash("sha256").update(rawUa).digest("hex") : null;
-  const page_url = requestContext?.page_url ?? null;
-  const referrer = requestContext?.referrer ?? null;
+  const page_url = sanitizeStoredUrl(requestContext?.page_url);
+  const referrer = sanitizeStoredUrl(requestContext?.referrer);
 
   await prisma.$transaction(async (tx) => {
     for (const event of processedEvents) {

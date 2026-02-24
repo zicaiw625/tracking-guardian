@@ -26,7 +26,7 @@ export function MigrationDeadlineBanner() {
               i18nKey="dashboard.migrationDeadlineBanner.plusMerchant"
               values={{
                 date1: formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact"),
-                date2: formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "exact"),
+                date2: formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month"),
               }}
               components={{
                 strong: <strong />,

@@ -125,12 +125,13 @@ export function MigrationCountdown({
 }: MigrationCountdownProps) {
   const { t, i18n } = useTranslation();
   const now = new Date();
+  const isEstimatedDeadline = shopTier === "plus";
   const deadline = getDeadline(shopTier);
-  const daysRemaining = getDaysRemaining(deadline, now);
+  const daysRemaining = isEstimatedDeadline ? null : getDaysRemaining(deadline, now);
   const progressPercentage = getProgressPercentage(shopTier, now);
   const milestones = getMilestones(shopTier, now);
-  const urgencyTone = getUrgencyTone(daysRemaining);
-  const urgencyBg = getUrgencyBackground(daysRemaining);
+  const urgencyTone = daysRemaining === null ? "attention" : getUrgencyTone(daysRemaining);
+  const urgencyBg = daysRemaining === null ? "bg-fill-caution" : getUrgencyBackground(daysRemaining);
   
   const tierLabel = shopTier === "plus" 
     ? t("migrationCountdown.tier.plus") 
@@ -138,11 +139,19 @@ export function MigrationCountdown({
       ? t("migrationCountdown.tier.standard") 
       : t("migrationCountdown.tier.unknown");
       
-  const deadlineLabel = deadline.toLocaleDateString(i18n.language, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const deadlineLabel = deadline.toLocaleDateString(
+    i18n.language,
+    isEstimatedDeadline
+      ? {
+          year: "numeric",
+          month: "long",
+        }
+      : {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }
+  );
 
   if (isUpgraded === true) {
     return (
@@ -226,9 +235,13 @@ export function MigrationCountdown({
                     fontWeight="bold"
                     alignment="center"
                   >
-                    {daysRemaining <= 0 ? t("migrationCountdown.expired") : daysRemaining}
+                    {daysRemaining === null
+                      ? "—"
+                      : daysRemaining <= 0
+                      ? t("migrationCountdown.expired")
+                      : daysRemaining}
                   </Text>
-                  {daysRemaining > 0 && (
+                  {daysRemaining !== null && daysRemaining > 0 && (
                     <Text as="p" variant="bodySm" tone="subdued">
                       {t("migrationCountdown.days")}
                     </Text>
@@ -247,7 +260,15 @@ export function MigrationCountdown({
               </InlineStack>
               <ProgressBar
                 progress={progressPercentage}
-                tone={daysRemaining <= 30 ? "critical" : daysRemaining <= 90 ? "highlight" : "primary"}
+                tone={
+                  daysRemaining === null
+                    ? "highlight"
+                    : daysRemaining <= 30
+                    ? "critical"
+                    : daysRemaining <= 90
+                    ? "highlight"
+                    : "primary"
+                }
                 size="small"
               />
             </BlockStack>
@@ -279,10 +300,15 @@ export function MigrationCountdown({
                       {t("migrationCountdown.urgency")}
                     </Text>
                     <Badge tone={urgencyTone}>
-                      {daysRemaining <= 0 ? t("migrationCountdown.expired") :
-                       daysRemaining <= 30 ? t("migrationCountdown.urgencyLevels.critical") :
-                       daysRemaining <= 90 ? t("migrationCountdown.urgencyLevels.warning") : 
-                       t("migrationCountdown.urgencyLevels.normal")}
+                      {daysRemaining === null
+                        ? t("migrationCountdown.urgencyLevels.warning")
+                        : daysRemaining <= 0
+                        ? t("migrationCountdown.expired")
+                        : daysRemaining <= 30
+                        ? t("migrationCountdown.urgencyLevels.critical")
+                        : daysRemaining <= 90
+                        ? t("migrationCountdown.urgencyLevels.warning")
+                        : t("migrationCountdown.urgencyLevels.normal")}
                     </Badge>
                   </BlockStack>
                 </Box>
@@ -290,7 +316,7 @@ export function MigrationCountdown({
             )}
           </BlockStack>
         </Box>
-        {daysRemaining <= 30 && daysRemaining > 0 && (
+        {daysRemaining !== null && daysRemaining <= 30 && daysRemaining > 0 && (
           <Banner tone="critical" title={t("migrationCountdown.banner.urgent.title")}>
             <BlockStack gap="200">
               <Text as="p">
@@ -304,7 +330,7 @@ export function MigrationCountdown({
             </BlockStack>
           </Banner>
         )}
-        {daysRemaining <= 0 && (
+        {daysRemaining !== null && daysRemaining <= 0 && (
           <Banner tone="critical" title={t("migrationCountdown.banner.expired.title")}>
             <BlockStack gap="200">
               <Text as="p">
@@ -379,11 +405,19 @@ export function MigrationCountdown({
                     fontWeight={milestone.isNext ? "bold" : "regular"}
                     tone={milestone.isPassed ? "subdued" : undefined}
                   >
-                    {milestone.date.toLocaleDateString(i18n.language, {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                    })}
+                    {milestone.date.toLocaleDateString(
+                      i18n.language,
+                      milestone.labelKey === "migrationCountdown.milestones.plusAutoUpgrade.label"
+                        ? {
+                            year: "numeric",
+                            month: "short",
+                          }
+                        : {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          }
+                    )}
                   </Text>
                 </InlineStack>
               </Box>
@@ -393,7 +427,9 @@ export function MigrationCountdown({
         <Divider />
         <InlineStack align="end" gap="200">
           <Button url="/app/migrate" variant="primary">
-            {daysRemaining <= 30 ? t("migrationCountdown.actions.migrateNow") : t("migrationCountdown.actions.startMigrate")}
+            {daysRemaining !== null && daysRemaining <= 30
+              ? t("migrationCountdown.actions.migrateNow")
+              : t("migrationCountdown.actions.startMigrate")}
           </Button>
         </InlineStack>
         {lastCheckedAt && (

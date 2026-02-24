@@ -18,81 +18,42 @@ export function CheckoutCompletedBehaviorHint({
   const { t } = useTranslation();
   const tone = mode === "missing" ? "warning" : mode === "drop" ? "critical" : "info";
   const icon = mode === "missing" || mode === "drop" ? AlertCircleIcon : InfoIcon;
-  const defaultTitle = mode === "missing"
-    ? t("checkoutBehaviorHint.titleMissing")
-    : mode === "drop"
-    ? t("checkoutBehaviorHint.titleDrop")
-    : t("checkoutBehaviorHint.titleInfo");
+  const defaultTitle = t("checkoutBehaviorHint.title");
   const displayTitle = title || defaultTitle;
   const content = (
     <BlockStack gap="200">
       <Text as="p" variant="bodySm">
-        <strong>checkout_completed</strong>{" "}
-        {t("checkoutBehaviorHint.contentIntro")}
+        {t("checkoutBehaviorHint.subtitle")}
       </Text>
       <List type="bullet">
         <List.Item>
           <Text as="span" variant="bodySm">
-            <strong>{t("checkoutBehaviorHint.upsellLabel")}</strong>{" "}
+            <strong>{t("checkoutBehaviorHint.upsellTitle")}</strong>{" "}
             {t("checkoutBehaviorHint.upsellDesc")}
           </Text>
         </List.Item>
         <List.Item>
           <Text as="span" variant="bodySm">
-            <strong>{t("checkoutBehaviorHint.pageLoadLabel")}</strong>{" "}
-            {t("checkoutBehaviorHint.pageLoadDesc")}
-          </Text>
-        </List.Item>
-        <List.Item>
-          <Text as="span" variant="bodySm">
-            <strong>{t("checkoutBehaviorHint.consentLabel")}</strong>{" "}
+            <strong>{t("checkoutBehaviorHint.consentTitle")}</strong>{" "}
             {t("checkoutBehaviorHint.consentDesc")}
           </Text>
         </List.Item>
         <List.Item>
           <Text as="span" variant="bodySm">
-            <strong>{t("checkoutBehaviorHint.shopPayLabel")}</strong>{" "}
+            <strong>{t("checkoutBehaviorHint.shopPayTitle")}</strong>{" "}
             {t("checkoutBehaviorHint.shopPayDesc")}
           </Text>
         </List.Item>
         <List.Item>
           <Text as="span" variant="bodySm">
-            <strong>{t("checkoutBehaviorHint.pcdLabel")}</strong>{" "}
-            {t("checkoutBehaviorHint.pcdDesc")}
-          </Text>
-        </List.Item>
-        <List.Item>
-          <Text as="span" variant="bodySm">
-            <strong>{t("checkoutBehaviorHint.fullFunnelLabel")}</strong>{" "}
-            {t("checkoutBehaviorHint.fullFunnelDesc")}
+            <strong>{t("checkoutBehaviorHint.ajaxCheckoutTitle")}</strong>{" "}
+            {t("checkoutBehaviorHint.ajaxCheckoutDesc")}
           </Text>
         </List.Item>
       </List>
       <Text as="p" variant="bodySm" tone="subdued">
-        💡 <strong>{t("checkoutBehaviorHint.troubleshootTitle")}</strong>
+        {t("checkoutBehaviorHint.note")}
       </Text>
-      <List type="bullet">
-        <List.Item>
-          <Text as="span" variant="bodySm" tone="subdued">
-            {t("checkoutBehaviorHint.troubleshootUpsell")}
-          </Text>
-        </List.Item>
-        <List.Item>
-          <Text as="span" variant="bodySm" tone="subdued">
-            {t("checkoutBehaviorHint.troubleshootV1")}
-          </Text>
-        </List.Item>
-        <List.Item>
-          <Text as="span" variant="bodySm" tone="subdued">
-            {t("checkoutBehaviorHint.troubleshootMonitor")}
-          </Text>
-        </List.Item>
-        <List.Item>
-          <Text as="span" variant="bodySm" tone="subdued">
-            {t("checkoutBehaviorHint.troubleshootPcd")}
-          </Text>
-        </List.Item>
-      </List>
     </BlockStack>
   );
   if (!collapsible) {

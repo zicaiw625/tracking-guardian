@@ -12,13 +12,9 @@ function sanitizeUrl(urlStr: string | null): string | null {
   if (!urlStr) return null;
   try {
     const url = new URL(urlStr);
-    // Only keep protocol, hostname, and path. Remove search/hash to strip PII.
     return `${url.protocol}//${url.hostname}${url.pathname}`;
   } catch {
-    // If invalid URL, return clamped raw string or null? 
-    // Return clamped raw string but truncated to avoid issues, or just null.
-    // Review suggests "hostname + path", so if we can't parse, it's safer to drop or return minimal.
-    return clampString(urlStr, 100); 
+    return null;
   }
 }
 

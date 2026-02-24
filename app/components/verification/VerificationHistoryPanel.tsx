@@ -31,6 +31,14 @@ export function VerificationHistoryPanel({
   shop,
 }: VerificationHistoryPanelProps) {
   const { t, i18n } = useTranslation();
+  const columns = t("verificationHistory.columns", { returnObjects: true }) as string[];
+
+  const getRunTypeLabel = (runType: VerificationHistoryRun["runType"]) => {
+    if (runType === "full") return t("verificationHistory.type.full");
+    if (runType === "quick") return t("verificationHistory.type.quick");
+    return runType;
+  };
+
   return (
     <Box padding="400">
       <BlockStack gap="500">
@@ -43,18 +51,18 @@ export function VerificationHistoryPanel({
               <DataTable
                 columnContentTypes={["text", "text", "text", "numeric", "numeric", "numeric"]}
                 headings={[
-                  t("verificationHistory.colTime"),
-                  t("verificationHistory.colType"),
-                  t("verificationHistory.colStatus"),
-                  t("verificationHistory.colPassed"),
-                  t("verificationHistory.colFailed"),
-                  t("verificationHistory.colMissingParams"),
+                  columns[0] ?? "",
+                  columns[1] ?? "",
+                  columns[2] ?? "",
+                  columns[3] ?? "",
+                  columns[4] ?? "",
+                  columns[5] ?? "",
                 ]}
                 rows={history.map((run) => [
                   run.completedAt
                     ? new Date(run.completedAt).toLocaleString(i18n.language === "zh" ? "zh-CN" : "en-US")
                     : "-",
-                  run.runType === "full" ? t("verificationHistory.typeFull") : t("verificationHistory.typeQuick"),
+                  getRunTypeLabel(run.runType),
                   <StatusBadge key={run.runId} status={run.status} />,
                   run.passedTests,
                   run.failedTests,
@@ -64,10 +72,10 @@ export function VerificationHistoryPanel({
             ) : (
               <EnhancedEmptyState
                 icon="📋"
-                title={t("verificationHistory.emptyTitle")}
-                description={t("verificationHistory.emptyDescription")}
+                title={t("verificationHistory.empty.title")}
+                description={t("verificationHistory.empty.description")}
                 primaryAction={{
-                  content: t("verificationHistory.runAction"),
+                  content: t("verificationHistory.empty.action"),
                   onAction: onRunVerification,
                 }}
               />
@@ -80,7 +88,11 @@ export function VerificationHistoryPanel({
               shopId={shop.id}
               availableRuns={history.map((run) => ({
                 runId: run.runId,
-                runName: run.runName || t(run.runType === "full" ? "verificationHistory.runNameFull" : "verificationHistory.runNameQuick"),
+                runName:
+                  run.runName ||
+                  t("verificationHistory.runLabel", {
+                    type: getRunTypeLabel(run.runType),
+                  }),
                 completedAt: run.completedAt ? new Date(run.completedAt) : undefined,
               }))}
             />

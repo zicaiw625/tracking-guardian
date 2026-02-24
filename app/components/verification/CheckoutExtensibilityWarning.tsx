@@ -1,10 +1,12 @@
 import { Banner, BlockStack, Text, List } from "@shopify/polaris";
 import { AlertTriangleIcon } from "~/components/icons";
 import { useTranslation } from "react-i18next";
-import i18next from "i18next";
+import { t as i18nT } from "i18next";
 
 export function CheckoutExtensibilityWarning() {
   const { t } = useTranslation();
+  const items = t("checkoutExtWarning.items", { returnObjects: true }) as string[];
+
   return (
     <Banner tone="warning" icon={AlertTriangleIcon}>
       <BlockStack gap="300">
@@ -16,31 +18,16 @@ export function CheckoutExtensibilityWarning() {
             {t("checkoutExtWarning.intro")}
           </Text>
           <List type="bullet">
-            <List.Item>
-              <Text as="span" variant="bodyMd">
-                <strong>{t("checkoutExtWarning.legacyScriptLabel")}</strong>{" "}
-                {t("checkoutExtWarning.legacyScriptDesc")}
-              </Text>
-            </List.Item>
-            <List.Item>
-              <Text as="span" variant="bodyMd">
-                <strong>{t("checkoutExtWarning.triggerLocationLabel")}</strong>{" "}
-                {t("checkoutExtWarning.triggerLocationDesc")}
-                <br />
-                <strong>{t("checkoutExtWarning.v1NoteLabel")}</strong>
-                {t("checkoutExtWarning.v1NoteDesc")}
-              </Text>
-            </List.Item>
-            <List.Item>
-              <Text as="span" variant="bodyMd">
-                <strong>{t("checkoutExtWarning.consentLabel")}</strong>{" "}
-                {t("checkoutExtWarning.consentDesc")}
-              </Text>
-            </List.Item>
+            {items.map((item, index) => (
+              <List.Item key={index}>
+                <Text as="span" variant="bodyMd">
+                  {item}
+                </Text>
+              </List.Item>
+            ))}
           </List>
           <Text as="p" variant="bodySm" tone="subdued">
-            💡 <strong>{t("checkoutExtWarning.v1NoteLabel")}</strong>{" "}
-            {t("checkoutExtWarning.v1TipDesc")}
+            {t("checkoutExtWarning.recommendation")}
           </Text>
         </BlockStack>
       </BlockStack>
@@ -49,5 +36,10 @@ export function CheckoutExtensibilityWarning() {
 }
 
 export function getCheckoutExtensibilityWarningText(): string {
-  return i18next.t("checkoutExtWarning.fullSummaryText");
+  const intro = i18nT("checkoutExtWarning.intro");
+  const items = i18nT("checkoutExtWarning.items", {
+    returnObjects: true,
+  }) as string[];
+  const recommendation = i18nT("checkoutExtWarning.recommendation");
+  return [intro, ...items, recommendation].join(" ");
 }
