@@ -61,6 +61,9 @@ export default function App() {
         <a href="/app/pixels">{t("nav.pixels")}</a>
         <a href="/app/verification">{t("nav.verification")}</a>
         <a href="/app/monitoring">{t("nav.monitoring")}</a>
+        <a href="/app/reports">{t("nav.reports")}</a>
+        <a href="/app/support">{t("nav.support")}</a>
+        <a href="/app/migrate">{t("nav.migrate")}</a>
         <a href="/app/settings">{t("nav.settings")}</a>
         <a href="/app/billing">{t("nav.billing")}</a>
       </NavMenu>

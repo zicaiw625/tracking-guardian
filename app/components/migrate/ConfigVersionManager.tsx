@@ -44,6 +44,7 @@ export function ConfigVersionManager({
   onRollbackComplete,
 }: ConfigVersionManagerProps) {
   const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage || i18n.language || undefined;
   const [versionHistory, setVersionHistory] = useState<{
     currentVersion: number;
     versions: ConfigVersion[];
@@ -183,7 +184,7 @@ export function ConfigVersionManager({
                         <InlineStack gap="300" blockAlign="center">
                           <Text as="span" variant="bodySm" tone="subdued">
                             <ClockIcon />
-                            {new Date(version.savedAt).toLocaleString(i18n.language === 'zh' ? "zh-CN" : "en-US")}
+                            {new Date(version.savedAt).toLocaleString(locale)}
                           </Text>
                         </InlineStack>
                       </BlockStack>

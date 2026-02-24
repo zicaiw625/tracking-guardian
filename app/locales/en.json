@@ -369,6 +369,9 @@
     "pixels": "Pixels",
     "verification": "Verification",
     "monitoring": "Monitoring",
+    "reports": "Reports",
+    "support": "Support",
+    "migrate": "Migrate",
     "settings": "Settings",
     "billing": "Billing"
   },
@@ -2689,7 +2692,10 @@
       ],
       "action": {
         "billing": "Subscription & Billing",
-        "privacy": "Privacy Settings"
+        "privacy": "Privacy Settings",
+        "reports": "Reports",
+        "support": "Support",
+        "migrate": "Migrate"
       }
     },
     "banner": {
@@ -3325,7 +3331,13 @@
     },
     "errors": {
       "shopNotFound": "Shop not found",
-      "appInstalled": "Please ensure app is installed correctly."
+      "appInstalled": "Please ensure app is installed correctly.",
+      "invalidPlatform": "Invalid platform selected",
+      "validationFailed": "Validation failed",
+      "missingDraft": "Missing draft payload",
+      "invalidDraft": "Invalid draft payload",
+      "saveDraftFailed": "Failed to save draft",
+      "unknownAction": "Unknown action"
     },
     "testingStep": {
       "errors": {

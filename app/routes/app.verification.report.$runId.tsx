@@ -188,7 +188,8 @@ export default function VerificationReportPage() {
   const submit = useSubmit();
   useActionData<typeof action>();
   useToastContext();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage || i18n.language || undefined;
   const [isExporting, setIsExporting] = useState(false);
 
   if (!shop) {
@@ -245,7 +246,7 @@ export default function VerificationReportPage() {
 
   const formatDate = (date?: Date | string) => {
     if (date == null) return t("verification.report.info.notStarted");
-    return new Date(date).toLocaleString();
+    return new Date(date).toLocaleString(locale);
   };
 
   return (

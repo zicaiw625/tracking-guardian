@@ -369,6 +369,9 @@
     "pixels": "Pixels",
     "verification": "验收",
     "monitoring": "监控",
+    "reports": "报告",
+    "support": "支持",
+    "migrate": "迁移",
     "settings": "设置",
     "billing": "订阅"
   },
@@ -2689,7 +2692,10 @@
       ],
       "action": {
         "billing": "订阅与计费",
-        "privacy": "隐私设置"
+        "privacy": "隐私设置",
+        "reports": "报告",
+        "support": "支持",
+        "migrate": "迁移"
       }
     },
     "banner": {
@@ -3325,7 +3331,13 @@
     },
     "errors": {
       "shopNotFound": "未找到店铺信息",
-      "appInstalled": "请确保应用已正确安装。"
+      "appInstalled": "请确保应用已正确安装。",
+      "invalidPlatform": "所选平台无效",
+      "validationFailed": "验证失败",
+      "missingDraft": "缺少草稿数据",
+      "invalidDraft": "草稿数据格式无效",
+      "saveDraftFailed": "保存草稿失败",
+      "unknownAction": "未知操作"
     },
     "testingStep": {
       "errors": {

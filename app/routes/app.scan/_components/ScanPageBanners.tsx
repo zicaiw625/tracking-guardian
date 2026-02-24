@@ -67,6 +67,7 @@ export function ScanPageBanners({
   isAgency,
 }: ScanPageBannersProps) {
   const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage || i18n.language || undefined;
 
   const resolvePlanText = (text: string | null, type: "name" | "tagline") => {
     // If planId is available, try to look up the translation directly first
@@ -139,8 +140,8 @@ export function ScanPageBanners({
               {t("scan.banners.pagination.content")}
             </Text>
             <List type="bullet">
-              <List.Item>{t("scan.banners.pagination.limitScriptTags", { limit: scannerMaxScriptTags.toLocaleString() })}</List.Item>
-              <List.Item>{t("scan.banners.pagination.limitWebPixels", { limit: scannerMaxWebPixels.toLocaleString() })}</List.Item>
+              <List.Item>{t("scan.banners.pagination.limitScriptTags", { limit: scannerMaxScriptTags.toLocaleString(locale) })}</List.Item>
+              <List.Item>{t("scan.banners.pagination.limitWebPixels", { limit: scannerMaxWebPixels.toLocaleString(locale) })}</List.Item>
             </List>
             <Text as="p" tone="subdued">
               {t("scan.banners.pagination.footer")}
@@ -214,7 +215,7 @@ export function ScanPageBanners({
             )}
             {upgradeStatus.lastUpdated && parseDateSafely(upgradeStatus.lastUpdated) && (
               <Text as="p" variant="bodySm" tone="subdued">
-                {t("scan.banners.upgradeStatus.lastUpdated", { date: parseDateSafely(upgradeStatus.lastUpdated)!.toLocaleString(i18n.language === "en" ? "en-US" : "zh-CN") })}
+                {t("scan.banners.upgradeStatus.lastUpdated", { date: parseDateSafely(upgradeStatus.lastUpdated)!.toLocaleString(locale) })}
               </Text>
             )}
           </BlockStack>

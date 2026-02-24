@@ -106,7 +106,7 @@ export function safeParseDate(dateValue: unknown): Date {
     return new Date();
 }
 
-export function safeFormatDate(dateValue: unknown, locale: string = "zh-CN"): string {
+export function safeFormatDate(dateValue: unknown, locale?: string): string {
     const date = safeParseDate(dateValue);
     return date.toLocaleString(locale);
 }

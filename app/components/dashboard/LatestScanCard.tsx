@@ -12,6 +12,7 @@ type SerializedLatestScan = {
 
 export const LatestScanCard = memo(function LatestScanCard({ latestScan }: { latestScan: SerializedLatestScan }) {
   const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage || i18n.language || undefined;
   if (!latestScan) {
     return (
       <Card>
@@ -71,7 +72,7 @@ export const LatestScanCard = memo(function LatestScanCard({ latestScan }: { lat
         </Box>
         <BlockStack gap="200">
           <Text as="p" variant="bodySm" tone="subdued">
-            {t("dashboard.latestScan.scannedAt")} {new Date(latestScan.createdAt).toLocaleDateString(i18n.language === "zh" ? "zh-CN" : "en-US")}
+            {t("dashboard.latestScan.scannedAt")} {new Date(latestScan.createdAt).toLocaleDateString(locale)}
           </Text>
           {latestScan.identifiedPlatforms.length > 0 ? (
             <BlockStack gap="100">

@@ -134,7 +134,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     select: { id: true },
   });
   if (!shop) {
-    return json({ success: false, error: "Shop not found" }, { status: 404 });
+    return json({ success: false, error: "migrate.errors.shopNotFound" }, { status: 404 });
   }
   const formData = await request.formData();
   const actionType = formData.get("_action");
@@ -148,12 +148,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     try {
       const result = await validateTestEnvironment(shop.id, platform as "google" | "meta" | "tiktok");
-      return json(result);
+      if (result.valid) {
+        return json({
+          ...result,
+          message: "migrate.testingStep.validation.eventSent",
+        });
+      }
+      return json({
+        ...result,
+        message: "migrate.errors.validationFailed",
+        details: {
+          ...result.details,
+          error: "migrate.errors.validationFailed",
+        },
+      });
     } catch (error) {
       return json({
         valid: false,
-        message: error instanceof Error ? error.message : "migrate.errors.validationFailed",
-        details: { eventSent: false, error: error instanceof Error ? error.message : "migrate.errors.validationFailed" },
+        message: "migrate.errors.validationFailed",
+        details: { eventSent: false, error: "migrate.errors.validationFailed" },
       }, { status: 500 });
     }
   }
@@ -169,7 +182,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return json({ success: false, error: "migrate.errors.invalidDraft" }, { status: 400 });
     }
     const result = await saveWizardDraft(shop.id, draft);
-    return json(result.success ? { success: true } : { success: false, error: result.error });
+    return json(result.success ? { success: true } : { success: false, error: "migrate.errors.saveDraftFailed" });
   }
   if (actionType === "clearWizardDraft") {
     const result = await clearWizardDraft(shop.id);
@@ -191,7 +204,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
     return json({ success: true });
   }
-  return json({ success: false, error: "Unknown action" }, { status: 400 });
+  return json({ success: false, error: "migrate.errors.unknownAction" }, { status: 400 });
 };
 
 export default function MigratePage() {

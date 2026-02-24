@@ -29,7 +29,8 @@ export function ConfigComparison({
   differences,
   platform: _platform,
 }: ConfigComparisonProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage || i18n.language || undefined;
 
   const FIELD_LABELS: Record<string, string> = {
     platformId: t("configComparison.fieldLabels.platformId"),
@@ -145,7 +146,7 @@ export function ConfigComparison({
               {t("configComparison.updatedAt")}
             </Text>
             <Text as="span" variant="bodySm">
-              {new Date(current.updatedAt).toLocaleString("zh-CN")}
+              {new Date(current.updatedAt).toLocaleString(locale)}
             </Text>
           </InlineStack>
           <InlineStack align="space-between">

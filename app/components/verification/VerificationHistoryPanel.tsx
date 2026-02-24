@@ -31,6 +31,7 @@ export function VerificationHistoryPanel({
   shop,
 }: VerificationHistoryPanelProps) {
   const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage || i18n.language || undefined;
   const columns = t("verificationHistory.columns", { returnObjects: true }) as string[];
 
   const getRunTypeLabel = (runType: VerificationHistoryRun["runType"]) => {
@@ -60,7 +61,7 @@ export function VerificationHistoryPanel({
                 ]}
                 rows={history.map((run) => [
                   run.completedAt
-                    ? new Date(run.completedAt).toLocaleString(i18n.language === "zh" ? "zh-CN" : "en-US")
+                    ? new Date(run.completedAt).toLocaleString(locale)
                     : "-",
                   getRunTypeLabel(run.runType),
                   <StatusBadge key={run.runId} status={run.status} />,

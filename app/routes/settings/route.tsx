@@ -100,6 +100,15 @@ export default function SettingsPage() {
               <Button url="/app/privacy" variant="secondary" size="large">
                 {t("settings.intro.action.privacy")}
               </Button>
+              <Button url="/app/reports" variant="secondary" size="large">
+                {t("settings.intro.action.reports")}
+              </Button>
+              <Button url="/app/support" variant="secondary" size="large">
+                {t("settings.intro.action.support")}
+              </Button>
+              <Button url="/app/migrate" variant="secondary" size="large">
+                {t("settings.intro.action.migrate")}
+              </Button>
             </InlineStack>
             <Text as="p" variant="bodySm" tone="subdued">
               {t("settings.banner.quickAccess.footer")}

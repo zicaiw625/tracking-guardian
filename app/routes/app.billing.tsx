@@ -229,7 +229,7 @@ export default function BillingPage() {
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { showSuccess, showError } = useToastContext();
 
     useEffect(() => {
@@ -267,7 +267,8 @@ export default function BillingPage() {
     const currentPlan = plans[subscription.plan as PlanId];
     const usagePercent = Math.min((usage.current / usage.limit) * 100, 100);
 
-    const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
+    const locale = i18n.resolvedLanguage || i18n.language || undefined;
+    const dateFormatter = new Intl.DateTimeFormat(locale, {
         dateStyle: "medium",
         timeStyle: "short",
     });
@@ -453,7 +454,7 @@ export default function BillingPage() {
                   <InlineStack align="space-between">
                     <Text as="span" variant="bodySm" tone="subdued">{t("billing.usageTitle")}</Text>
                     <Text as="span" variant="bodySm">
-                      {usage.current.toLocaleString()} / {usage.limit.toLocaleString()}
+                      {usage.current.toLocaleString(locale)} / {usage.limit.toLocaleString(locale)}
                     </Text>
                   </InlineStack>
                   <ProgressBar progress={usagePercent} tone={usagePercent >= 90 ? "critical" : undefined}/>
@@ -475,7 +476,7 @@ export default function BillingPage() {
                       {subscription.currentPeriodEnd && (<InlineStack align="space-between">
                           <Text as="span" tone="subdued">{t("billing.nextBillingDate")}</Text>
                           <Text as="span">
-                            {new Date(subscription.currentPeriodEnd).toLocaleDateString("zh-CN")}
+                            {new Date(subscription.currentPeriodEnd).toLocaleDateString(locale)}
                           </Text>
                         </InlineStack>)}
                     </BlockStack>
@@ -486,7 +487,7 @@ export default function BillingPage() {
                     )}
                     {(subscription as typeof subscription & { status?: string }).status === "CANCELLED" && subscription.currentPeriodEnd && (
                       <Banner tone="info" title={t("billing.subscriptionCancelled")}>
-                        <p>{t("billing.cancelledMessage", { date: new Date(subscription.currentPeriodEnd).toLocaleDateString("zh-CN") })}</p>
+                        <p>{t("billing.cancelledMessage", { date: new Date(subscription.currentPeriodEnd).toLocaleDateString(locale) })}</p>
                       </Banner>
                     )}
                   </>)}

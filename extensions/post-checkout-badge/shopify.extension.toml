@@ -26,6 +26,11 @@ type = "single_line_text_field"
 name = "Banner title"
 
 [[extensions.settings.fields]]
+key = "ui_language"
+type = "single_line_text_field"
+name = "UI language (zh/en)"
+
+[[extensions.settings.fields]]
 key = "show_invoice_button"
 type = "boolean"
 name = "Show invoice button"

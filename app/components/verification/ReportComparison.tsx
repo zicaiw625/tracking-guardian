@@ -37,6 +37,7 @@ interface ComparisonData {
 
 export function ReportComparison({ shopId: _shopId, availableRuns }: ReportComparisonProps) {
   const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage || i18n.language || undefined;
   const { showError } = useToastContext();
   const [run1Id, setRun1Id] = useState<string>("");
   const [run2Id, setRun2Id] = useState<string>("");
@@ -156,7 +157,7 @@ export function ReportComparison({ shopId: _shopId, availableRuns }: ReportCompa
             options={[
               { label: t("components.reportComparison.selectReport"), value: "" },
               ...availableRuns.map((run) => ({
-                label: `${run.runName} (${run.completedAt ? new Date(run.completedAt).toLocaleDateString(i18n.language === 'zh' ? "zh-CN" : "en-US") : t("components.reportComparison.incomplete")})`,
+                label: `${run.runName} (${run.completedAt ? new Date(run.completedAt).toLocaleDateString(locale) : t("components.reportComparison.incomplete")})`,
                 value: run.runId,
               })),
             ]}
@@ -168,7 +169,7 @@ export function ReportComparison({ shopId: _shopId, availableRuns }: ReportCompa
             options={[
               { label: t("components.reportComparison.selectReport"), value: "" },
               ...availableRuns.map((run) => ({
-                label: `${run.runName} (${run.completedAt ? new Date(run.completedAt).toLocaleDateString(i18n.language === 'zh' ? "zh-CN" : "en-US") : t("components.reportComparison.incomplete")})`,
+                label: `${run.runName} (${run.completedAt ? new Date(run.completedAt).toLocaleDateString(locale) : t("components.reportComparison.incomplete")})`,
                 value: run.runId,
               })),
             ]}
