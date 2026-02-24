@@ -3836,10 +3836,10 @@
         "Note": "大型数据集可能需要几分钟。"
       },
       "Delete": {
-        "Title": "数据删除",
-        "Desc": "删除店铺所有数据。不可撤销。",
-        "Warning": "警告：此操作将永久删除所有转化记录、日志和设置。",
-        "Button": "删除所有数据",
+        "Title": "删除请求",
+        "Desc": "通过支持渠道或 Shopify GDPR 流程发起店铺级数据删除请求。",
+        "Warning": "数据删除由 GDPR webhook 任务和支持审核处理，不提供一键即时删除。",
+        "Button": "通过支持渠道发起删除请求",
         "ModalTitle": "确认删除所有数据",
         "ModalContent": "您确定要删除所有数据吗？此操作将永久删除所有记录。",
         "Irreversible": "此操作不可撤销！",
@@ -4073,12 +4073,17 @@
       },
       "error": {
         "title": "扩展配置检查失败",
-        "desc": "无法读取 extensions/shared/config.ts。请检查文件权限。"
+        "desc": "在开发模式下无法读取 extensions/shared/config.ts。请检查文件权限。"
+      },
+      "unknown": {
+        "title": "扩展配置来源不可验证",
+        "desc": "运行时标志 <code>EXTENSION_BACKEND_URL_INJECTED</code> 未设置，且源配置文件不可用。请在部署环境中设置该标志以避免误报。"
       },
       "status": {
         "label": "扩展配置状态:",
         "injected": "✅ 已注入",
-        "placeholder": "⚠️ 占位符/错误"
+        "placeholder": "⚠️ 占位符/错误",
+        "unknown": "ℹ️ 未知（请设置运行时标志）"
       }
     },
     "configCheck": {

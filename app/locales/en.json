@@ -3836,10 +3836,10 @@
         "Note": "Large datasets may take time."
       },
       "Delete": {
-        "Title": "Data Deletion",
-        "Desc": "Delete all store data. Irreversible.",
-        "Warning": "Warning: This will permanently delete all conversions, logs, and settings.",
-        "Button": "Delete All Data",
+        "Title": "Deletion Request",
+        "Desc": "Request account-level data deletion through support or Shopify GDPR workflows.",
+        "Warning": "Data deletion is processed by GDPR webhook jobs and support review, not by a one-click action.",
+        "Button": "Request Deletion via Support",
         "ModalTitle": "Confirm Delete All Data",
         "ModalContent": "Are you sure? This will delete all records permanently.",
         "Irreversible": "This action cannot be undone!",
@@ -4073,12 +4073,17 @@
       },
       "error": {
         "title": "Extension Config Check Failed",
-        "desc": "Could not read extensions/shared/config.ts. Please check file permissions."
+        "desc": "Could not read extensions/shared/config.ts in development mode. Please check file permissions."
+      },
+      "unknown": {
+        "title": "Extension Config Source Not Verifiable",
+        "desc": "Runtime flag <code>EXTENSION_BACKEND_URL_INJECTED</code> is not set and source config file is unavailable. Set this flag in deployment to avoid false alerts."
       },
       "status": {
         "label": "Extension Config Status:",
         "injected": "✅ Injected",
-        "placeholder": "⚠️ Placeholder/Error"
+        "placeholder": "⚠️ Placeholder/Error",
+        "unknown": "ℹ️ Unknown (set runtime flag)"
       }
     },
     "configCheck": {

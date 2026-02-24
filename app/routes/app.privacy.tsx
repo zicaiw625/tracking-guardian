@@ -16,7 +16,6 @@ import {
   Icon,
   Collapsible,
   Button,
-  Modal,
 } from "@shopify/polaris";
 import {
   LockFilledIcon,
@@ -26,11 +25,11 @@ import {
   CheckCircleIcon,
 } from "~/components/icons";
 import { useState } from "react";
-import { useToastContext } from "~/components/ui";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { useTranslation, Trans } from "react-i18next";
+import { getPublicAppDomain } from "~/utils/config.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -60,7 +59,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     : [];
   return json({
     shop: shop || { consentStrategy: "strict" },
-    appDomain: process.env.APP_URL || "https://app.tracking-guardian.com",
+    appDomain: getPublicAppDomain(),
     tab,
     gdprJobs,
   });
@@ -144,10 +143,8 @@ function CollapsibleSection({
 
 export default function PrivacyPage() {
   const { t } = useTranslation();
-  const { showError } = useToastContext();
   const { shop, appDomain, tab, gdprJobs } = useLoaderData<typeof loader>();
   const isGdprTab = tab === "gdpr";
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   return (
     <Page
@@ -632,47 +629,12 @@ export default function PrivacyPage() {
                   </List>
                 </Banner>
                 <Button
-                  tone="critical"
-                  onClick={() => {
-                    setShowDeleteModal(true);
-                  }}
+                  variant="primary"
+                  url="/support"
+                  external
                 >
                   {t("PrivacyPage.ExportDelete.Delete.Button")}
                 </Button>
-                <Modal
-                  open={showDeleteModal}
-                  onClose={() => setShowDeleteModal(false)}
-                  title={t("PrivacyPage.ExportDelete.Delete.ModalTitle")}
-                  primaryAction={{
-                    content: t("PrivacyPage.ExportDelete.Delete.Confirm"),
-                    destructive: true,
-                    onAction: () => {
-                      setShowDeleteModal(false);
-                      showError(t("PrivacyPage.ExportDelete.Delete.Error"));
-                    },
-                  }}
-                  secondaryActions={[
-                    {
-                      content: t("common.cancel"),
-                      onAction: () => setShowDeleteModal(false),
-                    },
-                  ]}
-                >
-                  <Modal.Section>
-                    <Text variant="bodyMd" as="p">
-                      {t("PrivacyPage.ExportDelete.Delete.ModalContent")}
-                    </Text>
-                    <List type="bullet">
-                      <List.Item>{t("privacyPage.deleteItems.0")}</List.Item>
-                      <List.Item>{t("privacyPage.deleteItems.1")}</List.Item>
-                      <List.Item>{t("privacyPage.deleteItems.2")}</List.Item>
-                      <List.Item>{t("privacyPage.deleteItems.3")}</List.Item>
-                    </List>
-                    <Text variant="bodyMd" as="p" tone="critical" fontWeight="semibold">
-                      {t("PrivacyPage.ExportDelete.Delete.Irreversible")}
-                    </Text>
-                  </Modal.Section>
-                </Modal>
               </BlockStack>
             </Card>
             <Card>

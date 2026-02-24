@@ -49,7 +49,8 @@ describe("PUBLIC_PAGE_HEADERS", () => {
     expect(PUBLIC_PAGE_HEADERS["X-Frame-Options"]).toBe("DENY");
   });
   it("should set X-Robots-Tag to noindex", () => {
-    expect(PUBLIC_PAGE_HEADERS["X-Robots-Tag"]).toBe("noindex");
+    const expected = process.env.NODE_ENV === "production" ? "index, follow" : "noindex";
+    expect(PUBLIC_PAGE_HEADERS["X-Robots-Tag"]).toBe(expected);
   });
   it("should set Referrer-Policy to no-referrer", () => {
     expect(PUBLIC_PAGE_HEADERS["Referrer-Policy"]).toBe("no-referrer");

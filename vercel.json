@@ -3,6 +3,9 @@
   "devCommand": "pnpm dev",
   "installCommand": "pnpm install --frozen-lockfile",
   "framework": "remix",
+  "env": {
+    "EXTENSION_BACKEND_URL_INJECTED": "true"
+  },
   "crons": [
     {
       "path": "/api/cron",

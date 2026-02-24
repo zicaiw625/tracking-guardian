@@ -94,6 +94,8 @@ export const SSE_SECURITY_HEADERS: Record<string, string> = {
   "Content-Security-Policy": buildCspHeader(WEBHOOK_CSP_DIRECTIVES),
 };
 
+const PUBLIC_PAGE_ROBOTS_TAG = process.env.NODE_ENV === "production" ? "index, follow" : "noindex";
+
 export const PUBLIC_PAGE_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
@@ -101,7 +103,7 @@ export const PUBLIC_PAGE_HEADERS: Record<string, string> = {
   "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
   "Pragma": "no-cache",
   "Expires": "0",
-  "X-Robots-Tag": "noindex",
+  "X-Robots-Tag": PUBLIC_PAGE_ROBOTS_TAG,
   "Content-Security-Policy": buildCspHeader({
     "default-src": ["'self'"],
     "script-src": ["'self'", "'unsafe-inline'"],
@@ -180,8 +182,8 @@ export function validateSecurityHeaders(): {
   if (PUBLIC_PAGE_HEADERS["X-Frame-Options"] !== "DENY") {
     issues.push("PUBLIC_PAGE_HEADERS should set X-Frame-Options: DENY");
   }
-  if (PUBLIC_PAGE_HEADERS["X-Robots-Tag"] !== "noindex") {
-    issues.push("PUBLIC_PAGE_HEADERS should set X-Robots-Tag: noindex");
+  if (!PUBLIC_PAGE_HEADERS["X-Robots-Tag"]) {
+    issues.push("PUBLIC_PAGE_HEADERS should set X-Robots-Tag");
   }
   const frameAncestors = APP_PAGE_CSP_DIRECTIVES["frame-ancestors"];
   if (!frameAncestors || !Array.isArray(frameAncestors)) {

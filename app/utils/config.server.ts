@@ -147,6 +147,10 @@ const PIXEL_INGESTION_ENABLED_CHECK = {
 
 const RECOMMENDED = [
   { key: "REDIS_URL", reason: "for shared rate limiting/locks in multi-instance deployments" },
+  {
+    key: "EXTENSION_BACKEND_URL_INJECTED",
+    reason: "for diagnostics consistency (set true after running ext:inject in deployment pipeline)",
+  },
 ] as const;
 
 export const CRON_SECRET_CONFIG = {

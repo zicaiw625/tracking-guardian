@@ -183,6 +183,7 @@ function injectBackendUrl() {
     } else {
         console.log(`✅ Successfully injected BACKEND_URL to ${updatedCount} config file(s)`);
         console.log(`   Backend URL: ${backendUrl}`);
+        console.log(`   Runtime flag: set EXTENSION_BACKEND_URL_INJECTED=true in deployment environment`);
         console.log(`   ⚠️  IMPORTANT: Ensure this URL is added to Web Pixel Extension allowlist in Partner Dashboard`);
         console.log(`   ⚠️  IMPORTANT: If placeholder is not replaced, pixel events will fail silently`);
     }

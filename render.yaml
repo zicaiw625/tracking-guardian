@@ -55,6 +55,8 @@ services:
         value: read_script_tags,read_pixels,write_pixels,read_customer_events
       - key: SHOPIFY_APP_URL
         sync: false  # 部署后获取的 URL
+      - key: EXTENSION_BACKEND_URL_INJECTED
+        value: "true"
       # Security (Auto-generated)
       - key: CRON_SECRET
         generateValue: true  # 自动生成随机密钥

@@ -12,22 +12,29 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   
   const appUrl = process.env.SHOPIFY_APP_URL || "";
   const backendUrl = process.env.SHOPIFY_APP_URL ? `${process.env.SHOPIFY_APP_URL}/ingest` : "";
+  const injectedFlagRaw = process.env.EXTENSION_BACKEND_URL_INJECTED;
+  const isProduction = process.env.NODE_ENV === "production";
   
-  let extensionConfigStatus: "injected" | "placeholder" | "error" = "placeholder";
-  try {
-    const configPath = path.join(process.cwd(), "extensions/shared/config.ts");
-    if (fs.existsSync(configPath)) {
+  let extensionConfigStatus: "injected" | "placeholder" | "error" | "unknown" = "unknown";
+  const normalizedFlag = injectedFlagRaw?.toLowerCase().trim();
+  if (normalizedFlag === "true" || normalizedFlag === "1") {
+    extensionConfigStatus = "injected";
+  } else if (normalizedFlag === "false" || normalizedFlag === "0") {
+    extensionConfigStatus = "placeholder";
+  } else {
+    try {
+      const configPath = path.join(process.cwd(), "extensions/shared/config.ts");
+      if (fs.existsSync(configPath)) {
         const content = fs.readFileSync(configPath, "utf-8");
-        if (content.includes("__BACKEND_URL_PLACEHOLDER__")) {
-            extensionConfigStatus = "placeholder";
-        } else {
-            extensionConfigStatus = "injected";
-        }
-    } else {
+        extensionConfigStatus = content.includes("__BACKEND_URL_PLACEHOLDER__")
+          ? "placeholder"
+          : "injected";
+      } else if (!isProduction) {
         extensionConfigStatus = "error";
+      }
+    } catch {
+      extensionConfigStatus = "error";
     }
-  } catch {
-    extensionConfigStatus = "error";
   }
 
   return json({
@@ -94,6 +101,13 @@ export default function DiagnosticsPage() {
               </p>
             </Banner>
           )}
+          {extensionConfigStatus === "unknown" && (
+            <Banner tone="info" title={t("diagnostics.extensionConfig.unknown.title")}>
+              <p>
+                <Trans i18nKey="diagnostics.extensionConfig.unknown.desc" components={{ code: <code /> }} />
+              </p>
+            </Banner>
+          )}
 
           <Card>
             <BlockStack gap="400">
@@ -110,7 +124,12 @@ export default function DiagnosticsPage() {
                     {isLocal && <Text as="span" tone="critical">{t("diagnostics.configCheck.items.env.localWarning")}</Text>}
                 </List.Item>
                 <List.Item>
-                  <Text as="span" fontWeight="bold">{t("diagnostics.extensionConfig.status.label")}</Text> {extensionConfigStatus === "injected" ? t("diagnostics.extensionConfig.status.injected") : t("diagnostics.extensionConfig.status.placeholder")}
+                  <Text as="span" fontWeight="bold">{t("diagnostics.extensionConfig.status.label")}</Text>{" "}
+                  {extensionConfigStatus === "injected"
+                    ? t("diagnostics.extensionConfig.status.injected")
+                    : extensionConfigStatus === "unknown"
+                    ? t("diagnostics.extensionConfig.status.unknown")
+                    : t("diagnostics.extensionConfig.status.placeholder")}
                 </List.Item>
               </List>
               
