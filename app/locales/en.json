@@ -959,7 +959,8 @@
         "comprehensive": "Comprehensive Suggestions",
         "configure": "Configure",
         "viewApp": "View App",
-        "tool": "Go to Migration Tool"
+        "tool": "Go to Migration Tool",
+        "checklistKeyword": "Migration Checklist"
       },
       "save": {
         "title": "Save Analysis Result",
@@ -3798,9 +3799,12 @@
     "GDPRTest": {
       "Title": "GDPR Webhooks Test Guide",
       "Desc": "Shopify requires correct response to mandatory webhooks. Test methods:",
-      "Step1": "1. App setup → GDPR Mandatory webhooks",
-      "Step2": "2. Configure endpoints",
-      "Step3": "3. Test with Shopify CLI",
+      "Step1Title": "1. App setup",
+      "Step1Desc": "Complete GDPR mandatory webhook setup for customers/data_request, customers/redact, and shop/redact.",
+      "Step2Title": "2. Configure endpoints",
+      "Step2Desc": "Point all required GDPR webhook endpoints to your app webhook URL.",
+      "Step3Title": "3. Test with Shopify CLI",
+      "Step3Desc": "Trigger sample GDPR webhooks with Shopify CLI and verify handlers respond successfully.",
       "Success": "App has implemented all GDPR mandatory webhook handlers."
     },
     "ExportDelete": {
@@ -4285,6 +4289,7 @@
     "tier": {
       "plus": "Shopify Plus",
       "standard": "Standard",
+      "standardShort": "Standard",
       "unknown": "Unknown"
     },
     "status": {
@@ -5646,7 +5651,8 @@
     "collapse": "Collapse",
     "expand": "Expand",
     "estimatedTime": "Estimated time: {{time}}",
-    "tips": "Tips"
+    "tips": "Tips",
+    "tipsTitle": "Tips"
   },
   "selectPlatformStep": {
     "title": "Select Platforms to Configure",

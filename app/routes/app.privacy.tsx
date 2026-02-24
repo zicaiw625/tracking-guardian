@@ -523,20 +523,20 @@ export default function PrivacyPage() {
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="200">
                 <Text as="span" fontWeight="semibold">
-                  {t("PrivacyPage.GDPRTest.Step1")}
+                  {t("PrivacyPage.GDPRTest.Step1Title")}
                 </Text>
                 <Text as="p" variant="bodySm">
-                  <Trans i18nKey="PrivacyPage.GDPRTest.Step1" />
+                  <Trans i18nKey="PrivacyPage.GDPRTest.Step1Desc" />
                 </Text>
               </BlockStack>
             </Box>
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="200">
                 <Text as="span" fontWeight="semibold">
-                  {t("PrivacyPage.GDPRTest.Step2")}
+                  {t("PrivacyPage.GDPRTest.Step2Title")}
                 </Text>
                 <Text as="p" variant="bodySm">
-                  <Trans i18nKey="PrivacyPage.GDPRTest.Step2" />
+                  <Trans i18nKey="PrivacyPage.GDPRTest.Step2Desc" />
                 </Text>
                 <List type="bullet">
                   <List.Item>
@@ -554,10 +554,10 @@ export default function PrivacyPage() {
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="200">
                 <Text as="span" fontWeight="semibold">
-                  {t("PrivacyPage.GDPRTest.Step3")}
+                  {t("PrivacyPage.GDPRTest.Step3Title")}
                 </Text>
                 <Text as="p" variant="bodySm">
-                  <Trans i18nKey="PrivacyPage.GDPRTest.Step3" />
+                  <Trans i18nKey="PrivacyPage.GDPRTest.Step3Desc" />
                 </Text>
                 <Box background="bg-surface" padding="200" borderRadius="100">
                   <code>shopify app trigger-webhook --topic customers/data_request</code>

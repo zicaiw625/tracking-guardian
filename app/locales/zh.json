@@ -966,7 +966,8 @@
         "comprehensive": "综合迁移建议",
         "configure": "去配置",
         "viewApp": "查看应用",
-        "tool": "前往迁移工具"
+        "tool": "前往迁移工具",
+        "checklistKeyword": "迁移清单"
       },
       "save": {
         "title": "保存分析结果",
@@ -3798,9 +3799,12 @@
     "GDPRTest": {
       "Title": "GDPR Webhooks 测试指引",
       "Desc": "Shopify 要求正确响应强制 webhooks。测试方法：",
-      "Step1": "1. App setup → GDPR Mandatory webhooks",
-      "Step2": "2. 配置 webhook 端点",
-      "Step3": "3. 使用 Shopify CLI 测试",
+      "Step1Title": "1. 应用设置",
+      "Step1Desc": "完成 GDPR 强制 webhook 配置：customers/data_request、customers/redact、shop/redact。",
+      "Step2Title": "2. 配置 webhook 端点",
+      "Step2Desc": "将所有必需的 GDPR webhook 端点指向你的应用 webhook 地址。",
+      "Step3Title": "3. 使用 Shopify CLI 测试",
+      "Step3Desc": "通过 Shopify CLI 触发 GDPR 示例 webhook，并确认处理程序返回成功。",
       "Success": "本应用已实现所有 GDPR 强制 webhooks 处理程序。"
     },
     "ExportDelete": {
@@ -4285,6 +4289,7 @@
     "tier": {
       "plus": "Shopify Plus",
       "standard": "标准版",
+      "standardShort": "标准",
       "unknown": "未知"
     },
     "status": {
@@ -5646,7 +5651,8 @@
     "collapse": "收起",
     "expand": "展开",
     "estimatedTime": "预计时间: {{time}}",
-    "tips": "💡 提示"
+    "tips": "💡 提示",
+    "tipsTitle": "小贴士"
   },
   "selectPlatformStep": {
     "title": "选择要配置的平台",

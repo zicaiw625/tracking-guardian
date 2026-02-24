@@ -3,17 +3,15 @@ import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { getDynamicCorsHeaders } from "../utils/cors";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
+import { getSupportConfig } from "../utils/config.server";
 import { useTranslation, Trans } from "react-i18next";
 import { PublicLayout } from "~/components/layout/PublicLayout";
 import { Card, Text, BlockStack, Layout } from "@shopify/polaris";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const corsHeaders = getDynamicCorsHeaders(request);
-  const support = { contactEmail: "support@tracking-guardian.com" }; // Fallback or import from config
-  // Note: Previous code imported getSupportConfig but I don't want to break imports if not needed.
-  // Actually, let's keep the original loader logic but clean up.
-  // Re-importing original dependencies.
-  
+  const support = getSupportConfig();
+
   const response = json({
     appName: "Tracking Guardian",
     appDomain: process.env.SHOPIFY_APP_URL || process.env.APP_URL || "https://tracking-guardian.onrender.com",
