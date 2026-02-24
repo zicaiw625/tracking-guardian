@@ -73,7 +73,7 @@ function SupportContent() {
                     {t("PublicSupport.Contact.DataRights")}
                   </Text>
                   <Text as="p" variant="bodyMd">
-                    {t("PublicSupport.Contact.StatusPage")} <Link url={statusPage} external>{statusPage}</Link>
+                    {t("PublicSupport.Contact.StatusPage")} {statusPage ? <Link url={statusPage} external>{statusPage}</Link> : "-"}
                   </Text>
                 </BlockStack>
                 <InlineStack gap="200">

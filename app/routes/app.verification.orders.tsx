@@ -146,7 +146,7 @@ export default function VerificationOrdersPage() {
     );
   }
 
-  const exportUrl = `/api/verification-orders-report.csv?hours=${hours}`;
+  const exportUrl = `/api/verification-orders-report/csv?hours=${hours}`;
 
   return (
     <Page

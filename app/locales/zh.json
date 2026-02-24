@@ -1751,7 +1751,8 @@
         "comprehensive": "迁移清单建议",
         "configure": "配置",
         "viewApp": "查看应用",
-        "tool": "前往迁移工具"
+        "tool": "前往迁移工具",
+        "checklistKeyword": "清单"
       },
       "save": {
         "title": "保存分析",

@@ -1751,7 +1751,8 @@
         "comprehensive": "Comprehensive Checklist",
         "configure": "Configure",
         "viewApp": "View App",
-        "tool": "Go to Migration Tool"
+        "tool": "Go to Migration Tool",
+        "checklistKeyword": "checklist"
       },
       "save": {
         "title": "Save Analysis",
