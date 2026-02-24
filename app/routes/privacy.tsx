@@ -3,6 +3,7 @@ import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { getDynamicCorsHeaders } from "../utils/cors";
 import { PUBLIC_PAGE_HEADERS, addSecurityHeadersToHeaders } from "../utils/security-headers";
+import { getPublicAppDomain } from "../utils/config.server";
 import { useTranslation, Trans } from "react-i18next";
 import { PublicLayout } from "~/components/layout/PublicLayout";
 import { Card, Text, BlockStack, List, Banner, Layout } from "@shopify/polaris";
@@ -11,7 +12,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const corsHeaders = getDynamicCorsHeaders(request);
   const response = json({
     appName: "Tracking Guardian",
-    appDomain: process.env.SHOPIFY_APP_URL || process.env.APP_URL || "https://tracking-guardian.onrender.com",
+    appDomain: getPublicAppDomain(),
     lastUpdated: "2026-02-02",
   });
   const headers = new Headers(response.headers);

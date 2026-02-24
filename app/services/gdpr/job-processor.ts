@@ -4,6 +4,11 @@ import { GDPRJobStatus } from "../../types/enums";
 import { processDataRequest } from "./handlers/data-request";
 import { processCustomerRedact } from "./handlers/customer-redact";
 import { processShopRedact } from "./handlers/shop-redact";
+import {
+  parseCustomerRedactPayload,
+  parseDataRequestPayload,
+  parseShopRedactPayload,
+} from "./types";
 import type { ProcessGDPRJobsResult, GDPRJobResult } from "./types";
 
 function summarizeGdprResult(jobType: string, result: GDPRJobResult | unknown): Record<string, unknown> | undefined {
@@ -70,18 +75,36 @@ export async function processGDPRJobs(): Promise<ProcessGDPRJobsResult> {
       });
 
       let result: any;
-      const actualPayload = (payload as any)?.parsedPayload;
+      const payloadRecord =
+        payload && typeof payload === "object" && !Array.isArray(payload)
+          ? (payload as Record<string, unknown>)
+          : null;
+      const actualPayload =
+        payloadRecord?.parsedPayload &&
+        typeof payloadRecord.parsedPayload === "object" &&
+        !Array.isArray(payloadRecord.parsedPayload)
+          ? payloadRecord.parsedPayload
+          : payloadRecord;
 
       if (!actualPayload) {
-          throw new Error("Missing parsed payload in job data");
+        throw new Error("Missing parsed payload in job data");
       }
 
       if (jobType === "data_request") {
-        result = await processDataRequest(shopDomain, actualPayload);
+        result = await processDataRequest(
+          shopDomain,
+          parseDataRequestPayload(actualPayload)
+        );
       } else if (jobType === "customer_redact") {
-        result = await processCustomerRedact(shopDomain, actualPayload);
+        result = await processCustomerRedact(
+          shopDomain,
+          parseCustomerRedactPayload(actualPayload)
+        );
       } else if (jobType === "shop_redact") {
-        result = await processShopRedact(shopDomain, actualPayload);
+        result = await processShopRedact(
+          shopDomain,
+          parseShopRedactPayload(actualPayload)
+        );
       } else {
         throw new Error(`Unknown job type: ${jobType}`);
       }

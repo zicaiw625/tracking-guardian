@@ -15,10 +15,10 @@ export interface PlanDefinition {
   features: string[];
 }
 
-export const PLAN_ORDER: PlanId[] = ["free", "starter", "growth", "agency", "monitor"];
+export const PLAN_ORDER: PlanId[] = ["free", "starter", "growth", "agency"];
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const PLAN_ORDER_COMPAT: PlanId[] = ["free", "starter", "growth", "pro", "agency", "monitor"];
+const PLAN_ORDER_COMPAT: PlanId[] = ["free", "starter", "growth", "pro", "agency"];
 
 export function getPlanDefinition(plan: string | null | undefined): PlanDefinition {
   const normalized = normalizePlan(plan);

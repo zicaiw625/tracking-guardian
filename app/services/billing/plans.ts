@@ -17,6 +17,31 @@ export interface PlanFeatures {
   isOneTime?: boolean;
 }
 
+const LEGACY_MONITOR_PLAN: PlanFeatures = {
+  id: "monitor",
+  name: "subscriptionPlans.monitor.name",
+  price: 29,
+  monthlyOrderLimit: 0,
+  pixelDestinations: 0,
+  uiModules: 0,
+  includesVerification: false,
+  includesAlerts: true,
+  includesReconciliation: false,
+  includesAgency: false,
+  includesReportExport: false,
+  tagline: "subscriptionPlans.monitor.tagline",
+  features: [
+    "subscriptionPlans.monitor.features.drop",
+    "subscriptionPlans.monitor.features.threshold",
+    "subscriptionPlans.monitor.features.missing",
+    "subscriptionPlans.monitor.features.logs",
+    "subscriptionPlans.monitor.features.rollback",
+    "subscriptionPlans.monitor.features.channels",
+    "subscriptionPlans.monitor.features.realtime",
+    "subscriptionPlans.monitor.features.note",
+  ],
+};
+
 export const BILLING_PLANS = {
   free: {
     id: "free",
@@ -90,30 +115,6 @@ export const BILLING_PLANS = {
       "subscriptionPlans.growth.features.retention",
     ],
   },
-  monitor: {
-    id: "monitor",
-    name: "subscriptionPlans.monitor.name",
-    price: 29,
-    monthlyOrderLimit: 0,
-    pixelDestinations: 0,
-    uiModules: 0,
-    includesVerification: false,
-    includesAlerts: true,
-    includesReconciliation: false,
-    includesAgency: false,
-    includesReportExport: false,
-    tagline: "subscriptionPlans.monitor.tagline",
-    features: [
-      "subscriptionPlans.monitor.features.drop",
-      "subscriptionPlans.monitor.features.threshold",
-      "subscriptionPlans.monitor.features.missing",
-      "subscriptionPlans.monitor.features.logs",
-      "subscriptionPlans.monitor.features.rollback",
-      "subscriptionPlans.monitor.features.channels",
-      "subscriptionPlans.monitor.features.realtime",
-      "subscriptionPlans.monitor.features.note",
-    ],
-  },
   agency: {
     id: "agency",
     name: "subscriptionPlans.agency.name",
@@ -141,6 +142,7 @@ export const BILLING_PLANS = {
 
 export const BILLING_PLANS_COMPAT = {
   ...BILLING_PLANS,
+  monitor: LEGACY_MONITOR_PLAN,
   enterprise: BILLING_PLANS.agency,
   pro: BILLING_PLANS.growth,
 } as const;
@@ -149,7 +151,7 @@ export type PlanId = keyof typeof BILLING_PLANS;
 
 export const PLAN_IDS: readonly PlanId[] = ["free", "starter", "growth", "agency"];
 
-export const PLAN_IDS_WITH_MONITOR: readonly PlanId[] = ["free", "starter", "growth", "monitor", "agency"];
+export const PLAN_IDS_WITH_MONITOR: readonly string[] = ["free", "starter", "growth", "monitor", "agency"];
 
 export const PLAN_IDS_COMPAT: readonly string[] = ["free", "starter", "pro", "growth", "enterprise", "agency"];
 
@@ -180,6 +182,8 @@ export function normalizePlanId(planId: string): PlanId {
       return "growth";
     case "enterprise":
       return "agency";
+    case "monitor":
+      return "starter";
     default:
       return isValidPlanId(planId) ? planId : "free";
   }
@@ -190,13 +194,13 @@ export function getPlanLimit(planId: PlanId): number {
 }
 
 export function detectPlanFromPrice(price: number): PlanId {
-  if (price >= 199) {
+  if (price >= BILLING_PLANS.agency.price) {
     return "agency";
   }
-  if (price >= 79 && price < 199) {
+  if (price >= BILLING_PLANS.growth.price) {
     return "growth";
   }
-  if (price >= 29 && price < 79) {
+  if (price >= BILLING_PLANS.starter.price) {
     return "starter";
   }
   return "free";
@@ -213,16 +217,13 @@ export function getTrialDays(planId: PlanId): number {
 }
 
 export function isHigherTier(planA: PlanId, planB: PlanId): boolean {
-  if (planA === "monitor" || planB === "monitor") {
-    return false;
-  }
-  const tierOrder: Record<Exclude<PlanId, "monitor">, number> = {
+  const tierOrder: Record<PlanId, number> = {
     free: 0,
     starter: 1,
     growth: 2,
     agency: 3,
   };
-  return tierOrder[planA as Exclude<PlanId, "monitor">] > tierOrder[planB as Exclude<PlanId, "monitor">];
+  return tierOrder[planA] > tierOrder[planB];
 }
 
 export function getUpgradeOptions(currentPlan: PlanId): PlanId[] {
@@ -286,10 +287,12 @@ const PLAN_DISPLAY_NAMES: Record<PlanId, string> = {
   free: "Free",
   starter: "Starter",
   growth: "Growth",
-  monitor: "Monitor",
   agency: "Agency",
 };
 
 export function getPlanDisplayName(planId: PlanId | string): string {
+  if (planId === "monitor") {
+    return "Monitor";
+  }
   return PLAN_DISPLAY_NAMES[planId as PlanId] || planId;
 }

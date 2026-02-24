@@ -117,8 +117,8 @@
       }
     },
     "monitor": {
-      "name": "Monitor",
-      "tagline": "Data monitoring only",
+      "name": "Starter (legacy alias)",
+      "tagline": "Legacy alias mapped to Starter",
       "features": {
         "drop": "Data Drop-to-Zero Alert",
         "threshold": "Conversion Rate Alert",
@@ -627,7 +627,23 @@
       "period": "Period/Time",
       "subscription": "Subscription",
       "oneTime": "One-time Purchase",
-      "periodTo": "Period to {{date}}"
+      "periodTo": "Period to {{date}}",
+      "typeMap": {
+        "subscription": "Subscription",
+        "subscriptionPending": "Subscription (Pending)",
+        "subscriptionCancelled": "Subscription (Cancelled)",
+        "oneTime": "One-time Purchase",
+        "oneTimePending": "One-time Purchase (Pending)"
+      },
+      "statusMap": {
+        "active": "Active",
+        "cancelled": "Cancelled",
+        "pending": "Pending",
+        "paused": "Paused",
+        "declined": "Declined",
+        "expired": "Expired",
+        "frozen": "Frozen"
+      }
     },
     "availablePlans": "Available Plans",
     "current": "Current",
@@ -1016,10 +1032,10 @@
         "description": "Standard event mapping + parameter completeness + downloadable payload evidence (GA4/Meta/TikTok)",
         "technicalNoteTitle": "Technical Note:",
         "technicalNoteContent": "Web Pixel is strict sandbox (Web Worker), many capabilities restricted",
-        "badge": "Migration $29/mo",
+        "badge": "Starter $29/mo",
         "cta": {
           "start": "Start Migration",
-          "upgrade": "Upgrade to Migration"
+          "upgrade": "Upgrade to Starter"
         }
       },
       "selfCheck": {
@@ -1194,7 +1210,7 @@
       "enablePurchaseFix": "Enable Purchase-only Fix (approx {{time}} min)",
       "enableFullFunnelFix": "Enable Full-funnel Fix (approx {{time}} min, Growth)",
       "hiddenAssets": "{{count}} more high-risk assets hidden",
-      "upgradeHint": "Upgrade to Migration or higher plan to view full risk list and migration suggestions",
+      "upgradeHint": "Upgrade to Starter or higher plan to view full risk list and migration suggestions",
       "upgradeUnlock": "Upgrade to Unlock",
       "recommendedMigration": "Recommended Migration",
       "oneClickMigrate": "One-click Migrate",
@@ -1493,7 +1509,7 @@
       },
       "cta": {
         "purchaseOnly": "Enable Purchase-only Fix (10 mins)",
-        "upgrade": "Upgrade to Migration to Enable Fix",
+        "upgrade": "Upgrade to Starter to Enable Fix",
         "fullFunnel": "Enable Full-funnel Fix (30 mins, Growth)"
       },
       "platforms": {
@@ -1662,7 +1678,7 @@
         "disclaimer": "Estimated based on current risk items and severity"
       },
       "upgradeBanner": {
-        "text": "Upgrade to Migration Plan to enable Full-funnel Fix (30 min, Growth Plan) and get full migration checklist and verification report."
+        "text": "Upgrade to Starter plan to enable Full-funnel Fix (30 min, Growth plan) and get full migration checklist and verification report."
       },
       "deadline": "Deadline: {{date}}",
       "progress": {
@@ -2943,7 +2959,7 @@
         },
         "upgrade": {
           "title": "Upgrade Required",
-          "desc": "Pixel migration requires Migration Plan ($29/mo) or above. Please upgrade before configuration."
+          "desc": "Pixel migration requires Starter ($29/mo) or above. Please upgrade before configuration."
         }
       },
       "intro": {
@@ -3146,7 +3162,7 @@
     },
     "action": {
       "missingConfigData": "Missing configuration data",
-      "planUpgradeRequired": "Pixel migration requires the Migration ($29/mo) plan or above.",
+      "planUpgradeRequired": "Pixel migration requires the Starter ($29/mo) plan or above.",
       "configFormatError": "Configuration format error: {{error}}",
       "invalidJSON": "Invalid JSON data",
       "unsupportedPlatform": "Platform {{platform}} is not supported in v1. Please select GA4, Meta, or TikTok.",

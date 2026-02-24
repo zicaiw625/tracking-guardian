@@ -37,6 +37,7 @@ function buildJobMeta(options: {
   };
   if (options.parsedPayload && typeof options.parsedPayload === "object") {
     const p = options.parsedPayload as Record<string, unknown>;
+    base.parsedPayload = p;
     if (options.jobType === "data_request") {
       const orders = p.orders_requested;
       if (Array.isArray(orders)) {

@@ -150,16 +150,13 @@ function getFeatureDisplayName(feature: string): string {
 }
 
 function isPlanAtLeast(current: PlanId, target: PlanId): boolean {
-  if (current === "monitor" || target === "monitor") {
-    return false;
-  }
-  const tierOrder: Record<Exclude<PlanId, "monitor">, number> = {
+  const tierOrder: Record<PlanId, number> = {
     free: 0,
     starter: 1,
     growth: 2,
     agency: 3,
   };
-  return tierOrder[current as Exclude<PlanId, "monitor">] >= tierOrder[target as Exclude<PlanId, "monitor">];
+  return tierOrder[current] >= tierOrder[target];
 }
 
 export async function canCreatePixelConfig(

@@ -294,10 +294,14 @@ export function getSupportConfig(): {
   statusPageUrl: string;
 } {
   return {
-    contactEmail: getEnv("SUPPORT_EMAIL", "zicaiw625@gmail.com"),
+    contactEmail: getEnv("SUPPORT_EMAIL", "support@tracking-guardian.com"),
     faqUrl: getEnv("SUPPORT_FAQ_URL", ""),
     statusPageUrl: getEnv("STATUS_PAGE_URL", ""),
   };
+}
+
+export function getPublicAppDomain(): string {
+  return getEnv("SHOPIFY_APP_URL", getEnv("APP_URL", "https://tracking-guardian.onrender.com"));
 }
 
 export function isProduction(): boolean {

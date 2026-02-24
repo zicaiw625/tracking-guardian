@@ -60,8 +60,8 @@
       }
     },
     "monitor": {
-      "name": "Monitor 监控版（可选叠加）",
-      "tagline": "断档监控与告警（上线后保障）",
+      "name": "入门版（历史别名）",
+      "tagline": "历史别名，当前统一映射到入门版",
       "features": {
         "drop": "事件量骤降告警",
         "threshold": "失败率阈值监控",
@@ -117,8 +117,8 @@
       }
     },
     "monitor": {
-      "name": "监控版",
-      "tagline": "专注于数据监控",
+      "name": "入门版（历史别名）",
+      "tagline": "历史别名，当前统一映射到入门版",
       "features": {
         "drop": "数据跌零告警",
         "threshold": "转化率异常告警",
@@ -627,7 +627,23 @@
       "period": "周期/时间",
       "subscription": "订阅",
       "oneTime": "一次性购买",
-      "periodTo": "周期至 {{date}}"
+      "periodTo": "周期至 {{date}}",
+      "typeMap": {
+        "subscription": "订阅",
+        "subscriptionPending": "订阅（待确认）",
+        "subscriptionCancelled": "订阅（已取消）",
+        "oneTime": "一次性购买",
+        "oneTimePending": "一次性购买（待确认）"
+      },
+      "statusMap": {
+        "active": "已激活",
+        "cancelled": "已取消",
+        "pending": "待确认",
+        "paused": "已暂停",
+        "declined": "已拒绝",
+        "expired": "已过期",
+        "frozen": "已冻结"
+      }
     },
     "availablePlans": "可用套餐",
     "current": "当前",
@@ -1023,10 +1039,10 @@
         "description": "标准事件映射 + 参数完整率 + 可下载 payload 证据（GA4/Meta/TikTok 三选一）",
         "technicalNoteTitle": "技术说明：",
         "technicalNoteContent": "Web Pixel 是 strict sandbox（Web Worker），很多能力受限",
-        "badge": "Migration $29/月",
+        "badge": "Starter $29/月",
         "cta": {
           "start": "开始迁移",
-          "upgrade": "升级到 Migration"
+          "upgrade": "升级到 Starter"
         }
       },
       "selfCheck": {
@@ -1245,7 +1261,7 @@
       "enablePurchaseFix": "启用 Purchase-only 修复（约 {{time}} 分钟）",
       "enableFullFunnelFix": "启用 Full-funnel 修复（约 {{time}} 分钟，Growth）",
       "hiddenAssets": "还有 {{count}} 项高风险资产未显示",
-      "upgradeHint": "升级到 Migration 或更高套餐，查看完整风险清单和迁移建议",
+      "upgradeHint": "升级到 Starter 或更高套餐，查看完整风险清单和迁移建议",
       "upgradeUnlock": "升级解锁",
       "recommendedMigration": "推荐迁移方式",
       "oneClickMigrate": "一键迁移",
@@ -1544,7 +1560,7 @@
       },
       "cta": {
         "purchaseOnly": "启用Purchase-only修复（10分钟）",
-        "upgrade": "升级到 Migration 启用修复",
+        "upgrade": "升级到 Starter 启用修复",
         "fullFunnel": "启用Full-funnel修复（30分钟，Growth）"
       },
       "platforms": {
@@ -1662,7 +1678,7 @@
         "disclaimer": "基于当前风险项数量和严重程度估算"
       },
       "upgradeBanner": {
-        "text": "升级到 Migration 版可启用 Full-funnel 修复（30 分钟，Growth 套餐），获得完整迁移清单和验收报告。"
+        "text": "升级到 Starter 版可启用 Full-funnel 修复（30 分钟，Growth 套餐），获得完整迁移清单和验收报告。"
       },
       "deadline": "截止: {{date}}",
       "progress": {
@@ -2943,7 +2959,7 @@
         },
         "upgrade": {
           "title": "需要升级套餐",
-          "desc": "启用像素迁移需要 Migration ($29/月) 及以上套餐。请先升级后再配置。"
+          "desc": "启用像素迁移需要 Starter ($29/月) 及以上套餐。请先升级后再配置。"
         }
       },
       "intro": {
@@ -3146,7 +3162,7 @@
     },
     "action": {
       "missingConfigData": "缺少配置数据",
-      "planUpgradeRequired": "启用像素迁移需要 Migration ($29/月) 及以上套餐。",
+      "planUpgradeRequired": "启用像素迁移需要 Starter ($29/月) 及以上套餐。",
       "configFormatError": "配置格式错误: {{error}}",
       "invalidJSON": "无效的 JSON 数据",
       "unsupportedPlatform": "平台 {{platform}} 尚未在 v1 支持，请仅选择 GA4、Meta 或 TikTok。",

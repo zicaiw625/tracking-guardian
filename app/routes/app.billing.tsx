@@ -272,6 +272,79 @@ export default function BillingPage() {
         timeStyle: "short",
     });
 
+    const formatBillingItemName = (item: BillingHistoryItem): string => {
+        const rawName = item.name || "";
+        const nameLower = rawName.toLowerCase();
+        if (
+            nameLower.includes("agency") ||
+            nameLower.includes("agency版")
+        ) {
+            return t(plans.agency.name);
+        }
+        if (
+            nameLower.includes("growth") ||
+            nameLower.includes("成长版") ||
+            nameLower.includes("pro")
+        ) {
+            return t(plans.growth.name);
+        }
+        if (
+            nameLower.includes("starter") ||
+            nameLower.includes("入门版") ||
+            nameLower.includes("migration") ||
+            nameLower.includes("monitor") ||
+            nameLower.includes("监控版")
+        ) {
+            return t(plans.starter.name);
+        }
+        if (nameLower.includes("free") || nameLower.includes("免费版")) {
+            return t(plans.free.name);
+        }
+        return rawName || t("common.unknown");
+    };
+
+    const formatBillingStatus = (status: string): string => {
+        const normalized = (status || "").toUpperCase();
+        switch (normalized) {
+            case "ACTIVE":
+                return t("billing.invoiceTable.statusMap.active");
+            case "CANCELLED":
+                return t("billing.invoiceTable.statusMap.cancelled");
+            case "PENDING":
+                return t("billing.invoiceTable.statusMap.pending");
+            case "PAUSED":
+                return t("billing.invoiceTable.statusMap.paused");
+            case "DECLINED":
+                return t("billing.invoiceTable.statusMap.declined");
+            case "EXPIRED":
+                return t("billing.invoiceTable.statusMap.expired");
+            case "FROZEN":
+                return t("billing.invoiceTable.statusMap.frozen");
+            default:
+                return status || t("common.unknown");
+        }
+    };
+
+    const formatBillingType = (item: BillingHistoryItem): string => {
+        const normalized = (item.status || "").toUpperCase();
+        if (item.type === "subscription") {
+            if (normalized === "PENDING") {
+                return t("billing.invoiceTable.typeMap.subscriptionPending");
+            }
+            if (normalized === "CANCELLED") {
+                return t("billing.invoiceTable.typeMap.subscriptionCancelled");
+            }
+            return t("billing.invoiceTable.typeMap.subscription");
+        }
+        if (item.type === "one_time") {
+            if (normalized === "PENDING") {
+                return t("billing.invoiceTable.typeMap.oneTimePending");
+            }
+            return t("billing.invoiceTable.typeMap.oneTime");
+        }
+        return t("common.unknown");
+    };
+
     const billingRows = (billingHistory || []).map((item: BillingHistoryItem) => {
         const amount = item.amount !== undefined ? `${item.amount.toFixed(2)} ${item.currency || ""}` : "—";
         const timeframe = item.periodEnd
@@ -281,10 +354,10 @@ export default function BillingPage() {
                 : "—";
 
         return [
-            item.type === "subscription" ? t("billing.invoiceTable.subscription") : t("billing.invoiceTable.oneTime"),
-            item.name, // Usually plan name, might need translation if it comes from plan name
+            formatBillingType(item),
+            formatBillingItemName(item),
             amount,
-            item.status,
+            formatBillingStatus(item.status),
             timeframe,
         ];
     });

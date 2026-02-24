@@ -8,6 +8,9 @@ import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 
 function detectPlanFromName(name: string): PlanId | null {
   const nameLower = name.toLowerCase();
+  if (nameLower.includes("monitor") || nameLower.includes("监控版")) {
+    return "starter";
+  }
   if (nameLower.includes("agency") || nameLower.includes("agency版")) {
     return "agency";
   }
@@ -415,12 +418,6 @@ export async function createSubscription(
   returnUrl: string,
   isTest = false
 ): Promise<SubscriptionResult> {
-  if (planId === "monitor") {
-    return {
-      success: false,
-      error: "Monitor plan is not included in v1.0 official plans. Monitor is an optional add-on that will be available as a standalone service in future versions."
-    };
-  }
   const plan = BILLING_PLANS[planId];
   if (!plan || planId === "free") {
     return { success: false, error: "Invalid plan selected" };
