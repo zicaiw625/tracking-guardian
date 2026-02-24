@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Modal,
   BlockStack,
@@ -24,15 +25,15 @@ export interface GuidedSupplementProps {
 }
 
 const UPGRADE_WIZARD_CHECKLIST = [
-  { id: "ga4", label: "Google Analytics 4 (GA4)", category: "pixel", platform: "google" },
-  { id: "meta", label: "Meta Pixel (Facebook)", category: "pixel", platform: "meta" },
-  { id: "tiktok", label: "TikTok Pixel", category: "pixel", platform: "tiktok" },
-  { id: "survey", label: "售后问卷 / 评价收集", category: "survey", platform: undefined },
-  { id: "support", label: "客服入口 / 帮助中心", category: "support", platform: undefined },
-  { id: "reorder", label: "再购功能", category: "other", platform: undefined },
-  { id: "affiliate", label: "联盟追踪 / 分佣", category: "affiliate", platform: undefined },
-  { id: "tracking", label: "订单追踪 / 物流查询", category: "support", platform: undefined },
-  { id: "other", label: "其他脚本或功能", category: "other", platform: undefined },
+  { id: "ga4", labelKey: "guidedSupplement.checklist.ga4", category: "pixel", platform: "google" },
+  { id: "meta", labelKey: "guidedSupplement.checklist.meta", category: "pixel", platform: "meta" },
+  { id: "tiktok", labelKey: "guidedSupplement.checklist.tiktok", category: "pixel", platform: "tiktok" },
+  { id: "survey", labelKey: "guidedSupplement.checklist.survey", category: "survey", platform: undefined },
+  { id: "support", labelKey: "guidedSupplement.checklist.support", category: "support", platform: undefined },
+  { id: "reorder", labelKey: "guidedSupplement.checklist.reorder", category: "other", platform: undefined },
+  { id: "affiliate", labelKey: "guidedSupplement.checklist.affiliate", category: "affiliate", platform: undefined },
+  { id: "tracking", labelKey: "guidedSupplement.checklist.tracking", category: "support", platform: undefined },
+  { id: "other", labelKey: "guidedSupplement.checklist.other", category: "other", platform: undefined },
 ];
 
 export function GuidedSupplement({
@@ -41,6 +42,7 @@ export function GuidedSupplement({
   onComplete,
   shopId: _shopId,
 }: GuidedSupplementProps) {
+  const { t } = useTranslation();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [additionalNotes, setAdditionalNotes] = useState("");
@@ -128,7 +130,7 @@ export function GuidedSupplement({
           | "analytics"
           | "other",
         platform: item.platform,
-        displayName: item.label,
+        displayName: t(item.labelKey),
         riskLevel: item.category === "pixel" ? ("high" as const) : ("medium" as const),
         suggestedMigration:
           item.category === "pixel"
@@ -152,7 +154,7 @@ export function GuidedSupplement({
       },
       { method: "post" }
     );
-  }, [selectedItems, additionalNotes, fetcher, extractFeaturesFromText]);
+  }, [selectedItems, additionalNotes, fetcher, extractFeaturesFromText, t]);
   if (fetcher.data && (fetcher.data as { success?: boolean }).success) {
     const result = fetcher.data as { created?: number; updated?: number };
     const totalCreated = (result.created || 0) + (result.updated || 0);
@@ -179,60 +181,60 @@ export function GuidedSupplement({
     <Modal
       open={open}
       onClose={handleCancel}
-      title="从 Shopify 升级向导补充信息"
+      title={t("guidedSupplement.modal.title")}
       primaryAction={
         step === 3
           ? {
-              content: "完成",
+              content: t("guidedSupplement.modal.complete"),
               onAction: handleComplete,
               disabled: !canComplete || fetcher.state === "submitting",
               loading: fetcher.state === "submitting",
             }
           : {
-              content: "下一步",
+              content: t("guidedSupplement.modal.next"),
               onAction: handleNext,
               disabled: step === 1 ? !canProceedFromStep1 : !canProceedFromStep2,
             }
       }
       secondaryActions={[
-        ...(step > 1 ? [{ content: "上一步", onAction: handleBack }] : []),
-        { content: "取消", onAction: handleCancel },
+        ...(step > 1 ? [{ content: t("guidedSupplement.modal.back"), onAction: handleBack }] : []),
+        { content: t("guidedSupplement.modal.cancel"), onAction: handleCancel },
       ]}
     >
       <Modal.Section>
         <BlockStack gap="400">
           <InlineStack gap="200" align="center">
-            <Badge tone={step >= 1 ? "success" : "info"}>步骤 1</Badge>
+            <Badge tone={step >= 1 ? "success" : "info"}>{t("guidedSupplement.steps.step1")}</Badge>
             <Text as="span">→</Text>
-            <Badge tone={step >= 2 ? "success" : step > 2 ? "info" : undefined}>步骤 2</Badge>
+            <Badge tone={step >= 2 ? "success" : step > 2 ? "info" : undefined}>{t("guidedSupplement.steps.step2")}</Badge>
             <Text as="span">→</Text>
-            <Badge tone={step >= 3 ? "success" : undefined}>步骤 3</Badge>
+            <Badge tone={step >= 3 ? "success" : undefined}>{t("guidedSupplement.steps.step3")}</Badge>
           </InlineStack>
           {step === 1 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
-                从升级向导中选择使用的功能
+                {t("guidedSupplement.step1.title")}
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
-                请根据 Shopify 升级向导中显示的清单，勾选所有在 Thank you / Order status 页面使用的功能
+                {t("guidedSupplement.step1.description")}
               </Text>
               <Banner tone="info">
                 <BlockStack gap="200">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    如何获取升级向导清单：
+                    {t("guidedSupplement.step1.guideTitle")}
                   </Text>
                   <List type="number">
                     <List.Item>
-                      前往 Shopify Admin → 设置 → 结账和订单处理
+                      {t("guidedSupplement.step1.guideStep1")}
                     </List.Item>
                     <List.Item>
-                      找到「Thank you / Order status 页面升级」部分
+                      {t("guidedSupplement.step1.guideStep2")}
                     </List.Item>
                     <List.Item>
-                      查看升级向导中列出的脚本和功能清单
+                      {t("guidedSupplement.step1.guideStep3")}
                     </List.Item>
                     <List.Item>
-                      勾选下方对应的功能
+                      {t("guidedSupplement.step1.guideStep4")}
                     </List.Item>
                   </List>
                 </BlockStack>
@@ -240,16 +242,16 @@ export function GuidedSupplement({
               <Banner tone="warning">
                 <BlockStack gap="100">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    v1 支持范围说明：
+                    {t("guidedSupplement.step1.v1ScopeTitle")}
                   </Text>
                   <Text as="p" variant="bodySm">
-                    • <strong>像素平台</strong>：v1 仅支持 GA4、Meta、TikTok（其他平台将在 v1.1+ 支持）
+                    {t("guidedSupplement.step1.v1PixelSupport")}
                   </Text>
                   <Text as="p" variant="bodySm">
-                    • <strong>UI 模块</strong>：v1 不提供 Survey/Helpdesk 等页面模块
+                    {t("guidedSupplement.step1.v1UiModules")}
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    请选择所有您使用的功能，系统将在报告中标注 v1 可迁移的项目。
+                    {t("guidedSupplement.step1.v1SelectAll")}
                   </Text>
                 </BlockStack>
               </Banner>
@@ -268,12 +270,12 @@ export function GuidedSupplement({
                     >
                       <InlineStack gap="200" blockAlign="center">
                         <Checkbox
-                          label={item.label}
+                          label={t(item.labelKey)}
                           checked={selectedItems.includes(item.id)}
                           onChange={() => handleItemToggle(item.id)}
                         />
                         {isV1Supported && (
-                          <Badge tone="success" size="small">v1 支持</Badge>
+                          <Badge tone="success" size="small">{t("guidedSupplement.step1.v1Supported")}</Badge>
                         )}
                         {!isV1Supported && (item.category === "pixel" || item.category === "survey" || item.category === "support") && (
                           <Badge tone="info" size="small">v1.1+</Badge>
@@ -286,7 +288,7 @@ export function GuidedSupplement({
               {selectedItems.length === 0 && (
                 <Banner tone="info">
                   <Text as="p" variant="bodySm">
-                    请至少选择一个功能，以便我们生成准确的迁移建议
+                    {t("guidedSupplement.step1.emptySelection")}
                   </Text>
                 </Banner>
               )}
@@ -295,28 +297,28 @@ export function GuidedSupplement({
           {step === 2 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
-                补充信息（可选）
+                {t("guidedSupplement.step2.title")}
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
-                如果您从升级向导中复制了清单文本，可以在此处补充
+                {t("guidedSupplement.step2.description")}
               </Text>
               <Banner tone="info">
                 <BlockStack gap="200">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    两种方式补充信息：
+                    {t("guidedSupplement.step2.methodsTitle")}
                   </Text>
                   <List>
                     <List.Item>
                       <Text as="span" variant="bodySm">
-                        <strong>方式一：</strong>从升级向导中复制清单文本，粘贴到下方文本框
+                        {t("guidedSupplement.step2.method1")}
                       </Text>
                     </List.Item>
                     <List.Item>
                       <InlineStack gap="100" blockAlign="center">
                         <Text as="span" variant="bodySm" tone="subdued">
-                          <strong>方式二：</strong>上传升级向导的截图
+                          {t("guidedSupplement.step2.method2")}
                         </Text>
-                        <Badge tone="info" size="small">即将上线</Badge>
+                        <Badge tone="info" size="small">{t("guidedSupplement.step2.comingSoon")}</Badge>
                       </InlineStack>
                     </List.Item>
                   </List>
@@ -325,33 +327,33 @@ export function GuidedSupplement({
               <Card>
                 <BlockStack gap="300">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    粘贴升级向导清单文本：
+                    {t("guidedSupplement.step2.pasteTitle")}
                   </Text>
                   <TextField
-                    label="清单内容"
+                    label={t("guidedSupplement.step2.pasteLabel")}
                     value={additionalNotes}
                     onChange={setAdditionalNotes}
                     multiline={6}
-                    placeholder="从 Shopify 升级向导中复制的清单文本..."
-                    helpText="粘贴后，系统会自动识别并匹配已选择的功能"
+                    placeholder={t("guidedSupplement.step2.pastePlaceholder")}
+                    helpText={t("guidedSupplement.step2.pasteHelpText")}
                     autoComplete="off"
                   />
                 </BlockStack>
               </Card>
               <Banner>
                 <Text as="p" variant="bodySm">
-                  💡 <strong>提示：</strong>截图识别暂未开放，请使用“文本粘贴”方式补充。若识别失败或内容缺失，请回退到方式一。
+                  {t("guidedSupplement.step2.tip")}
                 </Text>
               </Banner>
               <Card>
                 <BlockStack gap="300">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
-                    已选择的功能：
+                    {t("guidedSupplement.step2.selectedTitle")}
                   </Text>
                   <InlineStack gap="100" wrap>
                     {selectedItems.map((itemId) => {
                       const item = UPGRADE_WIZARD_CHECKLIST.find((i) => i.id === itemId);
-                      return item ? <Badge key={itemId}>{item.label}</Badge> : null;
+                      return item ? <Badge key={itemId}>{t(item.labelKey)}</Badge> : null;
                     })}
                   </InlineStack>
                 </BlockStack>
@@ -361,43 +363,43 @@ export function GuidedSupplement({
           {step === 3 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
-                额外信息（可选）
+                {t("guidedSupplement.step3.title")}
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
-                如果您有其他需要补充的信息，请在此处填写
+                {t("guidedSupplement.step3.description")}
               </Text>
               <TextField
-                label="补充说明"
+                label={t("guidedSupplement.step3.notesLabel")}
                 value={additionalNotes}
                 onChange={setAdditionalNotes}
                 multiline={4}
-                placeholder="例如：使用了自定义的订单追踪系统、集成了第三方客服工具等"
-                helpText="这些信息将帮助我们更准确地评估迁移风险"
+                placeholder={t("guidedSupplement.step3.notesPlaceholder")}
+                helpText={t("guidedSupplement.step3.notesHelpText")}
                 autoComplete="off"
               />
               <Divider />
               <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">
-                    信息摘要
+                    {t("guidedSupplement.step3.summaryTitle")}
                   </Text>
                   <BlockStack gap="200">
                     <InlineStack gap="200" align="start">
                       <Text as="span" variant="bodySm" fontWeight="semibold">
-                        手动选择的功能：
+                        {t("guidedSupplement.step3.manuallySelected")}
                       </Text>
                       {selectedItems.length > 0 ? (
                         <InlineStack gap="100" wrap>
                           {selectedItems.map((itemId) => {
                             const item = UPGRADE_WIZARD_CHECKLIST.find((i) => i.id === itemId);
                             return item ? (
-                              <Badge key={itemId} tone="info">{item.label}</Badge>
+                              <Badge key={itemId} tone="info">{t(item.labelKey)}</Badge>
                             ) : null;
                           })}
                         </InlineStack>
                       ) : (
                         <Text as="span" variant="bodySm" tone="subdued">
-                          无
+                          {t("guidedSupplement.step3.none")}
                         </Text>
                       )}
                     </InlineStack>
@@ -407,13 +409,13 @@ export function GuidedSupplement({
                       return autoDetected.length > 0 ? (
                         <InlineStack gap="200" align="start">
                           <Text as="span" variant="bodySm" fontWeight="semibold">
-                            自动检测到的功能：
+                            {t("guidedSupplement.step3.autoDetected")}
                           </Text>
                           <InlineStack gap="100" wrap>
                             {autoDetected.map((itemId) => {
                               const item = UPGRADE_WIZARD_CHECKLIST.find((i) => i.id === itemId);
                               return item ? (
-                                <Badge key={itemId} tone="success">{item.label}</Badge>
+                                <Badge key={itemId} tone="success">{t(item.labelKey)}</Badge>
                               ) : null;
                             })}
                           </InlineStack>
@@ -423,8 +425,8 @@ export function GuidedSupplement({
                     <InlineStack gap="200" align="center">
                       <CheckCircleIcon />
                       <Text as="span" variant="bodySm">
-                        信息来自 Shopify 升级向导
-                        {additionalNotes.trim() && " + 文本智能识别"}
+                        {t("guidedSupplement.step3.sourceInfo")}
+                        {additionalNotes.trim() && t("guidedSupplement.step3.sourceInfoWithText")}
                       </Text>
                     </InlineStack>
                   </BlockStack>
@@ -440,7 +442,7 @@ export function GuidedSupplement({
               {fetcher.data && (fetcher.data as { success?: boolean }).success ? (
                 <Banner tone="success">
                   <Text as="p" variant="bodySm">
-                    成功创建迁移资产！
+                    {t("guidedSupplement.step3.successMessage")}
                   </Text>
                 </Banner>
               ) : null}

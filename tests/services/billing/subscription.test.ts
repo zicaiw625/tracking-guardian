@@ -230,7 +230,7 @@ describe("Subscription Service", () => {
         expect.any(String),
         expect.objectContaining({
           variables: expect.objectContaining({
-            name: expect.stringContaining(BILLING_PLANS.growth.name),
+            name: expect.stringContaining("Tracking Guardian - Growth"),
             lineItems: expect.arrayContaining([
               expect.objectContaining({
                 plan: expect.objectContaining({

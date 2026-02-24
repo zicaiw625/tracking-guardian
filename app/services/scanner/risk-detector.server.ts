@@ -2,11 +2,7 @@ import type { RiskItem } from "../../types";
 import { analyzeScriptContent } from "./content-analysis";
 import { randomBytes } from "crypto";
 import type { TFunction } from "i18next";
-
-const getT = (t: TFunction | undefined, key: string, options?: any, fallback?: string): string => {
-  if (t) return t(key, options) as unknown as string;
-  return fallback || key;
-};
+import { getT } from "../../utils/i18n-helpers";
 
 export interface RiskDetectionResult {
   risks: RiskItem[];
@@ -92,50 +88,50 @@ export function detectRisksInUrl(url: string, t?: TFunction): RiskDetectionResul
 }
 
 function enhanceRiskDescription(risk: RiskItem, _content: string, t?: TFunction): RiskItem {
-  const tipsTitle = getT(t, "scan.common.migrationTips", {}, "迁移建议");
+  const tipsTitle = getT(t, "scan.common.migrationTips", {}, "Migration Tips");
   
   switch (risk.id) {
     case "pii_access":
       return {
         ...risk,
-        description: `${risk.description}\n\n💡 ${tipsTitle}：\n` +
-          getT(t, "scan.risks.pii_access.tips", {}, `1. 避免在结账页脚本中读取/上传客户敏感信息\n` +
-          `2. 如确需处理敏感字段，请按 Shopify 官方路径（PCD/权限）与合规要求实施\n` +
-          `3. 使用哈希后的数据而非明文\n` +
-          `4. 优先使用 Shopify 官方事件与 API 能力`),
-        recommendation: getT(t, "scan.risks.pii_access.recommendation", {}, "优先迁移到 Web Pixel，并按 Shopify 官方能力与合规要求处理敏感字段"),
+        description: `${risk.description}\n\n💡 ${tipsTitle}:\n` +
+          getT(t, "scan.risks.pii_access.tips", {}, `1. Avoid reading/uploading customer sensitive information in checkout scripts\n` +
+          `2. If sensitive fields must be processed, follow Shopify official paths (PCD/permissions) and compliance requirements\n` +
+          `3. Use hashed data instead of plaintext\n` +
+          `4. Prefer Shopify official events and API capabilities`),
+        recommendation: getT(t, "scan.risks.pii_access.recommendation", {}, "Prioritize migration to Web Pixel and handle sensitive fields per Shopify official capabilities and compliance requirements"),
       };
     case "window_document_access":
       return {
         ...risk,
-        description: `${risk.description}\n\n💡 ${tipsTitle}：\n` +
-          getT(t, "scan.risks.window_document_access.tips", {}, `1. 使用 Shopify Web Pixel API 替代：\n` +
-          `   - analytics.subscribe() 替代 window 事件监听\n` +
-          `   - settings 对象替代 document 配置读取\n` +
-          `   - 使用 checkout 事件数据而非 DOM 查询\n` +
-          `2. 如需 DOM 操作，请按 Shopify 官方能力手动迁移页面逻辑\n` +
-          `3. 检查是否有第三方库依赖 window/document，需要替换`),
-        recommendation: getT(t, "scan.risks.window_document_access.recommendation", {}, "使用 Shopify Web Pixel API 或按 Shopify 官方能力手动迁移页面逻辑"),
+        description: `${risk.description}\n\n💡 ${tipsTitle}:\n` +
+          getT(t, "scan.risks.window_document_access.tips", {}, `1. Use Shopify Web Pixel API as replacement:\n` +
+          `   - analytics.subscribe() instead of window event listeners\n` +
+          `   - settings object instead of document config reads\n` +
+          `   - Use checkout event data instead of DOM queries\n` +
+          `2. If DOM operations are needed, manually migrate page logic per Shopify official capabilities\n` +
+          `3. Check if third-party libraries depend on window/document and need replacement`),
+        recommendation: getT(t, "scan.risks.window_document_access.recommendation", {}, "Use Shopify Web Pixel API or manually migrate page logic per Shopify official capabilities"),
       };
     case "blocking_load":
       return {
         ...risk,
-        description: `${risk.description}\n\n💡 ${tipsTitle}：\n` +
-          getT(t, "scan.risks.blocking_load.tips", {}, `1. 移除 document.write() 和同步脚本\n` +
-          `2. 使用异步加载的 Web Pixel\n` +
-          `3. 避免在关键渲染路径上执行阻塞操作\n` +
-          `4. 优先将追踪逻辑收敛到 Web Pixel 事件订阅`),
-        recommendation: getT(t, "scan.risks.blocking_load.recommendation", {}, "迁移到异步 Web Pixel 并减少阻塞逻辑"),
+        description: `${risk.description}\n\n💡 ${tipsTitle}:\n` +
+          getT(t, "scan.risks.blocking_load.tips", {}, `1. Remove document.write() and synchronous scripts\n` +
+          `2. Use asynchronously loaded Web Pixel\n` +
+          `3. Avoid blocking operations on the critical rendering path\n` +
+          `4. Prioritize consolidating tracking logic into Web Pixel event subscriptions`),
+        recommendation: getT(t, "scan.risks.blocking_load.recommendation", {}, "Migrate to async Web Pixel and reduce blocking logic"),
       };
     case "duplicate_triggers":
       return {
         ...risk,
-        description: `${risk.description}\n\n💡 ${tipsTitle}：\n` +
-          getT(t, "scan.risks.duplicate_triggers.tips", {}, `1. 使用事件去重机制（event_id）\n` +
-          `2. 确保每个事件只触发一次\n` +
-          `3. 使用 Shopify 标准事件而非自定义事件\n` +
-          `4. 在服务端实现去重逻辑`),
-        recommendation: getT(t, "scan.risks.duplicate_triggers.recommendation", {}, "实现事件去重机制，使用标准事件格式"),
+        description: `${risk.description}\n\n💡 ${tipsTitle}:\n` +
+          getT(t, "scan.risks.duplicate_triggers.tips", {}, `1. Use event deduplication mechanism (event_id)\n` +
+          `2. Ensure each event is triggered only once\n` +
+          `3. Use Shopify standard events instead of custom events\n` +
+          `4. Implement deduplication logic on the server side`),
+        recommendation: getT(t, "scan.risks.duplicate_triggers.recommendation", {}, "Implement event deduplication mechanism and use standard event format"),
       };
     default:
       return risk;
@@ -186,7 +182,7 @@ export function generateRiskSummary(detectionResult: RiskDetectionResult, t?: TF
   if (risks.length === 0) {
     return {
       level: "none",
-      message: getT(t, "scan.risks.summary.none", {}, "未检测到高风险项"),
+      message: getT(t, "scan.risks.summary.none", {}, "No high-risk items detected"),
       recommendations: [],
     };
   }
@@ -197,16 +193,16 @@ export function generateRiskSummary(detectionResult: RiskDetectionResult, t?: TF
   if (highRisks.length > 0) {
     level = "high";
     const issues: string[] = [];
-    if (detectedIssues.piiAccess) issues.push(getT(t, "scan.risks.summary.issues.piiAccess", {}, "PII 访问"));
-    if (detectedIssues.windowDocumentAccess) issues.push(getT(t, "scan.risks.summary.issues.windowDocumentAccess", {}, "window/document 访问"));
-    if (detectedIssues.blockingLoad) issues.push(getT(t, "scan.risks.summary.issues.blockingLoad", {}, "阻塞加载"));
-    message = getT(t, "scan.risks.summary.high", { count: highRisks.length, issues: issues.join("、") }, `检测到 ${highRisks.length} 个高风险项：${issues.join("、")}`);
+    if (detectedIssues.piiAccess) issues.push(getT(t, "scan.risks.summary.issues.piiAccess", {}, "PII access"));
+    if (detectedIssues.windowDocumentAccess) issues.push(getT(t, "scan.risks.summary.issues.windowDocumentAccess", {}, "window/document access"));
+    if (detectedIssues.blockingLoad) issues.push(getT(t, "scan.risks.summary.issues.blockingLoad", {}, "Blocking load"));
+    message = getT(t, "scan.risks.summary.high", { count: highRisks.length, issues: issues.join(", ") }, `Detected ${highRisks.length} high-risk items: ${issues.join(", ")}`);
   } else if (mediumRisks.length > 0) {
     level = "medium";
-    message = getT(t, "scan.risks.summary.medium", { count: mediumRisks.length }, `检测到 ${mediumRisks.length} 个中风险项，建议尽快迁移`);
+    message = getT(t, "scan.risks.summary.medium", { count: mediumRisks.length }, `Detected ${mediumRisks.length} medium-risk items, migration recommended`);
   } else {
     level = "low";
-    message = getT(t, "scan.risks.summary.low", { count: risks.length }, `检测到 ${risks.length} 个低风险项，建议优化`);
+    message = getT(t, "scan.risks.summary.low", { count: risks.length }, `Detected ${risks.length} low-risk items, optimization recommended`);
   }
   const recommendations = risks
     .filter(r => r.recommendation)

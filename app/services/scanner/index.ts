@@ -525,7 +525,7 @@ export async function getCachedScanResult(
         duplicatePixels: [],
         migrationActions: [],
         _cachedAt: cached.completedAt,
-        _additionalScriptsNote: "Additional Scripts 需要通过手动粘贴识别，Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts 内容",
+        _additionalScriptsNote: "Additional Scripts must be identified via manual paste; the Shopify API cannot automatically read Additional Scripts content from checkout.liquid",
     };
 }
 
@@ -595,7 +595,7 @@ export async function scanShopTracking(
         webPixels: [],
         duplicatePixels: [],
         migrationActions: [],
-        _additionalScriptsNote: "Additional Scripts 需要通过手动粘贴识别，Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts 内容",
+        _additionalScriptsNote: "Additional Scripts must be identified via manual paste; the Shopify API cannot automatically read Additional Scripts content from checkout.liquid",
     };
     logger.info(`Starting enhanced scan for shop ${shopId}`);
     try {

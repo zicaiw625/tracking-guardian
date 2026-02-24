@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { BlockStack, Text, Banner, List, Card, InlineStack, Badge, Divider, Button, Modal, TextField, Checkbox } from "@shopify/polaris";
+import { useTranslation } from "react-i18next";
 import { useSubmit } from "@remix-run/react";
 import { useToastContext } from "~/components/ui";
 import type { PlatformType } from "~/types/enums";
@@ -30,6 +31,7 @@ export function ReviewStep({
   onEnvironmentToggle: _onEnvironmentToggle,
   pixelConfigs,
 }: ReviewStepProps) {
+  const { t } = useTranslation();
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [templateDescription, setTemplateDescription] = useState("");
@@ -44,7 +46,7 @@ export function ReviewStep({
   });
   const handleSaveAsTemplate = useCallback(async () => {
     if (!shopId || !templateName.trim()) {
-      showError("请输入模板名称");
+      showError(t("reviewStep.errorTemplateName"));
       return;
     }
     setIsSavingTemplate(true);
@@ -69,25 +71,25 @@ export function ReviewStep({
       setTemplateName("");
       setTemplateDescription("");
       setIsPublic(false);
-      showSuccess("模板已保存！");
+      showSuccess(t("reviewStep.templateSaved"));
     } catch (error) {
-      showError("保存模板失败");
+      showError(t("reviewStep.templateSaveError"));
       const { debugError } = await import("../../../utils/debug-log.client");
       debugError("[PixelMigrationWizard] Save template error:", error);
     } finally {
       setIsSavingTemplate(false);
     }
-  }, [shopId, templateName, templateDescription, isPublic, selectedPlatforms, platformConfigs, submit, showSuccess, showError]);
+  }, [shopId, templateName, templateDescription, isPublic, selectedPlatforms, platformConfigs, submit, showSuccess, showError, t]);
   return (
     <BlockStack gap="500">
       <Text as="h3" variant="headingMd">
-        检查配置
+        {t("reviewStep.title")}
       </Text>
       <Text as="p" tone="subdued">
-        请检查以下配置是否正确。确认无误后点击「保存配置」。您也可以将当前配置保存为模板，方便后续使用。
+        {t("reviewStep.description")}
       </Text>
       {allErrors.length > 0 && (
-        <Banner tone="critical" title="配置错误">
+        <Banner tone="critical" title={t("reviewStep.configErrors")}>
           <List type="bullet">
             {allErrors.map((error, index) => (
               <List.Item key={index}>{error}</List.Item>
@@ -113,35 +115,35 @@ export function ReviewStep({
                   </Text>
                 </InlineStack>
                 {errors.length === 0 ? (
-                  <Badge tone="success">配置完整</Badge>
+                  <Badge tone="success">{t("reviewStep.configComplete")}</Badge>
                 ) : (
-                  <Badge tone="critical">配置不完整</Badge>
+                  <Badge tone="critical">{t("reviewStep.configIncomplete")}</Badge>
                 )}
               </InlineStack>
               <Divider />
               <BlockStack gap="300">
                 <InlineStack align="space-between">
                   <Text as="span" variant="bodySm" tone="subdued">
-                    环境
+                    {t("reviewStep.environment")}
                   </Text>
                   <Badge tone={config.environment === "live" ? "success" : "info"}>
-                    {config.environment === "live" ? "生产模式" : "测试模式"}
+                    {config.environment === "live" ? t("reviewStep.liveMode") : t("reviewStep.testMode")}
                   </Badge>
                 </InlineStack>
                 <InlineStack align="space-between">
                   <Text as="span" variant="bodySm" tone="subdued">
-                    平台 ID
+                    {t("reviewStep.platformId")}
                   </Text>
                   <Text as="span" fontWeight="semibold">
-                    {config.platformId || "未填写"}
+                    {config.platformId || t("reviewStep.notFilled")}
                   </Text>
                 </InlineStack>
                 <InlineStack align="space-between">
                   <Text as="span" variant="bodySm" tone="subdued">
-                    事件映射
+                    {t("reviewStep.eventMappings")}
                   </Text>
                   <Text as="span" variant="bodySm">
-                    {Object.keys(config.eventMappings).length} 个事件
+                    {t("reviewStep.eventCount", { count: Object.keys(config.eventMappings).length })}
                   </Text>
                 </InlineStack>
               </BlockStack>
@@ -174,16 +176,16 @@ export function ReviewStep({
         <Card>
           <BlockStack gap="300">
             <Text as="h4" variant="headingSm">
-              保存为模板
+              {t("reviewStep.saveAsTemplate")}
             </Text>
             <Text as="p" variant="bodySm" tone="subdued">
-              将当前配置保存为模板，方便后续快速应用到其他店铺或分享给团队成员。
+              {t("reviewStep.saveAsTemplateDesc")}
             </Text>
             <Button
               size="slim"
               onClick={() => setShowSaveTemplateModal(true)}
             >
-              保存为模板
+              {t("reviewStep.saveAsTemplate")}
             </Button>
           </BlockStack>
         </Card>
@@ -191,15 +193,15 @@ export function ReviewStep({
       <Modal
         open={showSaveTemplateModal}
         onClose={() => setShowSaveTemplateModal(false)}
-        title="保存为模板"
+        title={t("reviewStep.saveAsTemplate")}
         primaryAction={{
-          content: "保存",
+          content: t("reviewStep.save"),
           onAction: handleSaveAsTemplate,
           loading: isSavingTemplate,
         }}
         secondaryActions={[
           {
-            content: "取消",
+            content: t("reviewStep.cancel"),
             onAction: () => setShowSaveTemplateModal(false),
             disabled: isSavingTemplate,
           },
@@ -208,40 +210,40 @@ export function ReviewStep({
         <Modal.Section>
           <BlockStack gap="400">
             <TextField
-              label="模板名称"
+              label={t("reviewStep.templateNameLabel")}
               value={templateName}
               onChange={setTemplateName}
-              placeholder="例如：标准电商配置"
-              helpText="为模板起一个易于识别的名称"
+              placeholder={t("reviewStep.templateNamePlaceholder")}
+              helpText={t("reviewStep.templateNameHelp")}
               autoComplete="off"
             />
             <TextField
-              label="模板描述"
+              label={t("reviewStep.templateDescLabel")}
               value={templateDescription}
               onChange={setTemplateDescription}
-              placeholder="描述这个模板的用途和适用场景"
+              placeholder={t("reviewStep.templateDescPlaceholder")}
               multiline={3}
               autoComplete="off"
             />
             <Checkbox
-              label="公开模板"
+              label={t("reviewStep.publicTemplate")}
               checked={isPublic}
               onChange={setIsPublic}
-              helpText="公开模板可以被其他用户查看和使用，适合分享最佳实践"
+              helpText={t("reviewStep.publicTemplateHelp")}
             />
             <Banner tone="info">
               <Text as="p" variant="bodySm">
-                模板将保存以下配置：
+                {t("reviewStep.templateSaveInfo")}
               </Text>
               <List type="bullet">
-                <List.Item>平台：{Array.from(selectedPlatforms).map(p => PLATFORM_INFO[p]?.name || p).join(", ")}</List.Item>
-                <List.Item>事件映射：{Array.from(selectedPlatforms).reduce((acc, p) => {
+                <List.Item>{t("reviewStep.templatePlatforms", { platforms: Array.from(selectedPlatforms).map(p => PLATFORM_INFO[p]?.name || p).join(", ") })}</List.Item>
+                <List.Item>{t("reviewStep.templateEventCount", { count: Array.from(selectedPlatforms).reduce((acc, p) => {
                   const config = platformConfigs[p];
                   return acc + (config?.eventMappings ? Object.keys(config.eventMappings).length : 0);
-                }, 0)} 个事件</List.Item>
+                }, 0) })}</List.Item>
               </List>
               <Text as="p" variant="bodySm" tone="subdued">
-                注意：模板不会保存凭证信息，仅保存事件映射配置。
+                {t("reviewStep.templateNote")}
               </Text>
             </Banner>
           </BlockStack>

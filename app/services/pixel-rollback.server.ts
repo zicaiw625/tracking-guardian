@@ -92,13 +92,13 @@ export async function rollbackConfig(
     if (!config) {
       return {
         success: false,
-        message: "配置不存在",
+        message: "Configuration not found",
       };
     }
     if (!config.rollbackAllowed || !config.previousConfig) {
       return {
         success: false,
-        message: "没有可回滚的版本",
+        message: "No rollback version available",
       };
     }
     const snapshot = config.previousConfig as unknown as PixelConfigSnapshot;
@@ -138,7 +138,7 @@ export async function rollbackConfig(
     });
     return {
       success: true,
-      message: `已回滚到版本 ${config.configVersion + 1}`,
+      message: `Rolled back to version ${config.configVersion + 1}`,
       previousVersion,
       currentVersion: config.configVersion + 1,
     };
@@ -146,7 +146,7 @@ export async function rollbackConfig(
     logger.error("Failed to rollback config", { shopId, platform, error });
     return {
       success: false,
-      message: "回滚失败，请稍后重试",
+      message: "Rollback failed, please try again later",
     };
   }
 }
@@ -182,14 +182,14 @@ export async function switchEnvironment(
     if (!config) {
       return {
         success: false,
-        message: "配置不存在",
+        message: "Configuration not found",
       };
     }
     const previousEnvironment = config.environment as PixelEnvironment;
     if (previousEnvironment === newEnvironment) {
       return {
         success: true,
-        message: `已在 ${newEnvironment} 环境`,
+        message: `Already in ${newEnvironment} environment`,
         previousEnvironment,
         newEnvironment,
       };
@@ -250,7 +250,7 @@ export async function switchEnvironment(
     });
     return {
       success: true,
-      message: `已切换到 ${newEnvironment === "live" ? "生产" : "测试"} 环境`,
+      message: `Switched to ${newEnvironment === "live" ? "production" : "test"} environment`,
       previousEnvironment,
       newEnvironment,
     };
@@ -258,7 +258,7 @@ export async function switchEnvironment(
     logger.error("Failed to switch environment", { shopId, platform, error });
     return {
       success: false,
-      message: "切换失败，请稍后重试",
+      message: "Switch failed, please try again later",
     };
   }
 }
@@ -328,8 +328,8 @@ export async function getAllConfigVersions(
 function redactCredentials<T extends object>(obj: T | null): T | null {
   if (!obj) return obj;
   const copy = { ...obj } as Record<string, unknown>;
-  if ("credentialsEncrypted" in copy) copy.credentialsEncrypted = copy.credentialsEncrypted ? "***已设置***" : null;
-  if ("credentials_legacy" in copy) copy.credentials_legacy = copy.credentials_legacy ? "***已设置***" : null;
+  if ("credentialsEncrypted" in copy) copy.credentialsEncrypted = copy.credentialsEncrypted ? "***configured***" : null;
+  if ("credentials_legacy" in copy) copy.credentials_legacy = copy.credentials_legacy ? "***configured***" : null;
   return copy as T;
 }
 
@@ -374,7 +374,7 @@ export async function getConfigComparison(
     eventMappings: config.eventMappings as Record<string, unknown> | null,
     clientConfig: config.clientConfig as Record<string, unknown> | null,
     environment: config.environment as PixelEnvironment,
-    credentialsEncrypted: config.credentialsEncrypted ? "***已设置***" : null,
+    credentialsEncrypted: config.credentialsEncrypted ? "***configured***" : null,
     version: config.configVersion,
     updatedAt: config.updatedAt,
   };
@@ -407,8 +407,8 @@ export async function getConfigComparison(
     }
     differences.push({
       field: "credentialsEncrypted",
-      current: current.credentialsEncrypted ? "***已设置***" : null,
-      previous: previous.credentialsEncrypted ? "***已设置***" : null,
+      current: current.credentialsEncrypted ? "***configured***" : null,
+      previous: previous.credentialsEncrypted ? "***configured***" : null,
       changed: !!current.credentialsEncrypted !== !!previous.credentialsEncrypted,
     });
   }

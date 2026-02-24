@@ -37,7 +37,7 @@ export function LanguageSwitcher() {
 
   const activator = (
     <Button onClick={toggleActive} icon={GlobeIcon} variant="plain">
-      {i18n.language?.startsWith("zh") ? "中文" : "English"}
+      {i18n.language?.startsWith("zh") ? "Chinese" : "English"}
     </Button>
   );
 
@@ -51,7 +51,7 @@ export function LanguageSwitcher() {
             active: i18n.language?.startsWith("en") || i18n.language === "en-US",
           },
           {
-            content: "中文",
+            content: "Chinese",
             onAction: () => handleLanguageChange("zh"),
             active: i18n.language?.startsWith("zh"),
           },

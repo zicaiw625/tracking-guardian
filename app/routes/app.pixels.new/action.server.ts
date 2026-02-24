@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "../../shopify.server";
+import { i18nServer } from "../../i18n.server";
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import { generateSimpleId } from "../../utils/helpers";
@@ -44,15 +45,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (!shop) {
     return json({ error: "Shop not found" }, { status: 404 });
   }
+  const t = await i18nServer.getFixedT(request);
   if (actionType === "savePixelConfigs") {
     const configsJson = formData.get("configs") as string;
     if (!configsJson) {
-      return json({ error: "缺少配置数据" }, { status: 400 });
+      return json({ error: t("pixels.action.missingConfigData") }, { status: 400 });
     }
     if (!isPlanAtLeast(shop.plan, "starter")) {
       return json({
         success: false,
-        error: "启用像素迁移需要 Migration ($29/月) 及以上套餐。请先升级套餐。",
+        error: t("pixels.action.planUpgradeRequired"),
       }, { status: 403 });
     }
     try {
@@ -72,11 +74,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         configs = ConfigsArraySchema.parse(JSON.parse(configsJson));
       } catch (error) {
          if (error instanceof z.ZodError) {
-             return json({ success: false, error: `配置格式错误: ${error.issues[0].message}` }, { status: 400 });
+             return json({ success: false, error: t("pixels.action.configFormatError", { error: error.issues[0].message }) }, { status: 400 });
          }
          // JSON parse error
          if (error instanceof SyntaxError) {
-             return json({ success: false, error: "无效的 JSON 数据" }, { status: 400 });
+             return json({ success: false, error: t("pixels.action.invalidJSON") }, { status: 400 });
          }
          throw error;
       }
@@ -89,7 +91,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (!SUPPORTED_PLATFORMS.includes(platform)) {
            return json({
              success: false,
-             error: `平台 ${config.platform} 尚未在 v1 支持，请仅选择 GA4、Meta 或 TikTok。`,
+             error: t("pixels.action.unsupportedPlatform", { platform: config.platform }),
            }, { status: 400 });
         }
 
@@ -117,7 +119,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             
             if (validationResult && !validationResult.success) {
                  const errorMsg = validationResult.error.issues[0].message;
-                 return json({ success: false, error: `${platform} 配置错误: ${errorMsg}` }, { status: 400 });
+                 return json({ success: false, error: t("pixels.action.platformConfigError", { platform, error: errorMsg }) }, { status: 400 });
             }
         }
 
@@ -296,7 +298,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       logger.error("Failed to save pixel configs", error);
       return json({
         success: false,
-        error: error instanceof Error ? error.message : "保存配置失败",
+        error: error instanceof Error ? error.message : t("pixels.action.saveConfigFailed"),
       }, { status: 500 });
     }
   }

@@ -35,7 +35,7 @@ interface ScanManualSupplementTabProps {
     onOpenGuidedSupplement: () => void;
     onOpenManualInputWizard: () => void;
     onAssetsCreated: (count: number) => void;
-    // 懒加载的脚本编辑器组件，放宽为 any 以兼容现有实现
+    // Lazily loaded script editor component; typed as any for compatibility
     ScriptCodeEditor: ComponentType<any>;
     analysisSaved: boolean;
     isSavingAnalysis: boolean;
@@ -356,7 +356,7 @@ export function ScanManualSupplementTab({
                                 const url = urlMatch ? urlMatch[1] : null;
                                 const isInternal = title.includes("Google Analytics") || title.includes("Meta Pixel") || title.includes("TikTok");
                                 const isExternal = !!url;
-                                if (rec.includes("迁移清单建议") || rec.includes("Migration Checklist")) {
+                                if (rec.includes("Migration Checklist") || rec.includes(t("scan.manualSupplement.migrationSuggestions.checklistKeyword"))) {
                                     return (
                                         <Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
                                             <BlockStack gap="200">

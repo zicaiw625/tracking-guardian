@@ -28,56 +28,56 @@ export function calculatePriority(factors: PriorityFactors): PriorityResult {
   switch (factors.riskLevel) {
     case "high":
       priorityScore += 3.5;
-      reasoning.push("高风险项：会失效/受限，必须优先处理");
+      reasoning.push("High-risk item: likely to break or be restricted, must be prioritized.");
       reasoningKeys.push({ key: "scan.priority.reason.highRisk" });
       break;
     case "medium":
       priorityScore += 1.2;
-      reasoning.push("中风险项：可直接替换，建议尽快处理");
+      reasoning.push("Medium-risk item: can be replaced directly, recommended to handle soon.");
       reasoningKeys.push({ key: "scan.priority.reason.mediumRisk" });
       break;
     case "low":
       priorityScore -= 0.8;
-      reasoning.push("低风险项：无需立即迁移，可延后处理");
+      reasoning.push("Low-risk item: migration is not urgent and can be deferred.");
       reasoningKeys.push({ key: "scan.priority.reason.lowRisk" });
       break;
   }
   switch (factors.impactScope) {
     case "order_status":
       priorityScore += 2.5;
-      reasoning.push("影响订单状态页：Shopify 废弃公告的主要目标，最高优先级");
+      reasoning.push("Affects order status page: primary target of Shopify deprecation, highest priority.");
       reasoningKeys.push({ key: "scan.priority.reason.orderStatus" });
       break;
     case "checkout":
       priorityScore += 1.5;
-      reasoning.push("影响结账流程：关键转化环节，高优先级");
+      reasoning.push("Affects checkout flow: critical conversion step, high priority.");
       reasoningKeys.push({ key: "scan.priority.reason.checkout" });
       break;
     case "all_pages":
       priorityScore += 0.8;
-      reasoning.push("影响全站：范围较广，中等优先级");
+      reasoning.push("Affects site-wide behavior: broad impact, medium priority.");
       reasoningKeys.push({ key: "scan.priority.reason.allPages" });
       break;
     case "other":
       priorityScore += 0.2;
-      reasoning.push("影响其他页面：优先级较低");
+      reasoning.push("Affects other pages: lower priority.");
       reasoningKeys.push({ key: "scan.priority.reason.otherPages" });
       break;
   }
   switch (factors.migrationDifficulty) {
     case "easy":
       priorityScore += 0.8;
-      reasoning.push("迁移简单：可直接替换，建议优先完成");
+      reasoning.push("Easy migration: direct replacement possible, recommended to complete early.");
       reasoningKeys.push({ key: "scan.priority.reason.easyMigration" });
       break;
     case "medium":
       priorityScore += 0;
-      reasoning.push("迁移难度中等：需要一定配置时间");
+      reasoning.push("Medium migration complexity: requires moderate setup time.");
       reasoningKeys.push({ key: "scan.priority.reason.mediumMigration" });
       break;
     case "hard":
       priorityScore -= 0.5;
-      reasoning.push("迁移困难：需要更多评估和配置时间");
+      reasoning.push("Hard migration: requires more evaluation and setup time.");
       reasoningKeys.push({ key: "scan.priority.reason.hardMigration" });
       break;
   }
@@ -89,15 +89,15 @@ export function calculatePriority(factors: PriorityFactors): PriorityResult {
     );
     if (now >= autoUpgradeStart) {
       priorityScore += 2;
-      reasoning.push("Plus 商家自动升级已开始：立即处理");
+      reasoning.push("Plus merchant auto-upgrade has started: take action immediately.");
       reasoningKeys.push({ key: "scan.priority.reason.plusAutoUpgradeStarted" });
     } else if (daysUntilAutoUpgrade <= 30) {
       priorityScore += 2;
-      reasoning.push(`Plus 自动升级倒计时：剩余 ${daysUntilAutoUpgrade} 天`);
+      reasoning.push(`Plus auto-upgrade countdown: ${daysUntilAutoUpgrade} days remaining.`);
       reasoningKeys.push({ key: "scan.priority.reason.plusAutoUpgradeCountdown", params: { days: daysUntilAutoUpgrade } });
     } else if (daysUntilAutoUpgrade <= 90) {
       priorityScore += 1;
-      reasoning.push(`Plus 自动升级倒计时：剩余 ${daysUntilAutoUpgrade} 天`);
+      reasoning.push(`Plus auto-upgrade countdown: ${daysUntilAutoUpgrade} days remaining.`);
       reasoningKeys.push({ key: "scan.priority.reason.plusAutoUpgradeCountdown", params: { days: daysUntilAutoUpgrade } });
     }
   } else if (factors.shopTier === "non_plus") {
@@ -108,38 +108,38 @@ export function calculatePriority(factors: PriorityFactors): PriorityResult {
     );
     if (daysUntilDeadline <= 30) {
       priorityScore += 2;
-      reasoning.push(`非 Plus 商家截止日期：剩余 ${daysUntilDeadline} 天`);
+      reasoning.push(`Non-Plus merchant deadline: ${daysUntilDeadline} days remaining.`);
       reasoningKeys.push({ key: "scan.priority.reason.nonPlusDeadline", params: { days: daysUntilDeadline } });
     } else if (daysUntilDeadline <= 90) {
       priorityScore += 1;
-      reasoning.push(`非 Plus 商家截止日期：剩余 ${daysUntilDeadline} 天`);
+      reasoning.push(`Non-Plus merchant deadline: ${daysUntilDeadline} days remaining.`);
       reasoningKeys.push({ key: "scan.priority.reason.nonPlusDeadline", params: { days: daysUntilDeadline } });
     }
   }
   if (factors.hasDependencies) {
     if (factors.daysUntilDeadline && factors.daysUntilDeadline <= 30) {
       priorityScore += 1.5;
-      reasoning.push(`存在依赖关系但截止日期临近（${factors.daysUntilDeadline} 天）：需要尽快处理`);
+      reasoning.push(`Has dependencies and deadline is close (${factors.daysUntilDeadline} days): requires prompt action.`);
       reasoningKeys.push({ key: "scan.priority.reason.dependenciesUrgent", params: { days: factors.daysUntilDeadline } });
     } else {
       priorityScore += 0.3;
-      reasoning.push("存在依赖关系：需要先处理依赖项");
+      reasoning.push("Has dependencies: dependent items should be handled first.");
       reasoningKeys.push({ key: "scan.priority.reason.dependencies" });
     }
   }
   if (factors.impactScope === "order_status" && factors.riskLevel === "high") {
     priorityScore += 1.2;
-    reasoning.push("组合因素：订单状态页 + 高风险 = 最高优先级");
+    reasoning.push("Combined factors: order status page + high risk = highest priority.");
     reasoningKeys.push({ key: "scan.priority.reason.comboOrderStatusHighRisk" });
   }
   if (factors.impactScope === "checkout" && factors.riskLevel === "high") {
     priorityScore += 0.8;
-    reasoning.push("组合因素：结账流程 + 高风险 = 高优先级");
+    reasoning.push("Combined factors: checkout flow + high risk = high priority.");
     reasoningKeys.push({ key: "scan.priority.reason.comboCheckoutHighRisk" });
   }
   if (factors.migrationDifficulty === "easy" && factors.riskLevel === "high") {
     priorityScore += 0.5;
-    reasoning.push("组合因素：简单迁移 + 高风险 = 快速解决高风险问题");
+    reasoning.push("Combined factors: easy migration + high risk = quick high-risk resolution.");
     reasoningKeys.push({ key: "scan.priority.reason.comboEasyHighRisk" });
   }
   priorityScore = Math.max(1, Math.min(10, Math.round(priorityScore * 10) / 10));
@@ -157,7 +157,7 @@ export function calculatePriority(factors: PriorityFactors): PriorityResult {
   }
   if (factors.riskLevel === "high") {
     estimatedTime += 10;
-    reasoning.push("高风险项需要额外验证时间：+10 分钟");
+    reasoning.push("High-risk items need extra validation time: +10 minutes.");
     reasoningKeys.push({ key: "scan.priority.reason.extraTimeHighRisk" });
   } else if (factors.riskLevel === "low") {
     estimatedTime -= 2;
@@ -330,7 +330,7 @@ export async function calculateAllAssetPriorities(
         const maxDepPriority = Math.max(...dependencyPriorities);
         if (maxDepPriority >= 8 && result.priority < maxDepPriority) {
           result.priority = Math.min(10, result.priority + 1);
-          result.reasoning.push(`依赖高优先级项（优先级 ${maxDepPriority}），提升优先级`);
+          result.reasoning.push(`Depends on a high-priority item (priority ${maxDepPriority}); priority increased.`);
         }
       }
     }
@@ -457,10 +457,10 @@ export async function generateMigrationTimeline(
         priority: asset.priority || 5,
         estimatedTime: asset.estimatedTimeMinutes || 15,
         reason: dependencies.length > 0
-          ? `依赖 ${blockingDeps.length} 个未完成的迁移项`
+          ? `Blocked by ${blockingDeps.length} incomplete migration item(s).`
           : asset.riskLevel === "high"
-            ? "高风险项，需要优先处理"
-            : "可开始迁移",
+            ? "High-risk item, prioritize first."
+            : "Ready to start migration.",
         reasonKey: dependencies.length > 0
           ? "scan.priority.reason.blockingDependencies"
           : asset.riskLevel === "high"

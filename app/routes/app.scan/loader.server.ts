@@ -1,6 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "../../shopify.server";
+import { i18nServer } from "../../i18n.server";
 import prisma from "../../db.server";
 import { getScanHistory } from "../../services/scanner.server";
 import { refreshTypOspStatus } from "../../services/checkout-profile.server";
@@ -34,6 +35,7 @@ import type { MigrationAction, EnhancedScanResult } from "../../services/scanner
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { SCANNER_CONFIG, SCRIPT_ANALYSIS_CONFIG } = await import("../../utils/config.server");
     const { session, admin } = await authenticate.admin(request);
+    const t = await i18nServer.getFixedT(request);
     const shopDomain = session.shop;
     const shop = await prisma.shop.findUnique({
         where: { shopDomain },
@@ -57,8 +59,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             deprecationStatus: null,
             upgradeStatus: null,
             planId: "free" as const,
-            planLabel: "免费版",
-            planTagline: "扫描报告 + 基础建议",
+            planLabel: "subscriptionPlans.free.name",
+            planTagline: "subscriptionPlans.free.tagline",
             migrationTimeline: null,
             migrationProgress: null,
             dependencyGraph: null,
@@ -170,7 +172,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 duplicatePixels: [],
                 migrationActions: [],
                 additionalScriptsPatterns: [],
-                _additionalScriptsNote: "Additional Scripts 需要通过手动粘贴识别，Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts 内容",
+                _additionalScriptsNote: t("scan.loader.additionalScriptsNote"),
             };
             migrationActions = generateMigrationActions(enhancedResult, shopTier);
         } catch (e) {

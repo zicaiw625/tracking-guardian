@@ -74,7 +74,7 @@ describe("Verification Service", () => {
       const mockRun = {
         id: "run-1",
         shopId: "shop-1",
-        runName: "验收测试",
+        runName: "Verification Test",
         runType: "quick",
         status: "pending",
         platforms: [],
@@ -95,7 +95,7 @@ describe("Verification Service", () => {
         expect.objectContaining({
           data: expect.objectContaining({
             shopId: "shop-1",
-            runName: "验收测试",
+            runName: "Verification Test",
             runType: "quick",
             status: "pending",
             platforms: [],
@@ -373,13 +373,13 @@ describe("Verification Service", () => {
       expect(guide.steps.length).toBeGreaterThan(0);
       expect(guide.estimatedTime).toBeDefined();
       expect(guide.tips).toBeDefined();
-      expect(guide.estimatedTime).toContain("分钟");
+      expect(guide.estimatedTime).toMatch(/minutes|分钟/i);
     });
     it("should generate full test guide with more steps", () => {
       const quickGuide = generateTestOrderGuide("quick");
       const fullGuide = generateTestOrderGuide("full");
       expect(fullGuide.steps.length).toBeGreaterThan(quickGuide.steps.length);
-      expect(fullGuide.estimatedTime).toContain("分钟");
+      expect(fullGuide.estimatedTime).toMatch(/minutes|分钟/i);
     });
     it("should include test item IDs in steps", () => {
       const guide = generateTestOrderGuide("quick");
@@ -459,9 +459,9 @@ describe("Verification Service", () => {
       const result = await exportVerificationReport("run-1", "csv");
       expect(result.filename).toContain(".csv");
       expect(result.mimeType).toBe("text/csv");
-      expect(result.content).toContain("测试项");
-      expect(result.content).toContain("事件类型");
-      expect(result.content).toContain("平台");
+      expect(result.content).toContain("Test Item");
+      expect(result.content).toContain("Event Type");
+      expect(result.content).toContain("Platform");
       expect(result.content).toContain("order-1");
       expect(result.content).toContain("order-2");
     });

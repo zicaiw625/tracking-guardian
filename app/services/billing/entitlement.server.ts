@@ -2,7 +2,7 @@ import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
 import {
   type PlanId,
-  getPlanOrDefault,
+  getPlanDisplayName,
   planSupportsFeature,
 } from "./plans";
 import {
@@ -58,7 +58,7 @@ export async function checkEntitlement(
       if (shopPlan === "free" || shopPlan === "starter") {
         return {
           allowed: false,
-          reason: "Full Funnel 模式需要 Growth 及以上套餐",
+          reason: "Full Funnel mode requires Growth plan or above",
           requiredPlan: "Growth",
         };
       }
@@ -126,19 +126,21 @@ export async function requireEntitlementOrThrow(
   const result = await checkEntitlement(shopId, entitlement);
   if (!result.allowed) {
     const shopPlan = await getShopPlan(shopId);
-    const planConfig = getPlanOrDefault(shopPlan);
+    const planDisplayName = getPlanDisplayName(shopPlan);
     logger.warn(`Entitlement check failed`, {
       shopId,
       entitlement,
-      currentPlan: planConfig.name,
+      currentPlan: planDisplayName,
       reason: result.reason,
       requiredPlan: result.requiredPlan,
     });
     throw new Response(
       JSON.stringify({
         error: "Feature not available",
-        message: result.reason || `此功能需要 ${result.requiredPlan || "更高"} 套餐`,
-        currentPlan: planConfig.name,
+        message: result.reason || `This feature requires ${result.requiredPlan || "a higher"} plan`,
+        reasonKey: "featureGate.requiresHigherPlan",
+        reasonParams: { plan: result.requiredPlan || "higher" },
+        currentPlan: planDisplayName,
         requiredPlan: result.requiredPlan,
         entitlement,
       }),

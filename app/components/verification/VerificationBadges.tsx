@@ -1,4 +1,5 @@
 import { Badge, Box, BlockStack, Text } from "@shopify/polaris";
+import { useTranslation } from "react-i18next";
 
 export function ScoreCard({
   title,
@@ -39,25 +40,26 @@ export function ScoreCard({
 }
 
 export function StatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation();
   switch (status) {
     case "success":
-      return <Badge tone="success">通过</Badge>;
+      return <Badge tone="success">{t("statusBadge.success")}</Badge>;
     case "failed":
-      return <Badge tone="critical">失败</Badge>;
+      return <Badge tone="critical">{t("statusBadge.failed")}</Badge>;
     case "missing_params":
-      return <Badge tone="warning">参数缺失</Badge>;
+      return <Badge tone="warning">{t("statusBadge.missingParams")}</Badge>;
     case "warning":
-      return <Badge tone="warning">需注意</Badge>;
+      return <Badge tone="warning">{t("statusBadge.warning")}</Badge>;
     case "deduplicated":
-      return <Badge tone="info">重复已去重</Badge>;
+      return <Badge tone="info">{t("statusBadge.deduplicated")}</Badge>;
     case "not_tested":
-      return <Badge>未测试</Badge>;
+      return <Badge>{t("statusBadge.notTested")}</Badge>;
     case "completed":
-      return <Badge tone="success">已完成</Badge>;
+      return <Badge tone="success">{t("statusBadge.completed")}</Badge>;
     case "running":
-      return <Badge tone="info">运行中</Badge>;
+      return <Badge tone="info">{t("statusBadge.running")}</Badge>;
     case "pending":
-      return <Badge>待运行</Badge>;
+      return <Badge>{t("statusBadge.pending")}</Badge>;
     default:
       return <Badge>{status}</Badge>;
   }

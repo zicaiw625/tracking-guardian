@@ -33,27 +33,27 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
     google: {
         name: "Google Analytics (GA4)",
         supportLevel: "supported",
-        recommendation: "本应用支持通过 Web Pixel 发送 GA4 转化事件",
+        recommendation: "This app supports sending GA4 conversion events via Web Pixel",
     },
     gtm: {
         name: "Google Tag Manager",
         supportLevel: "partial",
-        recommendation: "GTM 可包含多种追踪代码。GA4 事件可通过本应用管理；广告追踪（Meta 等）建议迁移到对应官方应用",
+        recommendation: "GTM can contain multiple tracking codes. GA4 events can be managed by this app; ad tracking (Meta, etc.) should be migrated to their official apps",
     },
     meta: {
         name: "Meta (Facebook/Instagram)",
         supportLevel: "supported",
-        recommendation: "本应用支持通过 Web Pixel 发送 Meta 转化事件",
+        recommendation: "This app supports sending Meta conversion events via Web Pixel",
     },
     tiktok: {
         name: "TikTok",
         supportLevel: "supported",
-        recommendation: "本应用支持通过 Web Pixel 发送 TikTok 转化事件",
+        recommendation: "This app supports sending TikTok conversion events via Web Pixel",
     },
     unknown: {
-        name: "未知平台",
+        name: "Unknown Platform",
         supportLevel: "unsupported",
-        recommendation: "无法识别的追踪代码，建议确认其用途后决定迁移方案",
+        recommendation: "Unrecognized tracking code, please verify its purpose before deciding on a migration plan",
     },
 };
 export function getPlatformInfo(platform: string): PlatformInfo {
@@ -87,22 +87,22 @@ export function getPatternType(platform: string, pattern: RegExp): string {
     const patternStr = pattern.source;
     switch (platform) {
         case "google":
-            if (patternStr.includes("gtag")) return "gtag() 函数调用";
+            if (patternStr.includes("gtag")) return "gtag() Function Call";
             if (patternStr.includes("G-")) return "GA4 Measurement ID";
-            if (patternStr.includes("UA-")) return "Universal Analytics (已弃用)";
-            return "Google Analytics 追踪代码";
+            if (patternStr.includes("UA-")) return "Universal Analytics (Deprecated)";
+            return "Google Analytics Tracking Code";
         case "gtm":
             if (patternStr.includes("gtm")) return "Google Tag Manager";
-            return "GTM 追踪代码";
+            return "GTM Tracking Code";
         case "meta":
-            if (patternStr.includes("fbq")) return "Meta Pixel 函数调用";
+            if (patternStr.includes("fbq")) return "Meta Pixel Function Call";
             if (patternStr.includes("facebook")) return "Facebook SDK";
             if (patternStr.includes("pixel")) return "Pixel ID";
-            return "Meta 追踪代码";
+            return "Meta Tracking Code";
         case "tiktok":
-            if (patternStr.includes("ttq")) return "TikTok Pixel 函数调用";
-            return "TikTok 追踪代码";
+            if (patternStr.includes("ttq")) return "TikTok Pixel Function Call";
+            return "TikTok Tracking Code";
         default:
-            return "追踪代码";
+            return "Tracking Code";
     }
 }

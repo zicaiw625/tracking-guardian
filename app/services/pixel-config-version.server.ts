@@ -36,7 +36,7 @@ export async function saveConfigSnapshot(
       },
     });
     if (!config) {
-      return { success: false, error: "配置不存在" };
+      return { success: false, error: "Configuration not found" };
     }
     const currentConfig = {
       platformId: config.platformId,
@@ -61,7 +61,7 @@ export async function saveConfigSnapshot(
     logger.error("Failed to save config snapshot", { shopId, platform, error });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "保存快照失败",
+      error: error instanceof Error ? error.message : "Failed to save snapshot",
     };
   }
 }
@@ -88,7 +88,7 @@ export async function getConfigVersionHistory(
       version: config.configVersion,
       config: {
         platformId: config.platformId,
-        credentialsEncrypted: config.credentialsEncrypted ? "***已设置***" : null,
+        credentialsEncrypted: config.credentialsEncrypted ? "***configured***" : null,
         eventMappings: config.eventMappings as Record<string, string> | null,
         environment: config.environment,
         clientSideEnabled: config.clientSideEnabled,
@@ -109,7 +109,7 @@ export async function getConfigVersionHistory(
         version: config.configVersion - 1,
         config: {
           platformId: previous.platformId || null,
-          credentialsEncrypted: previous.credentialsEncrypted ? "***已设置***" : null,
+          credentialsEncrypted: previous.credentialsEncrypted ? "***configured***" : null,
           eventMappings: previous.eventMappings || null,
           environment: previous.environment || "test",
           clientSideEnabled: previous.clientSideEnabled ?? true,
@@ -144,10 +144,10 @@ export async function rollbackConfig(
       },
     });
     if (!config) {
-      return { success: false, error: "配置不存在" };
+      return { success: false, error: "Configuration not found" };
     }
     if (!config.rollbackAllowed || !config.previousConfig) {
-      return { success: false, error: "无法回滚：没有可用的上一个版本" };
+      return { success: false, error: "Cannot rollback: no previous version available" };
     }
     const previous = config.previousConfig as {
       platformId?: string | null;
@@ -185,7 +185,7 @@ export async function rollbackConfig(
     logger.error("Failed to rollback config", { shopId, platform, error });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "回滚失败",
+      error: error instanceof Error ? error.message : "Rollback failed",
     };
   }
 }

@@ -358,6 +358,9 @@
         "completed": "Completed",
         "error": "Error"
       }
+    },
+    "action": {
+      "unknownAction": "Unknown action"
     }
   },
   "nav": {
@@ -2036,6 +2039,36 @@
         "title": "ScriptTags",
         "count": "Total ScriptTags"
       }
+    },
+    "action": {
+      "missingData": "Missing analysis data",
+      "dataTooLarge": "Analysis data too large (max {{maxSizeKB}}KB)",
+      "invalidJSON": "Unable to parse analysis data: invalid JSON format",
+      "invalidDataFormat": "Invalid analysis data format: {{error}}",
+      "sensitiveInfoDetected": "Sensitive information detected (e.g., API keys, tokens, customer data). Please redact before saving.",
+      "manualPasteLabel": "Manual Paste: {{platform}}",
+      "unidentifiedScript": "Unidentified Script",
+      "savedAssets": "Saved {{count}} audit asset records",
+      "failedSuffix": ", {{count}} failed",
+      "updatedSuffix": ", updated {{count}}",
+      "saveFailed": "Save failed, please check logs",
+      "assetSavePartialFail": "{{count}} assets failed to save",
+      "saveError": "Save failed, please try again later",
+      "missingAssetData": "Missing asset data",
+      "assetDataMustBeArray": "Asset data must be a non-empty array",
+      "invalidAssetDataFormat": "Invalid asset data format",
+      "createdAssets": "Created {{count}} audit asset records",
+      "createError": "Creation failed, please try again later",
+      "missingAssetId": "Missing asset ID",
+      "assetNotFound": "Asset not found",
+      "assetAccessDenied": "Access denied for this asset",
+      "markedComplete": "Marked as complete",
+      "markError": "Marking failed, please try again later",
+      "exportError": "Export failed, please try again later",
+      "unsupportedAction": "Unsupported action type"
+    },
+    "loader": {
+      "additionalScriptsNote": "Additional Scripts need to be identified via manual paste. Shopify API cannot automatically read Additional Scripts content from checkout.liquid."
     }
   },
   "verification": {
@@ -2697,6 +2730,23 @@
       "chatId": "Chat ID",
       "discrepancyThreshold": "Discrepancy Threshold",
       "saveConfig": "Save Configuration"
+    },
+    "action": {
+      "pixelSyncSuccess": "Auto-synced to Web Pixel configuration",
+      "pixelSyncFailed": "Web Pixel sync failed: {{error}}",
+      "pixelNotFound": "No installed Web Pixel found. Please install a pixel on the Migration page first.",
+      "pixelSyncError": "Web Pixel sync failed. Please reconfigure manually.",
+      "tokenUpdated": "Ingestion token updated.",
+      "graceWindow": " The old token will remain valid for {{minutes}} minutes.",
+      "privacyUpdated": "Privacy settings updated",
+      "alertConfigSaved": "Alert configuration saved",
+      "featureNotAvailable": "This feature is not available in the current version",
+      "missingPlatformOrEnv": "Missing platform or environment parameter",
+      "invalidEnvironment": "Invalid environment parameter",
+      "missingPlatform": "Missing platform parameter"
+    },
+    "loader": {
+      "pcdStatusMessage": "We do not collect end-customer PII. The current public version does not read order details or access PCD from Shopify."
     }
   },
   "support": {
@@ -3089,6 +3139,27 @@
               "2": "Logs correctly mark Origin: null"
             }
           }
+        }
+      }
+    },
+    "action": {
+      "missingConfigData": "Missing configuration data",
+      "planUpgradeRequired": "Pixel migration requires the Migration ($29/mo) plan or above.",
+      "configFormatError": "Configuration format error: {{error}}",
+      "invalidJSON": "Invalid JSON data",
+      "unsupportedPlatform": "Platform {{platform}} is not supported in v1. Please select GA4, Meta, or TikTok.",
+      "platformConfigError": "{{platform}} configuration error: {{error}}",
+      "saveConfigFailed": "Failed to save configuration"
+    },
+    "loader": {
+      "templates": {
+        "standard": {
+          "name": "Standard Configuration (v1)",
+          "description": "Standard event mapping for most e-commerce stores (GA4/Meta/TikTok)"
+        },
+        "advanced": {
+          "name": "Advanced Configuration (v1.1+)",
+          "description": "Complete mapping with more event types (v1.1+ will support Pinterest/Snapchat)"
         }
       }
     }
@@ -4346,7 +4417,16 @@
     "boolean": {
       "true": "Yes",
       "false": "No"
-    }
+    },
+    "success": "Passed",
+    "failed": "Failed",
+    "missingParams": "Missing Params",
+    "warning": "Attention",
+    "deduplicated": "Deduplicated",
+    "notTested": "Not Tested",
+    "completed": "Completed",
+    "running": "Running",
+    "pending": "Pending"
   },
   "verificationChecklist": {
     "items": {
@@ -4837,6 +4917,841 @@
     "sourceTips": {
       "tip1": "Check corresponding platforms and features above (Recommended)",
       "tip2": "Or copy script content to \"Manual Paste Script\" area for analysis"
+    }
+  },
+  "upgradePrompt": {
+    "title": "{{feature}} requires plan upgrade",
+    "requiresPlan": "{{feature}} requires {{plan}} plan or above",
+    "upgradeButton": "Upgrade Plan",
+    "limitReached": "Currently using {{current}} / {{limit}} {{feature}}.",
+    "notSupported": " Current plan does not support this feature.",
+    "planIncludes": "{{plan}} plan includes:",
+    "currentPlan": "Current plan: ",
+    "requiredPlan": "Required plan: ",
+    "pricePerMonth": " ({{price}}/month)",
+    "upgradeTo": "Upgrade to {{plan}}",
+    "features": {
+      "pixelDestinations": {
+        "name": "Pixel Destinations",
+        "description": "Standard event mapping + parameter completeness (v1 minimum viable migration)",
+        "featureList": [
+          "Supports GA4, Meta, TikTok (v1 only these 3 platforms)",
+          "Standard Event Mapping: Auto-map standard e-commerce events (purchase, view_item, add_to_cart, etc.)",
+          "Parameter Completeness Check: Verify event parameters (value, currency, items, etc.)",
+          "Downloadable Payload Evidence: Download event payloads for verification and archiving",
+          "Test/Live Environment Switching: Verify in test environment before publishing to production",
+          "Note: Web Pixel runs in a strict sandbox (Web Worker) with limited capabilities"
+        ]
+      },
+      "uiModules": {
+        "name": "UI Modules",
+        "description": "Thank you / Order status page customization (per Shopify official capabilities)",
+        "featureList": [
+          "Current version does not provide page module library"
+        ]
+      },
+      "verification": {
+        "name": "Verification",
+        "description": "Verify if migration configuration works correctly",
+        "featureList": [
+          "Test order generation and verification",
+          "Event parameter completeness check",
+          "Amount accuracy verification"
+        ]
+      },
+      "alerts": {
+        "name": "Alerts",
+        "description": "Real-time tracking health monitoring",
+        "featureList": [
+          "Multi-channel alerts (Email/Slack/Telegram)",
+          "Event failure rate monitoring",
+          "Auto anomaly detection"
+        ]
+      },
+      "reconciliation": {
+        "name": "Reconciliation",
+        "description": "Compare Shopify orders with platform conversion data",
+        "featureList": [
+          "Daily auto reconciliation",
+          "Deviation rate analysis",
+          "Delivery gap identification"
+        ]
+      },
+      "agency": {
+        "name": "Agency Multi-shop",
+        "description": "Manage batch operations across multiple shops",
+        "featureList": [
+          "Multi-shop workspace management",
+          "Batch audit scan",
+          "Batch apply pixel templates",
+          "Migration verification report export"
+        ]
+      }
+    }
+  },
+  "featureGate": {
+    "pixelDestinationsLimit": "Current plan supports up to {{limit}} pixel destinations, you have configured {{current}}. Please upgrade or deactivate some configurations.",
+    "requiresPlan": "{{feature}} requires {{plan}} plan or above. Current plan: {{currentPlan}}",
+    "requiresHigherPlan": "This feature requires {{plan}} plan or above"
+  },
+  "auditPaywall": {
+    "title": "Start Migration",
+    "pricePerMonth": "${{price}}/mo",
+    "migratePixel": "Migrate Pixel",
+    "migratePixelWithPlan": "Migrate Pixel ({{plan}} {{price}})",
+    "pageCustomization": "Page-side Custom Guidance",
+    "pageCustomizationWithPlan": "Page-side Custom Guidance ({{plan}} {{price}})",
+    "freeFeatures": "Free Features:",
+    "freeDesc": "View risks and checklists",
+    "paidUnlock": "Paid Unlock:",
+    "paidDesc": "Auto-generate pixel + Test/Live environments + Versioning/Rollback + Verification report export (from {{plan}} {{price}})",
+    "unlocked": "Unlocked:",
+    "upgradeUnlock": "Upgrade to Unlock:",
+    "starterUnlocked": "{{plan}} pixel migration + Test/Live environments + Versioning/Rollback",
+    "growthUnlock": "{{plan}} verification report export + Event reconciliation + Alerts",
+    "growthUnlocked": "{{plan}} verification report export + Event reconciliation + Alerts",
+    "agencyUnlock": "Multi-shop/White-label/Batch coming in v1.1; {{plan}} currently includes unlimited pixels, verification report export & SLA",
+    "agencyUnlocked": "Multi-shop/White-label/Batch coming in v1.1; Currently includes unlimited pixels, verification report export & SLA",
+    "needHelp": "Need Help:",
+    "contactCSM": "For migration hosting or custom support, please contact your Customer Success Manager",
+    "upgradeTo": "Upgrade to {{plan}} {{price}}"
+  },
+  "errorDisplay": {
+    "defaultTitle": "Error Occurred",
+    "errorCode": "Error code: {{code}}",
+    "retry": "Retry",
+    "close": "Close",
+    "unknownError": "An unknown error occurred",
+    "validationFailed": "Input validation failed",
+    "networkError": {
+      "title": "Network Connection Error",
+      "message": "Unable to connect to the server. Please check your network connection and try again."
+    },
+    "notFound": {
+      "title": "Not Found",
+      "message": "The requested {{resource}} does not exist or has been deleted.",
+      "defaultResource": "resource",
+      "goBack": "Go Back"
+    }
+  },
+  "errorBoundary": {
+    "title": "Something Went Wrong",
+    "description": "We have logged this error. Please try the following solutions:",
+    "refreshPage": "Refresh the page",
+    "checkNetwork": "Check your network connection",
+    "clearCache": "Clear browser cache and try again",
+    "contactSupport": "If the problem persists, contact technical support",
+    "errorDetails": "Error Details (Development Only)",
+    "refreshButton": "Refresh Page",
+    "retryButton": "Retry",
+    "homeButton": "Back to Home"
+  },
+  "emptyState": {
+    "defaultTitle": "No Data",
+    "defaultDescription": "No content to display.",
+    "noData": {
+      "title": "No Data",
+      "description": "No data available to display.",
+      "helpText": "Please perform related actions or try again later."
+    },
+    "noResults": {
+      "title": "No Results Found",
+      "description": "No matching search results found.",
+      "helpText": "Try adjusting your search criteria or filters.",
+      "search": "Search Again",
+      "clearFilter": "Clear Filters"
+    },
+    "notConfigured": {
+      "defaultConfig": "Configuration",
+      "title": "{{config}} Not Set Up",
+      "description": "Please complete {{config}} setup to use this feature.",
+      "start": "Start {{config}}"
+    },
+    "noPermission": {
+      "title": "Plan Upgrade Required",
+      "viewPlans": "View Plans",
+      "description": "This feature requires {{feature}} plan.",
+      "descriptionGeneral": "Your current plan does not support this feature.",
+      "helpText": "Upgrade your plan to unlock more features."
+    }
+  },
+  "metricCard": {
+    "defaultTrendPeriod": "vs last week",
+    "difference": "Difference: {{value}} ({{percent}}%)"
+  },
+  "priorityBadge": {
+    "high": "High Priority",
+    "medium": "Medium Priority",
+    "low": "Low Priority",
+    "lowest": "Lowest Priority"
+  },
+  "freeFeatureBadge": {
+    "scan": "Free Scan",
+    "report": "Free Report",
+    "checklist": "Free Checklist",
+    "migration": "Free Suggestions"
+  },
+  "timeEstimate": {
+    "minutes": "{{count}} min",
+    "hours": "{{count}} hr",
+    "hoursAndMinutes": "{{hours}} hr {{minutes}} min"
+  },
+  "eventMapping": {
+    "shopifyEvent": {
+      "checkoutCompleted": "Customer completed checkout",
+      "checkoutStarted": "Customer started checkout",
+      "productAddedToCart": "Product added to cart",
+      "productViewed": "Product detail viewed",
+      "pageViewed": "Page view"
+    },
+    "platformEvent": {
+      "google": {
+        "purchase": "Purchase completed",
+        "beginCheckout": "Begin checkout",
+        "addToCart": "Add to cart",
+        "viewItem": "View item"
+      },
+      "meta": {
+        "purchase": "Purchase completed",
+        "initiateCheckout": "Initiate checkout",
+        "addToCart": "Add to cart",
+        "viewContent": "View content"
+      },
+      "tiktok": {
+        "completePayment": "Payment completed",
+        "initiateCheckout": "Initiate checkout",
+        "addToCart": "Add to cart",
+        "viewContent": "View content"
+      }
+    },
+    "title": "Event Mapping Configuration - {{platform}}",
+    "hideComparison": "Hide Comparison",
+    "showComparison": "Show Comparison View",
+    "mappingTemplate": "Mapping Template",
+    "recommendedDefault": "Recommended Mapping (Default)",
+    "purchaseEventOnly": "Purchase Event Only",
+    "fullFunnelMapping": "Full Funnel Mapping",
+    "applyRecommended": "One-click Apply Recommended Mapping",
+    "table": {
+      "shopifyEvent": "Shopify Event",
+      "currentMapping": "Current Mapping",
+      "recommendedMapping": "Recommended Mapping",
+      "status": "Status"
+    },
+    "comparisonView": "Comparison View",
+    "recommended": "Recommended",
+    "custom": "Custom",
+    "unmapped": "Unmapped",
+    "notConfigured": "Not Configured",
+    "unknownShopifyEvent": "Unknown Shopify event: {{event}}",
+    "unknownPlatformEvent": "Unknown platform event: {{event}}",
+    "missingRequiredParams": "Missing required parameters: {{params}}",
+    "missingParamsWarning": "Missing required parameters",
+    "missingParams": "Missing: {{params}}",
+    "platformEventPreview": "Platform Event: {{event}}",
+    "selectPlatformEvent": "Select Platform Event",
+    "selectEvent": "Select Event",
+    "mapToPlatformEvent": "Map to Platform Event",
+    "mapToArrow": "→",
+    "platformEventParams": "Platform Event Parameters",
+    "required": "Required",
+    "optional": "Optional",
+    "shopifyEventParams": "Shopify Event Parameters",
+    "paramMappingDetails": "Parameter Mapping Details",
+    "paramMappingPreview": "Parameter Mapping Preview",
+    "mappedParams": "Mapped Parameters",
+    "previewEventJson": "Preview Event JSON",
+    "previewDescription": "The actual event will be sent as follows:",
+    "showPreview": "Show Preview",
+    "hidePreview": "Hide Preview",
+    "infoDescription": "Shopify Web Pixel sandbox limitations: only standard events and the following parameters can be accessed.",
+    "bestPracticesTitle": "Best Practices",
+    "bestPractice1": "Prioritize mapping purchase and checkout events",
+    "bestPractice2": "Ensure required parameters (value, currency) are mapped",
+    "bestPractice3": "Use recommended mapping as a starting point",
+    "recommendedPrefix": "(Recommended) ",
+    "apply": "Apply",
+    "selectAll": "Select All",
+    "clearSelection": "Clear Selection",
+    "cancelSelection": "Cancel Selection",
+    "bulkEditMode": "Bulk Edit Mode",
+    "bulkMapTo": "Bulk Map To:",
+    "batchEditHint": "Select multiple events for batch mapping",
+    "moveUp": "Move Up",
+    "moveDown": "Move Down",
+    "error": "Error"
+  },
+  "migrationChecklist": {
+    "title": "Migration Checklist Confirmation",
+    "subtitle": "Confirm items that need migration",
+    "confirmedCount": "{{confirmed}} / {{total}} confirmed",
+    "highRiskCount": "{{count}} high risk",
+    "progress": "Progress",
+    "estimatedTimeMinutes": "Estimated: {{minutes}} min",
+    "estimatedTimeHoursMinutes": "Estimated: {{hours}} hr {{minutes}} min",
+    "estimatedMinutes": "{{minutes}} min",
+    "confirmAll": "Confirm All",
+    "exportChecklist": "Export Checklist",
+    "addManually": "Add Manually",
+    "viewGuide": "View Shopify Official Guide",
+    "upgradeWizardTitle": "Shopify Upgrade Wizard Checklist",
+    "upgradeWizardDescription": "How to get the migration checklist from Shopify:",
+    "noItems": "No items in the migration checklist.",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "addItem": "Add",
+    "source": {
+      "apiScan": "API Scan",
+      "manualPaste": "Manual Paste",
+      "merchantConfirmed": "Merchant Confirmed"
+    },
+    "status": {
+      "completed": "Completed",
+      "inProgress": "In Progress",
+      "pending": "Pending"
+    },
+    "risk": {
+      "high": "High Risk",
+      "medium": "Medium Risk",
+      "low": "Low Risk"
+    },
+    "migrationType": {
+      "serverSide": "Server-side Migration",
+      "uiExtension": "UI Extension",
+      "unknown": "Unknown"
+    },
+    "type": {
+      "other": "Other"
+    },
+    "guideModal": {
+      "title": "Shopify Official Upgrade Wizard Guide",
+      "step1Title": "Step 1: Open Settings",
+      "step1Content": "In Shopify Admin, click Settings then Checkout and order processing",
+      "step2Title": "Step 2: Find Migration Notice",
+      "step2Content": "Look for the Thank you page upgrade section",
+      "step3Title": "Step 3: View Migration Checklist",
+      "step3Content": "Shopify will list all scripts and features that need migration",
+      "step4Title": "Step 4: Copy Checklist",
+      "step4Content": "Select all, copy, then paste into the Guided Supplement panel",
+      "infoBanner": "If upgrade wizard is not available, find Additional Scripts in Settings > Checkout.",
+      "plusWarning": "Shopify Plus: Also check checkout.liquid for custom code",
+      "openSettings": "Open Shopify Checkout Settings",
+      "gotIt": "Got it"
+    },
+    "manualSection": {
+      "title": "Manual Addition",
+      "description": "Manually add assets not identified by auto-scan:",
+      "step1": "Click Add Manually above",
+      "step2": "Fill in asset name and type",
+      "step3": "System will add it to the checklist"
+    },
+    "addModal": {
+      "title": "Add Migration Item",
+      "nameLabel": "Asset Name",
+      "namePlaceholder": "e.g.: Custom Review Script",
+      "typeLabel": "Asset Type",
+      "notesLabel": "Notes (Optional)",
+      "notesPlaceholder": "e.g.: Used on product pages",
+      "add": "Add",
+      "cancel": "Cancel"
+    }
+  },
+  "dashboardRiskScore": {
+    "title": "Risk Score",
+    "pendingAssessment": "Pending",
+    "showAfterScan": "Show after scan",
+    "riskLevelLabel": "Risk Level",
+    "riskLevel": {
+      "high": "High Risk",
+      "medium": "Medium Risk",
+      "low": "Low Risk",
+      "pending": "Pending"
+    },
+    "estimatedMigrationTime": "Estimated Migration Time",
+    "estimatedTime": {
+      "calculating": "Pending",
+      "minutes": "{{count}} min",
+      "hours": "{{count}} hr",
+      "hoursAndMinutes": "{{hours}} hr {{minutes}} min"
+    },
+    "topRiskSources": "Top Risk Sources",
+    "sourceCount": "{{count}} items"
+  },
+  "migrationProgress": {
+    "title": "Migration Progress",
+    "empty": {
+      "title": "No Migration Progress",
+      "description": "Progress will be displayed here after migration starts.",
+      "startScan": "Start Scan"
+    },
+    "detailedProgress": "Detailed Progress",
+    "auditCompletion": "Audit Completion",
+    "pixelsStatus": "Pixel Configuration",
+    "modulesEnabled": "Modules Enabled",
+    "modulesCount": "{{count}} items",
+    "verificationLatest": "Latest Verification",
+    "status": {
+      "completed": "Completed",
+      "inProgress": "In Progress",
+      "pending": "Pending",
+      "running": "Running",
+      "noRecord": "No Record"
+    },
+    "continueMigration": "Continue Migration",
+    "startScan": "Start Scan"
+  },
+  "configComparison": {
+    "title": "Configuration Comparison",
+    "noHistory": "No historical version available",
+    "changesCount": "{{count}} changes",
+    "changedFields": "Changed Fields",
+    "unchangedFields": "Unchanged Fields",
+    "currentVersion": "Current Version",
+    "updatedAt": "Updated: {{time}}",
+    "environment": "Environment",
+    "headings": {
+      "field": "Field",
+      "currentValue": "Current Value",
+      "previousValue": "Previous Value"
+    },
+    "fieldLabels": {
+      "platformId": "Platform ID",
+      "clientSideEnabled": "Client-side Tracking",
+      "serverSideEnabled": "Server-side Tracking",
+      "eventMappings": "Event Mappings",
+      "clientConfig": "Client Configuration",
+      "environment": "Environment",
+      "credentialsEncrypted": "Credentials"
+    },
+    "boolean": {
+      "yes": "Yes",
+      "no": "No"
+    },
+    "env": {
+      "live": "Production",
+      "test": "Test"
+    }
+  },
+  "migrationDependency": {
+    "title": "Dependency Analysis",
+    "empty": "No assets pending migration",
+    "assetCount": "{{count}} assets",
+    "dependencyCount": "{{count}} dependencies",
+    "estimatedTime": "Estimated: {{time}}",
+    "time": {
+      "minutes": "{{count}} min",
+      "hours": "{{count}} hr",
+      "hoursAndMinutes": "{{hours}} hr {{minutes}} min"
+    },
+    "cyclicDependency": {
+      "title": "Cyclic Dependency Detected",
+      "description": "The following assets have circular dependencies:",
+      "cycleCount": "{{count}} cycles"
+    },
+    "criticalPath": {
+      "title": "Critical Path",
+      "steps": "{{count}} steps"
+    },
+    "recommendedOrder": "Recommended Migration Order",
+    "priority": "Priority {{index}}",
+    "dependencyDetails": "Dependency Details",
+    "dependsOn": "depends on"
+  },
+  "pixelWizard": {
+    "title": "Pixel Migration Wizard",
+    "progress": {
+      "step": "Step {{current}} / {{total}}",
+      "complete": "{{percent}}% Complete"
+    },
+    "validation": {
+      "selectPlatform": "Please select at least one platform",
+      "missingField": "{{name}}: Missing {{label}}",
+      "configNotFound": "{{name}}: Configuration not found",
+      "needEventMapping": "{{name}}: At least one event mapping is required",
+      "configError": "Configuration error: {{errors}}",
+      "configMissing": "Configuration not found: {{platform}}",
+      "completeStep": "Please complete the current step: {{errors}}"
+    },
+    "toast": {
+      "configSaved": "Configuration saved, verifying..."
+    },
+    "button": {
+      "cancel": "Cancel",
+      "previous": "Previous",
+      "skip": "Skip This Step",
+      "save": "Save Configuration",
+      "next": "Next"
+    }
+  },
+  "manualPaste": {
+    "pii": {
+      "emailDetected": "Possible email address detected, please replace with a placeholder",
+      "phoneDetected": "Possible phone number detected, please replace with a placeholder",
+      "creditCardDetected": "Possible credit card number detected, please remove immediately",
+      "longStringDetected": "Possible long string detected (may be API key or token), please check and replace",
+      "apiKeyDetected": "API key or access token detected, please replace with [TOKEN_REDACTED]",
+      "passwordDetected": "Password field detected, please remove immediately",
+      "matchSummary": "{{message}} ({{count}} found, examples: {{examples}})"
+    },
+    "validation": {
+      "evalDetected": "eval() function detected, potential security risk",
+      "cookieDetected": "Direct cookie manipulation detected, may violate privacy policy",
+      "innerHtmlDetected": "innerHTML operation detected, potential XSS risk",
+      "documentWriteDetected": "document.write() detected, may block page loading",
+      "externalScriptDetected": "External script reference detected, source verification needed",
+      "unclosedTag": "Script snippet {{index}} has unclosed tags",
+      "unescapedHtml": "Unescaped HTML tags detected, may cause parsing errors"
+    },
+    "snippet": {
+      "unknownScript": "Unknown Script"
+    },
+    "risk": {
+      "high": "High Risk",
+      "medium": "Medium Risk",
+      "low": "Low Risk"
+    },
+    "header": {
+      "title": "Manual Script Paste Analysis",
+      "badge": "Manual Input"
+    },
+    "guide": {
+      "title": "How to Get Additional Scripts",
+      "description": "Follow the steps below to get all scripts that need migration:",
+      "screenshotTitle": "Screenshot-guided Instructions (Recommended)",
+      "screenshotDescription": "We recommend taking screenshots at each key step:",
+      "screenshotBenefit1": "Confirm correct location",
+      "screenshotBenefit2": "Record Additional Scripts content",
+      "screenshotBenefit3": "Review when needed",
+      "screenshotBenefit4": "Provide to support if needed",
+      "keyScreenshotsTitle": "Key Screenshot Locations:",
+      "screenshot1Title": "Screenshot 1: Shopify Admin → Settings → Checkout",
+      "screenshot1Tip": "Ensure screenshot includes Settings and Checkout title",
+      "screenshot2Title": "Screenshot 2: Additional Scripts text box area",
+      "screenshot2Tip": "Scroll to Order status page section",
+      "screenshot3Title": "Screenshot 3: Script content area",
+      "screenshot3Tip": "Zoom in for clear visibility",
+      "screenshot4Title": "Screenshot 4: Review customizations page",
+      "screenshot4Tip": "Save if Shopify upgrade wizard shows this page",
+      "wizardPathTitle": "Shopify Official Upgrade Wizard Path",
+      "wizardPathDescription": "Access via:",
+      "wizardPathStep1": "Settings → Checkout → Review customizations",
+      "wizardPathStep2": "Shopify lists all scripts needing migration",
+      "wizardPathStep3": "Click each item for details",
+      "wizardPathTip": "If no upgrade wizard, find Additional Scripts in Settings → Checkout."
+    },
+    "steps": {
+      "step1Title": "Step 1: Access Shopify Admin",
+      "step1Description": "Log in to Shopify Admin and click Settings",
+      "step1Tip": "Ensure you have admin permissions",
+      "step1Location": "Settings icon at bottom of navigation",
+      "step2Title": "Step 2: Open Checkout Settings",
+      "step2Description": "Find and click Checkout and order processing",
+      "step2Tip": "Confirm your plan supports custom checkout",
+      "step2Location": "In the main settings list",
+      "step3Title": "Step 3: Find Additional Scripts",
+      "step3Description": "Scroll to Order status page section",
+      "step3Tip": "If not visible, store may have upgraded",
+      "step3LocationNote": "Below Order status page settings",
+      "step3LocationDetail": "Multiline text input labeled Additional Scripts",
+      "step3ScreenshotTip": "Take screenshot to confirm location",
+      "step4Title": "Step 4: Copy Script Content",
+      "step4Description": "Select all and copy (Ctrl+C / Cmd+C)",
+      "step4Important": "Ensure complete content including all tags",
+      "step4Tip": "Select all segments if multiple scripts",
+      "step4Operation": "Ctrl+A to select all, Ctrl+C to copy",
+      "step5Title": "Step 5: Paste and Analyze",
+      "step5Description": "Paste into text box below for auto-analysis",
+      "step5Tip": "System auto-identifies multiple scripts",
+      "step5Operation": "Paste with Ctrl+V, then click Analyze"
+    },
+    "sensitive": {
+      "title": "Redact Sensitive Info Before Pasting",
+      "description": "System blocks analysis if sensitive info detected:",
+      "apiKeysTitle": "API Keys and Tokens:",
+      "apiKeysDescription": "Replace with [API_KEY_REDACTED] or remove",
+      "piiTitle": "Customer PII:",
+      "piiDescription": "Replace with placeholders or remove",
+      "secretsTitle": "Private Keys and Passwords:",
+      "secretsDescription": "Replace with [SECRET_REDACTED] or remove",
+      "exampleTitle": "Redaction Example:",
+      "exampleBefore": "Original: fbq(\"init\", \"EXAMPLE_PIXEL_ID\"...)",
+      "exampleAfter": "After: fbq(\"init\", \"[PIXEL_ID_REDACTED]\"...)"
+    },
+    "notes": {
+      "title": "Important Notes",
+      "apiLimitation": "Shopify API cannot auto-read Additional Scripts; manual copy-paste required.",
+      "autoDetection": "System auto-identifies and deduplicates multiple scripts",
+      "commonScripts": "Common scripts (Meta Pixel, GA, TikTok) auto-identified",
+      "emptyScripts": "Empty area means no extra tracking scripts",
+      "localAnalysis": "Analysis runs locally, no upload"
+    },
+    "reference": {
+      "title": "Shopify Official Documentation",
+      "description": "For more help, see the Shopify official upgrade guide:"
+    },
+    "privacy": {
+      "title": "Privacy Notice",
+      "description": "This tool analyzes scripts locally and does not upload content."
+    },
+    "detection": {
+      "piiWarningTitle": "Sensitive Information (PII) Detected:",
+      "piiWarningDescription": "Remove or replace all sensitive information before proceeding.",
+      "snippetsFound": "{{count}} script snippet(s) identified:",
+      "snippetLocation": " (position: characters {{start}}-{{end}})",
+      "snippetsTip": "Click Analyze to process each snippet.",
+      "issuesTitle": "Potential Issues Detected:"
+    },
+    "editor": {
+      "label": "Script Content",
+      "placeholder": "Paste your script content here...",
+      "helpText": "{{count}} characters entered",
+      "richPlaceholder": "Paste your script content here..."
+    },
+    "result": {
+      "analysisComplete": "Analysis complete. Results are local only.",
+      "creatingAssets": "Creating migration assets...",
+      "title": "Analysis Results",
+      "snippetsLabel": "Code Snippets:",
+      "snippetsCount": "{{count}}",
+      "platformsLabel": "Platforms:",
+      "none": "None",
+      "riskLabel": "Overall Risk:",
+      "assetsTitle": "Assets ({{count}})",
+      "riskHigh": "High Risk",
+      "riskMedium": "Medium Risk",
+      "riskLow": "Low Risk",
+      "confidenceHigh": "High Confidence",
+      "confidenceMedium": "Medium Confidence",
+      "confidenceLow": "Low Confidence",
+      "assetDetail": "Category: {{category}} | Migration: {{migration}}"
+    }
+  },
+  "guidedSupplement": {
+    "checklist": {
+      "ga4": "Google Analytics 4 (GA4)",
+      "meta": "Meta Pixel (Facebook)",
+      "tiktok": "TikTok Pixel",
+      "survey": "Post-purchase Survey / Reviews",
+      "support": "Customer Service / Help Center",
+      "reorder": "Reorder Feature",
+      "affiliate": "Affiliate Tracking / Commission",
+      "tracking": "Order Tracking / Logistics",
+      "other": "Other Scripts or Features"
+    },
+    "modal": {
+      "title": "Supplement from Shopify Upgrade Wizard",
+      "complete": "Complete",
+      "next": "Next",
+      "back": "Back",
+      "cancel": "Cancel"
+    },
+    "steps": {
+      "step1": "Step 1",
+      "step2": "Step 2",
+      "step3": "Step 3"
+    },
+    "step1": {
+      "title": "Select Features from Upgrade Wizard",
+      "description": "Select all features used on Thank you / Order status page",
+      "guideTitle": "How to get the upgrade wizard checklist:",
+      "guideStep1": "Go to Shopify Admin → Settings → Checkout",
+      "guideStep2": "Find the Thank you page upgrade section",
+      "guideStep3": "Review the listed scripts and features",
+      "guideStep4": "Check corresponding features below",
+      "v1ScopeTitle": "v1 Support Scope:",
+      "v1PixelSupport": "Pixel: v1 supports GA4, Meta, TikTok only",
+      "v1UiModules": "UI Modules: v1 excludes Survey/Helpdesk",
+      "v1SelectAll": "Select all features you use.",
+      "v1Supported": "v1 Supported",
+      "emptySelection": "Please select at least one feature"
+    },
+    "step2": {
+      "title": "Supplementary Info (Optional)",
+      "description": "Paste checklist text from upgrade wizard",
+      "methodsTitle": "Two methods:",
+      "method1": "Method 1: Paste checklist text",
+      "method2": "Method 2: Upload screenshot",
+      "comingSoon": "Coming Soon",
+      "pasteTitle": "Paste checklist text:",
+      "pasteLabel": "Checklist Content",
+      "pastePlaceholder": "Paste from Shopify upgrade wizard...",
+      "pasteHelpText": "System auto-identifies features",
+      "tip": "Screenshot recognition coming soon.",
+      "selectedTitle": "Selected Features:"
+    },
+    "step3": {
+      "title": "Additional Info (Optional)",
+      "description": "Fill in additional information",
+      "notesLabel": "Additional Notes",
+      "notesPlaceholder": "e.g.: Custom order tracking, third-party CS...",
+      "notesHelpText": "Helps assess migration risks accurately",
+      "summaryTitle": "Summary",
+      "manuallySelected": "Manually Selected:",
+      "none": "None",
+      "autoDetected": "Auto-detected:",
+      "sourceInfo": "From Shopify upgrade wizard",
+      "sourceInfoWithText": " + text detection",
+      "successMessage": "Migration assets created!"
+    }
+  },
+  "checkoutExtWarning": {
+    "title": "Important: Checkout Extensibility Migration Edge Cases",
+    "intro": "When migrating from checkout.liquid to Checkout Extensibility, please note:",
+    "items": [
+      "Some Additional Scripts may depend on checkout.liquid features (such as Liquid variables, DOM manipulation, etc.) that are not available in Web Pixel sandbox.",
+      "Web Pixel runs in a strict sandbox (Web Worker) that cannot access DOM, localStorage, third-party cookies, etc.",
+      "Scripts containing DOM manipulation (e.g. adding custom UI elements, modifying page content) need to be migrated to Checkout UI Extensions.",
+      "Scripts that only send conversion events (GA4, Meta Pixel, TikTok Pixel, etc.) can be migrated to Web Pixel."
+    ],
+    "recommendation": "Recommendation: First confirm the functionality of each script, then choose the appropriate migration method (Web Pixel or UI Extension).",
+    "learnMore": "Learn More"
+  },
+  "checkoutBehaviorHint": {
+    "title": "Possible Reasons for Missing checkout_completed Event",
+    "subtitle": "In many cases, not receiving checkout_completed is not a bug, but expected behavior.",
+    "upsellTitle": "Post-purchase Upsell / One-click Upsell",
+    "upsellDesc": "If a post-purchase upsell app is installed, the normal checkout flow may be interrupted; the user might not reach the standard Thank You page.",
+    "consentTitle": "Customer Privacy / Consent (GDPR, CCPA)",
+    "consentDesc": "If the customer rejects analytics/marketing cookie consent, Shopify may suppress Web Pixel firing. This is a platform limitation that cannot be bypassed.",
+    "shopPayTitle": "Shop Pay Accelerated Checkout",
+    "shopPayDesc": "Shop Pay accelerated checkout may skip the standard order status page, resulting in no pixel event being fired.",
+    "ajaxCheckoutTitle": "AJAX / Headless Checkout",
+    "ajaxCheckoutDesc": "Some custom or headless checkout implementations may not trigger standard Web Pixel events.",
+    "note": "If the missing event rate is within 5%, it is usually within a normal and reasonable range."
+  },
+  "verificationHistory": {
+    "title": "Verification History",
+    "columns": [
+      "Time",
+      "Type",
+      "Status",
+      "Passed",
+      "Failed",
+      "Missing Params"
+    ],
+    "type": {
+      "full": "Full",
+      "quick": "Quick"
+    },
+    "empty": {
+      "title": "No verification history",
+      "description": "History will be displayed here after running verification tests.",
+      "action": "Run Verification"
+    },
+    "runLabel": "{{type}} Verification"
+  },
+  "testGuide": {
+    "title": "Test Order Guide",
+    "copyGuide": "Copy Guide",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "estimatedTime": "Estimated time: {{time}}",
+    "tips": "Tips"
+  },
+  "selectPlatformStep": {
+    "title": "Select Platforms to Configure",
+    "description": "Select the ad platforms you want to migrate.",
+    "templateTip": "Tip: Use preset templates or manually select platforms.",
+    "viewTemplates": "View Preset Templates",
+    "coreCapabilities": "v1 Pixel Migration Core Capabilities:",
+    "standardEventMapping": "Standard Event Mapping",
+    "standardEventMappingDesc": ": Shopify events → Platform events (GA4/Meta/TikTok)",
+    "paramCompletenessCheck": "Parameter Completeness Check",
+    "paramCompletenessCheckDesc": ": Auto-verify event parameter completeness",
+    "downloadablePayload": "Downloadable Payload Evidence",
+    "downloadablePayloadDesc": ": For verification and archival (Test/Live)",
+    "v1SupportedPlatforms": "v1 Supported Platforms",
+    "v1SupportedPlatformsDesc": ": GA4, Meta, TikTok",
+    "v1_1Planning": "v1.1+ Roadmap",
+    "v1_1PlanningDesc": ": Pinterest, Snapchat coming in future versions",
+    "techLimitations": "Technical Limitations:",
+    "techLimitationsDetail": "Web Pixel runs in strict sandbox with limited capabilities.",
+    "v1Supported": "v1 Supported",
+    "futureVersionSupport": " (Coming in v1.1+)",
+    "platformUnavailable": "This platform will be supported in v1.1+.",
+    "selectTemplate": "Select Preset Template",
+    "close": "Close",
+    "templateSelectDesc": "Select a template to quickly configure event mappings.",
+    "public": "Public",
+    "usageCount": "Used {{count}} times",
+    "apply": "Apply"
+  },
+  "reviewStep": {
+    "errorTemplateName": "Please enter a template name",
+    "templateSaved": "Template saved!",
+    "templateSaveError": "Failed to save template",
+    "title": "Review Configuration",
+    "description": "Review configuration below. Click Save after confirming.",
+    "configErrors": "Configuration Errors",
+    "configComplete": "Configuration Complete",
+    "configIncomplete": "Configuration Incomplete",
+    "environment": "Environment",
+    "liveMode": "Live Mode",
+    "testMode": "Test Mode",
+    "platformId": "Platform ID",
+    "notFilled": "Not filled",
+    "eventMappings": "Event Mappings",
+    "eventCount": "{{count}} events",
+    "saveAsTemplate": "Save as Template",
+    "saveAsTemplateDesc": "Save current configuration as a reusable template.",
+    "save": "Save",
+    "cancel": "Cancel",
+    "templateNameLabel": "Template Name",
+    "templateNamePlaceholder": "e.g., Standard E-commerce Config",
+    "templateNameHelp": "Give the template a recognizable name",
+    "templateDescLabel": "Description",
+    "templateDescPlaceholder": "Describe the template purpose",
+    "publicTemplate": "Public Template",
+    "publicTemplateHelp": "Public templates can be used by other users",
+    "templateSaveInfo": "Template will save:",
+    "templatePlatforms": "Platforms: {{platforms}}",
+    "templateEventCount": "Event Mappings: {{count}} events",
+    "templateNote": "Note: Templates do not save credentials."
+  },
+  "credentialsStep": {
+    "title": "Enter Platform Credentials",
+    "description": "Enter API credentials for each selected platform.",
+    "liveMode": "Live Mode",
+    "testMode": "Test Mode",
+    "switchEnvironment": "Switch Environment",
+    "testEnvOption": "Test Environment - For verifying configuration",
+    "liveEnvOption": "Live Environment",
+    "testModeHelp": "Test mode: For verifying mappings",
+    "liveModeHelp": "Live mode: For production monitoring",
+    "testModeInfo": "In test mode, events are sent to test endpoints."
+  },
+  "eventMappingsStep": {
+    "title": "Configure Event Mappings",
+    "description": "Map Shopify events to platform event names. Recommended mappings are pre-configured."
+  },
+  "migrationCountdownComp": {
+    "versionSuffix": ""
+  },
+  "privacyPage": {
+    "deleteItems": [
+      "All conversion records",
+      "All event logs",
+      "All survey responses",
+      "All configurations and settings"
+    ],
+    "cancelButton": "Cancel"
+  },
+  "subscriptionTabExtra": {
+    "billingHistoryNote": "You can visit the Subscription & Billing page to view complete billing history, usage statistics and invoices."
+  },
+  "scanManualSupplement": {
+    "migrationChecklistSuggestion": "Migration Checklist Suggestions"
+  },
+  "manualAnalysis": {
+    "migrationChecklistSuggestion": "Migration Checklist Suggestions"
+  },
+  "pixelConfig": {
+    "action": {
+      "missingPlatform": "Missing platform parameter",
+      "unsupportedPlatform": "Platform {{platform}} is not supported in v1.0.",
+      "invalidEnvironment": "Invalid environment parameter",
+      "unknownAction": "Unknown action",
+      "operationError": "Operation failed, please try again later"
     }
   }
 }

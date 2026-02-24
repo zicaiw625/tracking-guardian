@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { useTranslation } from "react-i18next";
 import { Badge, BlockStack, Box, Card, Divider, InlineStack, List, Text } from "@shopify/polaris";
 
 export const DashboardRiskScoreCard = memo(function DashboardRiskScoreCard({
@@ -12,20 +13,21 @@ export const DashboardRiskScoreCard = memo(function DashboardRiskScoreCard({
   estimatedMigrationTimeMinutes?: number | null;
   topRiskSources?: Array<{ source: string; count: number; category: string }>;
 }) {
+  const { t } = useTranslation();
   const riskBadge =
     riskLevel === "high"
-      ? { tone: "critical" as const, label: "高风险" }
+      ? { tone: "critical" as const, label: t("dashboardRiskScore.riskLevel.high") }
       : riskLevel === "medium"
-        ? { tone: "warning" as const, label: "中风险" }
+        ? { tone: "warning" as const, label: t("dashboardRiskScore.riskLevel.medium") }
         : riskLevel === "low"
-          ? { tone: "success" as const, label: "低风险" }
-          : { tone: "info" as const, label: "待评估" };
+          ? { tone: "success" as const, label: t("dashboardRiskScore.riskLevel.low") }
+          : { tone: "info" as const, label: t("dashboardRiskScore.riskLevel.pending") };
   const formatEstimatedTime = (minutes: number | null): string => {
-    if (minutes === null) return "待计算";
-    if (minutes < 60) return `${minutes} 分钟`;
+    if (minutes === null) return t("dashboardRiskScore.estimatedTime.calculating");
+    if (minutes < 60) return t("dashboardRiskScore.estimatedTime.minutes", { minutes });
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
+    return mins > 0 ? t("dashboardRiskScore.estimatedTime.hoursAndMinutes", { hours, mins }) : t("dashboardRiskScore.estimatedTime.hours", { hours });
   };
   const riskColor = riskLevel === "high"
     ? "bg-fill-critical"
@@ -38,7 +40,7 @@ export const DashboardRiskScoreCard = memo(function DashboardRiskScoreCard({
     <Card>
       <BlockStack gap="400">
         <Text as="h2" variant="headingMd">
-          风险分数
+          {t("dashboardRiskScore.title")}
         </Text>
         <Box background={riskColor} padding="600" borderRadius="200">
           <BlockStack gap="200" align="center">
@@ -52,10 +54,10 @@ export const DashboardRiskScoreCard = memo(function DashboardRiskScoreCard({
             ) : (
               <>
                 <Text as="p" variant="headingLg" fontWeight="semibold">
-                  待评估
+                  {t("dashboardRiskScore.pendingAssessment")}
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  完成体检后显示
+                  {t("dashboardRiskScore.showAfterScan")}
                 </Text>
               </>
             )}
@@ -63,14 +65,14 @@ export const DashboardRiskScoreCard = memo(function DashboardRiskScoreCard({
         </Box>
         <InlineStack align="space-between" blockAlign="center">
           <Text as="span" variant="bodyMd" fontWeight="semibold">
-            风险等级
+            {t("dashboardRiskScore.riskLevelLabel")}
           </Text>
           <Badge tone={riskBadge.tone}>{riskBadge.label}</Badge>
         </InlineStack>
         <Divider />
         <InlineStack align="space-between" blockAlign="center">
           <Text as="span" variant="bodyMd" fontWeight="semibold">
-            预计迁移时长
+            {t("dashboardRiskScore.estimatedMigrationTime")}
           </Text>
           <Text as="span" variant="bodyMd">
             {formatEstimatedTime(estimatedMigrationTimeMinutes ?? null)}
@@ -81,7 +83,7 @@ export const DashboardRiskScoreCard = memo(function DashboardRiskScoreCard({
             <Divider />
             <BlockStack gap="200">
               <Text as="span" variant="bodyMd" fontWeight="semibold">
-                主要风险来源
+                {t("dashboardRiskScore.topRiskSources")}
               </Text>
               <List>
                 {topRiskSources.map((source, index) => (
@@ -90,7 +92,7 @@ export const DashboardRiskScoreCard = memo(function DashboardRiskScoreCard({
                       <Text as="span" variant="bodySm">
                         {index + 1}. {source.source}
                       </Text>
-                      <Badge tone="critical">{`${source.count} 个`}</Badge>
+                      <Badge tone="critical">{t("dashboardRiskScore.sourceCount", { count: source.count })}</Badge>
                     </InlineStack>
                   </List.Item>
                 ))}

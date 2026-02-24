@@ -2,7 +2,7 @@ import prisma from "../../db.server";
 import { createAuditLog } from "../audit.server";
 import { logger } from "../../utils/logger.server";
 import { assertSafeRedirect } from "../../utils/redirect-validation.server";
-import { BILLING_PLANS, type PlanId, detectPlanFromPrice, isHigherTier } from "./plans";
+import { BILLING_PLANS, type PlanId, detectPlanFromPrice, isHigherTier, getPlanDisplayName } from "./plans";
 import { getShopPlan } from "../shop-tier.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 
@@ -418,7 +418,7 @@ export async function createSubscription(
   if (planId === "monitor") {
     return {
       success: false,
-      error: "Monitor 计划不在 v1.0 正式套餐中。Monitor 是可选叠加功能，将在后续版本中作为独立附加服务提供。"
+      error: "Monitor plan is not included in v1.0 official plans. Monitor is an optional add-on that will be available as a standalone service in future versions."
     };
   }
   const plan = BILLING_PLANS[planId];
@@ -429,7 +429,7 @@ export async function createSubscription(
     const currentStatus = await getSubscriptionStatus(admin, shopDomain);
     const currentPlan = currentStatus.plan;
     if (currentPlan === planId && currentStatus.hasActiveSubscription) {
-      return { success: false, error: "当前已是该套餐，无需重复订阅" };
+      return { success: false, error: "You are already on this plan. No need to subscribe again." };
     }
 
     // Check for pending subscription for the same plan (prevent reviewer loop)
@@ -474,7 +474,7 @@ export async function createSubscription(
     const currencyCode = "USD";
     const response = await admin.graphql(CREATE_SUBSCRIPTION_MUTATION, {
       variables: {
-        name: `Tracking Guardian - ${plan.name}`,
+        name: `Tracking Guardian - ${getPlanDisplayName(planId)}`,
         lineItems: [
           {
             plan: {
@@ -500,11 +500,11 @@ export async function createSubscription(
       logger.error(`Billing API error: ${errorMessage}`);
       let friendlyError = errorMessage;
       if (errorMessage.includes("Apps without a public distribution cannot use the Billing API")) {
-        friendlyError = "应用尚未在 Shopify App Store 公开发布，无法使用计费功能。请联系开发者或等待应用发布。";
+        friendlyError = "The app has not been publicly distributed on the Shopify App Store and cannot use billing features. Please contact the developer or wait for the app to be published.";
       } else if (errorMessage.includes("public distribution")) {
-        friendlyError = "应用需要公开发布才能使用计费功能。";
+        friendlyError = "The app must be publicly distributed to use billing features.";
       } else if (errorMessage.includes("test mode") || errorMessage.includes("test subscription")) {
-        friendlyError = "测试模式下无法创建真实订阅。";
+        friendlyError = "Cannot create a real subscription in test mode.";
       }
       return { success: false, error: friendlyError };
     }
@@ -629,7 +629,7 @@ export async function cancelSubscription(
     if (status.subscriptionId === subscriptionId && status.status && status.status !== "ACTIVE") {
       return {
         success: false,
-        error: `无法取消订阅：当前状态为 ${status.status}，只有激活状态的订阅可以取消`,
+        error: `Cannot cancel subscription: current status is ${status.status}. Only active subscriptions can be cancelled.`,
       };
     }
     
@@ -770,7 +770,7 @@ export async function handleSubscriptionConfirmation(
     if (matchingSubscription.status !== "ACTIVE") {
       return {
         success: false,
-        error: `订阅状态为 ${matchingSubscription.status}，请返回 Shopify 账单页确认是否完成，或稍后刷新页面`,
+        error: `Subscription status is ${matchingSubscription.status}. Please return to the Shopify billing page to confirm completion, or refresh the page later.`,
       };
     }
     
@@ -811,7 +811,7 @@ export async function createOneTimePurchase(
 ): Promise<OneTimePurchaseResult> {
   const plan = BILLING_PLANS[planId];
   if (!plan || !("isOneTime" in plan) || !plan.isOneTime) {
-    return { success: false, error: "此套餐不支持一次性收费（v1.0 中所有计划均为月付，符合 PRD 11.1 要求）" };
+    return { success: false, error: "This plan does not support one-time charges (all v1.0 plans are monthly subscriptions per PRD 11.1 requirements)." };
   }
   try {
     const planInfo = await getShopPlan(admin as AdminApiContext);
@@ -822,7 +822,7 @@ export async function createOneTimePurchase(
     const currencyCode = "USD";
     const response = await admin.graphql(CREATE_ONE_TIME_PURCHASE_MUTATION, {
       variables: {
-        name: `Tracking Guardian - ${plan.name} (一次性)`,
+        name: `Tracking Guardian - ${getPlanDisplayName(planId)} (One-time)`,
         price: {
           amount: plan.price,
           currencyCode,
@@ -840,11 +840,11 @@ export async function createOneTimePurchase(
       logger.error(`One-time purchase API error: ${errorMessage}`);
       let friendlyError = errorMessage;
       if (errorMessage.includes("Apps without a public distribution cannot use the Billing API")) {
-        friendlyError = "应用尚未在 Shopify App Store 公开发布，无法使用计费功能。请联系开发者或等待应用发布。";
+        friendlyError = "The app has not been publicly distributed on the Shopify App Store and cannot use billing features. Please contact the developer or wait for the app to be published.";
       } else if (errorMessage.includes("public distribution")) {
-        friendlyError = "应用需要公开发布才能使用计费功能。";
+        friendlyError = "The app must be publicly distributed to use billing features.";
       } else if (errorMessage.includes("test mode") || errorMessage.includes("test purchase")) {
-        friendlyError = "测试模式下无法创建真实购买。";
+        friendlyError = "Cannot create a real purchase in test mode.";
       }
       return { success: false, error: friendlyError };
     }

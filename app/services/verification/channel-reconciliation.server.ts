@@ -264,7 +264,7 @@ export async function performEnhancedChannelReconciliation(
       issues.push({
         type: "missing_order",
         severity: missingRate > 10 ? "critical" : missingRate > 5 ? "warning" : "info",
-        message: `有 ${missingOrders.length} 个订单未追踪到平台事件（缺失率: ${missingRate.toFixed(2)}%）`,
+        message: `${missingOrders.length} orders not tracked by platform events (missing rate: ${missingRate.toFixed(2)}%)`,
         details: {
           missingCount: missingOrders.length,
           missingRate,
@@ -276,7 +276,7 @@ export async function performEnhancedChannelReconciliation(
       issues.push({
         type: "value_mismatch",
         severity: valueDiscrepancyRate > 20 ? "critical" : "warning",
-        message: `订单金额差异 ${valueDiscrepancyRate.toFixed(2)}%（差异金额: ${valueDiscrepancy.toFixed(2)}）`,
+        message: `Order value discrepancy ${valueDiscrepancyRate.toFixed(2)}% (difference: ${valueDiscrepancy.toFixed(2)})`,
         details: {
           valueDiscrepancy,
           valueDiscrepancyRate,
@@ -290,7 +290,7 @@ export async function performEnhancedChannelReconciliation(
       issues.push({
         type: "duplicate_order",
         severity: duplicateOrders.length > shopifyOrderIds.size * 0.1 ? "warning" : "info",
-        message: `发现 ${duplicateOrders.length} 个订单存在重复事件`,
+        message: `Found ${duplicateOrders.length} orders with duplicate events`,
         details: {
           duplicateCount: duplicateOrders.length,
         },
@@ -512,7 +512,7 @@ export async function getOrderCrossPlatformComparison(
         discrepancies.push({
           platform,
           type: "missing",
-          message: "未找到该平台的事件记录",
+          message: "No event record found for this platform",
         });
       } else {
         const platformValue = Number(platformEvent.orderValue || 0);
@@ -522,7 +522,7 @@ export async function getOrderCrossPlatformComparison(
           discrepancies.push({
             platform,
             type: "value_mismatch",
-            message: `金额差异 ${valueDiffRate.toFixed(2)}%（Shopify: ${shopifyValue}, 平台: ${platformValue}）`,
+            message: `Value discrepancy ${valueDiffRate.toFixed(2)}% (Shopify: ${shopifyValue}, Platform: ${platformValue})`,
           });
         }
         const timeDiff = platformEvent.createdAt.getTime() - shopifyOrder.createdAt.getTime();
@@ -530,7 +530,7 @@ export async function getOrderCrossPlatformComparison(
           discrepancies.push({
             platform,
             type: "timing_delay",
-            message: `事件延迟 ${Math.round(timeDiff / 1000 / 60)} 分钟`,
+            message: `Event delayed by ${Math.round(timeDiff / 1000 / 60)} minutes`,
           });
         }
       }

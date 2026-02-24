@@ -408,7 +408,7 @@ export function ManualAnalysis({ deprecationStatus, scriptAnalysisMaxContentLeng
 
                 // Check for checklist recommendation using translated string
                 const checklistTitle = t("scan.analysis.recommendations.checklist").split("\n")[0];
-                const isChecklist = rec.includes(checklistTitle) || rec.includes("迁移清单建议") || rec.includes("Migration Checklist");
+                const isChecklist = rec.includes(checklistTitle) || rec.includes("Migration Checklist");
 
                 if (isChecklist) {
                   return (

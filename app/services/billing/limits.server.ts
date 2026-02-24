@@ -28,7 +28,7 @@ export async function checkPixelDestinationsLimit(
   if (currentCount >= limit) {
     return {
       allowed: false,
-      reason: `当前套餐最多支持 ${limit} 个像素目的地，您已配置 ${currentCount} 个。请升级套餐或停用部分配置。`,
+      reason: `Pixel destinations limit reached: ${currentCount}/${limit}`,
       current: currentCount,
       limit,
       unlimited: false,
@@ -48,7 +48,7 @@ export async function checkUiModulesLimit(
 ): Promise<PlanLimitResult> {
   return {
     allowed: false,
-    reason: "UI 模块功能已移除",
+    reason: "UI modules feature removed",
     current: 0,
     limit: 0,
     unlimited: false,
@@ -61,7 +61,7 @@ export async function checkMultiShopLimit(
 ): Promise<PlanLimitResult> {
   return {
     allowed: false,
-    reason: "多店管理功能已移除",
+    reason: "Multi-shop management feature removed",
     current: 1,
     limit: 1,
     unlimited: false,

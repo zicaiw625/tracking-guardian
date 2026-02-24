@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Card,
   Text,
@@ -46,47 +47,6 @@ export interface MigrationChecklistProps {
   shopTier: "plus" | "non_plus" | "unknown";
 }
 
-const getMigrationTypeLabel = (type: MigrationItem["suggestedMigration"]) => {
-  switch (type) {
-    case "web_pixel":
-      return "Web Pixel";
-    case "ui_extension":
-      return "手动迁移";
-    case "server_side":
-      return "不提供";
-    case "none":
-      return "External redirect / not supported";
-    default:
-      return "待评估";
-  }
-};
-
-const getRiskBadge = (level: MigrationItem["riskLevel"]) => {
-  switch (level) {
-    case "high":
-      return <Badge tone="critical">高风险</Badge>;
-    case "medium":
-      return <Badge tone="warning">中风险</Badge>;
-    case "low":
-      return <Badge tone="success">低风险</Badge>;
-  }
-};
-
-const getTypeLabel = (type: MigrationItem["type"]) => {
-  switch (type) {
-    case "script_tag":
-      return "ScriptTag";
-    case "additional_script":
-      return "Additional Script";
-    case "checkout_liquid":
-      return "checkout.liquid";
-    case "app_pixel":
-      return "App Pixel";
-    case "other":
-      return "其他";
-  }
-};
-
 export function MigrationChecklist({
   items,
   onItemConfirm,
@@ -94,12 +54,55 @@ export function MigrationChecklist({
   onExportChecklist,
   shopTier,
 }: MigrationChecklistProps) {
+  const { t } = useTranslation();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showGuideModal, setShowGuideModal] = useState(false);
   const [manualExpanded, setManualExpanded] = useState(false);
   const [newItemName, setNewItemName] = useState("");
   const [newItemType, setNewItemType] = useState<MigrationItem["type"]>("additional_script");
   const [newItemNotes, setNewItemNotes] = useState("");
+
+  const getMigrationTypeLabel = (type: MigrationItem["suggestedMigration"]) => {
+    switch (type) {
+      case "web_pixel":
+        return "Web Pixel";
+      case "ui_extension":
+        return t("migrationChecklist.migrationType.uiExtension");
+      case "server_side":
+        return t("migrationChecklist.migrationType.serverSide");
+      case "none":
+        return "External redirect / not supported";
+      default:
+        return t("migrationChecklist.migrationType.unknown");
+    }
+  };
+
+  const getRiskBadge = (level: MigrationItem["riskLevel"]) => {
+    switch (level) {
+      case "high":
+        return <Badge tone="critical">{t("migrationChecklist.risk.high")}</Badge>;
+      case "medium":
+        return <Badge tone="warning">{t("migrationChecklist.risk.medium")}</Badge>;
+      case "low":
+        return <Badge tone="success">{t("migrationChecklist.risk.low")}</Badge>;
+    }
+  };
+
+  const getTypeLabel = (type: MigrationItem["type"]) => {
+    switch (type) {
+      case "script_tag":
+        return "ScriptTag";
+      case "additional_script":
+        return "Additional Script";
+      case "checkout_liquid":
+        return "checkout.liquid";
+      case "app_pixel":
+        return "App Pixel";
+      case "other":
+        return t("migrationChecklist.type.other");
+    }
+  };
+
   const confirmedCount = items.filter((i) => i.confirmed).length;
   const highRiskCount = items.filter((i) => i.riskLevel === "high").length;
   const pendingCount = items.filter((i) => !i.confirmed).length;
@@ -135,18 +138,18 @@ export function MigrationChecklist({
             <InlineStack align="space-between" blockAlign="center">
               <BlockStack gap="100">
                 <Text as="h2" variant="headingMd">
-                  📋 迁移清单确认
+                  {t("migrationChecklist.title")}
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  确认需要迁移的资产，补充自动扫描未识别的项目
+                  {t("migrationChecklist.subtitle")}
                 </Text>
               </BlockStack>
               <InlineStack gap="200">
                 <Badge tone={confirmedCount === items.length ? "success" : "attention"}>
-                  {`${confirmedCount}/${items.length} 已确认`}
+                  {t("migrationChecklist.confirmedCount", { confirmed: confirmedCount, total: items.length })}
                 </Badge>
                 {highRiskCount > 0 && (
-                  <Badge tone="critical">{`${highRiskCount} 高风险`}</Badge>
+                  <Badge tone="critical">{t("migrationChecklist.highRiskCount", { count: highRiskCount })}</Badge>
                 )}
               </InlineStack>
             </InlineStack>
@@ -155,13 +158,13 @@ export function MigrationChecklist({
                 <ProgressBar progress={progressPercent} tone="primary" size="small" />
                 <InlineStack gap="400" align="space-between">
                   <Text as="span" variant="bodySm" tone="subdued">
-                    进度: {progressPercent}%
+                    {t("migrationChecklist.progress", { percent: progressPercent })}
                   </Text>
                   {totalEstimatedMinutes > 0 && (
                     <Text as="span" variant="bodySm" tone="subdued">
-                      预计总时间: {totalEstimatedHours > 0
-                        ? `${totalEstimatedHours} 小时 ${totalEstimatedMinutes % 60} 分钟`
-                        : `${totalEstimatedMinutes} 分钟`}
+                      {totalEstimatedHours > 0
+                        ? t("migrationChecklist.estimatedTimeHoursMinutes", { hours: totalEstimatedHours, minutes: totalEstimatedMinutes % 60 })
+                        : t("migrationChecklist.estimatedTimeMinutes", { minutes: totalEstimatedMinutes })}
                     </Text>
                   )}
                 </InlineStack>
@@ -170,16 +173,15 @@ export function MigrationChecklist({
           </BlockStack>
           <Divider />
           <Banner
-            title="从 Shopify 升级向导补充信息"
+            title={t("migrationChecklist.upgradeWizardTitle")}
             tone="info"
             action={{
-              content: "查看指南",
+              content: t("migrationChecklist.viewGuide"),
               onAction: () => setShowGuideModal(true),
             }}
           >
             <Text as="p" variant="bodySm">
-              Shopify 后台的升级向导可能包含我们无法自动检测的脚本。
-              点击「查看指南」了解如何从 Shopify 获取完整的迁移清单。
+              {t("migrationChecklist.upgradeWizardDescription")}
             </Text>
           </Banner>
           <BlockStack gap="300">
@@ -187,9 +189,9 @@ export function MigrationChecklist({
               <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                 <BlockStack gap="200" align="center">
                   <Icon source={CheckCircleIcon} tone="success" />
-                  <Text as="p">未检测到需要迁移的资产</Text>
+                  <Text as="p">{t("migrationChecklist.noItems")}</Text>
                   <Button onClick={() => setShowAddModal(true)} size="slim">
-                    手动添加
+                    {t("migrationChecklist.addManually")}
                   </Button>
                 </BlockStack>
               </Box>
@@ -223,7 +225,7 @@ export function MigrationChecklist({
                           </Text>
                           {item.estimatedTimeMinutes && (
                             <Text as="span" variant="bodySm" tone="subdued">
-                              • 预计 {item.estimatedTimeMinutes} 分钟
+                              • {t("migrationChecklist.estimatedMinutes", { minutes: item.estimatedTimeMinutes })}
                             </Text>
                           )}
                           {item.migrationStatus && (
@@ -237,10 +239,10 @@ export function MigrationChecklist({
                               }
                             >
                               {item.migrationStatus === "completed"
-                                ? "已完成"
+                                ? t("migrationChecklist.status.completed")
                                 : item.migrationStatus === "in_progress"
-                                  ? "进行中"
-                                  : "待处理"}
+                                  ? t("migrationChecklist.status.inProgress")
+                                  : t("migrationChecklist.status.pending")}
                             </Badge>
                           )}
                         </InlineStack>
@@ -261,10 +263,10 @@ export function MigrationChecklist({
                       }
                     >
                       {item.source === "api_scan"
-                        ? "自动检测"
+                        ? t("migrationChecklist.source.apiScan")
                         : item.source === "manual_paste"
-                          ? "手动粘贴"
-                          : "商家确认"}
+                          ? t("migrationChecklist.source.manualPaste")
+                          : t("migrationChecklist.source.merchantConfirmed")}
                     </Badge>
                   </InlineStack>
                 </Box>
@@ -282,9 +284,9 @@ export function MigrationChecklist({
             >
               <InlineStack gap="200" blockAlign="center">
                 <Icon source={InfoIcon} />
-                <Text as="span">手动补充未识别的脚本</Text>
+                <Text as="span">{t("migrationChecklist.manualSection.title")}</Text>
                 <Text as="span" tone="subdued">
-                  {manualExpanded ? "▲ 收起" : "▼ 展开"}
+                  {manualExpanded ? t("migrationChecklist.collapse") : t("migrationChecklist.expand")}
                 </Text>
               </InlineStack>
             </div>
@@ -292,16 +294,15 @@ export function MigrationChecklist({
               <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                 <BlockStack gap="300">
                   <Text as="p" variant="bodySm">
-                    如果您在 Shopify 升级向导或 checkout.liquid 中发现了我们未检测到的脚本，
-                    可以在这里手动添加以便追踪迁移进度。
+                    {t("migrationChecklist.manualSection.description")}
                   </Text>
                   <List type="bullet">
-                    <List.Item>前往 Shopify 后台 → 设置 → 结账 → 附加脚本</List.Item>
-                    <List.Item>查看「附加脚本」或升级提示中列出的项目</List.Item>
-                    <List.Item>对照本清单，添加缺失的项目</List.Item>
+                    <List.Item>{t("migrationChecklist.manualSection.step1")}</List.Item>
+                    <List.Item>{t("migrationChecklist.manualSection.step2")}</List.Item>
+                    <List.Item>{t("migrationChecklist.manualSection.step3")}</List.Item>
                   </List>
                   <Button onClick={() => setShowAddModal(true)}>
-                    + 添加项目
+                    {t("migrationChecklist.addItem")}
                   </Button>
                 </BlockStack>
               </Box>
@@ -310,14 +311,14 @@ export function MigrationChecklist({
           <Divider />
           <InlineStack gap="200" align="end">
             <Button onClick={onExportChecklist} icon={ClipboardIcon}>
-              导出清单
+              {t("migrationChecklist.exportChecklist")}
             </Button>
             {pendingCount > 0 && (
               <Button
                 variant="primary"
                 onClick={() => items.forEach((i) => onItemConfirm(i.id, true))}
               >
-                {`全部确认 (${pendingCount})`}
+                {t("migrationChecklist.confirmAll", { count: pendingCount })}
               </Button>
             )}
           </InlineStack>
@@ -326,15 +327,15 @@ export function MigrationChecklist({
       <Modal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
-        title="添加迁移项目"
+        title={t("migrationChecklist.addModal.title")}
         primaryAction={{
-          content: "添加",
+          content: t("migrationChecklist.addModal.add"),
           onAction: handleAddItem,
           disabled: !newItemName.trim(),
         }}
         secondaryActions={[
           {
-            content: "取消",
+            content: t("migrationChecklist.addModal.cancel"),
             onAction: () => setShowAddModal(false),
           },
         ]}
@@ -342,14 +343,14 @@ export function MigrationChecklist({
         <Modal.Section>
           <BlockStack gap="400">
             <TextField
-              label="项目名称"
+              label={t("migrationChecklist.addModal.nameLabel")}
               value={newItemName}
               onChange={setNewItemName}
-              placeholder="例如：Google Ads 转化代码"
+              placeholder={t("migrationChecklist.addModal.namePlaceholder")}
               autoComplete="off"
             />
             <BlockStack gap="200">
-              <Text as="span" variant="bodySm">类型</Text>
+              <Text as="span" variant="bodySm">{t("migrationChecklist.addModal.typeLabel")}</Text>
               <InlineStack gap="200" wrap>
                 {(["additional_script", "script_tag", "checkout_liquid", "other"] as const).map(
                   (type) => (
@@ -366,10 +367,10 @@ export function MigrationChecklist({
               </InlineStack>
             </BlockStack>
             <TextField
-              label="备注（可选）"
+              label={t("migrationChecklist.addModal.notesLabel")}
               value={newItemNotes}
               onChange={setNewItemNotes}
-              placeholder="例如：用于 remarketing，需要保留"
+              placeholder={t("migrationChecklist.addModal.notesPlaceholder")}
               multiline={2}
               autoComplete="off"
             />
@@ -379,14 +380,14 @@ export function MigrationChecklist({
       <Modal
         open={showGuideModal}
         onClose={() => setShowGuideModal(false)}
-        title="从 Shopify 获取迁移清单"
+        title={t("migrationChecklist.guideModal.title")}
         primaryAction={{
-          content: "知道了",
+          content: t("migrationChecklist.guideModal.gotIt"),
           onAction: () => setShowGuideModal(false),
         }}
         secondaryActions={[
           {
-            content: "打开 Shopify 设置",
+            content: t("migrationChecklist.guideModal.openSettings"),
             url: shopifyUpgradeUrl,
             external: true,
           },
@@ -396,56 +397,51 @@ export function MigrationChecklist({
           <BlockStack gap="400">
             <Banner tone="info">
               <Text as="p" variant="bodySm">
-                Shopify API 无法直接读取 Additional Scripts 的内容。
-                以下步骤帮助您手动获取完整的迁移清单。
+                {t("migrationChecklist.guideModal.infoBanner")}
               </Text>
             </Banner>
             <BlockStack gap="300">
               <Text as="h3" variant="headingSm">
-                步骤 1: 打开 Shopify 结账设置
+                {t("migrationChecklist.guideModal.step1Title")}
               </Text>
               <Box background="bg-surface-secondary" padding="300" borderRadius="100">
                 <InlineStack gap="200" blockAlign="center">
                   <Icon source={ExternalIcon} />
                   <Text as="span" variant="bodySm">
-                    设置 → 结账 → 附加脚本
+                    {t("migrationChecklist.guideModal.step1Content")}
                   </Text>
                 </InlineStack>
               </Box>
             </BlockStack>
             <BlockStack gap="300">
               <Text as="h3" variant="headingSm">
-                步骤 2: 查看升级提示
+                {t("migrationChecklist.guideModal.step2Title")}
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
-                如果您的店铺有升级提示，Shopify 会列出受影响的脚本。
-                记录下这些项目名称。
+                {t("migrationChecklist.guideModal.step2Content")}
               </Text>
             </BlockStack>
             <BlockStack gap="300">
               <Text as="h3" variant="headingSm">
-                步骤 3: 复制脚本内容（可选）
+                {t("migrationChecklist.guideModal.step3Title")}
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
-                如需详细分析，可以复制 Additional Scripts 中的代码，
-                粘贴到扫描页面的「手动分析」标签页中。
+                {t("migrationChecklist.guideModal.step3Content")}
               </Text>
             </BlockStack>
             <BlockStack gap="300">
               <Text as="h3" variant="headingSm">
-                步骤 4: 添加到迁移清单
+                {t("migrationChecklist.guideModal.step4Title")}
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
-                对照 Shopify 列出的项目，在本页面点击「添加项目」
-                将缺失的脚本添加到迁移清单中。
+                {t("migrationChecklist.guideModal.step4Content")}
               </Text>
             </BlockStack>
             <Divider />
             {shopTier === "plus" && (
               <Banner tone="warning">
                 <Text as="p" variant="bodySm">
-                  <strong>Plus 商家提醒：</strong>您还可以检查 checkout.liquid
-                  文件中的自定义代码。
+                  {t("migrationChecklist.guideModal.plusWarning")}
                 </Text>
               </Banner>
             )}

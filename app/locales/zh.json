@@ -358,6 +358,9 @@
         "completed": "已完成",
         "error": "错误"
       }
+    },
+    "action": {
+      "unknownAction": "未知操作"
     }
   },
   "nav": {
@@ -2036,6 +2039,36 @@
         "title": "ScriptTags",
         "count": "ScriptTag 总数"
       }
+    },
+    "action": {
+      "missingData": "缺少分析数据",
+      "dataTooLarge": "分析数据过大（最大 {{maxSizeKB}}KB）",
+      "invalidJSON": "无法解析分析数据：无效的 JSON 格式",
+      "invalidDataFormat": "无效的分析数据格式: {{error}}",
+      "sensitiveInfoDetected": "检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再保存。",
+      "manualPasteLabel": "手动粘贴: {{platform}}",
+      "unidentifiedScript": "未识别的脚本",
+      "savedAssets": "已保存 {{count}} 个审计资产记录",
+      "failedSuffix": "，{{count}} 个失败",
+      "updatedSuffix": "，更新 {{count}} 个",
+      "saveFailed": "保存失败，请检查日志",
+      "assetSavePartialFail": "{{count}} 个资产保存失败",
+      "saveError": "保存失败，请稍后重试",
+      "missingAssetData": "缺少资产数据",
+      "assetDataMustBeArray": "资产数据必须是非空数组",
+      "invalidAssetDataFormat": "无效的资产数据格式",
+      "createdAssets": "已创建 {{count}} 个审计资产记录",
+      "createError": "创建失败，请稍后重试",
+      "missingAssetId": "缺少资产 ID",
+      "assetNotFound": "资产不存在",
+      "assetAccessDenied": "无权访问此资产",
+      "markedComplete": "已标记为已完成",
+      "markError": "标记失败，请稍后重试",
+      "exportError": "导出失败，请稍后重试",
+      "unsupportedAction": "不支持的操作类型"
+    },
+    "loader": {
+      "additionalScriptsNote": "Additional Scripts 需要通过手动粘贴识别，Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts 内容"
     }
   },
   "verification": {
@@ -2697,6 +2730,23 @@
       "chatId": "Chat ID",
       "discrepancyThreshold": "差异阈值",
       "saveConfig": "保存配置"
+    },
+    "action": {
+      "pixelSyncSuccess": "已自动同步到 Web Pixel 配置",
+      "pixelSyncFailed": "Web Pixel 同步失败: {{error}}",
+      "pixelNotFound": "未找到已安装的 Web Pixel，请先在「迁移」页面安装像素",
+      "pixelSyncError": "Web Pixel 同步失败，请手动重新配置",
+      "tokenUpdated": "关联令牌已更新。",
+      "graceWindow": " 旧令牌将在 {{minutes}} 分钟内继续有效。",
+      "privacyUpdated": "隐私设置已更新",
+      "alertConfigSaved": "告警配置已保存",
+      "featureNotAvailable": "此功能在当前版本中不可用",
+      "missingPlatformOrEnv": "缺少 platform 或 environment 参数",
+      "invalidEnvironment": "无效的环境参数",
+      "missingPlatform": "缺少 platform 参数"
+    },
+    "loader": {
+      "pcdStatusMessage": "我们不收集终端客户 PII，当前公开上架版本不会从 Shopify 读取订单明细或访问 PCD。"
     }
   },
   "support": {
@@ -3089,6 +3139,27 @@
               "2": "日志中正确标记 Origin: null 请求"
             }
           }
+        }
+      }
+    },
+    "action": {
+      "missingConfigData": "缺少配置数据",
+      "planUpgradeRequired": "启用像素迁移需要 Migration ($29/月) 及以上套餐。",
+      "configFormatError": "配置格式错误: {{error}}",
+      "invalidJSON": "无效的 JSON 数据",
+      "unsupportedPlatform": "平台 {{platform}} 尚未在 v1 支持，请仅选择 GA4、Meta 或 TikTok。",
+      "platformConfigError": "{{platform}} 配置错误: {{error}}",
+      "saveConfigFailed": "保存配置失败"
+    },
+    "loader": {
+      "templates": {
+        "standard": {
+          "name": "标准配置（v1）",
+          "description": "适用于大多数电商店铺的标准事件映射（GA4/Meta/TikTok）"
+        },
+        "advanced": {
+          "name": "高级配置（v1.1+）",
+          "description": "包含更多事件类型的完整映射（v1.1+ 将支持 Pinterest/Snapchat）"
         }
       }
     }
@@ -4346,7 +4417,16 @@
     "boolean": {
       "true": "是",
       "false": "否"
-    }
+    },
+    "success": "通过",
+    "failed": "失败",
+    "missingParams": "参数缺失",
+    "warning": "需注意",
+    "deduplicated": "重复已去重",
+    "notTested": "未测试",
+    "completed": "已完成",
+    "running": "运行中",
+    "pending": "待运行"
   },
   "verificationChecklist": {
     "items": {
@@ -4837,6 +4917,841 @@
     "sourceTips": {
       "tip1": "直接勾选上方对应的平台和功能（推荐）",
       "tip2": "或者将脚本内容复制到\"手动粘贴脚本\"区域进行分析"
+    }
+  },
+  "upgradePrompt": {
+    "title": "{{feature}}需要升级套餐",
+    "requiresPlan": "{{feature}}需要 {{plan}} 及以上套餐",
+    "upgradeButton": "升级套餐",
+    "limitReached": "当前已使用 {{current}} / {{limit}} 个{{feature}}。",
+    "notSupported": "当前套餐不支持此功能。",
+    "planIncludes": "{{plan}} 套餐包含：",
+    "currentPlan": "当前套餐：",
+    "requiredPlan": "需要套餐：",
+    "pricePerMonth": "（{{price}}/月）",
+    "upgradeTo": "升级到 {{plan}}",
+    "features": {
+      "pixelDestinations": {
+        "name": "像素目的地",
+        "description": "标准事件映射 + 参数完整率（v1 最小可用迁移）",
+        "featureList": [
+          "支持 GA4、Meta、TikTok（v1 仅此 3 个平台）",
+          "标准事件映射：自动映射标准电商事件（purchase、view_item、add_to_cart 等）",
+          "参数完整率检查：验证事件参数（value、currency、items 等）的完整性",
+          "可下载 payload 证据：支持下载事件 payload，用于验证和存档",
+          "Test/Live 环境切换：支持测试环境验证后再发布到生产环境",
+          "技术说明：Web Pixel 运行在严格沙箱（Web Worker）环境中，很多能力受限"
+        ]
+      },
+      "uiModules": {
+        "name": "UI 模块",
+        "description": "Thank you / Order status 页面侧自定义（以 Shopify 官方能力为准）",
+        "featureList": [
+          "当前版本不提供页面模块库"
+        ]
+      },
+      "verification": {
+        "name": "验收功能",
+        "description": "验证迁移配置是否正确工作",
+        "featureList": [
+          "测试订单生成与验证",
+          "事件参数完整性检查",
+          "金额准确性验证"
+        ]
+      },
+      "alerts": {
+        "name": "告警功能",
+        "description": "实时监控追踪健康状态",
+        "featureList": [
+          "多渠道告警（邮件/Slack/Telegram）",
+          "事件失败率监控",
+          "自动异常检测"
+        ]
+      },
+      "reconciliation": {
+        "name": "事件对账",
+        "description": "对比 Shopify 订单与平台转化数据",
+        "featureList": [
+          "每日自动对账",
+          "偏差率分析",
+          "送达缺口定位"
+        ]
+      },
+      "agency": {
+        "name": "Agency 多店功能",
+        "description": "管理多个店铺的批量操作",
+        "featureList": [
+          "多店工作区管理",
+          "批量 Audit 扫描",
+          "批量应用像素模板",
+          "迁移验收报告导出"
+        ]
+      }
+    }
+  },
+  "featureGate": {
+    "pixelDestinationsLimit": "当前套餐最多支持 {{limit}} 个像素目的地，您已配置 {{current}} 个。请升级套餐或停用部分配置。",
+    "requiresPlan": "{{feature}}需要 {{plan}} 及以上套餐。当前套餐：{{currentPlan}}",
+    "requiresHigherPlan": "此功能需要 {{plan}} 套餐"
+  },
+  "auditPaywall": {
+    "title": "🎯 开始迁移",
+    "pricePerMonth": "${{price}}/月",
+    "migratePixel": "迁移像素",
+    "migratePixelWithPlan": "迁移像素（{{plan}} {{price}}）",
+    "pageCustomization": "页面侧自定义指引",
+    "pageCustomizationWithPlan": "页面侧自定义指引（{{plan}} {{price}}）",
+    "freeFeatures": "免费功能：",
+    "freeDesc": "可查看风险与清单",
+    "paidUnlock": "付费解锁：",
+    "paidDesc": "一键生成像素 + Test/Live 环境 + 版本/回滚 + 验收报告导出（{{plan}} {{price}} 起）",
+    "unlocked": "已解锁：",
+    "upgradeUnlock": "升级解锁：",
+    "starterUnlocked": "{{plan}} 像素迁移 + Test/Live 环境 + 版本/回滚",
+    "growthUnlock": "{{plan}} 验收报告导出 + 事件对账 + 告警",
+    "growthUnlocked": "{{plan}} 验收报告导出 + 事件对账 + 告警",
+    "agencyUnlock": "多店/白标/批量即将在 v1.1 推出；{{plan}} 当前已含无限像素、验收报告导出与 SLA",
+    "agencyUnlocked": "多店/白标/批量即将在 v1.1 推出；当前已含无限像素、验收报告导出与 SLA",
+    "needHelp": "需要协助：",
+    "contactCSM": "如需迁移托管或定制支持，请联系客户成功经理",
+    "upgradeTo": "升级到 {{plan}} {{price}}"
+  },
+  "errorDisplay": {
+    "defaultTitle": "发生错误",
+    "errorCode": "错误代码: {{code}}",
+    "retry": "重试",
+    "close": "关闭",
+    "unknownError": "发生未知错误",
+    "validationFailed": "输入验证失败",
+    "networkError": {
+      "title": "网络连接错误",
+      "message": "无法连接到服务器，请检查您的网络连接后重试。"
+    },
+    "notFound": {
+      "title": "未找到",
+      "message": "请求的{{resource}}不存在或已被删除。",
+      "defaultResource": "资源",
+      "goBack": "返回"
+    }
+  },
+  "errorBoundary": {
+    "title": "出错了",
+    "description": "我们已记录此错误。请尝试以下解决方案：",
+    "refreshPage": "刷新页面重试",
+    "checkNetwork": "检查网络连接",
+    "clearCache": "清除浏览器缓存后重试",
+    "contactSupport": "如果问题持续，请联系技术支持",
+    "errorDetails": "错误详情（仅开发环境）",
+    "refreshButton": "刷新页面",
+    "retryButton": "重试",
+    "homeButton": "返回首页"
+  },
+  "emptyState": {
+    "defaultTitle": "暂无数据",
+    "defaultDescription": "当前没有可显示的内容。",
+    "noData": {
+      "title": "暂无数据",
+      "description": "当前没有可显示的数据。",
+      "helpText": "请执行相关操作或稍后再试。"
+    },
+    "noResults": {
+      "title": "未找到结果",
+      "description": "没有找到匹配的搜索结果。",
+      "helpText": "请尝试调整搜索条件或筛选器。",
+      "search": "重新搜索",
+      "clearFilter": "清除筛选"
+    },
+    "notConfigured": {
+      "defaultConfig": "配置",
+      "title": "{{config}}未设置",
+      "description": "请先完成{{config}}设置以使用此功能。",
+      "start": "开始{{config}}"
+    },
+    "noPermission": {
+      "title": "需要升级套餐",
+      "viewPlans": "查看套餐",
+      "description": "此功能需要 {{feature}} 套餐。",
+      "descriptionGeneral": "您的当前套餐不支持此功能。",
+      "helpText": "升级套餐以解锁更多功能。"
+    }
+  },
+  "metricCard": {
+    "defaultTrendPeriod": "vs 上周",
+    "difference": "差异: {{value}} ({{percent}}%)"
+  },
+  "priorityBadge": {
+    "high": "高优先级",
+    "medium": "中优先级",
+    "low": "低优先级",
+    "lowest": "最低优先级"
+  },
+  "freeFeatureBadge": {
+    "scan": "免费扫描",
+    "report": "免费报告",
+    "checklist": "免费清单",
+    "migration": "免费建议"
+  },
+  "timeEstimate": {
+    "minutes": "{{count}} 分钟",
+    "hours": "{{count}} 小时",
+    "hoursAndMinutes": "{{hours}} 小时 {{minutes}} 分钟"
+  },
+  "eventMapping": {
+    "shopifyEvent": {
+      "checkoutCompleted": "顾客完成结账",
+      "checkoutStarted": "顾客开始结账",
+      "productAddedToCart": "添加商品到购物车",
+      "productViewed": "查看商品详情",
+      "pageViewed": "页面浏览"
+    },
+    "platformEvent": {
+      "google": {
+        "purchase": "完成购买",
+        "beginCheckout": "开始结账",
+        "addToCart": "添加到购物车",
+        "viewItem": "查看商品"
+      },
+      "meta": {
+        "purchase": "完成购买",
+        "initiateCheckout": "开始结账",
+        "addToCart": "添加到购物车",
+        "viewContent": "查看内容"
+      },
+      "tiktok": {
+        "completePayment": "完成支付",
+        "initiateCheckout": "开始结账",
+        "addToCart": "添加到购物车",
+        "viewContent": "查看内容"
+      }
+    },
+    "title": "事件映射配置 - {{platform}}",
+    "hideComparison": "隐藏对比",
+    "showComparison": "显示对比视图",
+    "mappingTemplate": "📋 映射模板",
+    "recommendedDefault": "推荐映射（默认）",
+    "purchaseEventOnly": "仅购买事件",
+    "fullFunnelMapping": "完整漏斗映射",
+    "applyRecommended": "✨ 一键应用推荐映射",
+    "table": {
+      "shopifyEvent": "Shopify 事件",
+      "currentMapping": "当前映射",
+      "recommendedMapping": "推荐映射",
+      "status": "状态"
+    },
+    "comparisonView": "对比视图",
+    "recommended": "推荐",
+    "custom": "自定义",
+    "unmapped": "未映射",
+    "notConfigured": "未配置",
+    "unknownShopifyEvent": "未知的 Shopify 事件: {{event}}",
+    "unknownPlatformEvent": "未知的平台事件: {{event}}",
+    "missingRequiredParams": "缺少必需参数: {{params}}",
+    "missingParamsWarning": "缺少必要参数",
+    "missingParams": "缺少: {{params}}",
+    "platformEventPreview": "平台事件: {{event}}",
+    "selectPlatformEvent": "选择平台事件",
+    "selectEvent": "选择事件",
+    "mapToPlatformEvent": "映射到平台事件",
+    "mapToArrow": "→",
+    "platformEventParams": "平台事件参数",
+    "required": "必需",
+    "optional": "可选",
+    "shopifyEventParams": "Shopify 事件参数",
+    "paramMappingDetails": "参数映射详情",
+    "paramMappingPreview": "参数映射预览",
+    "mappedParams": "已映射参数",
+    "previewEventJson": "预览事件 JSON",
+    "previewDescription": "实际发送的事件将如下所示：",
+    "showPreview": "展开预览",
+    "hidePreview": "收起预览",
+    "infoDescription": "Shopify Web Pixel sandbox 环境限制：仅能访问标准事件及以下参数。",
+    "bestPracticesTitle": "最佳实践",
+    "bestPractice1": "优先映射 purchase 和 checkout 事件",
+    "bestPractice2": "确保 required 参数（value, currency）被映射",
+    "bestPractice3": "推荐映射作为起点，可根据业务需求调整",
+    "recommendedPrefix": "(推荐) ",
+    "apply": "应用",
+    "selectAll": "全选",
+    "clearSelection": "清除选择",
+    "cancelSelection": "取消选择",
+    "bulkEditMode": "批量编辑模式",
+    "bulkMapTo": "批量映射为：",
+    "batchEditHint": "选择多个事件进行批量映射",
+    "moveUp": "上移",
+    "moveDown": "下移",
+    "error": "错误"
+  },
+  "migrationChecklist": {
+    "title": "📋 迁移清单确认",
+    "subtitle": "确认需要迁移的资产，补充自动扫描未识别的项目",
+    "confirmedCount": "{{confirmed}} / {{total}} 已确认",
+    "highRiskCount": "{{count}} 个高风险",
+    "progress": "进度",
+    "estimatedTimeMinutes": "预计总时间: {{minutes}} 分钟",
+    "estimatedTimeHoursMinutes": "预计总时间: {{hours}} 小时 {{minutes}} 分钟",
+    "estimatedMinutes": "{{minutes}} 分钟",
+    "confirmAll": "全部确认",
+    "exportChecklist": "导出清单",
+    "addManually": "手动添加",
+    "viewGuide": "查看 Shopify 官方指引",
+    "upgradeWizardTitle": "Shopify 升级向导清单（官方参考）",
+    "upgradeWizardDescription": "如何从 Shopify 升级向导获取迁移清单：",
+    "noItems": "迁移清单中没有可显示的项目。",
+    "expand": "展开",
+    "collapse": "收起",
+    "addItem": "添加",
+    "source": {
+      "apiScan": "API 扫描",
+      "manualPaste": "手动粘贴",
+      "merchantConfirmed": "商家确认"
+    },
+    "status": {
+      "completed": "已完成",
+      "inProgress": "进行中",
+      "pending": "待开始"
+    },
+    "risk": {
+      "high": "高风险",
+      "medium": "中风险",
+      "low": "低风险"
+    },
+    "migrationType": {
+      "serverSide": "服务端迁移",
+      "uiExtension": "UI Extension",
+      "unknown": "未知"
+    },
+    "type": {
+      "other": "其他"
+    },
+    "guideModal": {
+      "title": "Shopify 官方升级向导指引",
+      "step1Title": "步骤 1：打开设置",
+      "step1Content": "在 Shopify Admin 中，点击「设置」然后选择「结账和订单处理」",
+      "step2Title": "步骤 2：找到迁移提示",
+      "step2Content": "查找 Thank you 页面升级部分",
+      "step3Title": "步骤 3：查看迁移清单",
+      "step3Content": "Shopify 会列出所有需要迁移的脚本和功能",
+      "step4Title": "步骤 4：复制清单",
+      "step4Content": "全选内容，复制，然后粘贴到「引导补充」面板中",
+      "infoBanner": "如果找不到升级向导，可以在 Settings > Checkout 中找到 Additional Scripts 区域。",
+      "plusWarning": "⚠️ Shopify Plus 商家：还需要检查 checkout.liquid 中的自定义代码",
+      "openSettings": "打开 Shopify 结账设置",
+      "gotIt": "知道了"
+    },
+    "manualSection": {
+      "title": "手动添加",
+      "description": "如果自动扫描遗漏了某些项目，您可以手动添加：",
+      "step1": "点击上方的「手动添加」按钮",
+      "step2": "填写资产名称和类型",
+      "step3": "系统将其加入清单"
+    },
+    "addModal": {
+      "title": "添加迁移项",
+      "nameLabel": "资产名称",
+      "namePlaceholder": "例如：自定义评价脚本",
+      "typeLabel": "资产类型",
+      "notesLabel": "备注（可选）",
+      "notesPlaceholder": "例如：用于产品页面",
+      "add": "添加",
+      "cancel": "取消"
+    }
+  },
+  "dashboardRiskScore": {
+    "title": "风险分数",
+    "pendingAssessment": "待评估",
+    "showAfterScan": "完成体检后显示",
+    "riskLevelLabel": "风险等级",
+    "riskLevel": {
+      "high": "高风险",
+      "medium": "中风险",
+      "low": "低风险",
+      "pending": "待评估"
+    },
+    "estimatedMigrationTime": "预计迁移时长",
+    "estimatedTime": {
+      "calculating": "待计算",
+      "minutes": "{{count}} 分钟",
+      "hours": "{{count}} 小时",
+      "hoursAndMinutes": "{{hours}} 小时 {{minutes}} 分钟"
+    },
+    "topRiskSources": "主要风险来源",
+    "sourceCount": "{{count}} 项"
+  },
+  "migrationProgress": {
+    "title": "迁移进度",
+    "empty": {
+      "title": "暂无迁移进度",
+      "description": "开始迁移后，进度将在这里显示。",
+      "startScan": "开始体检"
+    },
+    "detailedProgress": "详细进度",
+    "auditCompletion": "Audit 完成度",
+    "pixelsStatus": "像素配置",
+    "modulesEnabled": "模块启用",
+    "modulesCount": "{{count}} 个",
+    "verificationLatest": "最近验收",
+    "status": {
+      "completed": "已完成",
+      "inProgress": "进行中",
+      "pending": "待开始",
+      "running": "运行中",
+      "noRecord": "无记录"
+    },
+    "continueMigration": "继续迁移",
+    "startScan": "开始体检"
+  },
+  "configComparison": {
+    "title": "配置对比",
+    "noHistory": "暂无历史版本可对比",
+    "changesCount": "{{count}} 项变更",
+    "changedFields": "变更项",
+    "unchangedFields": "未变更项",
+    "currentVersion": "当前版本",
+    "updatedAt": "更新时间: {{time}}",
+    "environment": "环境",
+    "headings": {
+      "field": "字段",
+      "currentValue": "当前值",
+      "previousValue": "上一版本值"
+    },
+    "fieldLabels": {
+      "platformId": "平台 ID",
+      "clientSideEnabled": "客户端追踪",
+      "serverSideEnabled": "服务端追踪",
+      "eventMappings": "事件映射",
+      "clientConfig": "客户端配置",
+      "environment": "环境",
+      "credentialsEncrypted": "凭证"
+    },
+    "boolean": {
+      "yes": "是",
+      "no": "否"
+    },
+    "env": {
+      "live": "生产",
+      "test": "测试"
+    }
+  },
+  "migrationDependency": {
+    "title": "依赖关系分析",
+    "empty": "暂无待迁移的资产",
+    "assetCount": "{{count}} 个资产",
+    "dependencyCount": "{{count}} 个依赖",
+    "estimatedTime": "预计: {{time}}",
+    "time": {
+      "minutes": "{{count}} 分钟",
+      "hours": "{{count}} 小时",
+      "hoursAndMinutes": "{{hours}} 小时 {{minutes}} 分钟"
+    },
+    "cyclicDependency": {
+      "title": "检测到循环依赖",
+      "description": "以下资产存在循环依赖关系：",
+      "cycleCount": "{{count}} 个循环"
+    },
+    "criticalPath": {
+      "title": "关键路径",
+      "steps": "{{count}} 步"
+    },
+    "recommendedOrder": "推荐迁移顺序",
+    "priority": "第 {{index}} 优先",
+    "dependencyDetails": "依赖关系详情",
+    "dependsOn": "依赖于"
+  },
+  "pixelWizard": {
+    "title": "像素迁移向导",
+    "progress": {
+      "step": "步骤 {{current}} / {{total}}",
+      "complete": "{{percent}}% 完成"
+    },
+    "validation": {
+      "selectPlatform": "请至少选择一个平台",
+      "missingField": "{{name}}: 缺少 {{label}}",
+      "configNotFound": "{{name}}: 配置不存在",
+      "needEventMapping": "{{name}}: 至少需要配置一个事件映射",
+      "configError": "配置错误：{{errors}}",
+      "configMissing": "配置不存在: {{platform}}",
+      "completeStep": "请先完成当前步骤：{{errors}}"
+    },
+    "toast": {
+      "configSaved": "配置已保存，正在验证..."
+    },
+    "button": {
+      "cancel": "取消",
+      "previous": "上一步",
+      "skip": "跳过此步",
+      "save": "保存配置",
+      "next": "下一步"
+    }
+  },
+  "manualPaste": {
+    "pii": {
+      "emailDetected": "检测到可能的邮箱地址，请替换为占位符",
+      "phoneDetected": "检测到可能的电话号码，请替换为占位符",
+      "creditCardDetected": "检测到可能的信用卡号，请立即删除",
+      "longStringDetected": "检测到可能的长字符串（可能是 API 密钥或令牌），请检查并替换",
+      "apiKeyDetected": "检测到 API 密钥或访问令牌，请替换为 [TOKEN_REDACTED]",
+      "passwordDetected": "检测到密码字段，请立即删除",
+      "matchSummary": "{{message}}（检测到 {{count}} 处，示例：{{examples}}）"
+    },
+    "validation": {
+      "evalDetected": "检测到 eval() 函数，可能存在安全风险",
+      "cookieDetected": "检测到直接操作 cookie，可能违反隐私政策",
+      "innerHtmlDetected": "检测到 innerHTML 操作，可能存在 XSS 风险",
+      "documentWriteDetected": "检测到 document.write()，可能阻塞页面加载",
+      "externalScriptDetected": "检测到外部脚本引用，需要验证来源",
+      "unclosedTag": "脚本片段 {{index}} 存在未闭合的标签",
+      "unescapedHtml": "检测到未转义的 HTML 标签，可能导致解析错误"
+    },
+    "snippet": {
+      "unknownScript": "未知脚本"
+    },
+    "risk": {
+      "high": "高风险",
+      "medium": "中风险",
+      "low": "低风险"
+    },
+    "header": {
+      "title": "手动粘贴脚本分析",
+      "badge": "手动输入"
+    },
+    "guide": {
+      "title": "📋 如何获取 Additional Scripts",
+      "description": "按照以下步骤操作，确保正确获取所有需要迁移的脚本：",
+      "screenshotTitle": "📸 截图式引导（强烈推荐）",
+      "screenshotDescription": "建议对每个关键步骤截图保存：",
+      "screenshotBenefit1": "确认找到正确位置",
+      "screenshotBenefit2": "记录 Additional Scripts 内容",
+      "screenshotBenefit3": "需要时重新查看",
+      "screenshotBenefit4": "遇到问题提供给技术支持",
+      "keyScreenshotsTitle": "关键截图位置：",
+      "screenshot1Title": "截图 1：Shopify Admin → Settings → Checkout",
+      "screenshot1Tip": "确保包含设置选项和结账标题",
+      "screenshot2Title": "截图 2：Additional Scripts 文本框区域",
+      "screenshot2Tip": "向下滚动到订单状态页面部分",
+      "screenshot3Title": "截图 3：脚本内容区域",
+      "screenshot3Tip": "放大确保内容清晰可见",
+      "screenshot4Title": "截图 4：Review customizations 页面",
+      "screenshot4Tip": "如果升级向导显示此页面请截图保存",
+      "wizardPathTitle": "📖 Shopify 官方升级向导路径",
+      "wizardPathDescription": "您可以通过以下路径访问：",
+      "wizardPathStep1": "Settings → Checkout → Review customizations",
+      "wizardPathStep2": "Shopify 会列出所有需要迁移的脚本和功能",
+      "wizardPathStep3": "点击每项查看详情和迁移建议",
+      "wizardPathTip": "💡 如果看不到升级向导，直接在 Settings → Checkout 中找 Additional Scripts。"
+    },
+    "steps": {
+      "step1Title": "步骤 1：进入 Shopify Admin",
+      "step1Description": "登录 Shopify Admin，点击设置图标",
+      "step1Tip": "💡 确保有管理员权限",
+      "step1Location": "设置图标位于左侧导航栏底部",
+      "step2Title": "步骤 2：打开结账设置",
+      "step2Description": "找到并点击「结账和订单处理」",
+      "step2Tip": "💡 确认计划支持自定义结账",
+      "step2Location": "在设置页面主列表中",
+      "step3Title": "步骤 3：找到 Additional Scripts",
+      "step3Description": "向下滚动到「订单状态页面」部分",
+      "step3Tip": "💡 如果看不到，可能已升级到新版页面",
+      "step3LocationNote": "通常位于订单状态页面设置下方",
+      "step3LocationDetail": "标题为 Additional Scripts 的多行文本框",
+      "step3ScreenshotTip": "📷 找到后建议先截图确认",
+      "step4Title": "步骤 4：复制脚本内容",
+      "step4Description": "选中所有内容并复制（Ctrl+C / Cmd+C）",
+      "step4Important": "⚠️ 确保复制完整内容",
+      "step4Tip": "💡 多段代码请确保全部选中",
+      "step4Operation": "Ctrl+A 全选，然后 Ctrl+C 复制",
+      "step5Title": "步骤 5：粘贴并分析",
+      "step5Description": "粘贴到下方文本框自动分析",
+      "step5Tip": "💡 系统支持多段脚本自动识别",
+      "step5Operation": "Ctrl+V 粘贴，然后点击分析按钮"
+    },
+    "sensitive": {
+      "title": "⚠️ 粘贴前必须脱敏",
+      "description": "检测到敏感信息会阻止分析：",
+      "apiKeysTitle": "API 密钥和令牌：",
+      "apiKeysDescription": "替换为 [API_KEY_REDACTED] 或删除",
+      "piiTitle": "客户个人信息（PII）：",
+      "piiDescription": "替换为占位符或删除",
+      "secretsTitle": "私钥和密码：",
+      "secretsDescription": "替换为 [SECRET_REDACTED] 或删除",
+      "exampleTitle": "💡 脱敏示例：",
+      "exampleBefore": "原代码：fbq(\"init\", \"EXAMPLE_PIXEL_ID\"...)",
+      "exampleAfter": "脱敏后：fbq(\"init\", \"[PIXEL_ID_REDACTED]\"...)"
+    },
+    "notes": {
+      "title": "⚠️ 重要提示",
+      "apiLimitation": "Shopify API 无法自动读取 Additional Scripts，需要手动复制粘贴。",
+      "autoDetection": "系统支持多段脚本自动识别和去重",
+      "commonScripts": "自动识别常见脚本（Meta Pixel、GA、TikTok Pixel）",
+      "emptyScripts": "区域为空说明没有配置额外追踪脚本",
+      "localAnalysis": "分析在本地完成，不会上传"
+    },
+    "reference": {
+      "title": "📖 参考 Shopify 官方文档",
+      "description": "如需更多帮助，参考 Shopify 官方升级向导："
+    },
+    "privacy": {
+      "title": "🔒 隐私说明",
+      "description": "本工具仅在本地分析脚本，不会上传到服务器。"
+    },
+    "detection": {
+      "piiWarningTitle": "⚠️ 检测到敏感信息（PII）：",
+      "piiWarningDescription": "请在粘贴前删除或替换所有敏感信息。",
+      "snippetsFound": "✅ 已识别 {{count}} 个脚本片段：",
+      "snippetLocation": "（位置：{{start}}-{{end}} 字符）",
+      "snippetsTip": "💡 点击分析按钮处理每个片段。",
+      "issuesTitle": "检测到潜在问题："
+    },
+    "editor": {
+      "label": "脚本内容",
+      "placeholder": "请粘贴您的脚本内容...",
+      "helpText": "已输入 {{count}} 个字符",
+      "richPlaceholder": "请粘贴您的脚本内容..."
+    },
+    "result": {
+      "analysisComplete": "分析完成。仅提供本地分析结果。",
+      "creatingAssets": "正在创建迁移资产...",
+      "title": "分析结果",
+      "snippetsLabel": "识别的代码片段：",
+      "snippetsCount": "{{count}} 个",
+      "platformsLabel": "识别的平台：",
+      "none": "无",
+      "riskLabel": "总体风险等级：",
+      "assetsTitle": "识别的资产（{{count}} 项）",
+      "riskHigh": "高风险",
+      "riskMedium": "中风险",
+      "riskLow": "低风险",
+      "confidenceHigh": "高置信度",
+      "confidenceMedium": "中置信度",
+      "confidenceLow": "低置信度",
+      "assetDetail": "类别：{{category}} | 迁移方式：{{migration}}"
+    }
+  },
+  "guidedSupplement": {
+    "checklist": {
+      "ga4": "Google Analytics 4 (GA4)",
+      "meta": "Meta Pixel (Facebook)",
+      "tiktok": "TikTok Pixel",
+      "survey": "售后问卷 / 评价收集",
+      "support": "客服入口 / 帮助中心",
+      "reorder": "再购功能",
+      "affiliate": "联盟追踪 / 分佣",
+      "tracking": "订单追踪 / 物流查询",
+      "other": "其他脚本或功能"
+    },
+    "modal": {
+      "title": "从 Shopify 升级向导补充信息",
+      "complete": "完成",
+      "next": "下一步",
+      "back": "上一步",
+      "cancel": "取消"
+    },
+    "steps": {
+      "step1": "步骤 1",
+      "step2": "步骤 2",
+      "step3": "步骤 3"
+    },
+    "step1": {
+      "title": "从升级向导中选择使用的功能",
+      "description": "请勾选所有在 Thank you / Order status 页面使用的功能",
+      "guideTitle": "如何获取升级向导清单：",
+      "guideStep1": "前往 Shopify Admin → 设置 → 结账和订单处理",
+      "guideStep2": "找到 Thank you 页面升级部分",
+      "guideStep3": "查看列出的脚本和功能清单",
+      "guideStep4": "勾选下方对应功能",
+      "v1ScopeTitle": "v1 支持范围：",
+      "v1PixelSupport": "像素：v1 仅支持 GA4、Meta、TikTok",
+      "v1UiModules": "UI 模块：v1 不提供 Survey/Helpdesk",
+      "v1SelectAll": "请选择所有您使用的功能。",
+      "v1Supported": "v1 支持",
+      "emptySelection": "请至少选择一个功能"
+    },
+    "step2": {
+      "title": "补充信息（可选）",
+      "description": "从升级向导复制清单文本粘贴",
+      "methodsTitle": "两种方式：",
+      "method1": "方式一：粘贴清单文本",
+      "method2": "方式二：上传截图",
+      "comingSoon": "即将上线",
+      "pasteTitle": "粘贴清单文本：",
+      "pasteLabel": "清单内容",
+      "pastePlaceholder": "从 Shopify 升级向导复制的文本...",
+      "pasteHelpText": "系统自动识别匹配功能",
+      "tip": "💡 截图识别暂未开放，请用文本粘贴。",
+      "selectedTitle": "已选择的功能："
+    },
+    "step3": {
+      "title": "额外信息（可选）",
+      "description": "填写其他需要补充的信息",
+      "notesLabel": "补充说明",
+      "notesPlaceholder": "例如：自定义订单追踪、第三方客服等",
+      "notesHelpText": "帮助更准确评估迁移风险",
+      "summaryTitle": "信息摘要",
+      "manuallySelected": "手动选择的功能：",
+      "none": "无",
+      "autoDetected": "自动检测到的功能：",
+      "sourceInfo": "信息来自 Shopify 升级向导",
+      "sourceInfoWithText": " + 文本智能识别",
+      "successMessage": "成功创建迁移资产！"
+    }
+  },
+  "checkoutExtWarning": {
+    "title": "重要提示：Checkout Extensibility 迁移边界情况",
+    "intro": "从 checkout.liquid 迁移到 Checkout Extensibility 时，请注意以下情况：",
+    "items": [
+      "部分 Additional Scripts 可能依赖 checkout.liquid 的功能（如 Liquid 变量、DOM 操作等），这些在 Web Pixel sandbox 中不可用。",
+      "Web Pixel 运行在 strict sandbox（Web Worker）中，无法访问 DOM、localStorage、第三方 cookie 等。",
+      "包含 DOM 操作的脚本（如添加自定义 UI 元素、修改页面内容）需要迁移到 Checkout UI Extensions。",
+      "仅发送转化事件的脚本（GA4、Meta Pixel、TikTok Pixel 等）可以迁移到 Web Pixel。"
+    ],
+    "recommendation": "建议：先确认每个脚本的功能，再选择合适的迁移方式（Web Pixel 或 UI Extension）。",
+    "learnMore": "了解更多"
+  },
+  "checkoutBehaviorHint": {
+    "title": "checkout_completed 事件缺失的可能原因",
+    "subtitle": "很多情况下，收不到 checkout_completed 不是 Bug，而是正常行为。",
+    "upsellTitle": "售后追加销售 (Post-purchase Upsell / One-click Upsell)",
+    "upsellDesc": "如果安装了售后追加销售应用，正常的结账流程可能被中断，用户可能没有到达标准 Thank You 页面。",
+    "consentTitle": "客户隐私同意 (GDPR, CCPA)",
+    "consentDesc": "如果客户拒绝了 analytics/marketing cookie 同意，Shopify 可能不会触发 Web Pixel。这是平台限制，无法绕过。",
+    "shopPayTitle": "Shop Pay 快捷结账",
+    "shopPayDesc": "Shop Pay 快捷结账可能跳过标准订单状态页面，导致没有触发像素事件。",
+    "ajaxCheckoutTitle": "AJAX / Headless 结账",
+    "ajaxCheckoutDesc": "部分自定义或 headless 结账实现可能不会触发标准 Web Pixel 事件。",
+    "note": "如果缺失事件比例在 5% 以内，通常属于正常合理范围。"
+  },
+  "verificationHistory": {
+    "title": "验收历史",
+    "columns": [
+      "时间",
+      "类型",
+      "状态",
+      "通过",
+      "失败",
+      "参数缺失"
+    ],
+    "type": {
+      "full": "完整",
+      "quick": "快速"
+    },
+    "empty": {
+      "title": "暂无验收历史记录",
+      "description": "运行验收测试后，历史记录将显示在这里。",
+      "action": "运行验收"
+    },
+    "runLabel": "{{type}}验收"
+  },
+  "testGuide": {
+    "title": "📋 测试订单指引",
+    "copyGuide": "复制指引",
+    "collapse": "收起",
+    "expand": "展开",
+    "estimatedTime": "预计时间: {{time}}",
+    "tips": "💡 提示"
+  },
+  "selectPlatformStep": {
+    "title": "选择要配置的平台",
+    "description": "选择您要迁移的广告平台。",
+    "templateTip": "提示：可使用预设模板或手动选择平台。",
+    "viewTemplates": "查看预设模板",
+    "coreCapabilities": "v1 像素迁移核心能力：",
+    "standardEventMapping": "标准事件映射",
+    "standardEventMappingDesc": "：Shopify 事件 → 平台事件（GA4/Meta/TikTok）",
+    "paramCompletenessCheck": "参数完整率检查",
+    "paramCompletenessCheckDesc": "：自动验证事件参数是否完整",
+    "downloadablePayload": "可下载 payload 证据",
+    "downloadablePayloadDesc": "：用于验证和存档（Test/Live 环境）",
+    "v1SupportedPlatforms": "v1 支持平台",
+    "v1SupportedPlatformsDesc": "：GA4、Meta、TikTok",
+    "v1_1Planning": "v1.1+ 规划",
+    "v1_1PlanningDesc": "：Pinterest、Snapchat 等后续版本支持",
+    "techLimitations": "⚠️ 技术限制说明：",
+    "techLimitationsDetail": "Web Pixel 运行在 strict sandbox 环境中，能力受限。",
+    "v1Supported": "v1 支持",
+    "futureVersionSupport": "（v1.1+ 版本将支持）",
+    "platformUnavailable": "该平台将在 v1.1+ 版本支持。",
+    "selectTemplate": "选择预设模板",
+    "close": "关闭",
+    "templateSelectDesc": "选择预设模板快速配置事件映射。",
+    "public": "公开",
+    "usageCount": "使用 {{count}} 次",
+    "apply": "应用"
+  },
+  "reviewStep": {
+    "errorTemplateName": "请输入模板名称",
+    "templateSaved": "模板已保存！",
+    "templateSaveError": "保存模板失败",
+    "title": "检查配置",
+    "description": "请检查配置是否正确，确认后点击保存。",
+    "configErrors": "配置错误",
+    "configComplete": "配置完整",
+    "configIncomplete": "配置不完整",
+    "environment": "环境",
+    "liveMode": "生产模式",
+    "testMode": "测试模式",
+    "platformId": "平台 ID",
+    "notFilled": "未填写",
+    "eventMappings": "事件映射",
+    "eventCount": "{{count}} 个事件",
+    "saveAsTemplate": "保存为模板",
+    "saveAsTemplateDesc": "将当前配置保存为可复用的模板。",
+    "save": "保存",
+    "cancel": "取消",
+    "templateNameLabel": "模板名称",
+    "templateNamePlaceholder": "例如：标准电商配置",
+    "templateNameHelp": "起一个易识别的名称",
+    "templateDescLabel": "描述",
+    "templateDescPlaceholder": "描述模板用途和场景",
+    "publicTemplate": "公开模板",
+    "publicTemplateHelp": "公开模板可以被其他用户使用",
+    "templateSaveInfo": "模板将保存：",
+    "templatePlatforms": "平台：{{platforms}}",
+    "templateEventCount": "事件映射：{{count}} 个事件",
+    "templateNote": "注意：模板不保存凭证信息。"
+  },
+  "credentialsStep": {
+    "title": "填写平台凭证",
+    "description": "为每个选中的平台填写 API 凭证。",
+    "liveMode": "🔴 生产模式",
+    "testMode": "🟡 测试模式",
+    "switchEnvironment": "切换环境",
+    "testEnvOption": "🟡 测试环境 (Test) - 用于验证配置",
+    "liveEnvOption": "🔴 生产环境 (Live)",
+    "testModeHelp": "测试模式：用于验证映射与验收",
+    "liveModeHelp": "生产模式：用于生产环境验收与监控",
+    "testModeInfo": "测试模式下事件将发送到平台测试端点。"
+  },
+  "eventMappingsStep": {
+    "title": "配置事件映射",
+    "description": "将 Shopify 事件映射到各平台的事件名称。我们已为您配置了推荐映射。"
+  },
+  "migrationCountdownComp": {
+    "versionSuffix": "版"
+  },
+  "privacyPage": {
+    "deleteItems": [
+      "所有转化记录",
+      "所有事件日志",
+      "所有问卷响应",
+      "所有配置和设置"
+    ],
+    "cancelButton": "取消"
+  },
+  "subscriptionTabExtra": {
+    "billingHistoryNote": "您可以访问订阅与计费页面查看完整的账单历史、使用量统计和发票信息。"
+  },
+  "scanManualSupplement": {
+    "migrationChecklistSuggestion": "迁移清单建议"
+  },
+  "manualAnalysis": {
+    "migrationChecklistSuggestion": "迁移清单建议"
+  },
+  "pixelConfig": {
+    "action": {
+      "missingPlatform": "缺少 platform 参数",
+      "unsupportedPlatform": "平台 {{platform}} 在 v1.0 版本中不支持。",
+      "invalidEnvironment": "无效的环境参数",
+      "unknownAction": "未知操作",
+      "operationError": "操作失败，请稍后重试"
     }
   }
 }

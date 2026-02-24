@@ -1,4 +1,5 @@
 import { BlockStack, Text } from "@shopify/polaris";
+import { useTranslation } from "react-i18next";
 import type { PlatformType } from "~/types/enums";
 import type { PlatformConfig } from "./useWizardState";
 import { EventMappingEditor } from "../EventMappingEditor";
@@ -18,13 +19,14 @@ export function EventMappingsStep({
   platformConfigs,
   onEventMappingUpdate,
 }: EventMappingsStepProps) {
+  const { t } = useTranslation();
   return (
     <BlockStack gap="500">
       <Text as="h3" variant="headingMd">
-        配置事件映射
+        {t("eventMappingsStep.title")}
       </Text>
       <Text as="p" tone="subdued">
-        将 Shopify 事件映射到各平台的事件名称。我们已为您配置了推荐映射。
+        {t("eventMappingsStep.description")}
       </Text>
       {Array.from(selectedPlatforms).map((platform) => {
         const config = platformConfigs[platform];

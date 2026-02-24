@@ -1,6 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "../../shopify.server";
+import { i18nServer } from "../../i18n.server";
 import prisma from "../../db.server";
 import { checkTokenExpirationIssues } from "../../services/retry.server";
 import { getCachedTypOspStatus, refreshTypOspStatus } from "../../services/checkout-profile.server";
@@ -11,6 +12,7 @@ import type { SettingsLoaderData, PixelConfigDisplay, AlertConfigDisplay, TypOsp
 export async function settingsLoader({ request }: LoaderFunctionArgs) {
   try {
     const { session, admin } = await authenticate.admin(request);
+    const t = await i18nServer.getFixedT(request);
     const shopDomain = session.shop;
     let shop: {
       id: string;
@@ -237,7 +239,7 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
         : null,
       tokenIssues,
       pcdApproved: false,
-      pcdStatusMessage: "我们不收集终端客户 PII，当前公开上架版本不会从 Shopify 读取订单明细或访问 PCD，不申请 read_orders、不订阅订单 webhook。未来如引入基于订单的验收/对账或再购等功能，将在获得 PCD 审批后单独启用并更新隐私文档。",
+      pcdStatusMessage: t("settings.loader.pcdStatusMessage"),
       typOspStatus,
       pixelStrictOrigin,
       alertChannelsEnabled,

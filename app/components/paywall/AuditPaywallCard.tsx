@@ -1,14 +1,14 @@
 import { Banner, BlockStack, Button, Card, InlineStack, Text } from "@shopify/polaris";
 import { getPlanOrDefault } from "~/services/billing/plans";
 import { isPlanAtLeast, normalizePlan } from "~/utils/plans";
+import { useTranslation } from "react-i18next";
 
 interface AuditPaywallCardProps {
   planId: string | null | undefined;
 }
 
-const priceLabel = (price: number) => `$${price}/月`;
-
 export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
+  const { t } = useTranslation();
   const planIdSafe = normalizePlan(planId);
   const isStarter = isPlanAtLeast(planIdSafe, "starter");
   const isGrowth = isPlanAtLeast(planIdSafe, "growth");
@@ -16,60 +16,67 @@ export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
   const starterPlan = getPlanOrDefault("starter");
   const growthPlan = getPlanOrDefault("growth");
   const agencyPlan = getPlanOrDefault("agency");
+  const starterName = t(starterPlan.name);
+  const growthName = t(growthPlan.name);
+  const agencyName = t(agencyPlan.name);
+  const priceLabel = (price: number) => t("auditPaywall.pricePerMonth", { price });
+
   const migrationLabel = isStarter
-    ? "迁移像素"
-    : `迁移像素（${starterPlan.name} ${priceLabel(starterPlan.price)}）`;
+    ? t("auditPaywall.migratePixel")
+    : t("auditPaywall.migratePixelWithPlan", { plan: starterName, price: priceLabel(starterPlan.price) });
   const moduleLabel = isStarter
-    ? "页面侧自定义指引"
-    : `页面侧自定义指引（${starterPlan.name} ${priceLabel(starterPlan.price)}）`;
+    ? t("auditPaywall.pageCustomization")
+    : t("auditPaywall.pageCustomizationWithPlan", { plan: starterName, price: priceLabel(starterPlan.price) });
+
   const bannerLines = (() => {
     if (!isStarter) {
       return [
         {
-          label: "免费功能：",
-          text: "可查看风险与清单",
+          label: t("auditPaywall.freeFeatures"),
+          text: t("auditPaywall.freeDesc"),
         },
         {
-          label: "付费解锁：",
-          text: `一键生成像素 + Test/Live 环境 + 版本/回滚 + 验收报告导出（${starterPlan.name} ${priceLabel(starterPlan.price)} 起）`,
+          label: t("auditPaywall.paidUnlock"),
+          text: t("auditPaywall.paidDesc", { plan: starterName, price: priceLabel(starterPlan.price) }),
         },
       ];
     }
     if (!isGrowth) {
       return [
         {
-          label: "已解锁：",
-          text: `${starterPlan.name} 像素迁移 + Test/Live 环境 + 版本/回滚`,
+          label: t("auditPaywall.unlocked"),
+          text: t("auditPaywall.starterUnlocked", { plan: starterName }),
         },
         {
-          label: "升级解锁：",
-          text: `${growthPlan.name} 验收报告导出 + 事件对账 + 告警`,
+          label: t("auditPaywall.upgradeUnlock"),
+          text: t("auditPaywall.growthUnlock", { plan: growthName }),
         },
       ];
     }
     if (!isAgency) {
       return [
         {
-          label: "已解锁：",
-          text: `${growthPlan.name} 验收报告导出 + 事件对账 + 告警`,
+          label: t("auditPaywall.unlocked"),
+          text: t("auditPaywall.growthUnlocked", { plan: growthName }),
         },
         {
-          label: "升级解锁：",
-          text: `多店/白标/批量即将在 v1.1 推出；${agencyPlan.name} 当前已含无限像素、验收报告导出与 SLA`,
+          label: t("auditPaywall.upgradeUnlock"),
+          text: t("auditPaywall.agencyUnlock", { plan: agencyName }),
         },
       ];
     }
     return [
       {
-        label: "已解锁：",
-        text: `多店/白标/批量即将在 v1.1 推出；当前已含无限像素、验收报告导出与 SLA`,
+        label: t("auditPaywall.unlocked"),
+        text: t("auditPaywall.agencyUnlocked"),
       },
       {
-        label: "需要协助：",
-        text: "如需迁移托管或定制支持，请联系客户成功经理",
+        label: t("auditPaywall.needHelp"),
+        text: t("auditPaywall.contactCSM"),
       },
     ];
   })();
+
   const upgradeTarget = !isStarter
     ? "starter"
     : !isGrowth
@@ -78,11 +85,13 @@ export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
         ? "agency"
         : null;
   const upgradePlan = upgradeTarget ? getPlanOrDefault(upgradeTarget) : null;
+  const upgradePlanName = upgradePlan ? t(upgradePlan.name) : "";
+
   return (
     <Card>
       <BlockStack gap="400">
         <Text as="h3" variant="headingMd">
-          🎯 开始迁移（PRD 3: 付费转化节点1）
+          {t("auditPaywall.title")}
         </Text>
         <Banner tone="info">
           <BlockStack gap="200">
@@ -115,7 +124,7 @@ export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
               url={`/app/billing?upgrade=${upgradePlan.id}`}
               size="large"
             >
-              {`升级到 ${upgradePlan.name} ${priceLabel(upgradePlan.price)}`}
+              {t("auditPaywall.upgradeTo", { plan: upgradePlanName, price: priceLabel(upgradePlan.price) })}
             </Button>
           )}
         </InlineStack>

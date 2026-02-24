@@ -34,12 +34,12 @@ export function validateEventParams(log: {
   if (!log.orderValue || log.orderValue === null) {
     missingParams.push("value");
   } else if (typeof log.orderValue === "number" && log.orderValue <= 0) {
-    invalidParams.push({ param: "value", reason: "订单金额必须大于0" });
+    invalidParams.push({ param: "value", reason: "Order value must be greater than 0" });
   }
   if (!log.currency || log.currency.trim() === "") {
     missingParams.push("currency");
   } else if (log.currency.length !== 3) {
-    invalidParams.push({ param: "currency", reason: "货币代码必须是3位ISO代码" });
+    invalidParams.push({ param: "currency", reason: "Currency code must be a 3-letter ISO code" });
   }
   if (log.eventType === "purchase" && !log.eventId) {
     missingParams.push("event_id");

@@ -30,11 +30,11 @@ export async function calculateMigrationProgress(shopId: string): Promise<Migrat
   });
   const modulesEnabled = 0;
   const stages: MigrationProgress["stages"] = [
-    { stage: "audit", label: "体检", completed: false, inProgress: false },
-    { stage: "pixel_test", label: "像素测试", completed: false, inProgress: false },
-    { stage: "verification", label: "验收", completed: false, inProgress: false },
-    { stage: "live", label: "上线", completed: false, inProgress: false },
-    { stage: "monitoring", label: "监控", completed: false, inProgress: false },
+    { stage: "audit", label: "Audit", completed: false, inProgress: false },
+    { stage: "pixel_test", label: "Pixel Test", completed: false, inProgress: false },
+    { stage: "verification", label: "Verification", completed: false, inProgress: false },
+    { stage: "live", label: "Go Live", completed: false, inProgress: false },
+    { stage: "monitoring", label: "Monitoring", completed: false, inProgress: false },
   ];
   const scanReports = shop && "ScanReports" in shop ? (shop as typeof shop & { ScanReports: Array<{ status: string }> }).ScanReports : [];
   const hasCompletedAudit = scanReports[0]?.status === "completed";

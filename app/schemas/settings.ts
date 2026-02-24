@@ -2,24 +2,24 @@ import { z } from "zod";
 import { logger } from "../utils/logger.server";
 
 export const AlertEmailSchema = z.object({
-  email: z.string().email("请输入有效的邮箱地址"),
+  email: z.string().email("Please enter a valid email address"),
 });
 
 export const AlertSlackSchema = z.object({
   webhookUrl: z
     .string()
-    .url("请输入有效的 URL")
+    .url("Please enter a valid URL")
     .startsWith("https://"),
 });
 
 export const AlertTelegramSchema = z.object({
   botToken: z
     .string()
-    .min(30, "Bot Token 格式不正确")
-    .regex(/^\d+:[A-Za-z0-9_-]+$/, "Bot Token 格式不正确"),
+    .min(30, "Invalid Bot Token format")
+    .regex(/^\d+:[A-Za-z0-9_-]+$/, "Invalid Bot Token format"),
   chatId: z
     .string()
-    .regex(/^-?\d+$/, "Chat ID 应为数字"),
+    .regex(/^-?\d+$/, "Chat ID must be numeric"),
 });
 
 export const AlertChannelSchema = z.enum(["email", "slack", "telegram"]);
@@ -62,13 +62,13 @@ export function validateAlertSettings(
 export const MetaCredentialsSchema = z.object({
   pixelId: z
     .string()
-    .min(15, "Pixel ID 至少 15 位")
-    .max(20, "Pixel ID 最多 20 位")
-    .regex(/^\d+$/, "Pixel ID 应为纯数字"),
+    .min(15, "Pixel ID must be at least 15 characters")
+    .max(20, "Pixel ID must be at most 20 characters")
+    .regex(/^\d+$/, "Pixel ID must contain digits only"),
   accessToken: z
     .string()
-    .min(100, "Access Token 长度不正确")
-    .max(500, "Access Token 长度不正确"),
+    .min(100, "Invalid Access Token length")
+    .max(500, "Invalid Access Token length"),
   testEventCode: z.string().max(20).optional(),
 });
 
@@ -77,11 +77,11 @@ export type MetaCredentialsInput = z.infer<typeof MetaCredentialsSchema>;
 export const GoogleCredentialsSchema = z.object({
   measurementId: z
     .string()
-    .regex(/^G-[A-Z0-9]+$/i, "格式应为 G-XXXXXXXXXX"),
+    .regex(/^G-[A-Z0-9]+$/i, "Format must be G-XXXXXXXXXX"),
   apiSecret: z
     .string()
-    .min(20, "API Secret 长度不正确")
-    .max(50, "API Secret 长度不正确"),
+    .min(20, "Invalid API Secret length")
+    .max(50, "Invalid API Secret length"),
 });
 
 export type GoogleCredentialsInput = z.infer<typeof GoogleCredentialsSchema>;
@@ -89,12 +89,12 @@ export type GoogleCredentialsInput = z.infer<typeof GoogleCredentialsSchema>;
 export const TikTokCredentialsSchema = z.object({
   pixelId: z
     .string()
-    .min(10, "Pixel ID 长度不正确")
-    .max(30, "Pixel ID 长度不正确"),
+    .min(10, "Invalid Pixel ID length")
+    .max(30, "Invalid Pixel ID length"),
   accessToken: z
     .string()
-    .min(50, "Access Token 长度不正确")
-    .max(200, "Access Token 长度不正确"),
+    .min(50, "Invalid Access Token length")
+    .max(200, "Invalid Access Token length"),
 });
 
 export type TikTokCredentialsInput = z.infer<typeof TikTokCredentialsSchema>;
@@ -138,7 +138,7 @@ export const DataRetentionDaysSchema = z
   .max(365)
   .refine(
     (val) => [30, 60, 90, 180, 365].includes(val),
-    "数据保留天数必须是 30、60、90、180 或 365"
+    "Data retention days must be one of 30, 60, 90, 180, or 365"
   );
 
 export const PrivacySettingsSchema = z.object({

@@ -116,6 +116,6 @@ export async function performPixelVsOrderReconciliation(
     periodStart,
     periodEnd,
     reasonableMissingNote:
-      "部分订单可能因用户未同意营销/分析追踪、页面未加载完成或网络中断而未触发像素事件，属于合理缺失。",
+      "Some orders may not have triggered pixel events due to the user not consenting to marketing/analytics tracking, the page not fully loading, or network interruptions. These are considered reasonable missing events.",
   };
 }

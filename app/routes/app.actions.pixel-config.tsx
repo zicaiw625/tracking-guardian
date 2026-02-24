@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
+import { i18nServer } from "../i18n.server";
 import prisma from "../db.server";
 import {
   rollbackConfig,
@@ -31,17 +32,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json({ success: false, error: "Plan upgrade required" }, { status: 403 });
   }
 
+  const t = await i18nServer.getFixedT(request);
   const formData = await request.formData();
   const actionType = formData.get("_action") as string;
   const platform = formData.get("platform") as string;
   if (!platform) {
-    return json({ success: false, error: "缺少 platform 参数" }, { status: 400 });
+    return json({ success: false, error: t("pixelConfig.action.missingPlatform") }, { status: 400 });
   }
   if (!isV1SupportedPlatform(platform)) {
     const v1Platforms = getV1Platforms();
     return json({
       success: false,
-      error: `平台 ${platform} 在 v1.0 版本中不支持。v1.0 仅支持: ${v1Platforms.join(", ")}。`,
+      error: t("pixelConfig.action.unsupportedPlatform", { platform, platforms: v1Platforms.join(", ") }),
     }, { status: 400 });
   }
   try {
@@ -60,7 +62,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (!newEnvironment || !["test", "live"].includes(newEnvironment)) {
           return json({
             success: false,
-            error: "无效的环境参数"
+            error: t("pixelConfig.action.invalidEnvironment")
           }, { status: 400 });
         }
         const result = await switchEnvironment(shop.id, platform, newEnvironment);
@@ -116,13 +118,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
       }
       default:
-        return json({ success: false, error: "未知操作" }, { status: 400 });
+        return json({ success: false, error: t("pixelConfig.action.unknownAction") }, { status: 400 });
     }
   } catch (error) {
     logger.error("Pixel config action error", { actionType, platform, error });
     return json({
       success: false,
-      error: "操作失败，请稍后重试"
+      error: t("pixelConfig.action.operationError")
     }, { status: 500 });
   }
 };

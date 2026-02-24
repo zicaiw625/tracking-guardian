@@ -1,5 +1,6 @@
 import { Card, Text, BlockStack, InlineStack, Box, ProgressBar, Icon } from "@shopify/polaris";
 import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from "~/components/icons";
+import { useTranslation } from "react-i18next";
 
 export type TrendDirection = "up" | "down" | "neutral";
 
@@ -27,9 +28,11 @@ export function MetricCard({
   description,
   trend,
   trendValue,
-  trendPeriod = "vs 上周",
+  trendPeriod,
   loading = false,
 }: MetricCardProps) {
+  const { t } = useTranslation();
+  const displayTrendPeriod = trendPeriod || t("metricCard.defaultTrendPeriod");
   const getTrendColor = () => {
     switch (trend) {
       case "up":
@@ -75,7 +78,7 @@ export function MetricCard({
               {trendValue}
             </Text>
             <Text as="span" variant="bodySm" tone="subdued">
-              {trendPeriod}
+              {displayTrendPeriod}
             </Text>
           </InlineStack>
         )}
@@ -167,6 +170,7 @@ export function ComparisonMetricCard({
   unit = "",
   highlightDifference = false,
 }: ComparisonMetricCardProps) {
+  const { t } = useTranslation();
   const leftNum = typeof leftValue === "number" ? leftValue : parseFloat(String(leftValue)) || 0;
   const rightNum = typeof rightValue === "number" ? rightValue : parseFloat(String(rightValue)) || 0;
   const difference = leftNum - rightNum;
@@ -203,7 +207,7 @@ export function ComparisonMetricCard({
             variant="bodySm"
             tone={difference >= 0 ? "success" : "critical"}
           >
-            差异: {difference >= 0 ? "+" : ""}{difference.toLocaleString()} ({differencePercent}%)
+            {t("metricCard.difference", { value: `${difference >= 0 ? "+" : ""}${difference.toLocaleString()}`, percent: differencePercent })}
           </Text>
         )}
       </BlockStack>

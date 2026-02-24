@@ -14,18 +14,18 @@ export function checkV1FeatureBoundary(
     case "server_side":
       return {
         allowed: false,
-        reason: "服务端投递能力在当前版本默认关闭（规划中）",
+        reason: "Server-side delivery is disabled by default in the current version (planned).",
       };
     case "upsell":
       return {
         allowed: false,
-        reason: "UpsellOffer 模块在 v1.0 版本中不可用，将在 v1.1+ 版本中提供",
+        reason: "The UpsellOffer module is not available in v1.0 and will be available in v1.1+.",
         requiredVersion: "1.1",
       };
     case "shipping_tracking_third_party":
       return {
         allowed: false,
-        reason: "第三方物流集成（AfterShip/17Track）在 v1.0 版本中不可用，将在 v2.0+ 版本中提供",
+        reason: "Third-party shipping tracking integrations (AfterShip/17Track) are not available in v1.0 and will be available in v2.0+.",
         requiredVersion: "2.0",
       };
     default:

@@ -218,11 +218,11 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             type: "remove_duplicate",
             priority: "medium",
             platform: dup.platform,
-            title: `清理重复的 ${dup.platform} 像素`,
+            title: `Clean up duplicate ${dup.platform} pixels`,
             titleKey: "scan.migrationLogic.duplicate.title",
             titleParams: { platform: dup.platform },
-            description: `检测到 ${dup.count} 个 ${dup.platform} 像素配置，可能导致重复追踪。建议只保留一个。` +
-                (gidsToDelete.length > 0 ? ` (可删除 ${gidsToDelete.length} 个)` : ""),
+            description: `Detected ${dup.count} ${dup.platform} pixel configurations, which may cause duplicate tracking. Keeping only one is recommended.` +
+                (gidsToDelete.length > 0 ? ` (${gidsToDelete.length} can be deleted)` : ""),
             descriptionKey: gidsToDelete.length > 0 ? "scan.migrationLogic.duplicate.descWithDelete" : "scan.migrationLogic.duplicate.desc",
             descriptionParams: { count: dup.count, platform: dup.platform, deleteCount: gidsToDelete.length },
             // Suffix logic for delete count is simple enough to handle or ignore for now, or add as param if supported.

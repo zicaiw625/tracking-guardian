@@ -156,8 +156,8 @@ export function getScriptTagCreationStatus(now: Date = new Date()): DeprecationS
             isWarning: false,
             daysRemaining: 0,
             deadline,
-            message: "自 2025 年 2 月 1 日起，无法在 Thank you / Order status 页面创建新的 ScriptTag。现有的 ScriptTag 仍在运行，但将于稍后的截止日期停止。",
-            messageBrief: "禁止创建（2025-02-01）",
+            message: "Since 2025-02-01, new ScriptTags can no longer be created on the Thank you / Order status pages. Existing ScriptTags still run, but they will stop at a later deadline.",
+            messageBrief: "Creation blocked (2025-02-01)",
             tone: "warning",
             messageKey: "deprecation.scriptTagCreation.expired.message",
             messageBriefKey: "deprecation.scriptTagCreation.expired.brief",
@@ -170,8 +170,8 @@ export function getScriptTagCreationStatus(now: Date = new Date()): DeprecationS
             isWarning: true,
             daysRemaining,
             deadline,
-            message: `${daysRemaining} 天后（2025-02-01）将无法在 TYP/OSP 页面创建新的 ScriptTag。建议提前规划迁移。`,
-            messageBrief: `${daysRemaining} 天后禁止创建`,
+            message: `In ${daysRemaining} days (2025-02-01), new ScriptTags can no longer be created on TYP/OSP pages. Plan your migration early.`,
+            messageBrief: `Creation blocked in ${daysRemaining} days`,
             tone: "warning",
             messageKey: "deprecation.scriptTagCreation.warning.message",
             messageParams: { days: daysRemaining, date: dateLabel },
@@ -185,8 +185,8 @@ export function getScriptTagCreationStatus(now: Date = new Date()): DeprecationS
         isWarning: false,
         daysRemaining,
         deadline,
-        message: `2025-02-01 起将无法创建新的 ScriptTag。建议提前迁移到 Web Pixel。`,
-        messageBrief: `2025-02-01 禁止创建`,
+        message: `Starting 2025-02-01, new ScriptTags cannot be created. Migrate to Web Pixel early.`,
+        messageBrief: `Creation blocked on 2025-02-01`,
         tone: "info",
         messageKey: "deprecation.scriptTagCreation.info.message",
         messageParams: { date: dateLabel },
@@ -200,7 +200,7 @@ export function getScriptTagExecutionStatus(tier: ShopTier, now: Date = new Date
         ? DEPRECATION_DATES.plusScriptTagExecutionOff
         : DEPRECATION_DATES.nonPlusScriptTagExecutionOff;
     const daysRemaining = getDaysRemaining(deadline, now);
-    const tierLabel = tier === "plus" ? "Plus 商家" : tier === "non_plus" ? "非 Plus 商家" : "商家";
+    const tierLabel = tier === "plus" ? "Plus merchants" : tier === "non_plus" ? "Non-Plus merchants" : "Merchants";
     // const tierKey = tier === "plus" ? "deprecation.tier.plus" : tier === "non_plus" ? "deprecation.tier.nonPlus" : "deprecation.tier.generic";
     const dateLabel = getDateDisplayLabel(deadline, "exact");
 
@@ -212,8 +212,8 @@ export function getScriptTagExecutionStatus(tier: ShopTier, now: Date = new Date
             isWarning: false,
             daysRemaining: 0,
             deadline,
-            message: `${tierLabel}的 ScriptTag 已于 ${dateLabel} 停止执行。请立即迁移到 Web Pixel 以恢复追踪功能。`,
-            messageBrief: `已停止执行（${dateLabel}）`,
+            message: `${tierLabel}' ScriptTags stopped executing on ${dateLabel}. Migrate to Web Pixel immediately to restore tracking.`,
+            messageBrief: `Execution stopped (${dateLabel})`,
             tone: "critical",
             messageKey: `deprecation.scriptTagExecution.expired.message.${tierKeySuffix}`,
             messageParams: { date: dateLabel },
@@ -228,8 +228,8 @@ export function getScriptTagExecutionStatus(tier: ShopTier, now: Date = new Date
             isWarning: true,
             daysRemaining,
             deadline,
-            message: `${tierLabel}的 ScriptTag 将于 ${dateLabel} 停止执行（剩余 ${daysRemaining} 天）。请尽快完成迁移！`,
-            messageBrief: `剩余 ${daysRemaining} 天`,
+            message: `${tierLabel}' ScriptTags will stop executing on ${dateLabel} (${daysRemaining} days left). Complete migration as soon as possible.`,
+            messageBrief: `${daysRemaining} days left`,
             tone: "warning",
             messageKey: `deprecation.scriptTagExecution.warning.message.${tierKeySuffix}`,
             messageParams: { date: dateLabel, days: daysRemaining },
@@ -243,8 +243,8 @@ export function getScriptTagExecutionStatus(tier: ShopTier, now: Date = new Date
         isWarning: false,
         daysRemaining,
         deadline,
-        message: `${tierLabel}的 ScriptTag 将于 ${dateLabel} 停止执行。建议提前迁移到 Web Pixel。`,
-        messageBrief: `截止 ${dateLabel}`,
+        message: `${tierLabel}' ScriptTags will stop executing on ${dateLabel}. Migrate to Web Pixel early.`,
+        messageBrief: `Deadline ${dateLabel}`,
         tone: "info",
         messageKey: `deprecation.scriptTagExecution.info.message.${tierKeySuffix}`,
         messageParams: { date: dateLabel },
@@ -262,7 +262,7 @@ export function getAdditionalScriptsDeprecationStatus(tier: ShopTier, now: Date 
         ? DEPRECATION_DATES.plusAdditionalScriptsReadOnly
         : DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly;
     const daysRemaining = getDaysRemaining(deadline, now);
-    const tierLabel = tier === "plus" ? "Plus 商家" : tier === "non_plus" ? "非 Plus 商家" : "商家";
+    const tierLabel = tier === "plus" ? "Plus merchants" : tier === "non_plus" ? "Non-Plus merchants" : "Merchants";
     const dateLabel = getDateDisplayLabel(deadline, "exact");
     const tierKeySuffix = tier === "plus" ? "plus" : tier === "non_plus" ? "nonPlus" : "generic";
 
@@ -272,8 +272,8 @@ export function getAdditionalScriptsDeprecationStatus(tier: ShopTier, now: Date 
             isWarning: false,
             daysRemaining: 0,
             deadline,
-            message: `${tierLabel}的 Additional Scripts 已于 ${dateLabel} 变为只读。请使用 Web Pixel 进行追踪。`,
-            messageBrief: `已只读（${dateLabel}）`,
+            message: `${tierLabel}' Additional Scripts became read-only on ${dateLabel}. Use Web Pixel for tracking.`,
+            messageBrief: `Read-only (${dateLabel})`,
             tone: "critical",
             messageKey: `deprecation.additionalScripts.expired.message.${tierKeySuffix}`,
             messageParams: { date: dateLabel },
@@ -288,8 +288,8 @@ export function getAdditionalScriptsDeprecationStatus(tier: ShopTier, now: Date 
             isWarning: true,
             daysRemaining,
             deadline,
-            message: `${tierLabel}的 Additional Scripts 将于 ${dateLabel} 变为只读（剩余 ${daysRemaining} 天）。请尽快迁移。`,
-            messageBrief: `剩余 ${daysRemaining} 天`,
+            message: `${tierLabel}' Additional Scripts will become read-only on ${dateLabel} (${daysRemaining} days left). Migrate as soon as possible.`,
+            messageBrief: `${daysRemaining} days left`,
             tone: "warning",
             messageKey: `deprecation.additionalScripts.warning.message.${tierKeySuffix}`,
             messageParams: { date: dateLabel, days: daysRemaining },
@@ -303,8 +303,8 @@ export function getAdditionalScriptsDeprecationStatus(tier: ShopTier, now: Date 
         isWarning: false,
         daysRemaining,
         deadline,
-        message: `${tierLabel}的 Additional Scripts 将于 ${dateLabel} 变为只读。建议提前迁移到 Web Pixel。`,
-        messageBrief: `截止 ${dateLabel}`,
+        message: `${tierLabel}' Additional Scripts will become read-only on ${dateLabel}. Migrate to Web Pixel early.`,
+        messageBrief: `Deadline ${dateLabel}`,
         tone: "info",
         messageKey: `deprecation.additionalScripts.info.message.${tierKeySuffix}`,
         messageParams: { date: dateLabel },
@@ -326,7 +326,7 @@ export function getMigrationUrgencyStatus(tier: ShopTier, hasScriptTags: boolean
     const actions: string[] = [];
     const actionsKeys: { key: string, params?: Record<string, any> }[] = [];
     let urgency: "critical" | "high" | "medium" | "low" = "low";
-    let primaryMessage = "您的追踪配置状态良好。";
+    let primaryMessage = "Your tracking setup is in good shape.";
     let primaryMessageKey = "deprecation.urgency.status.good";
     let primaryMessageParams = {};
 
@@ -335,7 +335,7 @@ export function getMigrationUrgencyStatus(tier: ShopTier, hasScriptTags: boolean
         primaryMessage = scriptTagStatus.message;
         primaryMessageKey = scriptTagStatus.messageKey;
         primaryMessageParams = scriptTagStatus.messageParams || {};
-        actions.push("立即删除订单状态页的 ScriptTag 并启用 Web Pixel");
+        actions.push("Remove ScriptTags from the Order status page now and enable Web Pixel");
         actionsKeys.push({ key: "deprecation.urgency.action.removeScriptTag" });
     }
 
@@ -344,7 +344,7 @@ export function getMigrationUrgencyStatus(tier: ShopTier, hasScriptTags: boolean
         primaryMessage = additionalScriptsStatus.message;
         primaryMessageKey = additionalScriptsStatus.messageKey;
         primaryMessageParams = additionalScriptsStatus.messageParams || {};
-        actions.push("使用 Web Pixel 替代 Additional Scripts");
+        actions.push("Replace Additional Scripts with Web Pixel");
         actionsKeys.push({ key: "deprecation.urgency.action.replaceAdditionalScripts" });
     }
 
@@ -355,19 +355,19 @@ export function getMigrationUrgencyStatus(tier: ShopTier, hasScriptTags: boolean
             primaryMessageKey = additionalScriptsStatus.messageKey;
             primaryMessageParams = additionalScriptsStatus.messageParams || {};
         }
-        actions.push(`在 ${additionalScriptsStatus.daysRemaining} 天内完成迁移`);
+        actions.push(`Complete migration within ${additionalScriptsStatus.daysRemaining} days`);
         actionsKeys.push({ key: "deprecation.urgency.action.migrateInDays", params: { days: additionalScriptsStatus.daysRemaining } });
     }
 
     if (hasScriptTags && !scriptTagStatus.isExpired) {
         if (urgency === "low")
             urgency = "medium";
-        actions.push("将 ScriptTag 追踪迁移到 Web Pixel");
+        actions.push("Migrate ScriptTag tracking to Web Pixel");
         actionsKeys.push({ key: "deprecation.urgency.action.migrateScriptTag" });
     }
 
     if (urgency === "low") {
-        primaryMessage = "建议完成 Web Pixel 迁移并运行验收，确保升级后不丢数据。";
+        primaryMessage = "Complete Web Pixel migration and run verification to prevent data loss after the upgrade.";
         primaryMessageKey = "deprecation.urgency.message.low";
     }
 
@@ -387,7 +387,7 @@ export function formatDeadlineForUI(status: DeprecationStatus): {
 } {
     if (status.isExpired) {
         return {
-            badge: { tone: "critical", text: "已过期", textKey: "deprecation.scriptTagExecution.expired.brief", textParams: { date: "..." } }, // Note: reusing brief keys might be tricky if params missing
+            badge: { tone: "critical", text: "Expired", textKey: "deprecation.scriptTagExecution.expired.brief", textParams: { date: "..." } }, // Note: reusing brief keys might be tricky if params missing
             description: status.message,
             descriptionKey: status.messageKey,
             descriptionParams: status.messageParams,
@@ -395,7 +395,7 @@ export function formatDeadlineForUI(status: DeprecationStatus): {
     }
     if (status.isWarning) {
         return {
-            badge: { tone: "warning", text: `剩余 ${status.daysRemaining} 天`, textKey: "deprecation.scriptTagExecution.warning.brief", textParams: { days: status.daysRemaining } },
+            badge: { tone: "warning", text: `${status.daysRemaining} days left`, textKey: "deprecation.scriptTagExecution.warning.brief", textParams: { days: status.daysRemaining } },
             description: status.message,
             descriptionKey: status.messageKey,
             descriptionParams: status.messageParams,
@@ -439,9 +439,9 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
     const isInAutoUpgradeRiskWindow = tier === "plus" && daysToAutoUpgrade <= 90;
 
     const plusAutoUpgradeMessage = isInPlusAutoUpgradeWindow
-        ? `⚡ Plus 商家自动升级窗口已开始（${autoUpgradeStartLabel}起，Shopify 会提前30天通知，日期来自 Shopify 官方公告，请以 Admin 提示为准）：Shopify 正在逐步将 Plus 商家的 Thank you / Order status 页面自动迁移到新版本。自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将失效。`
+        ? `⚡ The Plus merchant auto-upgrade window has started (from ${autoUpgradeStartLabel}; Shopify will notify 30 days in advance. Date is based on Shopify official announcements; refer to Admin prompts): Shopify is gradually auto-migrating Plus merchants' Thank you / Order status pages to the new version. After auto-upgrade, legacy Additional Scripts, ScriptTags, and checkout.liquid customizations will stop working.`
         : isInAutoUpgradeRiskWindow
-        ? `⚠️ Plus 商家自动升级风险窗口（剩余 ${daysToAutoUpgrade} 天）：Shopify 将于 ${autoUpgradeStartLabel}（Shopify 会提前30天通知，日期来自 Shopify 官方公告，请以 Admin 提示为准）开始自动将 Plus 商家迁移到新版页面。自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将丢失。建议提前完成迁移。`
+        ? `⚠️ Plus merchant auto-upgrade risk window (${daysToAutoUpgrade} days left): Shopify will start auto-migrating Plus merchants to the new pages on ${autoUpgradeStartLabel} (Shopify will notify 30 days in advance. Date is based on Shopify official announcements; refer to Admin prompts). After auto-upgrade, legacy Additional Scripts, ScriptTags, and checkout.liquid customizations will be lost. Complete migration early.`
         : "";
     
     const autoUpgradeMessageKey = isInPlusAutoUpgradeWindow
@@ -458,7 +458,7 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
 
     if (typOspPagesEnabled === true) {
         const actions = hasScriptTags
-            ? ["建议删除不再生效的旧版 ScriptTags 以保持配置整洁"]
+            ? ["Delete legacy ScriptTags that no longer work to keep configuration clean"]
             : [];
         const actionsKeys = hasScriptTags
             ? [{ key: "deprecation.upgradeStatus.upgraded.action.clean" }]
@@ -467,9 +467,9 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
         return {
             isUpgraded: true,
             urgency: "resolved",
-            title: "已升级到新版 Thank you / Order status 页面",
+            title: "Upgraded to new Thank you / Order status pages",
             titleKey: "deprecation.upgradeStatus.upgraded.title",
-            message: "您的店铺已使用新版 Checkout Extensibility 页面。旧版 ScriptTags 和 Additional Scripts 已不再执行。",
+            message: "Your store is now using the new Checkout Extensibility pages. Legacy ScriptTags and Additional Scripts no longer execute.",
             messageKey: "deprecation.upgradeStatus.upgraded.message",
             actions,
             actionsKeys,
@@ -495,7 +495,7 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
                 return null;
             // Map reason to key
             // This needs mapping logic or pass generic reason
-            return `原因：${reason}`;
+            return `Reason: ${reason}`;
         })();
         
         // Need to construct localized reason or key
@@ -506,17 +506,17 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
             return {
                 isUpgraded: null,
                 urgency: "critical",
-                title: "⚠️ Plus 商家：请确认页面升级状态",
+                title: "⚠️ Plus merchants: please confirm page upgrade status",
                 titleKey: "deprecation.upgradeStatus.unknown.title.plus",
-                message: `Plus 商家的 Additional Scripts 已于 ${plusDeadlineLabel}（日期来自 Shopify 官方公告，请以 Admin 提示为准）进入只读模式。` +
-                    "如果您尚未升级到新版 Thank you / Order status 页面，旧脚本可能已停止运行。请检查您的追踪是否正常。" +
+                message: `Plus merchants' Additional Scripts became read-only on ${plusDeadlineLabel} (date is based on Shopify official announcements; refer to Admin prompts).` +
+                    "If you have not upgraded to the new Thank you / Order status pages, legacy scripts may have stopped running. Check whether your tracking is working." +
                     (reasonHint ? `\n${reasonHint}` : ""),
                 messageKey: "deprecation.upgradeStatus.unknown.message.plus",
                 messageParams: { date: plusDeadlineLabel }, // Note: appending reason might be needed in UI if using keys
                 actions: [
-                    "前往 Shopify 后台 → 设置 → 结账 查看当前页面版本",
-                    "如已升级：确认 Web Pixel 正常运行",
-                    "如未升级：旧脚本可能仍在运行，但建议尽快迁移",
+                    "Go to Shopify Admin -> Settings -> Checkout to check the current page version",
+                    "If upgraded: confirm Web Pixel is running correctly",
+                    "If not upgraded: legacy scripts may still run, but migration is recommended soon",
                 ],
                 actionsKeys: [
                     { key: "deprecation.upgradeStatus.unknown.action.check" },
@@ -529,16 +529,16 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
         return {
             isUpgraded: null,
             urgency: "medium",
-            title: "升级状态待确认",
+            title: "Upgrade status needs confirmation",
             titleKey: "deprecation.upgradeStatus.unknown.title.generic",
-            message: "我们暂时无法通过 Shopify Admin API 确认您店铺的 Thank you / Order status 页面是否已启用 extensibility。" +
+            message: "We currently cannot confirm via Shopify Admin API whether your store's Thank you / Order status pages have extensibility enabled." +
                 (reasonHint ? `\n${reasonHint}` : ""),
             messageKey: "deprecation.upgradeStatus.unknown.message.generic",
             actions: [
-                "前往 Shopify 后台 → 设置 → 结账 查看当前页面版本",
+                "Go to Shopify Admin -> Settings -> Checkout to check the current page version",
                 `${tier === "plus"
-                    ? `Plus 商家截止日期：${plusDeadlineLabel}（日期来自 Shopify 官方公告，请以 Admin 提示为准）`
-                    : `非 Plus 商家：距截止日期（${nonPlusDeadlineLabel}，日期来自 Shopify 官方公告，请以 Admin 提示为准）还有约 ${Math.max(0, daysRemaining)} 天`}`,
+                    ? `Plus merchant deadline: ${plusDeadlineLabel} (date is based on Shopify official announcements; refer to Admin prompts)`
+                    : `Non-Plus merchants: about ${Math.max(0, daysRemaining)} days remain until the deadline (${nonPlusDeadlineLabel}; date is based on Shopify official announcements; refer to Admin prompts)`}`,
             ],
             actionsKeys: [
                 { key: "deprecation.upgradeStatus.unknown.action.check" },
@@ -551,22 +551,22 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
 
     if (tier === "plus" && isPlusDeadlinePassed) {
         const autoUpgradeNote = isInPlusAutoUpgradeWindow
-            ? `\n\n⚡ 自动升级窗口已开始：Shopify 正在将 Plus 商家自动迁移到新版页面（${autoUpgradeStartLabel}起，Shopify 会提前30天通知，日期来自 Shopify 官方公告，请以 Admin 提示为准）。`
-            : `\n\n📅 ${autoUpgradeStartLabel}起（Shopify 会提前30天通知，日期来自 Shopify 官方公告，请以 Admin 提示为准），Shopify 将开始自动迁移 Plus 商家到新版页面。`;
+            ? `\n\n⚡ Auto-upgrade window started: Shopify is auto-migrating Plus merchants to the new pages (from ${autoUpgradeStartLabel}; Shopify will notify 30 days in advance. Date is based on Shopify official announcements; refer to Admin prompts).`
+            : `\n\n📅 Starting ${autoUpgradeStartLabel} (Shopify will notify 30 days in advance; date is based on Shopify official announcements; refer to Admin prompts), Shopify will begin auto-migrating Plus merchants to the new pages.`;
         
         return {
             isUpgraded: false,
             urgency: "critical",
-            title: "🚨 Plus 商家：Additional Scripts 已进入只读模式",
+            title: "🚨 Plus merchants: Additional Scripts are now read-only",
             titleKey: "deprecation.upgradeStatus.critical.title",
-            message: `您的店铺尚未升级到新版页面。Plus 商家的 Additional Scripts 已于 ${plusDeadlineLabel}（日期来自 Shopify 官方公告，请以 Admin 提示为准）进入只读模式。` +
-                "Shopify 可能随时将您的页面迁移到新版本。" + autoUpgradeNote,
+            message: `Your store has not upgraded to the new pages yet. Plus merchants' Additional Scripts became read-only on ${plusDeadlineLabel} (date is based on Shopify official announcements; refer to Admin prompts).` +
+                "Shopify may migrate your pages to the new version at any time." + autoUpgradeNote,
             messageKey: "deprecation.upgradeStatus.critical.message",
             messageParams: { date: plusDeadlineLabel },
             actions: [
-                "立即配置 Web Pixel 以确保追踪不中断",
-                "检查 Web Pixel 配置是否正确",
-                "考虑主动升级到新版页面以获得更好的控制",
+                "Configure Web Pixel immediately to avoid tracking interruption",
+                "Check whether Web Pixel configuration is correct",
+                "Consider proactively upgrading to the new pages for better control",
             ],
             actionsKeys: [
                 { key: "deprecation.upgradeStatus.critical.action.configure" },
@@ -586,14 +586,14 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
         return {
             isUpgraded: false,
             urgency: "critical",
-            title: "截止日期已过 - 请立即迁移",
+            title: "Deadline passed - migrate now",
             titleKey: "deprecation.upgradeStatus.expired.title",
-            message: `Additional Scripts 已于 ${deadlineLabel}（日期来自 Shopify 官方公告，请以 Admin 提示为准）进入只读模式。请尽快完成迁移以避免追踪中断。`,
+            message: `Additional Scripts became read-only on ${deadlineLabel} (date is based on Shopify official announcements; refer to Admin prompts). Complete migration as soon as possible to avoid tracking interruption.`,
             messageKey: "deprecation.upgradeStatus.expired.message",
             messageParams: { date: deadlineLabel },
             actions: [
-                "立即配置 Web Pixel",
-                "验证追踪是否正常工作",
+                "Configure Web Pixel now",
+                "Verify tracking works correctly",
             ],
             actionsKeys: [
                 { key: "deprecation.upgradeStatus.expired.action.configure" },
@@ -606,15 +606,15 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
         return {
             isUpgraded: false,
             urgency: "high",
-            title: `紧急：剩余 ${daysRemaining} 天`,
+            title: `Urgent: ${daysRemaining} days left`,
             titleKey: "deprecation.upgradeStatus.high.title",
             titleParams: { days: daysRemaining },
-            message: `您的店铺尚未升级到新版页面。Additional Scripts 将于 ${deadlineLabel}（日期来自 Shopify 官方公告，请以 Admin 提示为准）进入只读模式（剩余 ${daysRemaining} 天）。`,
+            message: `Your store has not upgraded to the new pages yet. Additional Scripts will become read-only on ${deadlineLabel} (date is based on Shopify official announcements; refer to Admin prompts; ${daysRemaining} days left).`,
             messageKey: "deprecation.upgradeStatus.high.message",
             messageParams: { date: deadlineLabel, days: daysRemaining },
             actions: [
-                "尽快完成 Web Pixel 配置",
-                "测试迁移后的追踪功能",
+                "Complete Web Pixel configuration as soon as possible",
+                "Test tracking after migration",
             ],
             actionsKeys: [
                 { key: "deprecation.upgradeStatus.high.action.configure" },
@@ -627,14 +627,14 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
         return {
             isUpgraded: false,
             urgency: "medium",
-            title: `请规划迁移：剩余 ${daysRemaining} 天`,
+            title: `Plan migration: ${daysRemaining} days left`,
             titleKey: "deprecation.upgradeStatus.medium.title",
             titleParams: { days: daysRemaining },
-            message: `您的店铺尚未升级到新版页面。建议在截止日期前完成迁移。`,
+            message: `Your store has not upgraded to the new pages yet. Complete migration before the deadline.`,
             messageKey: "deprecation.upgradeStatus.medium.message",
             actions: [
-                "规划迁移时间表",
-                "在设置页面配置 Web Pixel",
+                "Plan a migration timeline",
+                "Configure Web Pixel in Settings",
             ],
             actionsKeys: [
                 { key: "deprecation.upgradeStatus.medium.action.plan" },
@@ -652,9 +652,9 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
     return {
         isUpgraded: false,
         urgency: "low",
-        title: "建议迁移",
+        title: "Migration recommended",
         titleKey: "deprecation.upgradeStatus.low.title",
-        message: "您的店铺尚未升级到新版页面。虽然时间充裕，但建议提前规划迁移。",
+        message: "Your store has not upgraded to the new pages yet. There is still time, but early migration planning is recommended.",
         messageKey: "deprecation.upgradeStatus.low.message",
         autoUpgradeInfo: tier === "plus" && isInAutoUpgradeRiskWindow ? {
             isInAutoUpgradeWindow: false,
@@ -663,8 +663,8 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
             autoUpgradeMessageParams,
         } : undefined,
         actions: [
-            "了解 Web Pixel 和 Checkout Extensibility",
-            "在测试店铺中预演迁移流程",
+            "Learn Web Pixel and Checkout Extensibility",
+            "Rehearse the migration flow in a test store",
         ],
         actionsKeys: [
             { key: "deprecation.upgradeStatus.low.action.learn" },

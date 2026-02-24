@@ -45,7 +45,7 @@ export function getEventSandboxLimitations(result: VerificationEventResultLike, 
     limitations.push(translate(
       "verification.limits.strictSandbox", 
       { eventType }, 
-      `Strict sandbox 限制：${eventType} 事件在 Web Pixel strict sandbox 环境中不可用，需要通过订单 webhooks 获取`
+      `Strict sandbox limitation: the ${eventType} event is unavailable in the Web Pixel strict sandbox and must be obtained via order webhooks.`
     ));
     return limitations;
   }
@@ -68,19 +68,19 @@ export function getEventSandboxLimitations(result: VerificationEventResultLike, 
       limitations.push(translate(
         "verification.limits.missingKnownFields",
         { eventType, fields: missingKnownFields.join(", ") },
-        `Strict sandbox 已知限制：${eventType} 事件在 Web Worker 环境中无法获取以下字段：${missingKnownFields.join(", ")}。这是平台限制，不是故障。`
+        `Known strict sandbox limitation: the ${eventType} event cannot access these fields in the Web Worker environment: ${missingKnownFields.join(", ")}. This is a platform limitation, not a malfunction.`
       ));
     } else if (result.status === "missing_params" || result.status === "failed") {
       limitations.push(translate(
         "verification.limits.potentialMissingKnownFields",
         { eventType, fields: knownLimitations.join(", ") },
-        `Strict sandbox 已知限制：${eventType} 事件在 Web Worker 环境中可能无法获取以下字段（可能为 null）：${knownLimitations.join(", ")}。这是平台限制，不是故障。`
+        `Known strict sandbox limitation: the ${eventType} event may not be able to access these fields (possibly null) in the Web Worker environment: ${knownLimitations.join(", ")}. This is a platform limitation, not a malfunction.`
       ));
     } else {
       limitations.push(translate(
         "verification.limits.nullFields",
         { eventType, fields: knownLimitations.join(", ") },
-        `Strict sandbox 已知限制：${eventType} 事件在 Web Worker 环境中以下字段可能为 null（这是平台限制，不是故障）：${knownLimitations.join(", ")}。已自动标注。`
+        `Known strict sandbox limitation: in the Web Worker environment, these fields for ${eventType} may be null (${knownLimitations.join(", ")}). This is a platform limitation, not a malfunction, and has been auto-annotated.`
       ));
     }
   }
@@ -102,7 +102,7 @@ export function getEventSandboxLimitations(result: VerificationEventResultLike, 
         limitations.push(translate(
           "verification.limits.unavailableFields",
           { fields: unknownFields.join(", ") },
-          `Strict sandbox 限制：以下字段在 Web Worker 环境中不可用：${unknownFields.join(", ")}`
+          `Strict sandbox limitation: these fields are unavailable in the Web Worker environment: ${unknownFields.join(", ")}`
         ));
       }
     }
@@ -113,7 +113,7 @@ export function getEventSandboxLimitations(result: VerificationEventResultLike, 
       limitations.push(translate(
         "verification.limits.incompleteValue",
         {},
-        "Strict sandbox 限制：某些 checkout 事件在 Web Worker 环境中可能无法获取完整的 value 字段"
+        "Strict sandbox limitation: some checkout events may not provide a complete value field in the Web Worker environment."
       ));
     }
   }

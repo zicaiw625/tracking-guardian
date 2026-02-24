@@ -47,7 +47,7 @@ export function PaidFeaturePrompt({
           <Text as="span" variant="bodySm">
             {t("scan.paidFeature.requirementCompact", {
               name: t(`scan.paidFeature.${featureKey}.name`),
-              plan: requiredPlan.name
+              plan: t(requiredPlan.name)
             })}
           </Text>
           <Button size="slim" variant="plain" onClick={handleUpgrade}>

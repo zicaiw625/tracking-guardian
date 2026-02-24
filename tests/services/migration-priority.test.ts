@@ -63,7 +63,7 @@ describe("Migration Priority Service", () => {
       const result = calculatePriority(factors);
       expect(result.priority).toBeGreaterThan(7);
       expect(result.estimatedTimeMinutes).toBeGreaterThan(0);
-      expect(result.reasoning.some((r) => r.includes("高风险项"))).toBe(true);
+      expect(result.reasoningKeys.some((r) => r.key === "scan.priority.reason.highRisk")).toBe(true);
     });
     it("should calculate medium priority for medium risk items", () => {
       const factors: PriorityFactors = {
@@ -75,7 +75,7 @@ describe("Migration Priority Service", () => {
       const result = calculatePriority(factors);
       expect(result.priority).toBeGreaterThanOrEqual(5);
       expect(result.priority).toBeLessThan(10);
-      expect(result.reasoning.some((r) => r.includes("中风险项"))).toBe(true);
+      expect(result.reasoningKeys.some((r) => r.key === "scan.priority.reason.mediumRisk")).toBe(true);
     });
     it("should calculate lower priority for low risk items", () => {
       const factors: PriorityFactors = {
@@ -86,7 +86,7 @@ describe("Migration Priority Service", () => {
       };
       const result = calculatePriority(factors);
       expect(result.priority).toBeLessThan(7);
-      expect(result.reasoning.some((r) => r.includes("低风险项"))).toBe(true);
+      expect(result.reasoningKeys.some((r) => r.key === "scan.priority.reason.lowRisk")).toBe(true);
     });
     it("should prioritize order_status scope", () => {
       const factors: PriorityFactors = {
@@ -97,7 +97,7 @@ describe("Migration Priority Service", () => {
       };
       const result = calculatePriority(factors);
       expect(result.priority).toBeGreaterThan(8);
-      expect(result.reasoning.some((r) => r.includes("订单状态页"))).toBe(true);
+      expect(result.reasoningKeys.some((r) => r.key === "scan.priority.reason.orderStatus")).toBe(true);
     });
     it("should include estimated time", () => {
       const factors: PriorityFactors = {
@@ -119,7 +119,13 @@ describe("Migration Priority Service", () => {
       };
       const result = calculatePriority(factors);
       expect(result.priority).toBeGreaterThan(7);
-      expect(result.reasoning.some((r) => r.includes("Plus") || r.includes("自动升级"))).toBe(true);
+      expect(
+        result.reasoningKeys.some(
+          (r) =>
+            r.key === "scan.priority.reason.plusAutoUpgradeStarted" ||
+            r.key === "scan.priority.reason.plusAutoUpgradeCountdown"
+        )
+      ).toBe(true);
     });
   });
   describe("calculateAssetPriority", () => {

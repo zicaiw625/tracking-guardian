@@ -34,28 +34,28 @@ export function validateWizardConfig(config: WizardConfig): {
   const errors: string[] = [];
   const v1SupportedPlatforms = ["google", "meta", "tiktok"];
   if (!v1SupportedPlatforms.includes(config.platform)) {
-    errors.push(`平台 ${config.platform} 在 v1.0 版本中不支持。v1.0 仅支持: ${v1SupportedPlatforms.join(", ")}。`);
+    errors.push(`Platform ${config.platform} is not supported in v1.0. v1.0 only supports: ${v1SupportedPlatforms.join(", ")}.`);
   }
   if (!config.platformId || config.platformId.trim() === "") {
-    errors.push(`平台 ID 不能为空`);
+    errors.push(`Platform ID cannot be empty`);
   }
   if (config.platform === "google") {
     if (!config.credentials.measurementId) {
-      errors.push("GA4 Measurement ID 不能为空");
+      errors.push("GA4 Measurement ID cannot be empty");
     }
     if (!config.credentials.apiSecret) {
-      errors.push("GA4 API Secret 不能为空");
+      errors.push("GA4 API Secret cannot be empty");
     }
   } else if (config.platform === "meta" || config.platform === "tiktok") {
     if (!config.credentials.pixelId) {
-      errors.push("Pixel ID 不能为空");
+      errors.push("Pixel ID cannot be empty");
     }
     if (!config.credentials.accessToken) {
-      errors.push("Access Token 不能为空");
+      errors.push("Access Token cannot be empty");
     }
   }
   if (!config.eventMappings || Object.keys(config.eventMappings).length === 0) {
-    errors.push("至少需要配置一个事件映射");
+    errors.push("At least one event mapping must be configured");
   }
   return {
     valid: errors.length === 0,
@@ -83,7 +83,7 @@ export async function saveWizardConfigs(
       return {
         success: false,
         savedCount: 0,
-        errors: [gateCheck.reason || "套餐限制：无法创建像素配置"],
+        errors: [gateCheck.reason || "Plan limit reached: cannot create pixel configuration"],
       };
     }
   }
@@ -166,7 +166,7 @@ export async function saveWizardConfigs(
       savedCount++;
     } catch (error) {
       logger.error(`Failed to save config for ${config.platform}`, error);
-      errors.push(`${config.platform}: ${error instanceof Error ? error.message : "保存失败"}`);
+      errors.push(`${config.platform}: ${error instanceof Error ? error.message : "Save failed"}`);
     }
   }
   return {
@@ -242,7 +242,7 @@ export async function saveWizardDraft(
     logger.error("Failed to save wizard draft", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "保存草稿失败",
+      error: error instanceof Error ? error.message : "Failed to save draft",
     };
   }
 }
@@ -348,19 +348,19 @@ export async function validateTestEnvironment(
   if (!config) {
     return {
       valid: false,
-      message: "配置不存在",
+      message: "Configuration not found",
     };
   }
   if (config.environment !== "test") {
     return {
       valid: false,
-      message: "当前环境不是测试模式",
+      message: "Current environment is not test mode",
     };
   }
   if (!config.credentialsEncrypted) {
     return {
       valid: false,
-      message: "凭证未配置",
+      message: "Credentials not configured",
     };
   }
   try {
@@ -371,7 +371,7 @@ export async function validateTestEnvironment(
     if (!credentialsResult.ok) {
       return {
         valid: false,
-        message: `凭证验证失败: ${credentialsResult.error.message}`,
+        message: `Credential validation failed: ${credentialsResult.error.message}`,
       };
     }
     const details: {
@@ -390,9 +390,9 @@ export async function validateTestEnvironment(
       };
       if (credentials.testEventCode) {
         details.testEventCode = credentials.testEventCode;
-        details.verificationInstructions = `测试事件已发送，请在 Meta Events Manager 的「测试事件」页面查看，使用 Test Event Code: ${credentials.testEventCode}`;
+        details.verificationInstructions = `Test event sent. Please check in Meta Events Manager under 'Test Events' using Test Event Code: ${credentials.testEventCode}`;
       } else {
-        details.verificationInstructions = "建议在 Meta Events Manager 中设置 Test Event Code，以便在测试模式下验证事件。";
+        details.verificationInstructions = "We recommend setting up a Test Event Code in Meta Events Manager to verify events in test mode.";
       }
     }
     if (platform === "google") {
@@ -402,7 +402,7 @@ export async function validateTestEnvironment(
       };
       if (credentials.measurementId) {
         details.debugViewUrl = `https://analytics.google.com/analytics/web/#/debug/${credentials.measurementId}`;
-        details.verificationInstructions = `测试事件已发送，请在 GA4 DebugView 中查看：${details.debugViewUrl}`;
+        details.verificationInstructions = `Test event sent. Please check in GA4 DebugView: ${details.debugViewUrl}`;
       }
     }
     const startTime = Date.now();
@@ -513,7 +513,7 @@ export async function validateTestEnvironment(
     }
     return {
       valid: eventSent,
-      message: eventSent ? "测试事件已发送" : (sendError ?? "测试事件发送失败"),
+      message: eventSent ? "Test event sent successfully" : (sendError ?? "Test event send failed"),
       details,
     };
   } catch (error) {
@@ -524,10 +524,10 @@ export async function validateTestEnvironment(
     });
     return {
       valid: false,
-      message: `验证过程出错: ${error instanceof Error ? error.message : "未知错误"}`,
+      message: `Validation error: ${error instanceof Error ? error.message : "Unknown error"}`,
       details: {
         eventSent: false,
-        error: error instanceof Error ? error.message : "未知错误",
+        error: error instanceof Error ? error.message : "Unknown error",
       },
     };
   }

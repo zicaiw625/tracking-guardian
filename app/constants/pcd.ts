@@ -1,5 +1,5 @@
 export const PCD_ORDER_UNAVAILABLE_USER =
-  "由于 Protected Customer Data (PCD) 限制，当前无法获取订单信息；这是 Shopify 的隐私保护机制，部分信息需 PCD 审核后才会提供。若应用已通过 PCD 审核，请在后台检查配置；此情况已上报，商家会收到通知。";
+  "Order information is currently unavailable due to Protected Customer Data (PCD) restrictions. This is Shopify's privacy protection mechanism, and some information is only available after PCD approval. If the app has already passed PCD review, please check the configuration in the admin. This issue has been reported, and the merchant will be notified.";
 
 export const PCD_ORDER_UNAVAILABLE_MERCHANT =
-  "订单及客户相关信息属于 Shopify 的 Protected Customer Data (PCD)，需通过 Shopify 审核后才能访问；未获批时订单相关信息可能不可用，此为平台合规行为。";
+  "Order and customer-related information is classified as Shopify Protected Customer Data (PCD) and can only be accessed after Shopify approval. Before approval, order-related data may be unavailable, which is expected platform compliance behavior.";

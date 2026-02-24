@@ -43,13 +43,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (!shop) {
         return json({ error: "Shop not found" }, { status: 404 });
     }
+    const t = await i18nServer.getFixedT(request);
     const formData = await request.formData();
     const actionType = formData.get("_action");
     if (actionType === "save_analysis") {
         try {
             const analysisDataStr = formData.get("analysisData") as string;
             if (!analysisDataStr) {
-                return json({ error: "缺少分析数据" }, { status: 400 });
+                return json({ error: t("scan.action.missingData") }, { status: 400 });
             }
             if (analysisDataStr.length > SAVE_ANALYSIS_LIMITS.MAX_INPUT_SIZE) {
                 logger.warn("Analysis data too large", {
@@ -58,7 +59,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     maxSize: SAVE_ANALYSIS_LIMITS.MAX_INPUT_SIZE
                 });
                 return json({
-                    error: `分析数据过大（最大 ${SAVE_ANALYSIS_LIMITS.MAX_INPUT_SIZE / 1024}KB）`
+                    error: t("scan.action.dataTooLarge", { maxSizeKB: SAVE_ANALYSIS_LIMITS.MAX_INPUT_SIZE / 1024 })
                 }, { status: 400 });
             }
             let parsedData: unknown;
@@ -70,7 +71,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     error: parseError instanceof Error ? parseError.message : String(parseError),
                     actionType: "save_analysis"
                 });
-                return json({ error: "无法解析分析数据：无效的 JSON 格式" }, { status: 400 });
+                return json({ error: t("scan.action.invalidJSON") }, { status: 400 });
             }
 
             const validationResult = AnalysisDataSchema.safeParse(parsedData);
@@ -81,7 +82,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     error: errorMessage,
                     actionType: "save_analysis"
                 });
-                return json({ error: `无效的分析数据格式: ${errorMessage}` }, { status: 400 });
+                return json({ error: t("scan.action.invalidDataFormat", { error: errorMessage }) }, { status: 400 });
             }
 
             const data = validationResult.data;
@@ -92,7 +93,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     actionType: "save_analysis"
                 });
                 return json({
-                    error: "检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再保存。"
+                    error: t("scan.action.sensitiveInfoDetected")
                 }, { status: 400 });
             }
 
@@ -167,7 +168,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     sourceType: "manual_paste",
                     category: "pixel",
                     platform,
-                    displayName: `手动粘贴: ${platform}`,
+                    displayName: t("scan.action.manualPasteLabel", { platform }),
                     riskLevel: "high",
                     suggestedMigration: "web_pixel",
                     details: {
@@ -192,7 +193,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 const asset = await createAuditAsset(shop.id, {
                     sourceType: "manual_paste",
                     category: "other",
-                    displayName: "未识别的脚本",
+                    displayName: t("scan.action.unidentifiedScript"),
                     riskLevel: analysisData.riskScore > 60 ? "high" : analysisData.riskScore > 30 ? "medium" : "low",
                     suggestedMigration: "none",
                     details: {
@@ -204,7 +205,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 if (asset) {
                     createdAssets.push(asset);
                 } else {
-                    failedAssets.push("未识别的脚本");
+                    failedAssets.push(t("scan.action.unidentifiedScript"));
                     logger.warn("Failed to create AuditAsset for unidentified script", {
                         shopId: shop.id,
                         actionType: "save_analysis"
@@ -224,9 +225,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 actionType: "save_analysis",
                 savedCount: createdAssets.length,
                 message: createdAssets.length > 0
-                    ? `已保存 ${createdAssets.length} 个审计资产记录${failedAssets.length > 0 ? `，${failedAssets.length} 个失败` : ''}`
-                    : "保存失败，请检查日志",
-                ...(failedAssets.length > 0 && { warning: `${failedAssets.length} 个资产保存失败` })
+                    ? t("scan.action.savedAssets", { count: createdAssets.length }) + (failedAssets.length > 0 ? t("scan.action.failedSuffix", { count: failedAssets.length }) : '')
+                    : t("scan.action.saveFailed"),
+                ...(failedAssets.length > 0 && { warning: t("scan.action.assetSavePartialFail", { count: failedAssets.length }) })
             });
         } catch (error) {
             const randomBytes = new Uint8Array(4);
@@ -240,7 +241,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 actionType: "save_analysis"
             });
             return json({
-                error: "保存失败，请稍后重试",
+                error: t("scan.action.saveError"),
                 errorId
             }, { status: 500 });
         }
@@ -249,23 +250,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         try {
             const assetsStr = formData.get("assets") as string;
             if (!assetsStr) {
-                return json({ error: "缺少资产数据" }, { status: 400 });
+                return json({ error: t("scan.action.missingAssetData") }, { status: 400 });
             }
             let assets: AuditAssetInput[];
             try {
                 const parsed = JSON.parse(assetsStr);
                 if (!Array.isArray(parsed) || parsed.length === 0) {
-                    return json({ error: "资产数据必须是非空数组" }, { status: 400 });
+                    return json({ error: t("scan.action.assetDataMustBeArray") }, { status: 400 });
                 }
                 assets = parsed as AuditAssetInput[];
             } catch {
-                return json({ error: "无效的资产数据格式" }, { status: 400 });
+                return json({ error: t("scan.action.invalidAssetDataFormat") }, { status: 400 });
             }
             const result = await batchCreateAuditAssets(shop.id, assets);
             return json({
                 success: true,
                 actionType: "create_from_wizard",
-                message: `已创建 ${result.created} 个审计资产记录${result.updated > 0 ? `，更新 ${result.updated} 个` : ''}${result.failed > 0 ? `，${result.failed} 个失败` : ''}`,
+                message: t("scan.action.createdAssets", { count: result.created }) + (result.updated > 0 ? t("scan.action.updatedSuffix", { count: result.updated }) : '') + (result.failed > 0 ? t("scan.action.failedSuffix", { count: result.failed }) : ''),
                 created: result.created,
                 updated: result.updated,
                 failed: result.failed,
@@ -275,24 +276,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 shopId: shop.id,
                 error: error instanceof Error ? error.message : String(error),
             });
-            return json({ error: "创建失败，请稍后重试" }, { status: 500 });
+            return json({ error: t("scan.action.createError") }, { status: 500 });
         }
     }
     if (actionType === "mark_asset_complete") {
         try {
             const assetId = formData.get("assetId") as string;
             if (!assetId) {
-                return json({ error: "缺少资产 ID" }, { status: 400 });
+                return json({ error: t("scan.action.missingAssetId") }, { status: 400 });
             }
             const asset = await prisma.auditAsset.findUnique({
                 where: { id: assetId },
                 select: { shopId: true, migrationStatus: true },
             });
             if (!asset) {
-                return json({ error: "资产不存在" }, { status: 404 });
+                return json({ error: t("scan.action.assetNotFound") }, { status: 404 });
             }
             if (asset.shopId !== shop.id) {
-                return json({ error: "无权访问此资产" }, { status: 403 });
+                return json({ error: t("scan.action.assetAccessDenied") }, { status: 403 });
             }
             await prisma.auditAsset.update({
                 where: { id: assetId },
@@ -304,19 +305,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             return json({
                 success: true,
                 actionType: "mark_asset_complete",
-                message: "已标记为已完成",
+                message: t("scan.action.markedComplete"),
             });
         } catch (error) {
             logger.error("Mark asset complete error", {
                 shopId: shop.id,
                 error: error instanceof Error ? error.message : String(error),
             });
-            return json({ error: "标记失败，请稍后重试" }, { status: 500 });
+            return json({ error: t("scan.action.markError") }, { status: 500 });
         }
     }
     if (actionType === "export_checklist_csv") {
         try {
-            const t = await i18nServer.getFixedT(request);
             const checklist = await generateMigrationChecklist(shop.id);
             const formatEstimatedTime = (minutes: number) => {
                 if (minutes < 60) {
@@ -388,14 +388,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 shopId: shop.id,
                 error: error instanceof Error ? error.message : String(error),
             });
-            return json({ error: "导出失败，请稍后重试" }, { status: 500 });
+            return json({ error: t("scan.action.exportError") }, { status: 500 });
         }
     }
     if (actionType && actionType !== "scan") {
-        return json({ error: "不支持的操作类型" }, { status: 400 });
+        return json({ error: t("scan.action.unsupportedAction") }, { status: 400 });
     }
     try {
-        const t = await i18nServer.getFixedT(request);
         const scanResult = await scanShopTracking(admin, shop.id, { t });
         return json({
             success: true,

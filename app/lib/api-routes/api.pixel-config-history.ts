@@ -15,7 +15,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const platform = url.searchParams.get("platform");
   const type = url.searchParams.get("type");
   if (!platform) {
-    return jsonApi({ error: "缺少 platform 参数" }, { status: 400 });
+    return jsonApi({ error: "Missing platform parameter" }, { status: 400 });
   }
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
@@ -33,12 +33,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       const history = await getConfigVersionHistory(shop.id, platform, limit);
       return jsonApi({ history });
     } else {
-      return jsonApi({ error: "无效的 type 参数" }, { status: 400 });
+      return jsonApi({ error: "Invalid type parameter" }, { status: 400 });
     }
   } catch (error) {
     logger.error("Failed to fetch config history", { error });
     return jsonApi(
-      { error: "获取配置历史失败" },
+      { error: "Failed to fetch configuration history" },
       { status: 500 }
     );
   }

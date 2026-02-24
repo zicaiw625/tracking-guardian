@@ -99,7 +99,7 @@ describe("LanguageSwitcher", () => {
       </AppProvider>
     );
 
-    expect(screen.getByText("中文")).toBeDefined();
+    expect(screen.getByText("Chinese")).toBeDefined();
   });
 
   it("opens popover and switches language to Chinese", async () => {
@@ -122,7 +122,7 @@ describe("LanguageSwitcher", () => {
       fireEvent.click(button);
     });
 
-    const chineseOption = await waitFor(() => screen.getByText("中文"));
+    const chineseOption = await waitFor(() => screen.getByText("Chinese"));
     expect(chineseOption).toBeDefined();
 
     await act(async () => {
@@ -148,7 +148,7 @@ describe("LanguageSwitcher", () => {
       </AppProvider>
     );
 
-    const button = screen.getByRole("button", { name: "中文" });
+    const button = screen.getByRole("button", { name: "Chinese" });
     await act(async () => {
       fireEvent.click(button);
     });

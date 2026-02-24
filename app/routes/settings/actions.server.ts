@@ -1,6 +1,8 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
+import type { TFunction } from "i18next";
 import { authenticate } from "../../shopify.server";
+import { i18nServer } from "../../i18n.server";
 import prisma from "../../db.server";
 import {
   getExistingWebPixels,
@@ -19,6 +21,7 @@ import {
 } from "../../services/pixel-rollback.server";
 
 export async function handleRotateIngestionSecret(
+  t: TFunction,
   shopId: string,
   sessionShop: string,
   admin: Awaited<ReturnType<typeof authenticate.admin>>["admin"]
@@ -58,29 +61,29 @@ export async function handleRotateIngestionSecret(
       if (result.success) {
         pixelSyncResult = {
           success: true,
-          message: "已自动同步到 Web Pixel 配置",
+          message: t("settings.action.pixelSyncSuccess"),
         };
       } else {
         pixelSyncResult = {
           success: false,
-          message: `Web Pixel 同步失败: ${result.error}`,
+          message: t("settings.action.pixelSyncFailed", { error: result.error }),
         };
       }
     } else {
       pixelSyncResult = {
         success: false,
-        message: "未找到已安装的 Web Pixel，请先在「迁移」页面安装像素",
+        message: t("settings.action.pixelNotFound"),
       };
     }
   } catch (pixelError) {
     logger.error("Failed to sync ingestion token to Web Pixel", pixelError);
     pixelSyncResult = {
       success: false,
-      message: "Web Pixel 同步失败，请手动重新配置",
+      message: t("settings.action.pixelSyncError"),
     };
   }
-  const baseMessage = "关联令牌已更新。";
-  const graceMessage = ` 旧令牌将在 ${graceWindowMinutes} 分钟内继续有效。`;
+  const baseMessage = t("settings.action.tokenUpdated");
+  const graceMessage = t("settings.action.graceWindow", { minutes: graceWindowMinutes });
   const syncMessage = pixelSyncResult.success
     ? pixelSyncResult.message
     : `⚠️ ${pixelSyncResult.message}`;
@@ -93,6 +96,7 @@ export async function handleRotateIngestionSecret(
 }
 
 export async function handleUpdatePrivacySettings(
+  t: TFunction,
   formData: FormData,
   shopId: string,
   _sessionShop: string
@@ -110,11 +114,12 @@ export async function handleUpdatePrivacySettings(
   });
   return json({
     success: true,
-    message: "隐私设置已更新",
+    message: t("settings.action.privacyUpdated"),
   });
 }
 
 export async function handleSaveAlertConfigs(
+  t: TFunction,
   formData: FormData,
   shopId: string
 ) {
@@ -162,7 +167,7 @@ export async function handleSaveAlertConfigs(
   invalidateAlertConfigsCache(shopId);
   return json({
     success: true,
-    message: "告警配置已保存",
+    message: t("settings.action.alertConfigSaved"),
   });
 }
 
@@ -175,31 +180,32 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
   if (!shop) {
     return json({ error: "Shop not found" }, { status: 404 });
   }
+  const t = await i18nServer.getFixedT(request);
   const formData = await request.formData();
   const action = formData.get("_action");
   switch (action) {
     case "rotateIngestionSecret":
-      return handleRotateIngestionSecret(shop.id, session.shop, admin);
+      return handleRotateIngestionSecret(t, shop.id, session.shop, admin);
     case "updatePrivacySettings":
-      return handleUpdatePrivacySettings(formData, shop.id, session.shop);
+      return handleUpdatePrivacySettings(t, formData, shop.id, session.shop);
     case "switchEnvironment": {
       const { checkV1FeatureBoundary } = await import("../../utils/version-gate");
       const gateResult = checkV1FeatureBoundary("server_side");
       if (!gateResult.allowed) {
-        return json({ error: gateResult.reason || "此功能在当前版本中不可用" }, { status: 403 });
+        return json({ error: gateResult.reason || t("settings.action.featureNotAvailable") }, { status: 403 });
       }
       const platform = formData.get("platform") as string;
       const newEnvironment = formData.get("environment") as PixelEnvironment;
       if (!platform || !newEnvironment) {
         return json({
           success: false,
-          error: "缺少 platform 或 environment 参数"
+          error: t("settings.action.missingPlatformOrEnv")
         }, { status: 400 });
       }
       if (!["test", "live"].includes(newEnvironment)) {
         return json({
           success: false,
-          error: "无效的环境参数"
+          error: t("settings.action.invalidEnvironment")
         }, { status: 400 });
       }
       const result = await switchEnvironment(shop.id, platform, newEnvironment);
@@ -243,13 +249,13 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
       const { checkV1FeatureBoundary } = await import("../../utils/version-gate");
       const gateResult = checkV1FeatureBoundary("server_side");
       if (!gateResult.allowed) {
-        return json({ error: gateResult.reason || "此功能在当前版本中不可用" }, { status: 403 });
+        return json({ error: gateResult.reason || t("settings.action.featureNotAvailable") }, { status: 403 });
       }
       const platform = formData.get("platform") as string;
       if (!platform) {
         return json({
           success: false,
-          error: "缺少 platform 参数"
+          error: t("settings.action.missingPlatform")
         }, { status: 400 });
       }
       const result = await rollbackConfig(shop.id, platform);
@@ -264,7 +270,7 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
       });
     }
     case "saveAlertConfigs":
-      return handleSaveAlertConfigs(formData, shop.id);
+      return handleSaveAlertConfigs(t, formData, shop.id);
     default:
       return json({ error: "Unknown action" }, { status: 400 });
   }

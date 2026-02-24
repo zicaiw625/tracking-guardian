@@ -118,7 +118,7 @@ export async function checkUsageLimit(
   if (usage.isOverLimit) {
     return {
       allowed: false,
-      reason: `本月订单数（${usage.currentMonth.orders}）已达到套餐限制（${usage.limit}）。请升级套餐以继续使用。`,
+      reason: `Monthly order count (${usage.currentMonth.orders}) has reached the plan limit (${usage.limit}). Please upgrade your plan to continue.`,
       usage,
     };
   }

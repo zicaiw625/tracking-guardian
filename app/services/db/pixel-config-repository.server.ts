@@ -137,8 +137,8 @@ function validatePlatformSupport(platform: string): void {
   const v1SupportedPlatforms = ["google", "meta", "tiktok"];
   if (!v1SupportedPlatforms.includes(platform)) {
     throw new Error(
-      `平台 ${platform} 在 v1.0 版本中不支持。v1.0 仅支持: ${v1SupportedPlatforms.join(", ")}。` +
-      `其他平台（如 Snapchat、Twitter、Pinterest）将在 v1.1+ 版本中提供支持。`
+      `Platform ${platform} is not supported in v1.0. v1.0 only supports: ${v1SupportedPlatforms.join(", ")}. ` +
+      `Other platforms (such as Snapchat, Twitter, and Pinterest) will be supported in v1.1+.`
     );
   }
 }
@@ -152,7 +152,7 @@ async function validateFeatureGates(
   if (input.serverSideEnabled) {
     const gateResult = checkV1FeatureBoundary("server_side");
     if (!gateResult.allowed) {
-      throw new Error(gateResult.reason || "此功能在当前版本中不可用");
+      throw new Error(gateResult.reason || "This feature is not available in the current version");
     }
     await requireEntitlementOrThrow(shopId, "pixel_destinations");
   }
@@ -167,7 +167,7 @@ async function validateFeatureGates(
 function validateCredentials(input: PixelConfigInput): void {
   if (input.serverSideEnabled === true && !input.credentialsEncrypted) {
     throw new Error(
-      "启用服务端追踪时必须提供 credentialsEncrypted。如果只需要客户端追踪，请设置 serverSideEnabled: false。"
+      "credentialsEncrypted is required when server-side tracking is enabled. If you only need client-side tracking, set serverSideEnabled: false."
     );
   }
 }

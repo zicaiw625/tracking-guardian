@@ -359,7 +359,7 @@ export function MigrationCountdown({
                         )}
                         {milestone.tier !== "all" && (
                           <Badge tone={milestone.tier === "plus" ? "attention" : "info"} size="small">
-                            {milestone.tier === "plus" ? "Plus" : t("migrationCountdown.tier.standard").replace("版", "")}
+                            {milestone.tier === "plus" ? "Plus" : t("migrationCountdown.tier.standardShort")}
                           </Badge>
                         )}
                       </InlineStack>

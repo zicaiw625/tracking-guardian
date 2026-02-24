@@ -24,14 +24,14 @@ export interface AlertConfigItem {
 function buildAlertText(shopDomain: string | null, alert: AlertPayload): string {
   const lines = [
     `[Tracking Guardian] ${alert.alertType}`,
-    `严重程度: ${alert.severity}`,
+    `Severity: ${alert.severity}`,
     alert.message,
   ];
   if (shopDomain) {
-    lines.push(`店铺: ${shopDomain}`);
+    lines.push(`Shop: ${shopDomain}`);
   }
   if (Object.keys(alert.payload).length > 0) {
-    lines.push(`数据: ${JSON.stringify(alert.payload)}`);
+    lines.push(`Data: ${JSON.stringify(alert.payload)}`);
   }
   return lines.join("\n");
 }

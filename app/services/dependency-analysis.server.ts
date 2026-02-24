@@ -60,7 +60,7 @@ export async function analyzeDependencies(
             from: `asset-${depId}`,
             to: `asset-${asset.id}`,
             type: "depends_on",
-            reason: "显式依赖关系",
+            reason: "Explicit dependency relationship",
           });
         }
       });
@@ -79,7 +79,7 @@ export async function analyzeDependencies(
           from: `asset-${asset.id}`,
           to: `asset-${lowRiskAsset.id}`,
           type: "recommended_after",
-          reason: "相同平台，高风险应优先处理",
+          reason: "Same platform: high-risk items should be handled first",
         });
       });
     }
@@ -97,7 +97,7 @@ export async function analyzeDependencies(
           from: `asset-${webPixelAsset.id}`,
           to: `asset-${uiExtensionAsset.id}`,
           type: "recommended_after",
-          reason: "UI 扩展可能依赖像素数据",
+          reason: "UI extension may depend on pixel data",
         });
       }
     });
@@ -166,7 +166,7 @@ export async function generateMigrationOrder(
     ordered.push({
       assetId: node.assetId,
       order: currentOrder++,
-      reason: `优先级 ${node.priority || "N/A"}，${node.riskLevel} 风险`,
+      reason: `Priority ${node.priority || "N/A"}, ${node.riskLevel} risk`,
       dependencies,
     });
     processed.add(node.id);
@@ -194,7 +194,7 @@ export async function generateMigrationOrder(
       ordered.push({
         assetId: node.assetId,
         order: currentOrder++,
-        reason: "独立项或循环依赖",
+        reason: "Standalone item or circular dependency",
         dependencies,
       });
     }

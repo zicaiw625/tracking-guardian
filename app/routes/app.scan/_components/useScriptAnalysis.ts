@@ -60,11 +60,11 @@ export function useScriptAnalysis(
         }
         let errorMessage: string;
         if (error instanceof TypeError) {
-            errorMessage = "脚本格式错误，请检查输入内容";
+            errorMessage = "Script format is invalid. Please check the input content.";
         } else if (error instanceof RangeError) {
-            errorMessage = "脚本内容过长，请分段分析";
+            errorMessage = "Script content is too long. Please analyze it in chunks.";
         } else {
-            errorMessage = error instanceof Error ? error.message : "分析失败，请稍后重试";
+            errorMessage = error instanceof Error ? error.message : "Analysis failed. Please try again later.";
         }
         if (isMountedRef.current) {
             setAnalysisError(errorMessage);
@@ -87,15 +87,15 @@ export function useScriptAnalysis(
         const MAX_CONTENT_LENGTH = scriptAnalysisMaxContentLength;
         const trimmedContent = scriptContent.trim();
         if (!trimmedContent) {
-            setAnalysisError("请输入脚本内容");
+            setAnalysisError("Please enter script content.");
             return;
         }
         if (trimmedContent.length > MAX_CONTENT_LENGTH) {
-            setAnalysisError(`脚本内容过长（最多 ${MAX_CONTENT_LENGTH} 个字符）。请分段分析或联系支持。`);
+            setAnalysisError(`Script content is too long (maximum ${MAX_CONTENT_LENGTH} characters). Please analyze in chunks or contact support.`);
             return;
         }
         if (containsSensitiveInfo(trimmedContent)) {
-            setAnalysisError("检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再分析。");
+            setAnalysisError("Potential sensitive information detected (such as API keys, tokens, or customer data). Please redact it before analysis.");
             return;
         }
         setIsAnalyzing(true);

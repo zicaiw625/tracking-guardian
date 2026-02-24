@@ -503,7 +503,7 @@ export function ScanPage({
                     const errorData = await response.json();
                     msg = errorData.error || msg;
                 } catch {
-                    // JSON 解析失败，使用默认错误消息
+                    // JSON parse failed; use default error message
                 }
                 showError(msg);
                 return;
@@ -519,7 +519,7 @@ export function ScanPage({
             URL.revokeObjectURL(url);
             showSuccess(t("scan.success.exportCSV"));
         } catch (error) {
-            showError(t("scan.errors.exportFailed") + "：" + (error instanceof Error ? error.message : t("common.unknownError")));
+            showError(t("scan.errors.exportFailed") + ": " + (error instanceof Error ? error.message : t("common.unknownError")));
         }
     }, [latestScan, showSuccess, showError, t]);
     const handleCopyChecklist = useCallback(async () => {
@@ -535,7 +535,7 @@ export function ScanPage({
             }
         } catch (error) {
             const { debugError } = await import("../utils/debug-log.client");
-            debugError("复制失败:", error);
+            debugError("Copy failed:", error);
             showError(t("scan.errors.copyFailed"));
         } finally {
             setIsCopying(false);
@@ -592,7 +592,7 @@ export function ScanPage({
             setIsExporting(false);
         } catch (error) {
             import("../utils/debug-log.client").then(({ debugError }) => {
-              debugError("导出失败:", error);
+              debugError("Export failed:", error);
             });
             if (exportBlobUrlRef.current) {
                 URL.revokeObjectURL(exportBlobUrlRef.current);

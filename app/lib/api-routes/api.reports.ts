@@ -37,7 +37,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const planId = normalizePlanId(shop.plan || "free");
     const gateResult = checkFeatureAccess(planId, "report_export");
     if (!gateResult.allowed) {
-      return jsonApi({ error: gateResult.reason || "需要 Growth 及以上套餐才能导出报告" }, { status: 402 });
+      return jsonApi({ error: gateResult.reason || "Report export requires Growth plan or above" }, { status: 402 });
     }
 
     const reportData = await generateVerificationReportData(shop.id, runId);

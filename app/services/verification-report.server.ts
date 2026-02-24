@@ -49,9 +49,9 @@ function analyzeSandboxLimitations(results: VerificationEventResult[]): {
   const missingFields = Array.from(missingFieldsMap.entries()).map(([eventType, fields]) => {
     const knownLimitations = STRICT_SANDBOX_FIELD_LIMITATIONS[eventType] || [];
     const knownFields = Array.from(fields).filter(f => knownLimitations.some(kl => f.includes(kl) || kl.includes(f)));
-    let reason = "Web Pixel 运行在 strict sandbox (Web Worker) 环境中，无法访问 DOM、localStorage、第三方 cookie 等，部分字段可能不可用";
+    let reason = "Web Pixel runs in a strict sandbox (Web Worker) environment without access to DOM, localStorage, third-party cookies, etc. Some fields may be unavailable";
     if (knownFields.length > 0) {
-      reason += `。已知限制字段：${knownFields.join(", ")}`;
+      reason += `. Known limited fields: ${knownFields.join(", ")}`;
     }
     return {
       eventType,
@@ -65,35 +65,35 @@ function analyzeSandboxLimitations(results: VerificationEventResult[]): {
     if (knownLimitations && knownLimitations.length > 0) {
       const hasMissing = missingFields.some(mf => mf.eventType === eventType);
       if (!hasMissing) {
-        notes.push(`${eventType} 事件已知限制字段（可能为 null，这是平台限制，不是故障）：${knownLimitations.join(", ")}。已自动标注。`);
+        notes.push(`${eventType} event has known limited fields (may be null, this is a platform limitation, not a bug): ${knownLimitations.join(", ")}. Auto-annotated.`);
       } else {
         const missingForEvent = missingFields.find(mf => mf.eventType === eventType);
         if (missingForEvent) {
-          notes.push(`${eventType} 事件已知限制字段（已检测到缺失，这是平台限制，不是故障）：${missingForEvent.fields.join(", ")}。已自动标注。`);
+          notes.push(`${eventType} event has known limited fields (missing detected, this is a platform limitation, not a bug): ${missingForEvent.fields.join(", ")}. Auto-annotated.`);
         }
       }
     }
     if (STRICT_SANDBOX_UNAVAILABLE_EVENTS.includes(eventType)) {
-      notes.push(`${eventType} 事件在 strict sandbox 中不可用，需要通过订单 webhooks 获取。已自动标注。`);
+      notes.push(`${eventType} event is unavailable in strict sandbox, needs to be obtained via order webhooks. Auto-annotated.`);
     }
   }
   
-  notes.push("Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限：");
-  notes.push("- 无法访问 DOM 元素");
-  notes.push("- 无法使用 localStorage/sessionStorage");
-  notes.push("- 无法访问第三方 cookie");
-  notes.push("- 无法执行某些浏览器 API");
-  notes.push("- 部分事件字段可能为 null 或 undefined，这是平台限制，不是故障");
+  notes.push("Web Pixel runs in a strict sandbox (Web Worker) environment with the following limitations:");
+  notes.push("- Cannot access DOM elements");
+  notes.push("- Cannot use localStorage/sessionStorage");
+  notes.push("- Cannot access third-party cookies");
+  notes.push("- Cannot execute certain browser APIs");
+  notes.push("- Some event fields may be null or undefined, this is a platform limitation, not a bug");
   if (STRICT_SANDBOX_UNAVAILABLE_EVENTS.length > 0) {
-    notes.push(`- 以下事件类型在 strict sandbox 中不可用，需要通过订单 webhooks 获取：${STRICT_SANDBOX_UNAVAILABLE_EVENTS.join(", ")}`);
+    notes.push(`- The following event types are unavailable in strict sandbox and need to be obtained via order webhooks: ${STRICT_SANDBOX_UNAVAILABLE_EVENTS.join(", ")}`);
   }
   
   if (missingFields.length > 0 || unavailableEvents.length > 0) {
     notes.push("");
-    notes.push("自动标注说明：");
-    notes.push("- 报告中已自动标注所有因 strict sandbox 限制而无法获取的字段和事件");
-    notes.push("- 这些限制是 Shopify 平台的设计限制，不是故障");
-    notes.push("- 如需获取这些字段或事件，请使用订单 webhooks 或其他 Shopify API");
+    notes.push("Auto-annotation notes:");
+    notes.push("- All fields and events that cannot be obtained due to strict sandbox limitations have been auto-annotated in the report");
+    notes.push("- These limitations are by design in the Shopify platform, not bugs");
+    notes.push("- To obtain these fields or events, use order webhooks or other Shopify APIs");
   }
   
   return {
@@ -265,36 +265,36 @@ export function generateVerificationReportCSV(data: VerificationReportData): str
   }
   if (data.sandboxLimitations) {
     lines.push("");
-    lines.push("Strict Sandbox Limitations Summary (已自动标注)");
-    lines.push("Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限：");
-    lines.push("- 无法访问 DOM 元素");
-    lines.push("- 无法使用 localStorage/sessionStorage");
-    lines.push("- 无法访问第三方 cookie");
-    lines.push("- 无法执行某些浏览器 API");
-    lines.push("- 部分事件字段可能为 null 或 undefined，这是平台限制，不是故障");
+    lines.push("Strict Sandbox Limitations Summary (Auto-annotated)");
+    lines.push("Web Pixel runs in a strict sandbox (Web Worker) environment with the following limitations:");
+    lines.push("- Cannot access DOM elements");
+    lines.push("- Cannot use localStorage/sessionStorage");
+    lines.push("- Cannot access third-party cookies");
+    lines.push("- Cannot execute certain browser APIs");
+    lines.push("- Some event fields may be null or undefined, this is a platform limitation, not a bug");
     if (data.sandboxLimitations.missingFields.length > 0) {
       lines.push("");
-      lines.push("缺失字段（由于 strict sandbox 限制，已自动标注）：");
+      lines.push("Missing fields (due to strict sandbox limitations, auto-annotated):");
       for (const item of data.sandboxLimitations.missingFields) {
         lines.push(
-          escapeCSV(`事件类型: ${item.eventType}, 缺失字段: ${item.fields.join(", ")}, 原因: ${item.reason}`)
+          escapeCSV(`Event type: ${item.eventType}, Missing fields: ${item.fields.join(", ")}, Reason: ${item.reason}`)
         );
       }
     }
     if (data.sandboxLimitations.unavailableEvents.length > 0) {
       lines.push("");
-      lines.push("不可用的事件类型（已自动标注，需要通过订单 webhooks 获取）：");
+      lines.push("Unavailable event types (auto-annotated, need to be obtained via order webhooks):");
       lines.push(data.sandboxLimitations.unavailableEvents.map((e) => escapeCSV(e)).join(", "));
     }
     if (data.sandboxLimitations.notes.length > 0) {
       lines.push("");
-      lines.push("自动标注说明：");
+      lines.push("Auto-annotation notes:");
       for (const note of data.sandboxLimitations.notes) {
         lines.push(escapeCSV(note));
       }
     }
     lines.push("");
-    lines.push("重要提示：报告中已自动标注所有因 strict sandbox 限制而无法获取的字段和事件。这些限制是 Shopify 平台的设计限制，不是故障。如需获取这些字段或事件，请使用订单 webhooks 或其他 Shopify API。");
+    lines.push("Important: All fields and events that cannot be obtained due to strict sandbox limitations have been auto-annotated in the report. These limitations are by design in the Shopify platform, not bugs. To obtain these fields or events, use order webhooks or other Shopify APIs.");
   }
   return lines.join("\n");
 }

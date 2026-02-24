@@ -5,13 +5,9 @@ import { calculateRiskScore } from "./risk-assessment";
 import { SCRIPT_ANALYSIS_CONFIG } from "../../utils/config.shared";
 import { sanitizeSensitiveInfo } from "../../utils/security";
 import type { TFunction } from "i18next";
+import { getT } from "../../utils/i18n-helpers";
 
 const MAX_CONTENT_LENGTH = SCRIPT_ANALYSIS_CONFIG.MAX_CONTENT_LENGTH;
-
-const getT = (t: TFunction | undefined, key: string, options?: any, fallback?: string): string => {
-  if (t) return t(key, options) as unknown as string;
-  return fallback || key;
-};
 
 export function analyzeScriptContent(content: string, t?: TFunction): ScriptAnalysisResult {
     const result: ScriptAnalysisResult = {
@@ -214,16 +210,6 @@ export function analyzeScriptContent(content: string, t?: TFunction): ScriptAnal
     if (piiMatches.length > 0) {
         const uniqueMatches = [...new Set(piiMatches)];
         const piiTypes: string[] = [];
-        // Since we are moving to translation, we can keep English keys here or use translated values if we want
-        // But for display in "details", we should probably translate them too.
-        // However, these are dynamically detected types.
-        
-        // For simplicity, let's keep hardcoded Chinese here IF t is not provided, 
-        // but if t is provided, we should probably return English keys or translated values?
-        // The original code had "邮箱", "电话" etc.
-        // Let's use getT to translate these types if possible, or just keep them as is for now 
-        // as they are inserted into the translation string via {{types}}.
-        
         if (uniqueMatches.some(m => /email|mail/i.test(m))) piiTypes.push("Email");
         if (uniqueMatches.some(m => /phone|tel/i.test(m))) piiTypes.push("Phone");
         if (uniqueMatches.some(m => /address|street|city/i.test(m))) piiTypes.push("Address");
@@ -234,13 +220,13 @@ export function analyzeScriptContent(content: string, t?: TFunction): ScriptAnal
 
         result.risks.push({
             id: "pii_access",
-            name: getT(t, "scan.analysis.risks.pii_access.name", {}, "检测到 PII（个人身份信息）访问"),
+            name: getT(t, "scan.analysis.risks.pii_access.name", {}, "PII (Personally Identifiable Information) access detected"),
             description: getT(t, "scan.analysis.risks.pii_access.description", { types: typesStr }, 
-                "脚本可能读取客户敏感信息"),
+                "Script may access customer sensitive information"),
             severity: "high" as RiskSeverity,
             points: 35,
             details: getT(t, "scan.analysis.risks.pii_access.details", { count: piiMatches.length, types: typesStr }, 
-                `检测到 ${piiMatches.length} 处 PII 访问`),
+                `Detected ${piiMatches.length} PII access points`),
         });
     }
 
@@ -301,13 +287,13 @@ export function analyzeScriptContent(content: string, t?: TFunction): ScriptAnal
 
         result.risks.push({
             id: "window_document_access",
-            name: getT(t, "scan.analysis.risks.window_document_access.name", {}, "检测到 window/document 全局对象访问"),
+            name: getT(t, "scan.analysis.risks.window_document_access.name", {}, "Window/document global object access detected"),
             description: getT(t, "scan.analysis.risks.window_document_access.description", {}, 
-                "脚本使用了 window、document 或 DOM 操作"),
+                "Script uses window, document, or DOM operations"),
             severity: "high" as RiskSeverity,
             points: 40,
             details: getT(t, "scan.analysis.risks.window_document_access.details", { count: uniqueMatches.length, issues: issuesStr }, 
-                `检测到 ${uniqueMatches.length} 处访问`),
+                `Detected ${uniqueMatches.length} access points`),
         });
     }
 
@@ -360,13 +346,13 @@ export function analyzeScriptContent(content: string, t?: TFunction): ScriptAnal
 
         result.risks.push({
             id: "blocking_load",
-            name: getT(t, "scan.analysis.risks.blocking_load.name", {}, "检测到阻塞加载的代码"),
+            name: getT(t, "scan.analysis.risks.blocking_load.name", {}, "Blocking code detected"),
             description: getT(t, "scan.analysis.risks.blocking_load.description", { types: typesStr }, 
-                "脚本可能阻塞页面渲染"),
+                "Script may block page rendering"),
             severity: "high" as RiskSeverity,
             points: 30,
             details: getT(t, "scan.analysis.risks.blocking_load.details", { count: uniqueMatches.length, types: typesStr }, 
-                `检测到 ${uniqueMatches.length} 处阻塞代码`),
+                `Detected ${uniqueMatches.length} blocking code instances`),
         });
     }
 
@@ -393,11 +379,11 @@ export function analyzeScriptContent(content: string, t?: TFunction): ScriptAnal
         const count = Array.from(eventCounts.values()).filter(c => c > 1).length;
         result.risks.push({
             id: "duplicate_triggers",
-            name: getT(t, "scan.analysis.risks.duplicate_triggers.name", {}, "检测到重复触发的事件"),
-            description: getT(t, "scan.analysis.risks.duplicate_triggers.description", {}, "脚本可能多次触发相同事件"),
+            name: getT(t, "scan.analysis.risks.duplicate_triggers.name", {}, "Duplicate event triggers detected"),
+            description: getT(t, "scan.analysis.risks.duplicate_triggers.description", {}, "Script may trigger the same event multiple times"),
             severity: "medium" as RiskSeverity,
             points: 20,
-            details: getT(t, "scan.analysis.risks.duplicate_triggers.details", { count }, `检测到 ${count} 个重复的事件调用`),
+            details: getT(t, "scan.analysis.risks.duplicate_triggers.details", { count }, `Detected ${count} duplicate event calls`),
         });
     }
 
@@ -405,18 +391,18 @@ export function analyzeScriptContent(content: string, t?: TFunction): ScriptAnal
         const platformsStr = result.identifiedPlatforms.join(", ");
         result.risks.push({
             id: "additional_scripts_detected",
-            name: getT(t, "scan.analysis.risks.additional_scripts_detected.name", {}, "Additional Scripts 中检测到追踪代码"),
-            description: getT(t, "scan.analysis.risks.additional_scripts_detected.description", {}, "建议迁移到 Web Pixel"),
+            name: getT(t, "scan.analysis.risks.additional_scripts_detected.name", {}, "Tracking code detected in Additional Scripts"),
+            description: getT(t, "scan.analysis.risks.additional_scripts_detected.description", {}, "Migration to Web Pixel recommended"),
             severity: "high" as RiskSeverity,
             points: 25,
-            details: getT(t, "scan.analysis.risks.additional_scripts_detected.details", { platforms: platformsStr }, `检测到平台: ${platformsStr}`),
+            details: getT(t, "scan.analysis.risks.additional_scripts_detected.details", { platforms: platformsStr }, `Detected platforms: ${platformsStr}`),
         });
 
         if (result.identifiedPlatforms.includes("google") && contentToAnalyze.includes("UA-")) {
             result.risks.push({
                 id: "legacy_ua",
-                name: getT(t, "scan.analysis.risks.legacy_ua.name", {}, "使用旧版 Universal Analytics"),
-                description: getT(t, "scan.analysis.risks.legacy_ua.description", {}, "Universal Analytics 已于 2023 年 7 月停止处理数据"),
+                name: getT(t, "scan.analysis.risks.legacy_ua.name", {}, "Using legacy Universal Analytics"),
+                description: getT(t, "scan.analysis.risks.legacy_ua.description", {}, "Universal Analytics stopped processing data in July 2023"),
                 severity: "high" as RiskSeverity,
                 points: 30,
             });
@@ -425,8 +411,8 @@ export function analyzeScriptContent(content: string, t?: TFunction): ScriptAnal
         if (contentToAnalyze.includes("<script") && contentToAnalyze.includes("</script>")) {
             result.risks.push({
                 id: "inline_script_tags",
-                name: getT(t, "scan.analysis.risks.inline_script_tags.name", {}, "内联 Script 标签"),
-                description: getT(t, "scan.analysis.risks.inline_script_tags.description", {}, "内联脚本可能影响页面加载性能"),
+                name: getT(t, "scan.analysis.risks.inline_script_tags.name", {}, "Inline Script Tags"),
+                description: getT(t, "scan.analysis.risks.inline_script_tags.description", {}, "Inline scripts may affect page load performance"),
                 severity: "medium" as RiskSeverity,
                 points: 15,
             });
@@ -438,18 +424,9 @@ export function analyzeScriptContent(content: string, t?: TFunction): ScriptAnal
     for (const platform of result.identifiedPlatforms) {
         const key = `scan.analysis.recommendations.${platform}`;
         
-        // Check if key exists in predefined list implicitly by checking if it matches known platforms
-        // Or just trust getT to return fallback if key missing (though getT doesn't check existence, t does)
-        // If t is missing, getT returns fallback.
-        
-        // For default case logic:
-        // We can just try to translate using the platform key. 
-        // If translation returns the key itself (meaning missing), we can use the default recommendation.
-        // But t() usually returns key if missing.
-        
         let recommendation = getT(t, key, {}, "");
         if (!recommendation || recommendation === key) {
-             recommendation = getT(t, "scan.analysis.recommendations.default", { platform }, `请确认此 ${platform} 追踪代码的用途`);
+             recommendation = getT(t, "scan.analysis.recommendations.default", { platform }, `Please verify the purpose of this ${platform} tracking code`);
         }
         
         result.recommendations.push(recommendation);
@@ -458,14 +435,14 @@ export function analyzeScriptContent(content: string, t?: TFunction): ScriptAnal
     if (result.identifiedPlatforms.length === 0 && contentToAnalyze.length > 100) {
         result.recommendations.push(
             getT(t, "scan.analysis.recommendations.unknown", {}, 
-            "未检测到已知追踪平台")
+            "No known tracking platforms detected")
         );
     }
 
     if (result.identifiedPlatforms.length >= 2) {
         result.recommendations.push(
             getT(t, "scan.analysis.recommendations.checklist", {},
-            "迁移清单建议")
+            "Migration checklist recommended")
         );
     }
 

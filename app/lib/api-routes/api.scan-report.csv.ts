@@ -32,7 +32,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const planId = normalizePlanId(shop.plan || "free") as PlanId;
     const gateResult = checkFeatureAccess(planId, "report_export");
     if (!gateResult.allowed) {
-      return new Response(gateResult.reason || "需要 Growth 及以上套餐才能导出报告", { status: 402 });
+      return new Response(gateResult.reason || "Report export requires Growth plan or above", { status: 402 });
     }
 
     const scanReport = await prisma.scanReport.findFirst({
@@ -60,21 +60,21 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const identifiedPlatforms = validateStringArray(scanReport.identifiedPlatforms);
 
     const csvLines: string[] = [];
-    csvLines.push("扫描报告");
-    csvLines.push(`店铺: ${shop.shopDomain}`);
-    csvLines.push(`报告ID: ${scanReport.id}`);
-    csvLines.push(`风险评分: ${scanReport.riskScore}/100`);
-    csvLines.push(`状态: ${scanReport.status}`);
-    csvLines.push(`创建时间: ${scanReport.createdAt.toISOString()}`);
+    csvLines.push("Scan Report");
+    csvLines.push(`Shop: ${shop.shopDomain}`);
+    csvLines.push(`Report ID: ${scanReport.id}`);
+    csvLines.push(`Risk Score: ${scanReport.riskScore}/100`);
+    csvLines.push(`Status: ${scanReport.status}`);
+    csvLines.push(`Created At: ${scanReport.createdAt.toISOString()}`);
     if (scanReport.completedAt) {
-      csvLines.push(`完成时间: ${scanReport.completedAt.toISOString()}`);
+      csvLines.push(`Completed At: ${scanReport.completedAt.toISOString()}`);
     }
     csvLines.push("");
-    csvLines.push("识别的平台");
-    csvLines.push(identifiedPlatforms.join(", ") || "无");
+    csvLines.push("Identified Platforms");
+    csvLines.push(identifiedPlatforms.join(", ") || "None");
     csvLines.push("");
-    csvLines.push("风险项目");
-    csvLines.push("ID,名称,严重程度,平台,描述,建议");
+    csvLines.push("Risk Items");
+    csvLines.push("ID,Name,Severity,Platform,Description,Recommendation");
     for (const item of riskItems) {
       csvLines.push([
         item.id,

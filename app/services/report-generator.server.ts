@@ -24,29 +24,29 @@ export function getRiskReason(params: RiskReasonParams): LocalizedResult {
   if (riskLevel === "high") {
     if (category === "script_tag" || category === "checkout_script") {
       return {
-        text: "脚本标签在 Thank you/Order status 页面已被弃用，可能导致功能失效",
+        text: "Script tags on Thank You/Order Status pages have been deprecated and may stop working",
         key: "scan.riskReason.scriptTagDeprecated"
       };
     }
     if (platform === "google_analytics" || platform === "gtag") {
       return {
-        text: "Google Analytics 脚本标签需要迁移到 Web Pixel",
+        text: "Google Analytics script tags need to be migrated to Web Pixel",
         key: "scan.riskReason.gaMigration"
       };
     }
     return {
-      text: "高风险：需要立即迁移",
+      text: "High risk: immediate migration required",
       key: "scan.riskReason.high"
     };
   }
   if (riskLevel === "medium") {
     return {
-      text: "中等风险：建议尽快迁移",
+      text: "Medium risk: migration recommended soon",
       key: "scan.riskReason.medium"
     };
   }
   return {
-    text: "低风险：可逐步迁移",
+    text: "Low risk: can migrate gradually",
     key: "scan.riskReason.low"
   };
 }
@@ -57,36 +57,36 @@ export function extractRequiredInfo(params: RequiredInfoParams): { text: string,
   const keys: { key: string, params?: any }[] = [];
   
   if (suggestedMigration === "web_pixel") {
-    info.push("需要配置 Web Pixel 扩展");
+    info.push("Web Pixel extension configuration required");
     keys.push({ key: "scan.requiredInfo.webPixelConfig" });
     if (platform) {
-      info.push(`平台: ${platform}`);
+      info.push(`Platform: ${platform}`);
       keys.push({ key: "scan.requiredInfo.platform", params: { platform } });
     }
     if (details?.eventMappings) {
-      info.push("需要配置事件映射");
+      info.push("Event mapping configuration required");
       keys.push({ key: "scan.requiredInfo.eventMappings" });
     }
   } else if (suggestedMigration === "ui_extension") {
-    info.push("需要按 Shopify 官方能力手动迁移页面逻辑");
+    info.push("Manual migration of page logic required per Shopify official capabilities");
     keys.push({ key: "scan.requiredInfo.uiExtensionManual" });
     if (category === "survey" || category === "helpdesk" || category === "reorder") {
-      info.push(`模块类型: ${category}`);
+      info.push(`Module type: ${category}`);
       keys.push({ key: "scan.requiredInfo.moduleType", params: { category } });
     }
   } else if (suggestedMigration === "server_side") {
-    info.push("当前版本不提供服务端投递");
+    info.push("Server-side delivery not available in current version");
     keys.push({ key: "scan.requiredInfo.serverSideNotSupported" });
     if (platform) {
-      info.push(`平台: ${platform}`);
+      info.push(`Platform: ${platform}`);
       keys.push({ key: "scan.requiredInfo.platform", params: { platform } });
     }
     if (details?.apiKey) {
-      info.push("需要 API Key");
+      info.push("API Key required");
       keys.push({ key: "scan.requiredInfo.apiKey" });
     }
   } else {
-    info.push("需要手动处理或移除");
+    info.push("Manual handling or removal required");
     keys.push({ key: "scan.requiredInfo.manualHandling" });
   }
   return { text: info.join("; "), keys };

@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Card,
   Text,
@@ -89,6 +90,7 @@ export function PixelMigrationWizard({
   prefillAsset,
   pixelConfigs,
 }: PixelMigrationWizardProps) {
+  const { t } = useTranslation();
   const submit = useSubmit();
   const navigation = useNavigation();
   const { showSuccess, showError } = useToastContext();
@@ -302,17 +304,17 @@ export function PixelMigrationWizard({
     info.credentialFields.forEach((field) => {
       if (field.key === "testEventCode") return;
       if (!config.credentials[field.key as keyof typeof config.credentials]) {
-        errors.push(`${info.name}: 缺少 ${field.label}`);
+        errors.push(t("pixelWizard.validation.missingField", { name: info.name, label: field.label }));
       }
     });
     return errors;
-  }, [platformConfigs]);
+  }, [platformConfigs, t]);
   const canProceedToNextStep = useCallback((): { canProceed: boolean; errors: string[] } => {
     const errors: string[] = [];
     switch (currentStep) {
       case "select":
         if (selectedPlatforms.size === 0) {
-          errors.push("请至少选择一个平台");
+          errors.push(t("pixelWizard.validation.selectPlatform"));
         }
         break;
       case "credentials":
@@ -323,7 +325,7 @@ export function PixelMigrationWizard({
           info.credentialFields.forEach((field) => {
             if (field.key === "testEventCode") return;
             if (!config.credentials[field.key as keyof typeof config.credentials]) {
-              errors.push(`${info.name}: 缺少 ${field.label}`);
+              errors.push(t("pixelWizard.validation.missingField", { name: info.name, label: field.label }));
             }
           });
         });
@@ -332,11 +334,11 @@ export function PixelMigrationWizard({
         Array.from(selectedPlatforms).forEach((platform) => {
           const config = platformConfigs[platform];
           if (!config) {
-            errors.push(`${PLATFORM_INFO[platform]?.name || platform}: 配置不存在`);
+            errors.push(t("pixelWizard.validation.configNotFound", { name: PLATFORM_INFO[platform]?.name || platform }));
             return;
           }
           if (!config.eventMappings || Object.keys(config.eventMappings).length === 0) {
-            errors.push(`${PLATFORM_INFO[platform]?.name || platform}: 至少需要配置一个事件映射`);
+            errors.push(t("pixelWizard.validation.needEventMapping", { name: PLATFORM_INFO[platform]?.name || platform }));
           }
         });
         break;
@@ -353,7 +355,7 @@ export function PixelMigrationWizard({
       canProceed: errors.length === 0,
       errors,
     };
-  }, [currentStep, selectedPlatforms, platformConfigs, validateConfig]);
+  }, [currentStep, selectedPlatforms, platformConfigs, validateConfig, t]);
   const handleSkip = useCallback(() => {
     const nextStepIndex = currentStepIndex + 1;
     if (nextStepIndex < steps.length) {
@@ -368,13 +370,13 @@ export function PixelMigrationWizard({
       allErrors.push(...errors);
     });
     if (allErrors.length > 0) {
-      showError(`配置错误：${allErrors.join("; ")}`);
+      showError(t("pixelWizard.validation.configError", { errors: allErrors.join("; ") }));
       return;
     }
     const configs = enabledPlatforms.map((platform) => {
       const config = platformConfigs[platform];
       if (!config) {
-        throw new Error(`配置不存在: ${platform}`);
+        throw new Error(t("pixelWizard.validation.configMissing", { platform }));
       }
       return {
         platform,
@@ -391,20 +393,20 @@ export function PixelMigrationWizard({
       method: "post",
     });
     await clearDraft();
-    showSuccess("配置已保存，正在验证...");
+    showSuccess(t("pixelWizard.toast.configSaved"));
     setCurrentStep("testing");
-  }, [selectedPlatforms, platformConfigs, validateConfig, submit, showSuccess, showError, clearDraft, setCurrentStep]);
+  }, [selectedPlatforms, platformConfigs, validateConfig, submit, showSuccess, showError, clearDraft, setCurrentStep, t]);
   const handleNext = useCallback(() => {
     const validation = canProceedToNextStep();
     if (!validation.canProceed) {
-      showError(`请先完成当前步骤：${validation.errors.join("; ")}`);
+      showError(t("pixelWizard.validation.completeStep", { errors: validation.errors.join("; ") }));
       return;
     }
     const nextStepIndex = currentStepIndex + 1;
     if (nextStepIndex < steps.length) {
       setCurrentStep(steps[nextStepIndex].id);
     }
-  }, [currentStepIndex, steps, canProceedToNextStep, showError, setCurrentStep]);
+  }, [currentStepIndex, steps, canProceedToNextStep, showError, setCurrentStep, t]);
   const renderStepContent = () => {
     switch (currentStep) {
       case "select":
@@ -467,14 +469,14 @@ export function PixelMigrationWizard({
         <BlockStack gap="300">
           <InlineStack align="space-between" blockAlign="center">
             <Text as="h2" variant="headingMd">
-              像素迁移向导
+              {t("pixelWizard.title")}
             </Text>
             <InlineStack gap="200" blockAlign="center">
               <Badge tone="info">
-                {`步骤 ${currentStepIndex + 1} / ${steps.length}`}
+                {t("pixelWizard.progress.step", { current: currentStepIndex + 1, total: steps.length })}
               </Badge>
               <Badge>
-                {`${String(Math.round(progress))}% 完成`}
+                {t("pixelWizard.progress.complete", { percent: String(Math.round(progress)) })}
               </Badge>
             </InlineStack>
           </InlineStack>
@@ -581,7 +583,7 @@ export function PixelMigrationWizard({
         <Divider />
         <InlineStack align="space-between" wrap>
           <Button onClick={onCancel} disabled={isSubmitting}>
-            取消
+            {t("pixelWizard.button.cancel")}
           </Button>
           <InlineStack gap="200" wrap>
             {currentStepIndex > 0 && (
@@ -592,7 +594,7 @@ export function PixelMigrationWizard({
                 }}
                 disabled={isSubmitting}
               >
-                上一步
+                {t("pixelWizard.button.previous")}
               </Button>
             )}
             {currentStep !== "select" &&
@@ -603,7 +605,7 @@ export function PixelMigrationWizard({
                 onClick={handleSkip}
                 disabled={isSubmitting}
               >
-                跳过此步
+                {t("pixelWizard.button.skip")}
               </Button>
             )}
             {currentStep === "review" ? (
@@ -613,7 +615,7 @@ export function PixelMigrationWizard({
                 loading={isSubmitting}
                 icon={CheckCircleIcon}
               >
-                保存配置
+                {t("pixelWizard.button.save")}
               </Button>
             ) : currentStep !== "testing" ? (
               <Button
@@ -622,7 +624,7 @@ export function PixelMigrationWizard({
                 disabled={isSubmitting}
                 icon={ArrowRightIcon}
               >
-                下一步
+                {t("pixelWizard.button.next")}
               </Button>
             ) : null}
           </InlineStack>

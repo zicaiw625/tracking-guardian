@@ -103,7 +103,7 @@ async function handleCron(request: Request): Promise<Response> {
     );
   }
 
-  // 默认使用空对象，避免 application/json 但空 body 时被 schema 判为 null
+  // Default to an empty object to avoid treating an empty application/json body as null by schema validation
   let requestBody: unknown = {};
   const contentType = request.headers.get("Content-Type");
   const contentLength = request.headers.get("Content-Length");
@@ -115,7 +115,7 @@ async function handleCron(request: Request): Promise<Response> {
       const trimmedBody = bodyText.trim();
       if (trimmedBody) {
         requestBody = JSON.parse(trimmedBody);
-        // 允许 body 为字面量 null：将其视为“未提供参数”
+        // Allow literal null body: treat it as "no parameters provided"
         if (requestBody === null) {
           requestBody = {};
         }

@@ -1,9 +1,11 @@
 import prisma from "~/db.server";
-import { type PlanId, getPixelDestinationsLimit, getPlanOrDefault, planSupportsFeature } from "./plans";
+import { type PlanId, getPixelDestinationsLimit, getPlanOrDefault, getPlanDisplayName, planSupportsFeature } from "./plans";
 
 export interface FeatureGateResult {
   allowed: boolean;
   reason?: string;
+  reasonKey?: string;
+  reasonParams?: Record<string, string | number>;
   current?: number;
   limit?: number;
 }
@@ -26,7 +28,9 @@ export async function checkPixelDestinationsLimit(
   if (currentCount >= limit) {
     return {
       allowed: false,
-      reason: `当前套餐最多支持 ${limit} 个像素目的地，您已配置 ${currentCount} 个。请升级套餐或停用部分配置。`,
+      reason: `Current plan supports up to ${limit} pixel destinations, you have configured ${currentCount}. Please upgrade or deactivate some configurations.`,
+      reasonKey: "featureGate.pixelDestinationsLimit",
+      reasonParams: { limit, current: currentCount },
       current: currentCount,
       limit,
     };
@@ -44,10 +48,12 @@ export async function checkUiModulesLimit(
 ): Promise<FeatureGateResult> {
   const hasAccess = isPlanAtLeast(_shopPlan, "starter");
   if (!hasAccess) {
-    const planConfig = getPlanOrDefault(_shopPlan);
+    const currentPlan = getPlanDisplayName(_shopPlan);
     return {
       allowed: false,
-      reason: `UI 模块功能需要 Starter 及以上套餐。当前套餐：${planConfig.name}`,
+      reason: `UI Modules requires Starter plan or above. Current plan: ${currentPlan}`,
+      reasonKey: "featureGate.requiresPlan",
+      reasonParams: { feature: "UI Modules", plan: "Starter", currentPlan },
       current: 0,
       limit: 0,
     };
@@ -55,7 +61,7 @@ export async function checkUiModulesLimit(
   return {
     allowed: true,
     current: 0,
-    limit: -1, // Unlimited for supported plans
+    limit: -1,
   };
 }
 
@@ -69,10 +75,17 @@ export function checkFeatureAccess(
   if (feature === "pixel_migration" || feature === "ui_modules") {
     const hasAccess = isPlanAtLeast(shopPlan, "starter");
     if (!hasAccess) {
-      const planConfig = getPlanOrDefault(shopPlan);
+      const featureName = feature === "pixel_migration" ? "Pixel Migration" : "UI Modules";
+      const currentPlan = getPlanDisplayName(shopPlan);
       return {
         allowed: false,
-        reason: `${feature === "pixel_migration" ? "像素迁移" : "UI 模块"}功能需要 Starter 及以上套餐。当前套餐：${planConfig.name}`,
+        reason: `${featureName} requires Starter plan or above. Current plan: ${currentPlan}`,
+        reasonKey: "featureGate.requiresPlan",
+        reasonParams: {
+          feature: featureName,
+          plan: "Starter",
+          currentPlan,
+        },
       };
     }
     return { allowed: true };
@@ -86,26 +99,24 @@ export function checkFeatureAccess(
     hasAccess = planSupportsFeature(shopPlan, feature as "verification" | "alerts" | "reconciliation" | "agency" | "report_export");
   }
   if (!hasAccess) {
-    const planConfig = getPlanOrDefault(shopPlan);
-    const featureNames: Record<string, string> = {
-      verification: "验收功能",
-      alerts: "告警功能",
-      reconciliation: "事件对账",
-      agency: "Agency 多店功能",
-      pixel_migration: "像素迁移",
-      ui_modules: "UI 模块",
-      audit: "Audit 扫描",
-      report_export: "报告导出",
-    };
+    const featureName = getFeatureDisplayName(feature);
+    const requiredPlan = getRequiredPlanName(feature);
+    const currentPlan = getPlanDisplayName(shopPlan);
     return {
       allowed: false,
-      reason: `${featureNames[feature]}需要 ${getRequiredPlanName(feature)} 及以上套餐。当前套餐：${planConfig.name}`,
+      reason: `${featureName} requires ${requiredPlan} plan or above. Current plan: ${currentPlan}`,
+      reasonKey: "featureGate.requiresPlan",
+      reasonParams: {
+        feature: featureName,
+        plan: requiredPlan,
+        currentPlan,
+      },
     };
   }
   return { allowed: true };
 }
 
-function getRequiredPlanName(feature: "verification" | "alerts" | "reconciliation" | "agency" | "pixel_migration" | "ui_modules" | "audit" | "report_export"): string {
+function getRequiredPlanName(feature: string): string {
   switch (feature) {
     case "audit":
       return "Free";
@@ -114,14 +125,28 @@ function getRequiredPlanName(feature: "verification" | "alerts" | "reconciliatio
     case "verification":
       return "Starter";
     case "alerts":
-      return "Growth";
     case "report_export":
-      return "Growth";
     case "reconciliation":
       return "Growth";
     case "agency":
       return "Agency";
+    default:
+      return "Starter";
   }
+}
+
+function getFeatureDisplayName(feature: string): string {
+  const names: Record<string, string> = {
+    verification: "Verification",
+    alerts: "Alerts",
+    reconciliation: "Reconciliation",
+    agency: "Agency Multi-shop",
+    pixel_migration: "Pixel Migration",
+    ui_modules: "UI Modules",
+    audit: "Audit Scan",
+    report_export: "Report Export",
+  };
+  return names[feature] || feature;
 }
 
 function isPlanAtLeast(current: PlanId, target: PlanId): boolean {
@@ -147,9 +172,12 @@ export async function canCreatePixelConfig(
   }
   const planConfig = getPlanOrDefault(shopPlan);
   if (planConfig.pixelDestinations === 0) {
+    const currentPlan = getPlanDisplayName(shopPlan);
     return {
       allowed: false,
-      reason: `像素配置功能需要 Starter 及以上套餐。当前套餐：${planConfig.name}`,
+      reason: `Pixel Config requires Starter plan or above. Current plan: ${currentPlan}`,
+      reasonKey: "featureGate.requiresPlan",
+      reasonParams: { feature: "Pixel Config", plan: "Starter", currentPlan },
     };
   }
   return { allowed: true };
@@ -161,10 +189,12 @@ export async function canCreateUiModule(
 ): Promise<FeatureGateResult> {
   const hasAccess = isPlanAtLeast(_shopPlan, "starter");
   if (!hasAccess) {
-    const planConfig = getPlanOrDefault(_shopPlan);
+    const currentPlan = getPlanDisplayName(_shopPlan);
     return {
       allowed: false,
-      reason: `UI 模块功能需要 Starter 及以上套餐。当前套餐：${planConfig.name}`,
+      reason: `UI Modules requires Starter plan or above. Current plan: ${currentPlan}`,
+      reasonKey: "featureGate.requiresPlan",
+      reasonParams: { feature: "UI Modules", plan: "Starter", currentPlan },
     };
   }
   return { allowed: true };

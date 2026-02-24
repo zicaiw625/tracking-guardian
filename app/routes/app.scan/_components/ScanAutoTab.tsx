@@ -13,7 +13,7 @@ import type { RiskItem } from "~/types";
 import { useTranslation, Trans } from "react-i18next";
 
 interface ScanAutoTabProps {
-    // 使用 loader 返回的 latestScan；在内部再按需要进行安全访问
+    // Uses latestScan returned by loader; access safely where needed
     latestScan: any;
     isScanning: boolean;
     handleScan: () => void;

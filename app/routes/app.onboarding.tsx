@@ -30,6 +30,7 @@ import { CardSkeleton, useToastContext } from "~/components/ui";
 import { getPlatformName } from "~/components/scan/utils";
 
 import { authenticate } from "../shopify.server";
+import { i18nServer } from "../i18n.server";
 import prisma from "../db.server";
 import { scanShopTracking } from "../services/scanner.server";
 import { refreshTypOspStatus } from "../services/checkout-profile.server";
@@ -282,6 +283,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (!shop) {
     return json({ error: "onboarding.errors.shopNotFound" }, { status: 404 });
   }
+  const t = await i18nServer.getFixedT(request);
   if (actionType === "run_scan") {
     try {
       const scanResult = await scanShopTracking(admin, shop.id);
@@ -359,7 +361,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     return redirect("/app/scan");
   }
-  return json({ error: "未知操作" }, { status: 400 });
+  return json({ error: t("onboarding.action.unknownAction") }, { status: 400 });
 };
 
 function UrgencyBadge({ level }: { level: string }) {

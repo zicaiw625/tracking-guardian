@@ -278,7 +278,7 @@ export async function generateMigrationChecklist(
     return {
       id: `checklist-${asset.id}`,
       assetId: asset.id,
-      title: asset.displayName || `${asset.category} - ${asset.platform || "未知"}`,
+      title: asset.displayName || `${asset.category} - ${asset.platform || "Unknown"}`,
       description: descriptionResult.text,
       descriptionKey: descriptionResult.key,
       descriptionParams: descriptionResult.params,
@@ -389,21 +389,21 @@ export async function generateMigrationChecklist(
 
 function getMigrationDescription(asset: AuditAsset): { text: string, key: string, params: Record<string, any> } {
   const categoryNames: Record<string, string> = {
-    pixel: "追踪像素",
-    affiliate: "联盟追踪",
-    survey: "售后问卷",
-    support: "客服入口",
-    analytics: "站内分析",
-    other: "其他",
+    pixel: "Tracking Pixel",
+    affiliate: "Affiliate Tracking",
+    survey: "Post-purchase Survey",
+    support: "Support Entry",
+    analytics: "On-site Analytics",
+    other: "Other",
   };
   const migrationNames: Record<string, string> = {
-    web_pixel: "迁移到 Web Pixel",
-    ui_extension: "迁移到 UI Extension",
-    server_side: "服务端投递（规划项）",
-    none: "无需迁移",
+    web_pixel: "Migrate to Web Pixel",
+    ui_extension: "Migrate to UI Extension",
+    server_side: "Server-side Delivery (Planned)",
+    none: "No migration needed",
   };
-  const categoryName = categoryNames[asset.category] || "其他";
-  const migrationName = migrationNames[asset.suggestedMigration] || "未知";
+  const categoryName = categoryNames[asset.category] || "Other";
+  const migrationName = migrationNames[asset.suggestedMigration] || "Unknown";
   
   let text = `${categoryName} - ${migrationName}`;
   if (asset.platform) {

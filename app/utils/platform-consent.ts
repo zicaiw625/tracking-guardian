@@ -12,56 +12,56 @@ export const PLATFORM_CONSENT_CONFIG: Record<string, PlatformConsentConfig> = {
         category: "marketing",
         name: "Meta (Facebook/Instagram)",
         dualUse: false,
-        consentReason: "用于转化追踪和广告优化",
+        consentReason: "Used for conversion tracking and ad optimization",
         requiresSaleOfData: true,
     },
     tiktok: {
         category: "marketing",
         name: "TikTok",
         dualUse: false,
-        consentReason: "用于转化追踪和广告优化",
+        consentReason: "Used for conversion tracking and ad optimization",
         requiresSaleOfData: true,
     },
     google: {
         category: "analytics",
         name: "Google Analytics 4 (GA4)",
         dualUse: true,
-        consentReason: "用于网站分析和用户行为理解",
+        consentReason: "Used for website analytics and user behavior understanding",
         requiresSaleOfData: false,
     },
     bing: {
         category: "marketing",
-        name: "Microsoft Ads (Bing) - v1 不包含投递",
+        name: "Microsoft Ads (Bing) - delivery not included in v1",
         dualUse: false,
-        consentReason: "用于转化追踪和广告优化",
+        consentReason: "Used for conversion tracking and ad optimization",
         requiresSaleOfData: true,
     },
     pinterest: {
         category: "marketing",
         name: "Pinterest",
         dualUse: false,
-        consentReason: "用于转化追踪和广告优化",
+        consentReason: "Used for conversion tracking and ad optimization",
         requiresSaleOfData: true,
     },
     snapchat: {
         category: "marketing",
         name: "Snapchat",
         dualUse: false,
-        consentReason: "用于转化追踪和广告优化",
+        consentReason: "Used for conversion tracking and ad optimization",
         requiresSaleOfData: true,
     },
     twitter: {
         category: "marketing",
         name: "Twitter/X",
         dualUse: false,
-        consentReason: "用于转化追踪和广告优化",
+        consentReason: "Used for conversion tracking and ad optimization",
         requiresSaleOfData: true,
     },
     clarity: {
         category: "analytics",
-        name: "Microsoft Clarity - 客户端工具",
+        name: "Microsoft Clarity - client-side tool",
         dualUse: false,
-        consentReason: "用于热力图和用户行为分析",
+        consentReason: "Used for heatmaps and user behavior analytics",
         requiresSaleOfData: false,
     },
 };
@@ -255,13 +255,13 @@ export function getPlatformConsentRequirements(platform: string): {
     const requiresAnalytics = config.category === "analytics";
     let explanation: string;
     if (requiresMarketing) {
-        explanation = `${config.name}: 需要营销同意（marketingAllowed=true）`;
+        explanation = `${config.name}: requires marketing consent (marketingAllowed=true)`;
         if (config.requiresSaleOfData) {
-            explanation += `，且在 saleOfDataAllowed=false 时不发送`;
+            explanation += `, and will not be sent when saleOfDataAllowed=false`;
         }
     }
     else {
-        explanation = `${config.name}: 需要分析同意（analyticsProcessingAllowed=true）`;
+        explanation = `${config.name}: requires analytics consent (analyticsProcessingAllowed=true)`;
     }
     return {
         category: config.category,

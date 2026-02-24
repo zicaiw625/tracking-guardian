@@ -195,7 +195,7 @@ export async function calculatePriority(
         complexity: 0,
         impactScope: 0,
       },
-      reason: "资产已迁移或已跳过",
+      reason: "Asset already migrated or skipped",
     };
   }
   const riskLevel = RISK_WEIGHTS[asset.riskLevel] || 10;
@@ -214,15 +214,15 @@ export async function calculatePriority(
   const priority = Math.max(1, Math.min(10, normalizedPriority));
   const estimatedTimeMinutes = estimateMigrationTime(asset, complexity);
   const reasons: string[] = [];
-  if (riskLevel >= 25) reasons.push("高风险资产");
-  if (impactScope >= 15) reasons.push("影响关键页面");
-  if (category >= 15) reasons.push("重要资产类别");
-  if (migrationStatus >= 10) reasons.push("待迁移状态");
-  if (dependency >= 10) reasons.push("有依赖关系");
-  if (complexity <= 8) reasons.push("迁移简单");
+  if (riskLevel >= 25) reasons.push("High-risk asset");
+  if (impactScope >= 15) reasons.push("Impacts critical pages");
+  if (category >= 15) reasons.push("Important asset category");
+  if (migrationStatus >= 10) reasons.push("Pending migration");
+  if (dependency >= 10) reasons.push("Has dependencies");
+  if (complexity <= 8) reasons.push("Simple migration");
   const reason = reasons.length > 0
-    ? reasons.join("、")
-    : "标准优先级";
+    ? reasons.join(", ")
+    : "Standard priority";
   return {
     assetId: asset.id,
     priority,

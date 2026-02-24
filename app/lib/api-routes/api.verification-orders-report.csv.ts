@@ -37,24 +37,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     );
 
     const csvLines: string[] = [];
-    csvLines.push("订单层验收对账报告");
-    csvLines.push(`店铺: ${shop.shopDomain}`);
-    csvLines.push(`时间窗: ${hours} 小时`);
-    csvLines.push(`统计区间: ${reconciliation.periodStart.toISOString()} 至 ${reconciliation.periodEnd.toISOString()}`);
-    csvLines.push(`总订单数,${reconciliation.totalOrders}`);
-    csvLines.push(`有像素订单数,${reconciliation.ordersWithPixel}`);
-    csvLines.push(`差异率,${reconciliation.discrepancyRate}%`);
+    csvLines.push("Order-level Verification Reconciliation Report");
+    csvLines.push(`Shop: ${shop.shopDomain}`);
+    csvLines.push(`Time Window: ${hours} hours`);
+    csvLines.push(`Reporting Period: ${reconciliation.periodStart.toISOString()} to ${reconciliation.periodEnd.toISOString()}`);
+    csvLines.push(`Total Orders,${reconciliation.totalOrders}`);
+    csvLines.push(`Orders with Pixel Data,${reconciliation.ordersWithPixel}`);
+    csvLines.push(`Discrepancy Rate,${reconciliation.discrepancyRate}%`);
     csvLines.push("");
-    csvLines.push("有订单无像素（丢单）");
-    csvLines.push("订单ID,金额,币种");
+    csvLines.push("Orders Without Pixel Data (Missing Orders)");
+    csvLines.push("Order ID,Amount,Currency");
     for (const r of reconciliation.missingOrderIds) {
       csvLines.push(
         [r.orderId, String(r.totalPrice), r.currency].map(escapeCSV).join(",")
       );
     }
     csvLines.push("");
-    csvLines.push("金额/币种不一致");
-    csvLines.push("订单ID,订单金额,订单币种,像素金额,像素币种");
+    csvLines.push("Amount/Currency Mismatches");
+    csvLines.push("Order ID,Order Amount,Order Currency,Pixel Amount,Pixel Currency");
     for (const r of reconciliation.valueMismatches) {
       csvLines.push(
         [

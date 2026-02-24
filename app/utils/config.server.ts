@@ -464,7 +464,7 @@ export function getPixelEventIngestionUrl(): {
       isConfigured: false,
       isLocalhost: false,
       warning:
-        "SHOPIFY_APP_URL 未配置。如果您运行在自己的服务器上，请确保在环境变量中设置 SHOPIFY_APP_URL。",
+        "SHOPIFY_APP_URL is not configured. If you are running on your own server, make sure to set SHOPIFY_APP_URL in environment variables.",
     };
   }
   const placeholderDetected =
@@ -475,7 +475,7 @@ export function getPixelEventIngestionUrl(): {
       isConfigured: false,
       isLocalhost: false,
       warning:
-        "检测到占位符 __BACKEND_URL_PLACEHOLDER__，URL 未在构建时替换。这是严重的配置错误，必须在上线前修复。请在 CI/CD 流程中运行 'pnpm ext:inject' 或确保 SHOPIFY_APP_URL 已正确注入。如果占位符未被替换，像素扩展将无法发送事件到后端，导致事件丢失。这是导致事件丢失的常见原因，必须在生产环境部署前修复。",
+        "Detected placeholder __BACKEND_URL_PLACEHOLDER__, URL was not replaced at build time. This is a critical configuration error that must be fixed before deployment. Run 'pnpm ext:inject' in your CI/CD pipeline or ensure SHOPIFY_APP_URL is correctly injected. If the placeholder is not replaced, the pixel extension cannot send events to the backend, causing event loss. This is a common cause of event loss and must be fixed before production deployment.",
       placeholderDetected: true,
       pixelExtensionUrl: undefined,
     };
@@ -494,7 +494,7 @@ export function getPixelEventIngestionUrl(): {
       isConfigured: true,
       isLocalhost,
       warning: isLocalhost
-        ? "当前配置的是本地开发 URL，像素事件将不会发送到生产环境。"
+        ? "Currently configured with a local development URL. Pixel events will not be sent to the production environment."
         : undefined,
       pixelExtensionUrl: shopifyAppUrl,
       allowlistStatus: {
@@ -509,7 +509,7 @@ export function getPixelEventIngestionUrl(): {
       url: "",
       isConfigured: false,
       isLocalhost: false,
-      warning: `SHOPIFY_APP_URL 格式无效 (${shopifyAppUrl})。`,
+      warning: `SHOPIFY_APP_URL has an invalid format (${shopifyAppUrl}).`,
     };
   }
 }

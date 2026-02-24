@@ -59,7 +59,7 @@ export async function runAlertDetection(shopId: string, forDate?: Date): Promise
     alerts.push({
       alertType: "success_rate_low",
       severity: "warning",
-      message: `事件成功率过低：${(metrics.successRate * 100).toFixed(1)}%（阈值 ${SUCCESS_RATE_THRESHOLD * 100}%）`,
+      message: `Event success rate is too low: ${(metrics.successRate * 100).toFixed(1)}% (threshold ${SUCCESS_RATE_THRESHOLD * 100}%)`,
       payload: { date: key, successRate: metrics.successRate, totalOrders: metrics.totalOrders },
     });
   }
@@ -68,7 +68,7 @@ export async function runAlertDetection(shopId: string, forDate?: Date): Promise
     alerts.push({
       alertType: "missing_params_high",
       severity: "warning",
-      message: `缺失参数率过高：${(metrics.missingParamsRate * 100).toFixed(1)}%`,
+      message: `Missing parameter rate is too high: ${(metrics.missingParamsRate * 100).toFixed(1)}%`,
       payload: { date: key, missingParamsRate: metrics.missingParamsRate },
     });
   }
@@ -77,7 +77,7 @@ export async function runAlertDetection(shopId: string, forDate?: Date): Promise
     alerts.push({
       alertType: "event_volume_drop",
       severity: "critical",
-      message: `事件量环比骤降：${metrics.eventVolume} vs 前日 ${prev.eventVolume}`,
+      message: `Event volume dropped sharply vs previous day: ${metrics.eventVolume} vs ${prev.eventVolume}`,
       payload: { date: key, eventVolume: metrics.eventVolume, previousVolume: prev.eventVolume },
     });
   }

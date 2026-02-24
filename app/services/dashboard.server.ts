@@ -44,14 +44,14 @@ async function calculateHealthScore(
       ? recentReports.reduce((sum, r) => sum + r.orderDiscrepancy, 0) / recentReports.length
       : 0;
   const discrepancyScore = Math.max(0, 100 - (avgDiscrepancy * 500));
-  factors.push({ label: "对账一致性", value: discrepancyScore, weight: 0.45 });
+  factors.push({ label: "Reconciliation Consistency", value: discrepancyScore, weight: 0.45 });
   try {
     const stats = await getEventMonitoringStats(shopId, 24 * 7);
     const successRateScore = stats.successRate || 0;
-    factors.push({ label: "事件成功率", value: successRateScore, weight: 0.35 });
+    factors.push({ label: "Event Success Rate", value: successRateScore, weight: 0.35 });
   } catch (error) {
     logger.warn("Failed to get event monitoring stats for health score", { shopId, error });
-    factors.push({ label: "事件成功率", value: 100, weight: 0.35 });
+    factors.push({ label: "Event Success Rate", value: 100, weight: 0.35 });
   }
   try {
     const volumeStats = await getEventVolumeStats(shopId);
@@ -62,10 +62,10 @@ async function calculateHealthScore(
     } else if (isDrop && Math.abs(volumeStats.changePercent || 0) > 30) {
       volumeScore = 75;
     }
-    factors.push({ label: "事件量稳定性", value: volumeScore, weight: 0.2 });
+    factors.push({ label: "Event Volume Stability", value: volumeScore, weight: 0.2 });
   } catch (error) {
     logger.warn("Failed to get event volume stats for health score", { shopId, error });
-    factors.push({ label: "事件量稳定性", value: 100, weight: 0.2 });
+    factors.push({ label: "Event Volume Stability", value: 100, weight: 0.2 });
   }
   const totalScore = factors.reduce((sum, factor) => sum + (factor.value * factor.weight), 0);
   const roundedScore = Math.round(totalScore);
@@ -397,12 +397,12 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
 
     try {
         const categoryLabels: Record<string, string> = {
-          pixel: "像素追踪",
-          affiliate: "联盟营销",
-          survey: "问卷调研",
-          support: "客服支持",
-          analytics: "分析工具",
-          other: "其他",
+          pixel: "Pixel Tracking",
+          affiliate: "Affiliate Marketing",
+          survey: "Survey Research",
+          support: "Customer Support",
+          analytics: "Analytics Tools",
+          other: "Other",
         };
         
         // Note: We need to query Prisma for breakdown details as getAuditAssetSummary aggregates them

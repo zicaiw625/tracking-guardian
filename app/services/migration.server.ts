@@ -31,11 +31,11 @@ export function generatePixelCode(config: MigrationConfig): MigrationResult {
             throw new Error(`Unsupported platform: ${config.platform}. Tracking Guardian supports Google, Meta, and TikTok.`);
         }
         const instructions = [
-            "1. 前往 Tracking Guardian「迁移」页面，点击「一键启用 App Pixel」",
-            "2. 创建测试订单，在「验收」页面查看事件收据与参数完整率",
-            "3. 手动删除旧的 ScriptTag 或 Additional Scripts（参考「扫描」页面的清理指南）",
+            "1. Go to the Tracking Guardian 'Migration' page and click 'Enable App Pixel'",
+            "2. Create a test order and check event receipts and parameter completeness on the 'Verification' page",
+            "3. Manually remove old ScriptTags or Additional Scripts (refer to the cleanup guide on the 'Scan' page)",
             "",
-            "💡 当前版本以 Web Pixel → /ingest → 去重/落库/验收 为主，服务端投递能力为规划项。",
+            "Currently focused on Web Pixel -> /ingest -> deduplication/storage/verification. Server-side delivery is planned for future versions.",
         ];
         return {
             success: true,
@@ -67,13 +67,13 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
     const v1SupportedPlatforms = ["google", "meta", "tiktok"];
     if (!v1SupportedPlatforms.includes(platform)) {
         throw new Error(
-            `平台 ${platform} 在 v1.0 版本中不支持。v1.0 仅支持: ${v1SupportedPlatforms.join(", ")}。` +
-            `其他平台（如 Snapchat、Twitter、Pinterest）将在 v1.1+ 版本中提供支持。`
+            `Platform ${platform} is not supported in v1.0. v1.0 only supports: ${v1SupportedPlatforms.join(", ")}. ` +
+            `Other platforms (e.g. Snapchat, Twitter, Pinterest) will be supported in v1.1+.`
         );
     }
     if (serverSideEnabled === true && !credentialsEncrypted) {
         throw new Error(
-            `启用服务端追踪时必须提供 credentialsEncrypted。平台: ${platform}, shopId: ${shopId}`
+            `credentialsEncrypted is required when enabling server-side tracking. Platform: ${platform}, shopId: ${shopId}`
         );
     }
     const environment = options?.environment || "live";
@@ -91,7 +91,7 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
         const { checkV1FeatureBoundary } = await import("../utils/version-gate");
         const gateResult = checkV1FeatureBoundary("server_side");
         if (!gateResult.allowed) {
-            throw new Error(gateResult.reason || "此功能在当前版本中不可用");
+            throw new Error(gateResult.reason || "This feature is not available in the current version");
         }
         if (!existingConfig) {
             const { requireEntitlementOrThrow } = await import("./billing/entitlement.server");
@@ -559,16 +559,16 @@ export function getScriptTagDeletionGuidance(scriptTagId: number, shopDomain?: s
         ? `https://${storeHandle}.myshopify.com/admin`
         : undefined;
     return {
-        title: `删除 ScriptTag #${scriptTagId}`,
+        title: `Remove ScriptTag #${scriptTagId}`,
         manualSteps: [
-            "1. 前往 Shopify 后台「设置 → 应用和销售渠道」",
-            "2. 找到创建该 ScriptTag 的应用（通常是追踪/分析类应用）",
-            "3. 点击该应用，选择「卸载」或在应用设置中禁用脚本",
-            "4. 如果找不到对应应用，可能是已卸载的应用残留",
-            "5. 联系 Shopify 支持获取帮助，提供 ScriptTag ID: " + scriptTagId,
+            "1. Go to Shopify Admin > Settings > Apps and sales channels",
+            "2. Find the app that created this ScriptTag (usually a tracking/analytics app)",
+            "3. Click the app and select 'Uninstall' or disable the script in app settings",
+            "4. If you can't find the corresponding app, it may be a remnant from an uninstalled app",
+            "5. Contact Shopify Support for help, provide ScriptTag ID: " + scriptTagId,
             "",
-            "💡 提示：安装 Tracking Guardian 的 Web Pixel 后，旧的 ScriptTag 可以安全删除，",
-            "   因为当前版本以 Web Pixel → /ingest → 落库/验收 为主，可用验收结果确认迁移是否成功。",
+            "Tip: After installing Tracking Guardian's Web Pixel, old ScriptTags can be safely removed.",
+            "   The current version uses Web Pixel -> /ingest -> storage/verification. Use verification results to confirm migration success.",
         ],
         adminUrl,
         platform,
@@ -582,9 +582,9 @@ export function getScriptTagMigrationGuidance(platform: string, _scriptTagId: nu
     warning?: string;
 } {
     const baseSteps = [
-        "1. 在「迁移」页面启用 App Pixel（如尚未启用）",
-        "2. 创建测试订单并运行验收（查看事件收据与参数完整率）",
-        "3. 删除旧的 ScriptTag（可使用上方删除按钮或手动操作）",
+        "1. Enable App Pixel on the 'Migration' page (if not already enabled)",
+        "2. Create a test order and run verification (check event receipts and parameter completeness)",
+        "3. Remove old ScriptTags (use the remove button above or do it manually)",
     ];
     const platformGuidance: Record<string, {
         title: string;
@@ -592,27 +592,27 @@ export function getScriptTagMigrationGuidance(platform: string, _scriptTagId: nu
         warning?: string;
     }> = {
         google: {
-            title: "Google Analytics / Google Ads 迁移",
+            title: "Google Analytics / Google Ads Migration",
             extraSteps: [
-                "• GA4: 启用 Web Pixel 后跑一次验收，确认 purchase 事件与金额/币种参数完整",
-                "• Google Ads: 建议使用 Shopify 官方 Google 应用（按官方路径配置 Enhanced Conversions）",
+                "GA4: After enabling Web Pixel, run verification to confirm purchase event and value/currency parameters are complete",
+                "Google Ads: Consider using the official Shopify Google app (configure Enhanced Conversions via the official path)",
             ],
         },
         meta: {
-            title: "Meta (Facebook) Pixel 迁移",
+            title: "Meta (Facebook) Pixel Migration",
             extraSteps: [
-                "• 启用 Web Pixel 后跑一次验收，确认 Purchase 事件与关键参数完整",
+                "After enabling Web Pixel, run verification to confirm Purchase event and key parameters are complete",
             ],
         },
         tiktok: {
-            title: "TikTok Pixel 迁移",
+            title: "TikTok Pixel Migration",
             extraSteps: [
-                "• 启用 Web Pixel 后跑一次验收，确认 CompletePayment 事件与关键参数完整",
+                "After enabling Web Pixel, run verification to confirm CompletePayment event and key parameters are complete",
             ],
         },
     };
     const guidance = platformGuidance[platform] || {
-        title: `${platform} 平台迁移`,
+        title: `${platform} Platform Migration`,
     };
     return {
         title: guidance.title,
@@ -620,7 +620,7 @@ export function getScriptTagMigrationGuidance(platform: string, _scriptTagId: nu
             ...(guidance.extraSteps || []),
             ...baseSteps,
         ],
-        deadline: platform === "unknown" ? undefined : `Plus 商家: ${getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")}（日期来自 Shopify 官方公告，请以 Admin 提示为准）; 非 Plus: ${getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")}（日期来自 Shopify 官方公告，请以 Admin 提示为准）`,
+        deadline: platform === "unknown" ? undefined : `Plus merchants: ${getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")} (dates from official Shopify announcements, please verify in Admin); Non-Plus: ${getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")} (dates from official Shopify announcements, please verify in Admin)`,
         warning: guidance.warning,
     };
 }

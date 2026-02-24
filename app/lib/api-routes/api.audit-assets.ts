@@ -65,7 +65,7 @@ async function handleConfirmMerchant(
     sourceType: "merchant_confirmed",
     category,
     platform: platform || undefined,
-    displayName: displayName || `商家确认: ${platform || category}`,
+    displayName: displayName || `Merchant confirmation: ${platform || category}`,
     riskLevel: "high",
     suggestedMigration: category === "pixel" ? "web_pixel" : "ui_extension",
     details: {
@@ -117,7 +117,7 @@ async function handleCreateFromList(
         sourceType: "merchant_confirmed",
         category: "pixel",
         platform,
-        displayName: `升级向导清单: ${platform}`,
+        displayName: `Upgrade wizard checklist: ${platform}`,
         riskLevel: "high",
         suggestedMigration: "web_pixel",
         details: {
@@ -136,7 +136,7 @@ async function handleCreateFromList(
       const asset = await createAuditAsset(shopId, {
         sourceType: "merchant_confirmed",
         category,
-        displayName: `升级向导清单: ${item.name}`,
+        displayName: `Upgrade wizard checklist: ${item.name}`,
         riskLevel: category === "pixel" ? "high" : "medium",
         suggestedMigration: category === "pixel" ? "web_pixel" :
                            category === "survey" || category === "support" ? "ui_extension" :

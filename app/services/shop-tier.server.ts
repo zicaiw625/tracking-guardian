@@ -150,22 +150,22 @@ export function getTierDisplayInfo(tier: ShopTier): {
         case "plus":
             return {
                 label: "Shopify Plus",
-                description: "您的店铺使用 Shopify Plus 计划",
+                description: "Your store is on the Shopify Plus plan",
                 deadlineDate: getDateDisplayLabel(DEPRECATION_DATES.plusAdditionalScriptsReadOnly, "exact"),
                 isKnown: true,
             };
         case "non_plus":
             return {
                 label: "Standard Shopify",
-                description: "您的店铺使用标准 Shopify 计划",
+                description: "Your store is on a standard Shopify plan",
                 deadlineDate: getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact"),
                 isKnown: true,
             };
         case "unknown":
         default:
             return {
-                label: "未知",
-                description: "无法确认店铺版本，按非 Plus 最晚日期提示（保守）",
+                label: "Unknown",
+                description: "Unable to determine store plan, using non-Plus latest deadline (conservative)",
                 deadlineDate: getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact"),
                 isKnown: false,
             };

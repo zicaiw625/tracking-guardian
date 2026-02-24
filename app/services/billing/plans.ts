@@ -281,3 +281,15 @@ export function getUiModulesLimit(planId: PlanId): number {
 export function getPlanTagline(planId: PlanId): string | undefined {
   return BILLING_PLANS[planId].tagline;
 }
+
+const PLAN_DISPLAY_NAMES: Record<PlanId, string> = {
+  free: "Free",
+  starter: "Starter",
+  growth: "Growth",
+  monitor: "Monitor",
+  agency: "Agency",
+};
+
+export function getPlanDisplayName(planId: PlanId | string): string {
+  return PLAN_DISPLAY_NAMES[planId as PlanId] || planId;
+}

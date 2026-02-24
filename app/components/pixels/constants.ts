@@ -59,63 +59,63 @@ export const PLATFORM_INFO: Record<
   google: {
     name: "Google Analytics 4",
     icon: "🔵",
-    description: "用于 Web Pixel 标准事件映射",
+    description: "Used for standard Web Pixel event mapping",
     credentialFields: [
       {
         key: "measurementId",
         label: "Measurement ID",
         placeholder: "G-XXXXXXXXXX",
         type: "text",
-        helpText: "在 GA4 管理后台的「数据流」中查找",
+        helpText: "Find this in GA4 Admin under Data Streams",
       },
       {
         key: "apiSecret",
         label: "API Secret",
         placeholder: "",
         type: "password",
-        helpText: "在 GA4 数据流 > Measurement Protocol API secrets 中创建",
+        helpText: "Create this in GA4 Data Stream > Measurement Protocol API secrets",
       },
     ],
   },
   meta: {
     name: "Meta (Facebook) Pixel",
     icon: "📘",
-    description: "用于 Web Pixel 标准事件映射",
+    description: "Used for standard Web Pixel event mapping",
     credentialFields: [
       {
         key: "pixelId",
         label: "Pixel ID",
         placeholder: "123456789012345",
         type: "text",
-        helpText: "在 Meta Events Manager 中查找",
+        helpText: "Find this in Meta Events Manager",
       },
       {
         key: "accessToken",
         label: "Access Token",
         placeholder: "",
         type: "password",
-        helpText: "在 Meta Events Manager 中生成系统用户访问令牌",
+        helpText: "Generate a system user access token in Meta Events Manager",
       },
     ],
   },
   tiktok: {
     name: "TikTok Pixel",
     icon: "🎵",
-    description: "用于 Web Pixel 标准事件映射",
+    description: "Used for standard Web Pixel event mapping",
     credentialFields: [
       {
         key: "pixelId",
         label: "Pixel ID",
         placeholder: "C1234567890ABCDEF",
         type: "text",
-        helpText: "在 TikTok Events Manager 中查找",
+        helpText: "Find this in TikTok Events Manager",
       },
       {
         key: "accessToken",
         label: "Access Token",
         placeholder: "",
         type: "password",
-        helpText: "在 TikTok Events Manager 中生成",
+        helpText: "Generate this in TikTok Events Manager",
       },
     ],
   },
@@ -124,8 +124,8 @@ export const PLATFORM_INFO: Record<
 export const PRESET_TEMPLATES: WizardTemplate[] = [
   {
     id: "standard",
-    name: "标准配置（v1）",
-    description: "适用于大多数电商店铺的标准事件映射（GA4/Meta/TikTok）",
+    name: "Standard Configuration (v1)",
+    description: "Standard event mapping for most ecommerce stores (GA4/Meta/TikTok)",
     platforms: ["google", "meta", "tiktok"],
     eventMappings: {
       google: { checkout_completed: "purchase" },
@@ -137,8 +137,8 @@ export const PRESET_TEMPLATES: WizardTemplate[] = [
   },
   {
     id: "advanced",
-    name: "高级配置（v1.1+）",
-    description: "包含更多事件类型的完整映射（v1.1+ 将支持 Pinterest/Snapchat）",
+    name: "Advanced Configuration (v1.1+)",
+    description: "Full mapping with more event types (v1.1+ will support Pinterest/Snapchat)",
     platforms: ["google", "meta", "tiktok"],
     eventMappings: {
       google: {
@@ -163,8 +163,8 @@ export const PRESET_TEMPLATES: WizardTemplate[] = [
 ];
 
 export const PIXEL_SETUP_STEPS = [
-  { id: "select" as const, label: "选择平台" },
-  { id: "mappings" as const, label: "事件映射" },
-  { id: "credentials" as const, label: "平台凭证" },
-  { id: "review" as const, label: "检查配置" },
+  { id: "select" as const, label: "Select Platforms" },
+  { id: "mappings" as const, label: "Event Mappings" },
+  { id: "credentials" as const, label: "Platform Credentials" },
+  { id: "review" as const, label: "Review Configuration" },
 ];
