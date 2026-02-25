@@ -337,3 +337,8 @@
     background-position: -200% 0;
   }
 }
+
+/* Hide the in-page NavMenu fallback links; Shopify embedded nav remains available in admin shell. */
+ui-nav-menu {
+  display: none;
+}
