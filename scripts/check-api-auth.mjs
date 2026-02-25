@@ -9,7 +9,6 @@ const AUTH_PATTERNS = [
   "authenticate.admin",
   "authenticate.webhook",
   "authenticatePublic",
-  "tryAuthenticatePublicWithShop",
   "validateCronAuth",
   "validatePerformanceAuth",
   "validateDetailedHealthAuth",

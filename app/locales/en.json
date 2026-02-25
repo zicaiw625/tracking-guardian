@@ -1584,7 +1584,7 @@
         "description": "Click Start Scan to automatically detect ScriptTags and installed pixel configurations, and get risk levels and migration suggestions. Estimated time is about 10 seconds, no settings will be modified.",
         "helpText": "About Additional Scripts: Shopify API cannot automatically read Additional Scripts in checkout.liquid. Please switch to the 'Manual Analysis' tab and paste script content for analysis.",
         "learnMore": "Learn More",
-        "learnMoreUrl": "https://help.shopify.com/en/manual/promoting-marketing/pixels"
+        "learnMoreUrl": "https://help.shopify.com/en/manual/pixels/web-pixels"
       },
       "upgradeWindow": {
         "title": "Shopify Upgrade Risk Window",

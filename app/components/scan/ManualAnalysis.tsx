@@ -167,7 +167,7 @@ export function ManualAnalysis({ deprecationStatus, scriptAnalysisMaxContentLeng
                   {t("scan.manualAnalysis.guide.title")}
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  📖 {t("scan.manualAnalysis.guide.docsRef")}<a href="https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status/additional-scripts" target="_blank" rel="noopener noreferrer">{t("scan.manualAnalysis.guide.shopifyDocs")}</a>
+                  📖 {t("scan.manualAnalysis.guide.docsRef")}<a href="https://help.shopify.com/en/manual/checkout-settings/order-status-page/additional-scripts" target="_blank" rel="noopener noreferrer">{t("scan.manualAnalysis.guide.shopifyDocs")}</a>
                 </Text>
                 <Divider />
                 <Text as="p" variant="bodySm" fontWeight="semibold">

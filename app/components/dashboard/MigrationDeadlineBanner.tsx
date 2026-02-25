@@ -7,7 +7,7 @@ import { ArrowRightIcon } from "../icons";
 export function MigrationDeadlineBanner() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language.startsWith('zh') ? 'zh-CN' : 'en';
-  const helpUrl = `https://help.shopify.com/${lang}/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status/additional-scripts`;
+  const helpUrl = `https://help.shopify.com/${lang}/manual/checkout-settings/order-status-page/additional-scripts`;
 
   const helpCenterLink = (
     <Link

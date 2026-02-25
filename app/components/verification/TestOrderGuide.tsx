@@ -146,9 +146,9 @@ export function TestOrderGuide({
             <Text as="p" variant="bodySm" tone="subdued">
               <strong>{t("verification.guide.references.title")}</strong>
               <br />
-              • <a href="https://help.shopify.com/en/manual/checkout-settings/test-orders" target="_blank" rel="noopener noreferrer">{t("verification.guide.references.checkout")}</a>
+              • <a href="https://help.shopify.com/en/manual/checkout-settings/test-checkout" target="_blank" rel="noopener noreferrer">{t("verification.guide.references.checkout")}</a>
               <br />
-              • <a href="https://help.shopify.com/en/manual/promoting-marketing/pixels/custom-pixels/testing" target="_blank" rel="noopener noreferrer">{t("verification.guide.references.pixels")}</a>
+              • <a href="https://help.shopify.com/en/manual/online-store/themes/customizing-themes/checkout-extensibility/web-pixels-api/test-custom-pixels" target="_blank" rel="noopener noreferrer">{t("verification.guide.references.pixels")}</a>
             </Text>
           </BlockStack>
         </Banner>

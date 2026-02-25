@@ -109,7 +109,7 @@ export function ScanPageModals({
                   </Text>
                 </Banner>
                 <Button
-                  url="https://help.shopify.com/en/manual/promoting-marketing/pixels"
+                  url="https://help.shopify.com/en/manual/pixels/customer-events"
                   external
                   variant="primary"
                 >
