@@ -536,7 +536,7 @@ function ScoreCard({
   tone?: "success" | "critical";
 }) {
   return (
-    <div style={{ flex: 1 }}>
+    <div className="tg-verification-score-card">
       <Card>
         <BlockStack gap="200" align="center">
           <Text as="h3" variant="headingSm" tone="subdued">

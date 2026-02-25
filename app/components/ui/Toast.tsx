@@ -32,7 +32,7 @@ function ToastItem({ toast, onDismiss }: ToastProps) {
                toast.type === "error" ? AlertCircleIcon :
                InfoIcon;
   return (
-    <div style={{ animation: "slideIn 0.3s ease-out" }}>
+    <div className="tg-toast-item">
       <Box paddingBlockStart="200" paddingBlockEnd="200">
       <Banner
         tone={tone}
@@ -56,16 +56,7 @@ export interface ToastContainerProps {
 export function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
   if (toasts.length === 0) return null;
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: "60px",
-        right: "20px",
-        minWidth: "320px",
-        maxWidth: "480px",
-        zIndex: 1000,
-      }}
-    >
+    <div className="tg-toast-container">
       <BlockStack gap="200">
         {toasts.map((toast) => (
           <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} />
@@ -111,17 +102,3 @@ export function useToast() {
   };
 }
 
-const toastStyles = `
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-`;
-
-export { toastStyles };

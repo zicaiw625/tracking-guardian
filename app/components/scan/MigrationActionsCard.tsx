@@ -97,7 +97,7 @@ export function MigrationActionsCard({
                     <Badge tone="warning">{t("scan.migrationActionsCard.deadline", { date: action.deadline })}</Badge>
                   )}
                 </InlineStack>
-                <div style={{ whiteSpace: "pre-wrap" }}>
+                <div className="tg-migration-actions-description">
                   <Text as="p" variant="bodySm" tone="subdued">
                     {action.descriptionKey
                       ? String(t(action.descriptionKey, action.descriptionParams as any))

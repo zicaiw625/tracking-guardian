@@ -437,7 +437,7 @@ export default function MigratePage() {
                         <img
                           src="/images/checkout-editor-step-1.svg"
                           alt="Checkout Editor"
-                          style={{ maxWidth: "100%", height: "auto" }}
+                          className="tg-migrate-checkout-editor-image"
                         />
                         <Form method="post">
                           <input type="hidden" name="_action" value="markModulesStepDone" />

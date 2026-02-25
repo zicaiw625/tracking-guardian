@@ -77,15 +77,7 @@ function ErrorFallbackContent({
                   background="bg-surface-secondary"
                   borderRadius="100"
                 >
-                  <pre
-                    style={{
-                      margin: 0,
-                      fontSize: "12px",
-                      overflow: "auto",
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                    }}
-                  >
+                  <pre className="tg-ui-error-stack">
                     {errorStack}
                   </pre>
                 </Box>

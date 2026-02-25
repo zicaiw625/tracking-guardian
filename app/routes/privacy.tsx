@@ -10,9 +10,18 @@ import { Card, Text, BlockStack, List, Banner, Layout } from "@shopify/polaris";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const corsHeaders = getDynamicCorsHeaders(request);
+  const appUrl = getPublicAppDomain();
+  let appDomain = appUrl;
+  try {
+    appDomain = new URL(appUrl).hostname;
+  } catch {
+    appDomain = appUrl.replace(/^https?:\/\//, "");
+  }
+
   const response = json({
     appName: "Tracking Guardian",
-    appDomain: getPublicAppDomain(),
+    appUrl,
+    appDomain,
     lastUpdated: "2026-02-02",
   });
   const headers = new Headers(response.headers);
@@ -29,7 +38,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 function PrivacyContent() {
   const { t } = useTranslation();
-  const { appName, appDomain, lastUpdated } = useLoaderData<typeof loader>();
+  const { appName, appUrl, appDomain, lastUpdated } = useLoaderData<typeof loader>();
 
   return (
     <PublicLayout>
@@ -49,6 +58,9 @@ function PrivacyContent() {
                 </Text>
                 <Text as="p" tone="subdued">
                   <strong>{t("PublicPrivacy.Meta.AppDomain")}：</strong>{appDomain}
+                </Text>
+                <Text as="p" tone="subdued">
+                  <strong>{t("PublicPrivacy.Meta.AppUrl")}：</strong>{appUrl}
                 </Text>
               </BlockStack>
             </BlockStack>
@@ -256,7 +268,7 @@ function PrivacyContent() {
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">{t("PublicPrivacy.Docs.Title")}</Text>
               <Text as="p">
-                {t("PublicPrivacy.Docs.Content")} <a href="/terms" style={{ color: '#008060', textDecoration: 'none' }}>{t("PublicTerms.Title")}</a>.
+                {t("PublicPrivacy.Docs.Content")} <a href="/terms">{t("PublicTerms.Title")}</a>.
               </Text>
             </BlockStack>
           </Card>

@@ -68,15 +68,7 @@ export function CheckoutCompletedBehaviorHint({
       <BlockStack gap="200">
         <button
           onClick={() => setExpanded(!expanded)}
-          style={{
-            cursor: "pointer",
-            textAlign: "left",
-            background: "none",
-            border: "none",
-            padding: 0,
-            font: "inherit",
-            color: "inherit",
-          }}
+          className="tg-checkout-hint-toggle"
         >
           <Text
             as="span"

@@ -145,15 +145,7 @@ export function FullScreenLoading({ message }: FullScreenLoadingProps) {
       position="relative"
       minHeight="400px"
     >
-      <div
-        style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          textAlign: "center",
-        }}
-      >
+      <div className="tg-loading-state-center">
         <BlockStack gap="400" align="center">
           <Spinner size="large" />
           <Text as="p" variant="bodyMd" tone="subdued">

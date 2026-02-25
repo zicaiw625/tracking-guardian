@@ -3886,7 +3886,8 @@
     "Meta": {
       "AppName": "App Name",
       "LastUpdated": "Last Updated",
-      "AppDomain": "App Domain"
+      "AppDomain": "App Domain",
+      "AppUrl": "App URL"
     },
     "Overview": {
       "Title": "Overview",
@@ -4027,7 +4028,8 @@
     "Meta": {
       "AppName": "App Name",
       "LastUpdated": "Last Updated",
-      "AppDomain": "App Domain"
+      "AppDomain": "App Domain",
+      "AppUrl": "App URL"
     },
     "Section1": {
       "Title": "1. Service Description",

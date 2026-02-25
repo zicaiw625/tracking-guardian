@@ -227,14 +227,14 @@ export interface MetricGridProps {
 }
 
 export function MetricGrid({ items, columns = 3 }: MetricGridProps) {
+  const gridClassName =
+    columns === 2
+      ? "tg-metric-grid tg-metric-grid-cols-2"
+      : columns === 4
+      ? "tg-metric-grid tg-metric-grid-cols-4"
+      : "tg-metric-grid tg-metric-grid-cols-3";
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: `repeat(${columns}, 1fr)`,
-        gap: "var(--p-space-400)",
-      }}
-    >
+    <div className={gridClassName}>
       {items.map((item, index) => (
         <MetricCard
           key={index}

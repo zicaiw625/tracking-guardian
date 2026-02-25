@@ -495,14 +495,7 @@ export function PixelMigrationWizard({
             </InlineStack>
           </InlineStack>
           <ProgressBar progress={progress} tone="primary" size="small" />
-          <div
-            style={{
-              paddingBlockStart: "var(--p-space-300)",
-              paddingBlockEnd: "var(--p-space-200)",
-              overflowX: "auto",
-              WebkitOverflowScrolling: "touch",
-            }}
-          >
+          <div className="tg-pixel-wizard-steps-scroll">
             <Box position="relative">
               <InlineStack gap="0" wrap={false} align="start">
                 {steps.map((step, index) => {
@@ -510,34 +503,16 @@ export function PixelMigrationWizard({
                   const isCurrent = index === currentStepIndex;
                   const isUpcoming = index > currentStepIndex;
                   return (
-                    <div
-                      key={step.id}
-                      style={{
-                        minWidth: "100px",
-                        maxWidth: "180px",
-                        padding: "var(--p-space-200)",
-                        flexShrink: 0,
-                        position: "relative",
-                      }}
-                    >
+                    <div key={step.id} className="tg-pixel-wizard-step-item">
                       <BlockStack gap="200" align="center">
                       <div
-                        style={{
-                          background: isCompleted
-                            ? "var(--p-color-bg-fill-success)"
+                        className={`tg-pixel-wizard-step-bubble ${
+                          isCompleted
+                            ? "tg-pixel-wizard-step-bubble-completed"
                             : isCurrent
-                              ? "var(--p-color-bg-fill-info)"
-                              : "var(--p-color-bg-surface-secondary)",
-                          padding: "var(--p-space-200)",
-                          borderRadius: "9999px",
-                          minWidth: "36px",
-                          minHeight: "36px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          position: "relative",
-                          zIndex: 1,
-                        }}
+                            ? "tg-pixel-wizard-step-bubble-current"
+                            : "tg-pixel-wizard-step-bubble-upcoming"
+                        }`}
                       >
                           <Text
                             as="span"
@@ -572,17 +547,11 @@ export function PixelMigrationWizard({
                       </BlockStack>
                       {index < steps.length - 1 && (
                         <div
-                          style={{
-                            position: "absolute",
-                            left: "calc(50% + 18px)",
-                            top: "18px",
-                            width: "calc(100% - 36px)",
-                            height: "2px",
-                            background: isCompleted
-                              ? "var(--p-color-bg-success)"
-                              : "var(--p-color-bg-surface-secondary)",
-                            zIndex: 0,
-                          }}
+                          className={`tg-pixel-wizard-step-connector ${
+                            isCompleted
+                              ? "tg-pixel-wizard-step-connector-completed"
+                              : "tg-pixel-wizard-step-connector-upcoming"
+                          }`}
                         />
                       )}
                     </div>

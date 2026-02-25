@@ -280,7 +280,7 @@ export function MigrationChecklist({
               tabIndex={0}
               onClick={() => setManualExpanded(!manualExpanded)}
               onKeyDown={(e) => e.key === "Enter" && setManualExpanded(!manualExpanded)}
-              style={{ cursor: "pointer", padding: "8px" }}
+              className="tg-migration-checklist-manual-toggle"
             >
               <InlineStack gap="200" blockAlign="center">
                 <Icon source={InfoIcon} />

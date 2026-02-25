@@ -12,6 +12,7 @@ import {
   IndexTable,
   useIndexResourceState,
   Button,
+  Icon,
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -148,7 +149,11 @@ export default function MonitoringPage() {
         <IndexTable.Cell>{type}</IndexTable.Cell>
         <IndexTable.Cell>
           <InlineStack gap="200" align="start" blockAlign="center">
-             {severity === "critical" ? <XCircleIcon style={{ width: 20, height: 20, color: "var(--p-color-text-critical)" }} /> : <AlertCircleIcon style={{ width: 20, height: 20, color: "var(--p-color-text-warning)" }} />}
+             {severity === "critical" ? (
+               <Icon source={XCircleIcon} tone="critical" />
+             ) : (
+               <Icon source={AlertCircleIcon} tone="warning" />
+             )}
              <Text as="span" tone={severity === "critical" ? "critical" : undefined}>{severity}</Text>
           </InlineStack>
         </IndexTable.Cell>
@@ -260,7 +265,7 @@ export default function MonitoringPage() {
           <Layout.Section>
             <Card padding="0">
               <BlockStack gap="400">
-                <div style={{ padding: "16px 16px 0 16px" }}>
+                <div className="tg-monitoring-header-padding">
                    <InlineStack align="space-between">
                       <Text as="h2" variant="headingMd">
                         {t("monitoring.alerts.title")}
@@ -269,7 +274,7 @@ export default function MonitoringPage() {
                    </InlineStack>
                 </div>
                 {alerts.length === 0 ? (
-                  <div style={{ padding: "16px", textAlign: "center" }}>
+                  <div className="tg-monitoring-empty-padding">
                     <Text as="p" tone="subdued">
                       {t("monitoring.alerts.empty")}
                     </Text>

@@ -126,7 +126,10 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
             <List>
               {categories.willFail.map((item: RiskReportItem) => (
                 <List.Item key={item.id}>
-                  <div onClick={onItemClick ? () => onItemClick(item.id) : undefined} style={{ cursor: onItemClick ? "pointer" : "default" }}>
+                  <div
+                    onClick={onItemClick ? () => onItemClick(item.id) : undefined}
+                    className={onItemClick ? "tg-risk-report-clickable" : "tg-risk-report-static"}
+                  >
                     <BlockStack gap="200">
                       <InlineStack align="space-between">
                         <Text variant="bodyMd" as="span" fontWeight="semibold">
@@ -165,7 +168,10 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
             <List>
               {categories.canReplace.map((item: RiskReportItem) => (
                 <List.Item key={item.id}>
-                  <div onClick={onItemClick ? () => onItemClick(item.id) : undefined} style={{ cursor: onItemClick ? "pointer" : "default" }}>
+                  <div
+                    onClick={onItemClick ? () => onItemClick(item.id) : undefined}
+                    className={onItemClick ? "tg-risk-report-clickable" : "tg-risk-report-static"}
+                  >
                     <BlockStack gap="200">
                       <InlineStack align="space-between">
                         <Text variant="bodyMd" as="span" fontWeight="semibold">

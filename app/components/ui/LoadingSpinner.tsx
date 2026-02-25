@@ -6,14 +6,12 @@ interface LoadingSpinnerProps {
   size?: "small" | "large";
   label?: string;
   fullScreen?: boolean;
-  style?: React.CSSProperties;
 }
 
 export function LoadingSpinner({
   size = "large",
   label,
   fullScreen = false,
-  style,
 }: LoadingSpinnerProps) {
   const { t } = useTranslation();
   const displayLabel = label || t("common.loading");
@@ -29,36 +27,13 @@ export function LoadingSpinner({
   );
   if (fullScreen) {
     return (
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "rgba(255, 255, 255, 0.8)",
-          zIndex: 1000,
-          ...style,
-        }}
-      >
+      <div className="tg-loading-spinner-fullscreen">
         {content}
       </div>
     );
   }
   return (
-    <div
-      style={{
-        padding: "var(--p-space-400)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "200px",
-        ...style,
-      }}
-    >
+    <div className="tg-loading-spinner-inline">
       {content}
     </div>
   );
@@ -76,55 +51,12 @@ export function Skeleton({
   showTitle = true,
 }: SkeletonProps) {
   return (
-    <div className="skeleton-container">
-      <style>
-        {`
-          .skeleton-container {
-            display: flex;
-            gap: 16px;
-          }
-          .skeleton-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-          }
-          .skeleton-content {
-            flex: 1;
-          }
-          .skeleton-title {
-            height: 20px;
-            width: 60%;
-            margin-bottom: 12px;
-            border-radius: 4px;
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-          }
-          .skeleton-line {
-            height: 14px;
-            margin-bottom: 8px;
-            border-radius: 4px;
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-          }
-          .skeleton-line:last-child {
-            width: 80%;
-          }
-          @keyframes shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-          }
-        `}
-      </style>
-      {showAvatar && <div className="skeleton-avatar" />}
-      <div className="skeleton-content">
-        {showTitle && <div className="skeleton-title" />}
+    <div className="tg-skeleton-container">
+      {showAvatar && <div className="tg-skeleton-avatar" />}
+      <div className="tg-skeleton-content">
+        {showTitle && <div className="tg-skeleton-title" />}
         {Array.from({ length: lines }).map((_, i) => (
-          <div key={i} className="skeleton-line" />
+          <div key={i} className="tg-skeleton-line" />
         ))}
       </div>
     </div>
@@ -139,16 +71,7 @@ export function PageLoading({ title }: PageLoadingProps) {
   const { t } = useTranslation();
   const displayTitle = title || t("common.loading");
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "400px",
-        padding: "40px",
-      }}
-    >
+    <div className="tg-page-loading">
       <Spinner size="large" accessibilityLabel={displayTitle} />
       <Text as="p" variant="bodyMd" tone="subdued">
         {displayTitle}
@@ -161,19 +84,17 @@ interface LazyLoadWrapperProps {
   children: React.ReactNode;
   isLoading: boolean;
   loadingComponent?: React.ReactNode;
-  minHeight?: string | number;
 }
 
 export function LazyLoadWrapper({
   children,
   isLoading,
   loadingComponent,
-  minHeight = "200px",
 }: LazyLoadWrapperProps) {
   const { t } = useTranslation();
   if (isLoading) {
     return (
-      <div style={{ minHeight }}>
+      <div className="tg-lazy-load-wrapper">
         {loadingComponent || <LoadingSpinner label={t("common.loading")} />}
       </div>
     );

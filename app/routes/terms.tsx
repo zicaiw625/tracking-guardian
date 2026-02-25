@@ -11,10 +11,18 @@ import { Card, Text, BlockStack, Layout } from "@shopify/polaris";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const corsHeaders = getDynamicCorsHeaders(request);
   const support = getSupportConfig();
+  const appUrl = getPublicAppDomain();
+  let appDomain = appUrl;
+  try {
+    appDomain = new URL(appUrl).hostname;
+  } catch {
+    appDomain = appUrl.replace(/^https?:\/\//, "");
+  }
 
   const response = json({
     appName: "Tracking Guardian",
-    appDomain: getPublicAppDomain(),
+    appUrl,
+    appDomain,
     lastUpdated: "2026-02-02",
     contactEmail: support.contactEmail,
   });
@@ -32,7 +40,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 function TermsContent() {
   const { t } = useTranslation();
-  const { appName, appDomain, lastUpdated, contactEmail } = useLoaderData<typeof loader>();
+  const { appName, appUrl, appDomain, lastUpdated, contactEmail } = useLoaderData<typeof loader>();
 
   return (
     <PublicLayout>
@@ -50,6 +58,9 @@ function TermsContent() {
                 </Text>
                 <Text as="p" tone="subdued">
                   <strong>{t("PublicTerms.Meta.AppDomain")}：</strong>{appDomain}
+                </Text>
+                <Text as="p" tone="subdued">
+                  <strong>{t("PublicTerms.Meta.AppUrl")}：</strong>{appUrl}
                 </Text>
               </BlockStack>
             </BlockStack>

@@ -57,9 +57,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         },
       })
     : [];
+  const appUrl = getPublicAppDomain();
+  let appDomain = appUrl;
+  try {
+    appDomain = new URL(appUrl).hostname;
+  } catch {
+    appDomain = appUrl.replace(/^https?:\/\//, "");
+  }
   return json({
     shop: shop || { consentStrategy: "strict" },
-    appDomain: getPublicAppDomain(),
+    appUrl,
+    appDomain,
     tab,
     gdprJobs,
   });
@@ -113,9 +121,9 @@ function CollapsibleSection({
     <Card>
       <BlockStack gap="300">
         <div
+          className="tg-clickable-full-width"
           onClick={() => setOpen(!open)}
           aria-expanded={open}
-          style={{ cursor: "pointer", width: "100%" }}
           role="button"
           tabIndex={0}
           onKeyDown={(e) => {
@@ -143,7 +151,7 @@ function CollapsibleSection({
 
 export default function PrivacyPage() {
   const { t } = useTranslation();
-  const { shop, appDomain, tab, gdprJobs } = useLoaderData<typeof loader>();
+  const { shop, appUrl, tab, gdprJobs } = useLoaderData<typeof loader>();
   const isGdprTab = tab === "gdpr";
 
   return (
@@ -537,13 +545,13 @@ export default function PrivacyPage() {
                 </Text>
                 <List type="bullet">
                   <List.Item>
-                    {t("PrivacyPage.GDPRTest.Endpoint.customerDataRequest")}: <code>{appDomain}/webhooks</code>
+                    {t("PrivacyPage.GDPRTest.Endpoint.customerDataRequest")}: <code>{appUrl}/webhooks</code>
                   </List.Item>
                   <List.Item>
-                    {t("PrivacyPage.GDPRTest.Endpoint.customerRedact")}: <code>{appDomain}/webhooks</code>
+                    {t("PrivacyPage.GDPRTest.Endpoint.customerRedact")}: <code>{appUrl}/webhooks</code>
                   </List.Item>
                   <List.Item>
-                    {t("PrivacyPage.GDPRTest.Endpoint.shopRedact")}: <code>{appDomain}/webhooks</code>
+                    {t("PrivacyPage.GDPRTest.Endpoint.shopRedact")}: <code>{appUrl}/webhooks</code>
                   </List.Item>
                 </List>
               </BlockStack>

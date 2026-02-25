@@ -1,0 +1,339 @@
+.tg-error-body {
+  margin: 0;
+  background-color: #f6f6f7;
+}
+
+.tg-error-container {
+  padding: 2rem;
+  max-width: 600px;
+  margin: 100px auto 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.tg-error-card {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e1e3e5;
+}
+
+.tg-error-title {
+  color: #d72c0d;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+}
+
+.tg-error-message {
+  color: #1a1a1a;
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+  line-height: 1.5;
+}
+
+.tg-error-code {
+  color: #6d7175;
+  font-size: 0.875rem;
+  margin: 0 0 1.25rem;
+}
+
+.tg-error-button {
+  background: #008060;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.tg-error-button:hover {
+  background: #006e52;
+}
+
+.tg-skeleton-container {
+  display: flex;
+  gap: 16px;
+}
+
+.tg-skeleton-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: tg-shimmer 1.5s infinite;
+}
+
+.tg-skeleton-content {
+  flex: 1;
+}
+
+.tg-skeleton-title {
+  height: 20px;
+  width: 60%;
+  margin-bottom: 12px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: tg-shimmer 1.5s infinite;
+}
+
+.tg-skeleton-line {
+  height: 14px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: tg-shimmer 1.5s infinite;
+}
+
+.tg-skeleton-line:last-child {
+  width: 80%;
+}
+
+.tg-clickable-full-width {
+  cursor: pointer;
+  width: 100%;
+}
+
+.tg-monitoring-header-padding {
+  padding: 16px 16px 0;
+}
+
+.tg-monitoring-empty-padding {
+  padding: 16px;
+  text-align: center;
+}
+
+.tg-diagnostics-backend-url {
+  margin-top: 8px;
+  font-weight: bold;
+}
+
+.tg-diagnostics-backend-tip {
+  margin-top: 8px;
+}
+
+.tg-verification-score-card {
+  flex: 1;
+}
+
+.tg-migrate-checkout-editor-image {
+  max-width: 100%;
+  height: auto;
+}
+
+.tg-risk-report-clickable {
+  cursor: pointer;
+}
+
+.tg-risk-report-static {
+  cursor: default;
+}
+
+.tg-environment-toggle-list {
+  padding-left: 1.5rem;
+  margin: 0;
+}
+
+.tg-event-mapping-preview-json {
+  font-size: 12px;
+  overflow: auto;
+  max-height: 300px;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tg-empty-state-image {
+  max-width: 200px;
+  height: auto;
+}
+
+.tg-toast-item {
+  animation: slideIn 0.3s ease-out;
+}
+
+.tg-toast-container {
+  position: fixed;
+  top: 60px;
+  right: 20px;
+  min-width: 320px;
+  max-width: 480px;
+  z-index: 1000;
+}
+
+.tg-migration-actions-description {
+  white-space: pre-wrap;
+}
+
+.tg-script-code-preview {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tg-ui-error-stack {
+  margin: 0;
+  font-size: 12px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tg-loading-state-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.tg-migration-checklist-manual-toggle {
+  cursor: pointer;
+  padding: 8px;
+}
+
+.tg-checkout-hint-toggle {
+  cursor: pointer;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+}
+
+.tg-loading-spinner-fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.8);
+  z-index: 1000;
+}
+
+.tg-loading-spinner-inline {
+  padding: var(--p-space-400);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.tg-page-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  padding: 40px;
+}
+
+.tg-lazy-load-wrapper {
+  min-height: 200px;
+}
+
+.tg-metric-grid {
+  display: grid;
+  gap: var(--p-space-400);
+}
+
+.tg-metric-grid-cols-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.tg-metric-grid-cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.tg-metric-grid-cols-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.tg-pixel-wizard-steps-scroll {
+  padding-block-start: var(--p-space-300);
+  padding-block-end: var(--p-space-200);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tg-pixel-wizard-step-item {
+  min-width: 100px;
+  max-width: 180px;
+  padding: var(--p-space-200);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.tg-pixel-wizard-step-bubble {
+  padding: var(--p-space-200);
+  border-radius: 9999px;
+  min-width: 36px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+
+.tg-pixel-wizard-step-bubble-completed {
+  background: var(--p-color-bg-fill-success);
+}
+
+.tg-pixel-wizard-step-bubble-current {
+  background: var(--p-color-bg-fill-info);
+}
+
+.tg-pixel-wizard-step-bubble-upcoming {
+  background: var(--p-color-bg-surface-secondary);
+}
+
+.tg-pixel-wizard-step-connector {
+  position: absolute;
+  left: calc(50% + 18px);
+  top: 18px;
+  width: calc(100% - 36px);
+  height: 2px;
+  z-index: 0;
+}
+
+.tg-pixel-wizard-step-connector-completed {
+  background: var(--p-color-bg-success);
+}
+
+.tg-pixel-wizard-step-connector-upcoming {
+  background: var(--p-color-bg-surface-secondary);
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes tg-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

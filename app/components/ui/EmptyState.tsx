@@ -44,7 +44,7 @@ export const EnhancedEmptyState = memo(function EnhancedEmptyState({
             <img
               src={image}
               alt=""
-              style={{ maxWidth: "200px", height: "auto" }}
+              className="tg-empty-state-image"
             />
           </Box>
         ) : icon ? (

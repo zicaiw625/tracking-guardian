@@ -245,7 +245,7 @@ export function EnvironmentToggle({
                 <Text as="p" variant="bodySm" fontWeight="semibold">
                   {t("components.environmentToggle.importantNote")}
                 </Text>
-                <ul style={{ paddingLeft: "1.5rem", margin: 0 }}>
+                <ul className="tg-environment-toggle-list">
                   <li>
                     <Text as="span" variant="bodySm">
                       {t("components.environmentToggle.switchWarning1")}

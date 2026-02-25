@@ -6,8 +6,6 @@ import { useToastContext } from "~/components/ui";
 import { getShopifyAdminUrl } from "~/utils/helpers";
 import { useTranslation } from "react-i18next";
 
-import { settingsLoader } from "./loader.server";
-import { settingsAction } from "./actions.server";
 import type { SettingsActionResponse } from "./types";
 import {
   SecurityTab,
@@ -15,9 +13,7 @@ import {
   AlertsTab,
 } from "./_components";
 import type { PlanId } from "~/services/billing/plans";
-
-export const loader = settingsLoader;
-export const action = settingsAction;
+import type { settingsLoader } from "./loader.server";
 
 export default function SettingsPage() {
   const { t } = useTranslation();

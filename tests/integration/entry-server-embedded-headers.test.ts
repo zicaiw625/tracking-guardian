@@ -55,6 +55,24 @@ vi.mock("../../app/utils/security-headers", () => ({
     Object.entries(directives)
       .map(([k, v]) => `${k} ${v.join(" ")}`)
       .join("; "),
+  buildAppPageCspWithNonce: (nonce: string, frameAncestors: string[]) => {
+    const directives: Record<string, string[]> = {
+      "default-src": ["'self'"],
+      "script-src": ["'self'", `'nonce-${nonce}'`, "https://cdn.shopify.com"],
+      "style-src": ["'self'", "https://cdn.shopify.com"],
+      "img-src": ["'self'", "data:", "https:", "blob:"],
+      "font-src": ["'self'", "https://cdn.shopify.com"],
+      "connect-src": ["'self'", "https://cdn.shopify.com", "https://monorail-edge.shopifysvc.com"],
+      "frame-ancestors": frameAncestors,
+      "base-uri": ["'self'"],
+      "form-action": ["'self'", "https://*.shopify.com", "https://*.myshopify.com"],
+      "object-src": ["'none'"],
+      "upgrade-insecure-requests": [],
+    };
+    return Object.entries(directives)
+      .map(([k, v]) => `${k} ${v.join(" ")}`)
+      .join("; ");
+  },
   getProductionSecurityHeaders: (base: Record<string, string>) => base,
   validateSecurityHeaders: vi.fn(() => ({ valid: true, issues: [] })),
   addSecurityHeadersToHeaders: (headers: Headers, securityHeaders: Record<string, string>) => {

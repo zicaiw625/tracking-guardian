@@ -15,14 +15,9 @@ export const WEBHOOK_CSP_DIRECTIVES: Record<string, string[]> = {
 
 export const APP_PAGE_CSP_DIRECTIVES: Record<string, string[]> = {
   "default-src": ["'self'"],
-  // P1-1: TODO - Migrate to nonce-based CSP to remove 'unsafe-inline'
-  // Currently required for Remix hydration scripts.
-  // Next steps:
-  // 1. Generate nonce in entry.server.tsx
-  // 2. Pass nonce to <Scripts /> in root.tsx
-  // 3. Add nonce to CSP header here
-  "script-src": ["'self'", "'unsafe-inline'", "https://cdn.shopify.com"],
-  "style-src": ["'self'", "'unsafe-inline'", "https://cdn.shopify.com"],
+  "script-src": ["'self'", "https://cdn.shopify.com"],
+  "style-src": ["'self'", "https://cdn.shopify.com"],
+  "style-src-elem": ["'self'", "https://cdn.shopify.com"],
   "img-src": ["'self'", "data:", "https:", "blob:"],
   "font-src": ["'self'", "https://cdn.shopify.com"],
   "connect-src": [
@@ -36,6 +31,17 @@ export const APP_PAGE_CSP_DIRECTIVES: Record<string, string[]> = {
   "object-src": ["'none'"],
   "upgrade-insecure-requests": [],
 };
+
+export function buildAppPageCspWithNonce(
+  nonce: string,
+  frameAncestors: string[]
+): string {
+  return buildCspHeader({
+    ...APP_PAGE_CSP_DIRECTIVES,
+    "script-src": ["'self'", `'nonce-${nonce}'`, "https://cdn.shopify.com"],
+    "frame-ancestors": frameAncestors,
+  });
+}
 
 export function buildCspHeader(
   directives: Record<string, string[]> = APP_PAGE_CSP_DIRECTIVES
@@ -106,8 +112,8 @@ export const PUBLIC_PAGE_HEADERS: Record<string, string> = {
   "X-Robots-Tag": PUBLIC_PAGE_ROBOTS_TAG,
   "Content-Security-Policy": buildCspHeader({
     "default-src": ["'self'"],
-    "script-src": ["'self'", "'unsafe-inline'"],
-    "style-src": ["'self'", "'unsafe-inline'"],
+    "script-src": ["'self'"],
+    "style-src": ["'self'"],
     "img-src": ["'self'", "data:", "https:"],
     "font-src": ["'self'"],
     "connect-src": ["'self'"],

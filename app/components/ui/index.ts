@@ -70,7 +70,6 @@ export {
   type Toast,
   type ToastType,
   type ToastContainerProps,
-  toastStyles,
 } from "./Toast";
 
 export {

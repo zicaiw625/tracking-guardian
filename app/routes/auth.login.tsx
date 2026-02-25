@@ -3,7 +3,7 @@ import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { Card, Page, Text, Banner, BlockStack, Layout } from "@shopify/polaris";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
-import { login } from "../../shopify.server";
+import { login } from "../shopify.server";
 import { useTranslation } from "react-i18next";
 import { PublicLayout } from "~/components/layout/PublicLayout";
 
@@ -30,7 +30,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 function AuthContent() {
     const { t } = useTranslation();
     const { hasShopParam, errors } = useLoaderData<typeof loader>();
-    
+
     return (
     <PublicLayout showFooter={true}>
       <Page>

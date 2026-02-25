@@ -1,4 +1,5 @@
 import { PassThrough } from "stream";
+import { randomBytes } from "crypto";
 import { renderToPipeableStream } from "react-dom/server";
 import { RemixServer } from "@remix-run/react";
 import { createReadableStreamFromReadable, type EntryContext, } from "@remix-run/node";
@@ -13,7 +14,7 @@ import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets.serve
 import { validateEncryptionConfig } from "./utils/crypto.server";
 import { validateConfig, logConfigStatus, API_CONFIG } from "./utils/config.server";
 import { logger } from "./utils/logger.server";
-import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, getProductionSecurityHeaders, validateSecurityHeaders, buildCspHeader, APP_PAGE_CSP_DIRECTIVES } from "./utils/security-headers";
+import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, getProductionSecurityHeaders, validateSecurityHeaders, buildAppPageCspWithNonce } from "./utils/security-headers";
 import { RedisClientFactory } from "./utils/redis-client.server";
 import prisma from "./db.server";
 import { getCorsHeadersPreBody } from "./lib/pixel-events/cors";
@@ -100,6 +101,7 @@ const startupGate = (async () => {
 export default async function handleRequest(request: Request, responseStatusCode: number, responseHeaders: Headers, remixContext: EntryContext) {
     await startupGate;
     const url = new URL(request.url);
+    const nonce = randomBytes(16).toString("base64");
     if (url.pathname === "/ingest" && request.method === "POST") {
         const contentLength = request.headers.get("Content-Length");
         if (contentLength) {
@@ -131,28 +133,23 @@ export default async function handleRequest(request: Request, responseStatusCode
         ? shopCandidate
         : null;
 
-    // P0-1: Strict CSP frame-ancestors
-    // If shop is known, we only allow that specific shop and admin.shopify.com
-    // If not known, we fallback to wildcard but this should be rare for embedded app
-    let frameAncestors = ["https://admin.shopify.com", "https://*.myshopify.com", "https://*.shopify.com"];
-    if (shopDomain) {
+    const isEmbeddedAppDocument = url.pathname === "/app" || url.pathname.startsWith("/app/");
+    if (isEmbeddedAppDocument) {
+      let frameAncestors = ["https://admin.shopify.com", "https://*.myshopify.com", "https://*.shopify.com"];
+      if (shopDomain) {
         frameAncestors = [
-            "https://admin.shopify.com",
-            `https://${shopDomain}`
+          "https://admin.shopify.com",
+          `https://${shopDomain}`,
         ];
+      }
+      responseHeaders.delete("X-Frame-Options");
+      responseHeaders.set("Content-Security-Policy", buildAppPageCspWithNonce(nonce, frameAncestors));
+      const documentSecurityHeaders =
+        process.env.NODE_ENV === "production"
+          ? getProductionSecurityHeaders(EMBEDDED_APP_HEADERS)
+          : EMBEDDED_APP_HEADERS;
+      addSecurityHeadersToHeaders(responseHeaders, documentSecurityHeaders);
     }
-
-    responseHeaders.delete("X-Frame-Options");
-    const cspDirectives = {
-      ...APP_PAGE_CSP_DIRECTIVES,
-      "frame-ancestors": frameAncestors,
-    };
-    responseHeaders.set("Content-Security-Policy", buildCspHeader(cspDirectives));
-    const documentSecurityHeaders =
-      process.env.NODE_ENV === "production"
-        ? getProductionSecurityHeaders(EMBEDDED_APP_HEADERS)
-        : EMBEDDED_APP_HEADERS;
-    addSecurityHeadersToHeaders(responseHeaders, documentSecurityHeaders);
     const userAgent = request.headers.get("user-agent");
     const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";
 
@@ -178,7 +175,7 @@ export default async function handleRequest(request: Request, responseStatusCode
         let abortTimeoutId: NodeJS.Timeout | null = null;
         const { pipe, abort } = renderToPipeableStream(
             <I18nextProvider i18n={instance}>
-                <RemixServer context={remixContext} url={request.url} abortDelay={ABORT_DELAY}/>
+                <RemixServer context={remixContext} url={request.url} abortDelay={ABORT_DELAY} nonce={nonce}/>
             </I18nextProvider>,
             {
             [callbackName]: () => {

@@ -137,8 +137,8 @@ export default function DiagnosticsPage() {
                 <p>
                   <Trans i18nKey="diagnostics.networkAccess.desc" components={{ strong: <strong /> }} />
                 </p>
-                <p style={{ marginTop: "8px", fontWeight: "bold" }}>{backendUrl}</p>
-                <p style={{ marginTop: "8px" }}>
+                <p className="tg-diagnostics-backend-url">{backendUrl}</p>
+                <p className="tg-diagnostics-backend-tip">
                   {t("diagnostics.networkAccess.fail")}
                 </p>
               </Banner>

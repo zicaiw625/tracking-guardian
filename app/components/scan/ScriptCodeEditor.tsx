@@ -319,17 +319,7 @@ export function ScriptCodeEditor({
                       background="bg-surface"
                       borderRadius="100"
                     >
-                      <pre
-                        style={{
-                          margin: 0,
-                          fontSize: "13px",
-                          lineHeight: "1.6",
-                          fontFamily:
-                            'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
-                          whiteSpace: "pre-wrap",
-                          wordBreak: "break-word",
-                        }}
-                      >
+                      <pre className="tg-script-code-preview">
                         {value}
                       </pre>
                     </Box>

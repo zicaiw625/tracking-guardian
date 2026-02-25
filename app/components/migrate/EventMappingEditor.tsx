@@ -603,14 +603,7 @@ export function EventMappingEditor({
                           background="bg-surface"
                           borderRadius="100"
                         >
-                          <pre style={{
-                            fontSize: "12px",
-                            overflow: "auto",
-                            maxHeight: "300px",
-                            margin: 0,
-                            whiteSpace: "pre-wrap",
-                            wordBreak: "break-word",
-                          }}>
+                          <pre className="tg-event-mapping-preview-json">
                             {JSON.stringify(eventPreview, null, 2)}
                           </pre>
                         </Box>

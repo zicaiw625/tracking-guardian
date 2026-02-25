@@ -174,7 +174,7 @@
         "title": "下一步操作",
         "description": "根据检测结果，我们建议您：",
         "step1": {
-          "upgraded": "开始 Audit 扫描，查看详细的迁移清单",
+          "upgraded": "开始审计扫描，查看详细的迁移清单",
           "notUpgraded": "先升级到新版 Thank you / Order status 页面"
         },
         "step2": "根据迁移清单配置像素追踪",
@@ -183,7 +183,7 @@
       },
       "actions": {
         "viewDashboard": "查看仪表盘",
-        "startAudit": "开始 Audit 扫描"
+        "startAudit": "开始审计扫描"
       }
     },
     "scanProgress": {
@@ -365,8 +365,8 @@
   },
   "nav": {
     "dashboard": "首页",
-    "audit": "审计 (Audit)",
-    "pixels": "Pixels",
+    "audit": "审计",
+    "pixels": "像素",
     "verification": "验收",
     "monitoring": "监控",
     "reports": "报告",
@@ -536,7 +536,7 @@
           "cta": "升级到 Starter 开始迁移"
         },
         "batch_audit": {
-          "name": "批量 Audit 扫描",
+          "name": "批量审计扫描",
           "desc": "同时扫描多个店铺，生成统一报告（v1.1 即将推出）",
           "cta": "批量功能 v1.1 即将推出，升级至 Agency 以在发布后使用"
         },
@@ -858,7 +858,7 @@
       "impact1": "旧版 ScriptTags 将在截止日期后停止执行；Additional Scripts 将进入只读模式（不可编辑，PII 不可访问）",
       "impact2": "追踪脚本可能失效，导致转化数据丢失",
       "impact3": "建议尽快完成迁移以避免追踪中断",
-      "startAudit": "开始 Audit",
+      "startAudit": "开始审计",
       "deadline": "迁移截止日期",
       "source": "日期来源：来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。",
       "remainingDays": "剩余 {{days}} 天",
@@ -1067,7 +1067,7 @@
     },
     "reportCenter": {
       "title": "报告中心",
-      "description": "管理 Audit / Verification / Monitoring 报告导出与历史记录。",
+      "description": "管理审计 / 验收 / 监控报告导出与历史记录。",
       "cta": "进入报告中心"
     }
   },
@@ -1322,7 +1322,7 @@
         "cta": "升级到 Starter 开始迁移"
       },
       "batchAudit": {
-        "name": "批量 Audit 扫描",
+        "name": "批量审计扫描",
         "desc": "同时扫描多个店铺，生成统一报告（v1.1 即将推出）",
         "cta": "批量功能 v1.1 即将推出，升级至 Agency 以在发布后使用"
       },
@@ -1622,7 +1622,7 @@
         "description": "根据扫描结果，以下是完成迁移所需的步骤。点击各项可直接跳转到对应位置。",
         "webPixelTitle": "Web Pixel 设置",
         "webPixelDesc": "Web Pixel 是 Shopify 推荐的客户端追踪方式，替代传统 ScriptTag。",
-        "managePixels": "管理 Pixels（Shopify 后台）",
+        "managePixels": "管理像素（Shopify 后台）",
         "configureInApp": "在应用内配置 Pixel",
         "checkoutEditorTitle": "Checkout Editor（参考）",
         "checkoutEditorDesc": "如果您已启用新的 Thank you / Order status 体验，请使用 Shopify 官方编辑器完成页面侧自定义（本应用不提供页面模块库）。",
@@ -2909,7 +2909,7 @@
     "new": {
       "title": "新建 Pixel 配置",
       "subtitle": "模板选择 / 凭据 / 映射 / 环境",
-      "back": "返回 Pixels",
+      "back": "返回像素",
       "shopNotFound": "店铺信息未找到",
       "shopNotFoundDesc": "未找到店铺信息，请重新安装应用。",
       "success": "配置已保存，进入测试页面...",
@@ -2986,7 +2986,7 @@
     "versions": {
       "title": "版本历史",
       "subtitle": "查看配置版本并回滚",
-      "back": "返回 Pixels",
+      "back": "返回像素",
       "intro": {
         "title": "版本管理",
         "desc": "查看历史配置并在必要时回滚，确保 Live 环境可恢复。",
@@ -3014,8 +3014,8 @@
     "test": {
       "title": "Pixel 测试",
       "subtitle": "Pixel 测试与 Payload 预览",
-      "back": "返回 Pixels",
-      "backAction": "返回 Pixels",
+      "back": "返回像素",
+      "backAction": "返回像素",
       "intro": {
         "title": "Test 环境验收",
         "desc": "跟随测试清单触发标准事件，检查 payload 参数完整率与平台发送状态。",
@@ -3886,7 +3886,8 @@
     "Meta": {
       "AppName": "应用名称",
       "LastUpdated": "最后更新",
-      "AppDomain": "应用域名"
+      "AppDomain": "应用域名",
+      "AppUrl": "应用 URL"
     },
     "Overview": {
       "Title": "概述",
@@ -4027,7 +4028,8 @@
     "Meta": {
       "AppName": "应用名称",
       "LastUpdated": "最后更新",
-      "AppDomain": "应用域名"
+      "AppDomain": "应用域名",
+      "AppUrl": "应用 URL"
     },
     "Section1": {
       "Title": "1. 服务描述",
@@ -5380,7 +5382,7 @@
       "startScan": "开始体检"
     },
     "detailedProgress": "详细进度",
-    "auditCompletion": "Audit 完成度",
+    "auditCompletion": "审计完成度",
     "pixelsStatus": "像素配置",
     "modulesEnabled": "模块启用",
     "modulesCount": "{{count}} 个",

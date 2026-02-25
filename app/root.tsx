@@ -1,13 +1,17 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration, useRouteError, isRouteErrorResponse, useLoaderData } from "@remix-run/react";
 import { useEffect } from "react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
+import noncedAppStyles from "./styles/nonced-app.css?url";
 import { suppressMonorailErrors } from "./utils/suppress-monorail-errors.client";
 import { useTranslation } from "react-i18next";
 import { useChangeLanguage } from "remix-i18next/react";
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { i18nServer } from "./i18n.server";
 
-export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
+export const links = () => [
+  { rel: "stylesheet", href: polarisStyles },
+  { rel: "stylesheet", href: noncedAppStyles },
+];
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const locale = await i18nServer.getLocale(request);
@@ -105,61 +109,15 @@ export function ErrorBoundary() {
         <meta name="viewport" content="width=device-width,initial-scale=1" />
         <Meta />
         <Links />
-        <style>{`
-          .error-container {
-            padding: 2rem;
-            max-width: 600px;
-            margin: 100px auto 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          }
-          .error-card {
-            background: white;
-            border-radius: 12px;
-            padding: 2rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            border: 1px solid #e1e3e5;
-          }
-          .error-title {
-            color: #d72c0d;
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin: 0 0 0.75rem;
-          }
-          .error-message {
-            color: #1a1a1a;
-            font-size: 1rem;
-            margin: 0 0 0.5rem;
-            line-height: 1.5;
-          }
-          .error-code {
-            color: #6d7175;
-            font-size: 0.875rem;
-            margin: 0 0 1.25rem;
-          }
-          .error-button {
-            background: #008060;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 0.625rem 1rem;
-            font-size: 0.875rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background 0.15s ease;
-          }
-          .error-button:hover {
-            background: #006e52;
-          }
-        `}</style>
       </head>
-      <body style={{ margin: 0, backgroundColor: '#f6f6f7' }}>
-        <div className="error-container">
-          <div className="error-card">
-            <h1 className="error-title">{title}</h1>
-            <p className="error-message">{message}</p>
-            <p className="error-code">{t("errorPage.errorCode")} {code}</p>
+      <body className="tg-error-body">
+        <div className="tg-error-container">
+          <div className="tg-error-card">
+            <h1 className="tg-error-title">{title}</h1>
+            <p className="tg-error-message">{message}</p>
+            <p className="tg-error-code">{t("errorPage.errorCode")} {code}</p>
             <button
-              className="error-button"
+              className="tg-error-button"
               onClick={() => window.location.reload()}
             >
               {t("errorPage.retry")}
