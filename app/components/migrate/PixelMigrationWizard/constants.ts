@@ -28,84 +28,84 @@ export const DEFAULT_EVENT_MAPPINGS: Partial<Record<PlatformType, Record<string,
 };
 
 export const PLATFORM_INFO: Partial<Record<PlatformType, {
-  name: string;
+  nameKey: string;
   icon: string;
-  description: string;
+  descriptionKey: string;
   credentialFields: Array<{
     key: string;
-    label: string;
-    placeholder: string;
+    labelKey: string;
+    placeholderKey: string;
     type: "text" | "password";
-    helpText?: string;
+    helpTextKey?: string;
   }>;
 }>> = {
   google: {
-    name: "Google Analytics 4",
+    nameKey: "platforms.google",
     icon: "🔵",
-    description: "Used for event mapping and verification (server-side delivery is planned)",
+    descriptionKey: "pixelWizard.platformDescriptions.google",
     credentialFields: [
       {
         key: "measurementId",
-        label: "Measurement ID",
-        placeholder: "G-XXXXXXXXXX",
+        labelKey: "pixelWizard.credentials.google.measurementId.label",
+        placeholderKey: "pixelWizard.credentials.google.measurementId.placeholder",
         type: "text",
-        helpText: "Find this in GA4 Admin under Data Streams",
+        helpTextKey: "pixelWizard.credentials.google.measurementId.helpText",
       },
       {
         key: "apiSecret",
-        label: "API Secret",
-        placeholder: "Enter API Secret",
+        labelKey: "pixelWizard.credentials.google.apiSecret.label",
+        placeholderKey: "pixelWizard.credentials.google.apiSecret.placeholder",
         type: "password",
-        helpText: "Create this in GA4 Admin > Data Streams > Measurement Protocol API secrets",
+        helpTextKey: "pixelWizard.credentials.google.apiSecret.helpText",
       },
     ],
   },
   meta: {
-    name: "Meta (Facebook) Pixel",
+    nameKey: "platforms.meta",
     icon: "📘",
-    description: "Used for event mapping and verification (server-side delivery is planned)",
+    descriptionKey: "pixelWizard.platformDescriptions.meta",
     credentialFields: [
       {
         key: "pixelId",
-        label: "Pixel ID",
-        placeholder: "123456789012345",
+        labelKey: "pixelWizard.credentials.meta.pixelId.label",
+        placeholderKey: "pixelWizard.credentials.meta.pixelId.placeholder",
         type: "text",
-        helpText: "Find this in Meta Events Manager",
+        helpTextKey: "pixelWizard.credentials.meta.pixelId.helpText",
       },
       {
         key: "accessToken",
-        label: "Access Token",
-        placeholder: "Enter Access Token",
+        labelKey: "pixelWizard.credentials.meta.accessToken.label",
+        placeholderKey: "pixelWizard.credentials.meta.accessToken.placeholder",
         type: "password",
-        helpText: "Generate this in Meta Events Manager > Settings > Conversions API",
+        helpTextKey: "pixelWizard.credentials.meta.accessToken.helpText",
       },
       {
         key: "testEventCode",
-        label: "Test Event Code (optional)",
-        placeholder: "TEST12345",
+        labelKey: "pixelWizard.credentials.meta.testEventCode.label",
+        placeholderKey: "pixelWizard.credentials.meta.testEventCode.placeholder",
         type: "text",
-        helpText: "Used for test mode; available in Events Manager",
+        helpTextKey: "pixelWizard.credentials.meta.testEventCode.helpText",
       },
     ],
   },
   tiktok: {
-    name: "TikTok Pixel",
+    nameKey: "platforms.tiktok",
     icon: "🎵",
-    description: "Used for event mapping and verification (server-side delivery is planned)",
+    descriptionKey: "pixelWizard.platformDescriptions.tiktok",
     credentialFields: [
       {
         key: "pixelId",
-        label: "Pixel ID",
-        placeholder: "C1234567890ABCDEF",
+        labelKey: "pixelWizard.credentials.tiktok.pixelId.label",
+        placeholderKey: "pixelWizard.credentials.tiktok.pixelId.placeholder",
         type: "text",
-        helpText: "Find this in TikTok Events Manager",
+        helpTextKey: "pixelWizard.credentials.tiktok.pixelId.helpText",
       },
       {
         key: "accessToken",
-        label: "Access Token",
-        placeholder: "Enter Access Token",
+        labelKey: "pixelWizard.credentials.tiktok.accessToken.label",
+        placeholderKey: "pixelWizard.credentials.tiktok.accessToken.placeholder",
         type: "password",
-        helpText: "Generate this in TikTok Events Manager > Settings > Web Events",
+        helpTextKey: "pixelWizard.credentials.tiktok.accessToken.helpText",
       },
     ],
   },
@@ -114,8 +114,8 @@ export const PLATFORM_INFO: Partial<Record<PlatformType, {
 export const PRESET_TEMPLATES = [
   {
     id: "standard",
-    name: "Standard Configuration (v1)",
-    description: "Standard event mapping for most ecommerce stores (GA4/Meta/TikTok)",
+    name: "pixelWizard.templates.presets.standard.name",
+    description: "pixelWizard.templates.presets.standard.description",
     platforms: ["google", "meta", "tiktok"],
     eventMappings: {
       google: {
@@ -131,8 +131,8 @@ export const PRESET_TEMPLATES = [
   },
   {
     id: "advanced",
-    name: "Advanced Configuration (v1.1+)",
-    description: "Full mapping with more event types (v1.1+ will support Pinterest/Snapchat)",
+    name: "pixelWizard.templates.presets.advanced.name",
+    description: "pixelWizard.templates.presets.advanced.description",
     platforms: ["google", "meta", "tiktok"],
     eventMappings: {
       google: {

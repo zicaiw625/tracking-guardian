@@ -15,7 +15,7 @@ import type { FeatureGateResult } from "~/services/billing/feature-gates.server"
 import { useTranslation } from "react-i18next";
 
 export interface UpgradePromptProps {
-  feature: "pixel_destinations" | "ui_modules" | "verification" | "alerts" | "reconciliation" | "agency";
+  feature: "pixel_destinations" | "ui_modules" | "verification" | "report_export" | "alerts" | "reconciliation" | "agency";
   currentPlan: PlanId;
   gateResult?: FeatureGateResult;
   current?: number;
@@ -32,6 +32,7 @@ const FEATURE_KEYS: Record<
   pixel_destinations: { key: "pixelDestinations", requiredPlan: "starter" },
   ui_modules: { key: "uiModules", requiredPlan: "starter" },
   verification: { key: "verification", requiredPlan: "starter" },
+  report_export: { key: "reportExport", requiredPlan: "growth" },
   alerts: { key: "alerts", requiredPlan: "growth" },
   reconciliation: { key: "reconciliation", requiredPlan: "growth" },
   agency: { key: "agency", requiredPlan: "agency" },

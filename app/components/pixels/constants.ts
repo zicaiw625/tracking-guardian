@@ -44,78 +44,78 @@ export const DEFAULT_EVENT_MAPPINGS: Record<SupportedPlatform, Record<string, st
 export const PLATFORM_INFO: Record<
   SupportedPlatform,
   {
-    name: string;
+    nameKey: string;
     icon: string;
-    description: string;
+    descriptionKey: string;
     credentialFields: Array<{
       key: string;
-      label: string;
-      placeholder: string;
+      labelKey: string;
+      placeholderKey: string;
       type: "text" | "password";
-      helpText?: string;
+      helpTextKey?: string;
     }>;
   }
 > = {
   google: {
-    name: "Google Analytics 4",
+    nameKey: "platforms.google",
     icon: "🔵",
-    description: "Used for standard Web Pixel event mapping",
+    descriptionKey: "newPixelWizard.platforms.google.description",
     credentialFields: [
       {
         key: "measurementId",
-        label: "Measurement ID",
-        placeholder: "G-XXXXXXXXXX",
+        labelKey: "newPixelWizard.credentials.google.measurementId.label",
+        placeholderKey: "newPixelWizard.credentials.google.measurementId.placeholder",
         type: "text",
-        helpText: "Find this in GA4 Admin under Data Streams",
+        helpTextKey: "newPixelWizard.credentials.google.measurementId.helpText",
       },
       {
         key: "apiSecret",
-        label: "API Secret",
-        placeholder: "",
+        labelKey: "newPixelWizard.credentials.google.apiSecret.label",
+        placeholderKey: "newPixelWizard.credentials.google.apiSecret.placeholder",
         type: "password",
-        helpText: "Create this in GA4 Data Stream > Measurement Protocol API secrets",
+        helpTextKey: "newPixelWizard.credentials.google.apiSecret.helpText",
       },
     ],
   },
   meta: {
-    name: "Meta (Facebook) Pixel",
+    nameKey: "platforms.meta",
     icon: "📘",
-    description: "Used for standard Web Pixel event mapping",
+    descriptionKey: "newPixelWizard.platforms.meta.description",
     credentialFields: [
       {
         key: "pixelId",
-        label: "Pixel ID",
-        placeholder: "123456789012345",
+        labelKey: "newPixelWizard.credentials.meta.pixelId.label",
+        placeholderKey: "newPixelWizard.credentials.meta.pixelId.placeholder",
         type: "text",
-        helpText: "Find this in Meta Events Manager",
+        helpTextKey: "newPixelWizard.credentials.meta.pixelId.helpText",
       },
       {
         key: "accessToken",
-        label: "Access Token",
-        placeholder: "",
+        labelKey: "newPixelWizard.credentials.meta.accessToken.label",
+        placeholderKey: "newPixelWizard.credentials.meta.accessToken.placeholder",
         type: "password",
-        helpText: "Generate a system user access token in Meta Events Manager",
+        helpTextKey: "newPixelWizard.credentials.meta.accessToken.helpText",
       },
     ],
   },
   tiktok: {
-    name: "TikTok Pixel",
+    nameKey: "platforms.tiktok",
     icon: "🎵",
-    description: "Used for standard Web Pixel event mapping",
+    descriptionKey: "newPixelWizard.platforms.tiktok.description",
     credentialFields: [
       {
         key: "pixelId",
-        label: "Pixel ID",
-        placeholder: "C1234567890ABCDEF",
+        labelKey: "newPixelWizard.credentials.tiktok.pixelId.label",
+        placeholderKey: "newPixelWizard.credentials.tiktok.pixelId.placeholder",
         type: "text",
-        helpText: "Find this in TikTok Events Manager",
+        helpTextKey: "newPixelWizard.credentials.tiktok.pixelId.helpText",
       },
       {
         key: "accessToken",
-        label: "Access Token",
-        placeholder: "",
+        labelKey: "newPixelWizard.credentials.tiktok.accessToken.label",
+        placeholderKey: "newPixelWizard.credentials.tiktok.accessToken.placeholder",
         type: "password",
-        helpText: "Generate this in TikTok Events Manager",
+        helpTextKey: "newPixelWizard.credentials.tiktok.accessToken.helpText",
       },
     ],
   },
@@ -124,8 +124,8 @@ export const PLATFORM_INFO: Record<
 export const PRESET_TEMPLATES: WizardTemplate[] = [
   {
     id: "standard",
-    name: "Standard Configuration (v1)",
-    description: "Standard event mapping for most ecommerce stores (GA4/Meta/TikTok)",
+    name: "newPixelWizard.templates.presets.standard.name",
+    description: "newPixelWizard.templates.presets.standard.description",
     platforms: ["google", "meta", "tiktok"],
     eventMappings: {
       google: { checkout_completed: "purchase" },
@@ -137,8 +137,8 @@ export const PRESET_TEMPLATES: WizardTemplate[] = [
   },
   {
     id: "advanced",
-    name: "Advanced Configuration (v1.1+)",
-    description: "Full mapping with more event types (v1.1+ will support Pinterest/Snapchat)",
+    name: "newPixelWizard.templates.presets.advanced.name",
+    description: "newPixelWizard.templates.presets.advanced.description",
     platforms: ["google", "meta", "tiktok"],
     eventMappings: {
       google: {
@@ -163,8 +163,8 @@ export const PRESET_TEMPLATES: WizardTemplate[] = [
 ];
 
 export const PIXEL_SETUP_STEPS = [
-  { id: "select" as const, label: "Select Platforms" },
-  { id: "mappings" as const, label: "Event Mappings" },
-  { id: "credentials" as const, label: "Platform Credentials" },
-  { id: "review" as const, label: "Review Configuration" },
+  { id: "select" as const, label: "newPixelWizard.steps.select" },
+  { id: "mappings" as const, label: "newPixelWizard.steps.mappings" },
+  { id: "credentials" as const, label: "newPixelWizard.steps.credentials" },
+  { id: "review" as const, label: "newPixelWizard.steps.review" },
 ];

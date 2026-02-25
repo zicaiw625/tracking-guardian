@@ -93,9 +93,13 @@ function getDaysRemaining(deadline: Date, now: Date = new Date()): number {
 }
 
 function getProgressPercentage(shopTier: ShopTier, now: Date = new Date()): number {
-  const startDate = new Date("2024-09-01");
+  const startTimestamp = Math.min(...MILESTONES_DATA.map((milestone) => milestone.date.getTime()));
+  const startDate = new Date(startTimestamp);
   const deadline = getDeadline(shopTier);
   const total = deadline.getTime() - startDate.getTime();
+  if (total <= 0) {
+    return 100;
+  }
   const elapsed = now.getTime() - startDate.getTime();
   return Math.min(100, Math.max(0, (elapsed / total) * 100));
 }

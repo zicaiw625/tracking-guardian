@@ -98,7 +98,7 @@ export function SelectPlatformStep({
                     <BlockStack gap="100">
                       <InlineStack gap="200" blockAlign="center">
                         <Text as="span" fontWeight="semibold">
-                          {info.name}
+                          {t(info.nameKey, { defaultValue: platform })}
                         </Text>
                         {isV1Supported && (
                           <Badge tone="success" size="small">{t("selectPlatformStep.v1Supported")}</Badge>
@@ -108,7 +108,7 @@ export function SelectPlatformStep({
                         )}
                       </InlineStack>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        {info.description}
+                        {t(info.descriptionKey, { defaultValue: platform })}
                         {!isV1Supported && t("selectPlatformStep.futureVersionSupport")}
                       </Text>
                     </BlockStack>
@@ -157,7 +157,11 @@ export function SelectPlatformStep({
                     <BlockStack gap="100">
                       <InlineStack gap="200" blockAlign="center">
                         <Text as="span" fontWeight="semibold">
-                          {template.name}
+                          {template.id === "standard"
+                            ? t("pixelWizard.templates.presets.standard.name")
+                            : template.id === "advanced"
+                            ? t("pixelWizard.templates.presets.advanced.name")
+                            : template.name}
                         </Text>
                         {template.isPublic && (
                           <Badge tone="info">{t("selectPlatformStep.public")}</Badge>
@@ -167,7 +171,11 @@ export function SelectPlatformStep({
                         )}
                       </InlineStack>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        {template.description}
+                        {template.id === "standard"
+                          ? t("pixelWizard.templates.presets.standard.description")
+                          : template.id === "advanced"
+                          ? t("pixelWizard.templates.presets.advanced.description")
+                          : template.description}
                       </Text>
                     </BlockStack>
                     <Button
@@ -182,7 +190,9 @@ export function SelectPlatformStep({
                       const platformKey = p as PlatformType;
                       return (
                         <Badge key={p}>
-                          {PLATFORM_INFO[platformKey]?.name || p}
+                          {PLATFORM_INFO[platformKey]?.nameKey
+                            ? t(PLATFORM_INFO[platformKey].nameKey, { defaultValue: p })
+                            : p}
                         </Badge>
                       );
                     })}

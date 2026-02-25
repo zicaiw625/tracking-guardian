@@ -88,7 +88,7 @@ export function ReviewStep({
                       {info.icon}
                     </Text>
                     <Text as="span" fontWeight="semibold">
-                      {info.name}
+                      {t(info.nameKey, { defaultValue: platform })}
                     </Text>
                   </InlineStack>
                   <Badge tone={config.environment === "live" ? "critical" : "warning"}>

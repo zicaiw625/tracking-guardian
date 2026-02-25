@@ -192,7 +192,9 @@ export function NewPixelWizard({
             // Note: PLATFORM_INFO names are hardcoded in constants.ts. 
             // Ideally we should use translation keys for platform names too.
             // For now, we'll stick to the constant names but use translated error message structure.
-            const platformName = PLATFORM_INFO[platform]?.name || platform;
+            const platformName = PLATFORM_INFO[platform]?.nameKey
+              ? t(PLATFORM_INFO[platform].nameKey, { defaultValue: platform })
+              : platform;
             errors.push(t("newPixelWizard.errors.missingMapping", { platform: platformName }));
           }
         });

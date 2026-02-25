@@ -39,7 +39,7 @@ export function CredentialsStep({
                     {info.icon}
                   </Text>
                   <Text as="span" fontWeight="semibold">
-                    {info.name}
+                    {t(info.nameKey, { defaultValue: platform })}
                   </Text>
                 </InlineStack>
                 <BlockStack gap="200" align="end">
@@ -76,7 +76,7 @@ export function CredentialsStep({
                   <BlockStack key={field.key} gap="100">
                     <TextField
                       key={field.key}
-                      label={field.label}
+                      label={t(field.labelKey)}
                       type={field.type}
                       value={
                         config.credentials[
@@ -86,8 +86,8 @@ export function CredentialsStep({
                       onChange={(value) =>
                         onCredentialUpdate(platform, field.key, value)
                       }
-                      placeholder={field.placeholder}
-                      helpText={field.helpText}
+                      placeholder={t(field.placeholderKey)}
+                      helpText={field.helpTextKey ? t(field.helpTextKey) : undefined}
                       autoComplete="off"
                     />
                   </BlockStack>

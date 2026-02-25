@@ -129,7 +129,7 @@ export default function PixelsListPage() {
       </Text>
     );
     return [
-      t(`platforms.${config.platform}`) || config.platform,
+      t(`platforms.${config.platform}`, { defaultValue: config.platform }),
       config.platformId || "—",
       config.environment === "live" ? (
         <Badge tone="success">{t("pixels.list.env.prod")}</Badge>

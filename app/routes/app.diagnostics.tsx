@@ -3,8 +3,6 @@ import { useLoaderData } from "@remix-run/react";
 import { Page, Layout, Card, Text, BlockStack, List, Banner, Button } from "@shopify/polaris";
 import { useState, useEffect, useCallback } from "react";
 import { authenticate } from "../shopify.server";
-import * as fs from "fs";
-import * as path from "path";
 import { useTranslation, Trans } from "react-i18next";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -23,6 +21,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     extensionConfigStatus = "placeholder";
   } else {
     try {
+      const fs = await import("node:fs");
+      const path = await import("node:path");
       const configPath = path.join(process.cwd(), "extensions/shared/config.ts");
       if (fs.existsSync(configPath)) {
         const content = fs.readFileSync(configPath, "utf-8");

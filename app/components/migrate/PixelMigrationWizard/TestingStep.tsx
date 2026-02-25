@@ -79,7 +79,10 @@ export function TestingStep({
       } else {
         const failedPlatforms = Object.entries(results)
           .filter(([_, r]) => !r.valid)
-          .map(([p]) => PLATFORM_INFO[p as PlatformType]?.name || p)
+          .map(([p]) => {
+            const info = PLATFORM_INFO[p as PlatformType];
+            return info?.nameKey ? t(info.nameKey, { defaultValue: p }) : p;
+          })
           .join(", ");
         showError(t("migrate.testingStep.errors.validationFailed", { platforms: failedPlatforms }));
       }
@@ -133,7 +136,10 @@ export function TestingStep({
       } else {
         const failedPlatforms = results
           .filter((r) => !r.success)
-          .map((r) => PLATFORM_INFO[r.platform as PlatformType]?.name || r.platform)
+          .map((r) => {
+            const info = PLATFORM_INFO[r.platform as PlatformType];
+            return info?.nameKey ? t(info.nameKey, { defaultValue: r.platform }) : r.platform;
+          })
           .join(", ");
         showError(t("migrate.testingStep.errors.switchFailed", { platforms: failedPlatforms }));
       }
@@ -236,7 +242,9 @@ export function TestingStep({
                             tone={result.valid ? "success" : "critical"}
                           />
                           <Text as="span" fontWeight="semibold">
-                            {PLATFORM_INFO[platform]?.name || platform}: {t(result.message)}
+                            {PLATFORM_INFO[platform]?.nameKey
+                              ? t(PLATFORM_INFO[platform].nameKey, { defaultValue: platform })
+                              : platform}: {t(result.message)}
                           </Text>
                         </InlineStack>
                         {result.details && (

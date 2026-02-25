@@ -55,14 +55,14 @@ export function SelectPlatformStep({
                       <BlockStack gap="100">
                         <InlineStack gap="200" blockAlign="center">
                           <Text as="span" fontWeight="semibold">
-                            {info.name}
+                            {t(info.nameKey, { defaultValue: platform })}
                           </Text>
                           <Badge tone="success" size="small">
                             {t("newPixelWizard.selectStep.v1Support.badge")}
                           </Badge>
                         </InlineStack>
                         <Text as="span" variant="bodySm" tone="subdued">
-                          {t(`newPixelWizard.platforms.${platform}.description`)}
+                          {t(info.descriptionKey, { defaultValue: platform })}
                         </Text>
                       </BlockStack>
                     </InlineStack>

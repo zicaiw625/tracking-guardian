@@ -304,7 +304,10 @@ export function PixelMigrationWizard({
     info.credentialFields.forEach((field) => {
       if (field.key === "testEventCode") return;
       if (!config.credentials[field.key as keyof typeof config.credentials]) {
-        errors.push(t("pixelWizard.validation.missingField", { name: info.name, label: field.label }));
+        errors.push(t("pixelWizard.validation.missingField", {
+          name: t(info.nameKey, { defaultValue: platform }),
+          label: t(field.labelKey),
+        }));
       }
     });
     return errors;
@@ -325,7 +328,10 @@ export function PixelMigrationWizard({
           info.credentialFields.forEach((field) => {
             if (field.key === "testEventCode") return;
             if (!config.credentials[field.key as keyof typeof config.credentials]) {
-              errors.push(t("pixelWizard.validation.missingField", { name: info.name, label: field.label }));
+              errors.push(t("pixelWizard.validation.missingField", {
+                name: t(info.nameKey, { defaultValue: platform }),
+                label: t(field.labelKey),
+              }));
             }
           });
         });
@@ -334,11 +340,19 @@ export function PixelMigrationWizard({
         Array.from(selectedPlatforms).forEach((platform) => {
           const config = platformConfigs[platform];
           if (!config) {
-            errors.push(t("pixelWizard.validation.configNotFound", { name: PLATFORM_INFO[platform]?.name || platform }));
+            errors.push(t("pixelWizard.validation.configNotFound", {
+              name: PLATFORM_INFO[platform]?.nameKey
+                ? t(PLATFORM_INFO[platform].nameKey, { defaultValue: platform })
+                : platform,
+            }));
             return;
           }
           if (!config.eventMappings || Object.keys(config.eventMappings).length === 0) {
-            errors.push(t("pixelWizard.validation.needEventMapping", { name: PLATFORM_INFO[platform]?.name || platform }));
+            errors.push(t("pixelWizard.validation.needEventMapping", {
+              name: PLATFORM_INFO[platform]?.nameKey
+                ? t(PLATFORM_INFO[platform].nameKey, { defaultValue: platform })
+                : platform,
+            }));
           }
         });
         break;

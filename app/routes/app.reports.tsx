@@ -50,7 +50,7 @@ export default function ReportsPage() {
     const url = `/api/reports?type=verification&runId=${latestRun.runId}&format=csv`;
     const link = document.createElement("a");
     link.href = url;
-    link.download = "";
+    link.download = `verification-${latestRun.runId}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -118,7 +118,7 @@ export default function ReportsPage() {
                       </InlineStack>
                     ) : (
                       <UpgradePrompt
-                        feature="verification"
+                        feature="report_export"
                         currentPlan={currentPlan}
                         gateResult={gateResult ?? undefined}
                       />

@@ -40,6 +40,8 @@ import {
 } from "~/services/verification.server";
 import { i18nServer } from "~/i18n.server";
 import { checkPlanGate } from "~/middleware/plan-gate";
+import { normalizePlanId, type PlanId } from "~/services/billing/plans";
+import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 
 interface VerificationRunSummary {
   passedTests: number;
@@ -64,21 +66,25 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 
   if (!shop) {
-    return json({ shop: null, latestRun: null, history: [] });
+    return json({
+      shop: null,
+      latestRun: null,
+      history: [],
+      gate: null,
+      currentPlan: "free" as PlanId,
+    });
   }
 
+  const currentPlan = normalizePlanId(shop.plan || "free") as PlanId;
   const gate = await checkPlanGate(shop.id, "verification");
   if (!gate.allowed) {
-    return json(
-      {
-        shop,
-        latestRun: null,
-        history: [],
-        error: "Plan upgrade required",
-        gate,
-      },
-      { status: 403 }
-    );
+    return json({
+      shop,
+      latestRun: null,
+      history: [],
+      gate,
+      currentPlan,
+    });
   }
 
   const latestRunRaw = await prisma.verificationRun.findFirst({
@@ -130,7 +136,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     };
   });
 
-  return json({ shop, latestRun, history });
+  return json({ shop, latestRun, history, gate: null, currentPlan });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -223,7 +229,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function VerificationPage() {
   const { t } = useTranslation();
-  const { shop, latestRun, history } = useLoaderData<typeof loader>();
+  const { shop, latestRun, history, gate, currentPlan } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<any>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -280,6 +286,14 @@ export default function VerificationPage() {
   const handleRunVerification = () => {
     fetcher.submit({ _action: "runVerification" }, { method: "post" });
   };
+
+  if (gate && !gate.allowed) {
+    return (
+      <Page title={t("verification.page.title")}>
+        <UpgradePrompt feature="verification" currentPlan={currentPlan} gateResult={gate} />
+      </Page>
+    );
+  }
 
   if (!shop) {
     return (

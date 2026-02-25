@@ -3081,7 +3081,7 @@
         "desc": "Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限：",
         "items": {
           "0": "无法访问 DOM 元素、localStorage、第三方 cookie 等",
-          "1": "部分事件字段可能为 null 或 undefined（如 buyer.email、buyer.phone、地址等），这是平台限制，不是故障",
+          "1": "部分事件字段可能为 null 或 undefined（如 buyer.email、buyer.phone、地址等），这是平台限制，不是故障；自 2025-12-10 起，未获批准应用在像素事件中的 PII 字段可能被置为 null",
           "2": "v1.0 不支持的事件类型：退款（refund）、订单取消（order_cancelled）、订单编辑（order_edited）、订阅订单（subscription_*）。这些事件将在 v1.1+ 版本中通过订单 webhooks 实现"
         },
         "note": "💡 提示：这是 Shopify 平台的设计限制，不是应用故障。验收报告中会自动标注所有因 strict sandbox 限制而无法获取的字段和事件。在 App Review 时，请向 Shopify 说明这些限制是平台设计，不是应用缺陷。"
@@ -3283,7 +3283,7 @@
         "desc": "Web Pixel 运行在 strict sandbox (Web Worker) 环境中，以下能力受限：",
         "limitations": [
           "无法访问 DOM 元素、localStorage、第三方 cookie 等",
-          "部分事件字段可能为 null 或 undefined（如 buyer.email、buyer.phone、deliveryAddress 等），这是平台限制，不是故障",
+          "部分事件字段可能为 null 或 undefined（如 buyer.email、buyer.phone、deliveryAddress 等），这是平台限制，不是故障；自 2025-12-10 起，未获批准应用在像素事件中的 PII 字段可能被置为 null",
           "某些事件类型（refund、order_cancelled、order_edited 等）在 strict sandbox 中不可用，需要通过订单 webhooks 获取"
         ],
         "tip": "💡 提示：这是 Shopify 平台的设计限制，不是应用故障。验收报告中会自动标注所有因 strict sandbox 限制而无法获取的字段和事件。"
@@ -3297,7 +3297,7 @@
         "title": "重要提示",
         "subtitle": "Shopify 升级截止日期",
         "desc": "<strong>重要提示：</strong>以下日期来自 Shopify 官方公告，仅供参考。实际截止日期请以 Shopify Admin 中的提示为准。Shopify 可能会更新策略，我们建议您定期查看 Shopify 官方文档。",
-        "plus": "Plus 店铺：从 2026-01 开始自动升级（legacy 定制会丢失）",
+        "plus": "Plus 店铺：自 2025-08-28 起 legacy 定制能力受限；2026-01 起可能进入自动升级替换窗口",
         "nonPlus": "非 Plus 店铺：最晚 2026-08-26 必须完成升级",
         "advice": "建议尽早完成迁移，避免在截止日期前匆忙处理。"
       }
@@ -4900,6 +4900,44 @@
         "name": "TikTok Pixel",
         "description": "用于 Web Pixel 标准事件映射"
       }
+    },
+    "credentials": {
+      "google": {
+        "measurementId": {
+          "label": "Measurement ID",
+          "placeholder": "G-XXXXXXXXXX",
+          "helpText": "可在 GA4 管理后台的数据流中找到"
+        },
+        "apiSecret": {
+          "label": "API Secret",
+          "placeholder": "请输入 API Secret",
+          "helpText": "可在 GA4 数据流 > Measurement Protocol API secrets 中创建"
+        }
+      },
+      "meta": {
+        "pixelId": {
+          "label": "Pixel ID",
+          "placeholder": "123456789012345",
+          "helpText": "可在 Meta Events Manager 中找到"
+        },
+        "accessToken": {
+          "label": "Access Token",
+          "placeholder": "请输入 Access Token",
+          "helpText": "可在 Meta Events Manager 中生成系统用户访问令牌"
+        }
+      },
+      "tiktok": {
+        "pixelId": {
+          "label": "Pixel ID",
+          "placeholder": "C1234567890ABCDEF",
+          "helpText": "可在 TikTok Events Manager 中找到"
+        },
+        "accessToken": {
+          "label": "Access Token",
+          "placeholder": "请输入 Access Token",
+          "helpText": "可在 TikTok Events Manager 中生成"
+        }
+      }
     }
   },
   "manualInputWizard": {
@@ -5005,6 +5043,15 @@
           "测试订单生成与验证",
           "事件参数完整性检查",
           "金额准确性验证"
+        ]
+      },
+      "reportExport": {
+        "name": "报告导出",
+        "description": "导出验收报告与证据文件",
+        "featureList": [
+          "按验收运行导出 CSV 报告",
+          "面向团队交付的证据化输出",
+          "适用于周期性验收流程"
         ]
       },
       "alerts": {
@@ -5429,6 +5476,66 @@
       "skip": "跳过此步",
       "save": "保存配置",
       "next": "下一步"
+    },
+    "platformDescriptions": {
+      "google": "用于事件映射与验收（服务端投递能力已纳入后续规划）",
+      "meta": "用于事件映射与验收（服务端投递能力已纳入后续规划）",
+      "tiktok": "用于事件映射与验收（服务端投递能力已纳入后续规划）"
+    },
+    "credentials": {
+      "google": {
+        "measurementId": {
+          "label": "Measurement ID",
+          "placeholder": "G-XXXXXXXXXX",
+          "helpText": "可在 GA4 管理后台的数据流中找到"
+        },
+        "apiSecret": {
+          "label": "API Secret",
+          "placeholder": "请输入 API Secret",
+          "helpText": "可在 GA4 管理后台 > 数据流 > Measurement Protocol API secrets 中创建"
+        }
+      },
+      "meta": {
+        "pixelId": {
+          "label": "Pixel ID",
+          "placeholder": "123456789012345",
+          "helpText": "可在 Meta Events Manager 中找到"
+        },
+        "accessToken": {
+          "label": "Access Token",
+          "placeholder": "请输入 Access Token",
+          "helpText": "可在 Meta Events Manager > Settings > Conversions API 中生成"
+        },
+        "testEventCode": {
+          "label": "Test Event Code（可选）",
+          "placeholder": "TEST12345",
+          "helpText": "用于测试模式，可在 Events Manager 中获取"
+        }
+      },
+      "tiktok": {
+        "pixelId": {
+          "label": "Pixel ID",
+          "placeholder": "C1234567890ABCDEF",
+          "helpText": "可在 TikTok Events Manager 中找到"
+        },
+        "accessToken": {
+          "label": "Access Token",
+          "placeholder": "请输入 Access Token",
+          "helpText": "可在 TikTok Events Manager > Settings > Web Events 中生成"
+        }
+      }
+    },
+    "templates": {
+      "presets": {
+        "standard": {
+          "name": "标准配置（v1）",
+          "description": "适用于大多数电商店铺的标准事件映射（GA4/Meta/TikTok）"
+        },
+        "advanced": {
+          "name": "高级配置（v1.1+）",
+          "description": "包含更多事件类型的完整映射（v1.1+ 将支持 Pinterest/Snapchat）"
+        }
+      }
     }
   },
   "manualPaste": {

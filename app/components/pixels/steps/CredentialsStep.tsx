@@ -80,7 +80,7 @@ export function CredentialsStep({
             <Card key={platform}>
               <BlockStack gap="300">
                 <Text as="span" fontWeight="semibold">
-                  {info.icon} {info.name}
+                  {info.icon} {t(info.nameKey, { defaultValue: platform })}
                 </Text>
                 <PlatformCredentialsForm
                   platform={platform}

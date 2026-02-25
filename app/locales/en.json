@@ -3081,7 +3081,7 @@
         "desc": "Web Pixel runs in strict sandbox (Web Worker), with following limits:",
         "items": {
           "0": "No access to DOM, localStorage, cookies",
-          "1": "Some fields (email, phone, address) might be null (platform limitation)",
+          "1": "Some fields (email, phone, address) might be null (platform limitation); from 2025-12-10, unapproved apps may receive null PII fields in pixel events",
           "2": "Unsupported events in v1.0: refund, order_cancelled, order_edited, subscription_* (will use webhooks in v1.1)"
         },
         "note": "💡 Note: These are platform limitations, not app bugs. Verification report will mark these."
@@ -3283,7 +3283,7 @@
         "desc": "Web Pixel runs in strict sandbox (Web Worker), limiting capabilities:",
         "limitations": [
           "No access to DOM, localStorage, third-party cookies",
-          "Some event fields may be null/undefined (platform limitation)",
+          "Some event fields may be null/undefined (platform limitation); from 2025-12-10, unapproved apps may receive null PII fields in pixel events",
           "Refund/Cancel/Edit events unavailable in sandbox (require webhooks)"
         ],
         "tip": "💡 Tip: These are platform limitations, not bugs. Verification report marks unavailable fields."
@@ -3297,7 +3297,7 @@
         "title": "Important Notice",
         "subtitle": "Shopify Upgrade Deadlines",
         "desc": "<strong>Important:</strong> Dates are from official announcements. Check Shopify Admin for actual deadlines.",
-        "plus": "Plus Merchants: Restrictions start Jan 2026 (legacy customizations lost)",
+        "plus": "Plus Merchants: Legacy customization restrictions start Aug 28, 2025; auto-upgrade replacement may begin in Jan 2026",
         "nonPlus": "Non-Plus Merchants: Deadline Aug 26, 2026",
         "advice": "Migrate early to avoid last-minute issues."
       }
@@ -4900,6 +4900,44 @@
         "name": "TikTok Pixel",
         "description": "For Web Pixel Standard Event Mapping"
       }
+    },
+    "credentials": {
+      "google": {
+        "measurementId": {
+          "label": "Measurement ID",
+          "placeholder": "G-XXXXXXXXXX",
+          "helpText": "Find this in GA4 Admin under Data Streams"
+        },
+        "apiSecret": {
+          "label": "API Secret",
+          "placeholder": "Enter API Secret",
+          "helpText": "Create this in GA4 Data Stream > Measurement Protocol API secrets"
+        }
+      },
+      "meta": {
+        "pixelId": {
+          "label": "Pixel ID",
+          "placeholder": "123456789012345",
+          "helpText": "Find this in Meta Events Manager"
+        },
+        "accessToken": {
+          "label": "Access Token",
+          "placeholder": "Enter Access Token",
+          "helpText": "Generate a system user access token in Meta Events Manager"
+        }
+      },
+      "tiktok": {
+        "pixelId": {
+          "label": "Pixel ID",
+          "placeholder": "C1234567890ABCDEF",
+          "helpText": "Find this in TikTok Events Manager"
+        },
+        "accessToken": {
+          "label": "Access Token",
+          "placeholder": "Enter Access Token",
+          "helpText": "Generate this in TikTok Events Manager"
+        }
+      }
     }
   },
   "manualInputWizard": {
@@ -5005,6 +5043,15 @@
           "Test order generation and verification",
           "Event parameter completeness check",
           "Amount accuracy verification"
+        ]
+      },
+      "reportExport": {
+        "name": "Report Export",
+        "description": "Export verification reports and evidence files",
+        "featureList": [
+          "CSV report export by verification run",
+          "Evidence-oriented output for team handoff",
+          "Suitable for recurring acceptance workflows"
         ]
       },
       "alerts": {
@@ -5429,6 +5476,66 @@
       "skip": "Skip This Step",
       "save": "Save Configuration",
       "next": "Next"
+    },
+    "platformDescriptions": {
+      "google": "Used for event mapping and verification (server-side delivery is planned)",
+      "meta": "Used for event mapping and verification (server-side delivery is planned)",
+      "tiktok": "Used for event mapping and verification (server-side delivery is planned)"
+    },
+    "credentials": {
+      "google": {
+        "measurementId": {
+          "label": "Measurement ID",
+          "placeholder": "G-XXXXXXXXXX",
+          "helpText": "Find this in GA4 Admin under Data Streams"
+        },
+        "apiSecret": {
+          "label": "API Secret",
+          "placeholder": "Enter API Secret",
+          "helpText": "Create this in GA4 Admin > Data Streams > Measurement Protocol API secrets"
+        }
+      },
+      "meta": {
+        "pixelId": {
+          "label": "Pixel ID",
+          "placeholder": "123456789012345",
+          "helpText": "Find this in Meta Events Manager"
+        },
+        "accessToken": {
+          "label": "Access Token",
+          "placeholder": "Enter Access Token",
+          "helpText": "Generate this in Meta Events Manager > Settings > Conversions API"
+        },
+        "testEventCode": {
+          "label": "Test Event Code (optional)",
+          "placeholder": "TEST12345",
+          "helpText": "Used for test mode; available in Events Manager"
+        }
+      },
+      "tiktok": {
+        "pixelId": {
+          "label": "Pixel ID",
+          "placeholder": "C1234567890ABCDEF",
+          "helpText": "Find this in TikTok Events Manager"
+        },
+        "accessToken": {
+          "label": "Access Token",
+          "placeholder": "Enter Access Token",
+          "helpText": "Generate this in TikTok Events Manager > Settings > Web Events"
+        }
+      }
+    },
+    "templates": {
+      "presets": {
+        "standard": {
+          "name": "Standard Configuration (v1)",
+          "description": "Standard event mapping for most ecommerce stores (GA4/Meta/TikTok)"
+        },
+        "advanced": {
+          "name": "Advanced Configuration (v1.1+)",
+          "description": "Full mapping with more event types (v1.1+ will support Pinterest/Snapchat)"
+        }
+      }
     }
   },
   "manualPaste": {

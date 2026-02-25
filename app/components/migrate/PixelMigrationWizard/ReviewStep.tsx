@@ -111,7 +111,7 @@ export function ReviewStep({
                     {info.icon}
                   </Text>
                   <Text as="span" fontWeight="semibold">
-                    {info.name}
+                    {t(info.nameKey, { defaultValue: platform })}
                   </Text>
                 </InlineStack>
                 {errors.length === 0 ? (
@@ -236,7 +236,10 @@ export function ReviewStep({
                 {t("reviewStep.templateSaveInfo")}
               </Text>
               <List type="bullet">
-                <List.Item>{t("reviewStep.templatePlatforms", { platforms: Array.from(selectedPlatforms).map(p => PLATFORM_INFO[p]?.name || p).join(", ") })}</List.Item>
+                <List.Item>{t("reviewStep.templatePlatforms", { platforms: Array.from(selectedPlatforms).map(p => {
+                  const platformInfo = PLATFORM_INFO[p];
+                  return platformInfo?.nameKey ? t(platformInfo.nameKey, { defaultValue: p }) : p;
+                }).join(", ") })}</List.Item>
                 <List.Item>{t("reviewStep.templateEventCount", { count: Array.from(selectedPlatforms).reduce((acc, p) => {
                   const config = platformConfigs[p];
                   return acc + (config?.eventMappings ? Object.keys(config.eventMappings).length : 0);
