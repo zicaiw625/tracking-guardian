@@ -4,7 +4,6 @@ import { Outlet, useLoaderData, useRouteError } from "@remix-run/react";
 import { boundary } from "@shopify/shopify-app-remix/server";
 import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { AppProvider as PolarisAppProvider } from "@shopify/polaris";
-import { NavMenu } from "@shopify/app-bridge-react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import polarisTranslationsEn from "@shopify/polaris/locales/en.json" with { type: "json" };
 import polarisTranslationsZh from "@shopify/polaris/locales/zh-CN.json" with { type: "json" };
@@ -55,18 +54,6 @@ export default function App() {
     const polarisI18n = getPolarisTranslations(polarisTranslations);
 
     return (<AppProvider isEmbeddedApp apiKey={apiKey} i18n={polarisI18n as any} key={i18n.language}>
-      <NavMenu>
-        <a href="/app" rel="home">{t("nav.dashboard")}</a>
-        <a href="/app/scan">{t("nav.audit")}</a>
-        <a href="/app/pixels">{t("nav.pixels")}</a>
-        <a href="/app/verification">{t("nav.verification")}</a>
-        <a href="/app/monitoring">{t("nav.monitoring")}</a>
-        <a href="/app/reports">{t("nav.reports")}</a>
-        <a href="/app/support">{t("nav.support")}</a>
-        <a href="/app/migrate">{t("nav.migrate")}</a>
-        <a href="/app/settings">{t("nav.settings")}</a>
-        <a href="/app/billing">{t("nav.billing")}</a>
-      </NavMenu>
       <TopBar
         shopDomain={shopDomain}
         planId={planId}
