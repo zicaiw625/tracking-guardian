@@ -2834,6 +2834,10 @@
       "title": "Alert List",
       "config": "Configure Alerts",
       "empty": "No recent alerts.",
+      "resource": {
+        "singular": "alert",
+        "plural": "alerts"
+      },
       "table": {
         "time": "Time",
         "type": "Type",
@@ -3834,6 +3838,11 @@
       "Step2Desc": "Point all required GDPR webhook endpoints to your app webhook URL.",
       "Step3Title": "3. Test with Shopify CLI",
       "Step3Desc": "Trigger sample GDPR webhooks with Shopify CLI and verify handlers respond successfully.",
+      "Endpoint": {
+        "customerDataRequest": "Customer data request",
+        "customerRedact": "Customer data erasure",
+        "shopRedact": "Shop data erasure"
+      },
       "Success": "App has implemented all GDPR mandatory webhook handlers."
     },
     "ExportDelete": {

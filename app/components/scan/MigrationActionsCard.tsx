@@ -97,9 +97,13 @@ export function MigrationActionsCard({
                     <Badge tone="warning">{t("scan.migrationActionsCard.deadline", { date: action.deadline })}</Badge>
                   )}
                 </InlineStack>
-                <Text as="p" variant="bodySm" tone="subdued">
-                  {action.description}
-                </Text>
+                <div style={{ whiteSpace: "pre-wrap" }}>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    {action.descriptionKey
+                      ? String(t(action.descriptionKey, action.descriptionParams as any))
+                      : action.description}
+                  </Text>
+                </div>
                 {action.estimatedTimeMinutes && (
                   <InlineStack gap="200" blockAlign="center">
                     <Badge tone="info">

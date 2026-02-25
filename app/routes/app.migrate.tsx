@@ -162,7 +162,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           error: "migrate.errors.validationFailed",
         },
       });
-    } catch (error) {
+    } catch {
       return json({
         valid: false,
         message: "migrate.errors.validationFailed",

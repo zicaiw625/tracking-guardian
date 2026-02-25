@@ -2834,6 +2834,10 @@
       "title": "告警列表",
       "config": "告警配置",
       "empty": "近期无告警。",
+      "resource": {
+        "singular": "告警",
+        "plural": "告警"
+      },
       "table": {
         "time": "时间",
         "type": "类型",
@@ -3834,6 +3838,11 @@
       "Step2Desc": "将所有必需的 GDPR webhook 端点指向你的应用 webhook 地址。",
       "Step3Title": "3. 使用 Shopify CLI 测试",
       "Step3Desc": "通过 Shopify CLI 触发 GDPR 示例 webhook，并确认处理程序返回成功。",
+      "Endpoint": {
+        "customerDataRequest": "客户数据请求",
+        "customerRedact": "客户数据删除",
+        "shopRedact": "店铺数据删除"
+      },
       "Success": "本应用已实现所有 GDPR 强制 webhooks 处理程序。"
     },
     "ExportDelete": {

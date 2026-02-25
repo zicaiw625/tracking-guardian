@@ -537,13 +537,13 @@ export default function PrivacyPage() {
                 </Text>
                 <List type="bullet">
                   <List.Item>
-                    Customer data request: <code>{appDomain}/webhooks</code>
+                    {t("PrivacyPage.GDPRTest.Endpoint.customerDataRequest")}: <code>{appDomain}/webhooks</code>
                   </List.Item>
                   <List.Item>
-                    Customer data erasure: <code>{appDomain}/webhooks</code>
+                    {t("PrivacyPage.GDPRTest.Endpoint.customerRedact")}: <code>{appDomain}/webhooks</code>
                   </List.Item>
                   <List.Item>
-                    Shop data erasure: <code>{appDomain}/webhooks</code>
+                    {t("PrivacyPage.GDPRTest.Endpoint.shopRedact")}: <code>{appDomain}/webhooks</code>
                   </List.Item>
                 </List>
               </BlockStack>
@@ -557,7 +557,7 @@ export default function PrivacyPage() {
                   <Trans i18nKey="PrivacyPage.GDPRTest.Step3Desc" />
                 </Text>
                 <Box background="bg-surface" padding="200" borderRadius="100">
-                  <code>shopify app trigger-webhook --topic customers/data_request</code>
+                  <code>shopify app webhook trigger --topic customers/data_request</code>
                 </Box>
               </BlockStack>
             </Box>

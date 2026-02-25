@@ -102,8 +102,8 @@ export default function MonitoringPage() {
 
   const alerts = shop?.AlertEvent || [];
   const resourceName = {
-    singular: "alert",
-    plural: "alerts",
+    singular: t("monitoring.alerts.resource.singular"),
+    plural: t("monitoring.alerts.resource.plural"),
   };
 
   const { selectedResources, allResourcesSelected, handleSelectionChange } =
