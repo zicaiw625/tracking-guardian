@@ -14,12 +14,13 @@ import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets.serve
 import { validateEncryptionConfig } from "./utils/crypto.server";
 import { validateConfig, logConfigStatus, API_CONFIG } from "./utils/config.server";
 import { logger } from "./utils/logger.server";
-import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, getProductionSecurityHeaders, validateSecurityHeaders, buildAppPageCspWithNonce } from "./utils/security-headers";
+import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, getProductionSecurityHeaders, validateSecurityHeaders, buildAppPageCspWithNonce, buildPublicPageCspWithNonce } from "./utils/security-headers";
 import { RedisClientFactory } from "./utils/redis-client.server";
 import prisma from "./db.server";
 import { getCorsHeadersPreBody } from "./lib/pixel-events/cors";
 import { SecureShopDomainSchema } from "./utils/security";
 const ABORT_DELAY = 5000;
+const PUBLIC_DOCUMENT_PATHS = new Set(["/privacy", "/terms", "/support"]);
 
 if (typeof process !== "undefined") {
   process.on("unhandledRejection", (reason: unknown, promise: Promise<unknown>) => {
@@ -134,6 +135,7 @@ export default async function handleRequest(request: Request, responseStatusCode
         : null;
 
     const isEmbeddedAppDocument = url.pathname === "/app" || url.pathname.startsWith("/app/");
+    const isPublicDocument = PUBLIC_DOCUMENT_PATHS.has(url.pathname);
     if (isEmbeddedAppDocument) {
       let frameAncestors = ["https://admin.shopify.com", "https://*.myshopify.com", "https://*.shopify.com"];
       if (shopDomain) {
@@ -149,6 +151,8 @@ export default async function handleRequest(request: Request, responseStatusCode
           ? getProductionSecurityHeaders(EMBEDDED_APP_HEADERS)
           : EMBEDDED_APP_HEADERS;
       addSecurityHeadersToHeaders(responseHeaders, documentSecurityHeaders);
+    } else if (isPublicDocument) {
+      responseHeaders.set("Content-Security-Policy", buildPublicPageCspWithNonce(nonce));
     }
     const userAgent = request.headers.get("user-agent");
     const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";

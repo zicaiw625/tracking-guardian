@@ -124,6 +124,7 @@ export function ErrorBoundary() {
             </button>
           </div>
         </div>
+        <ScrollRestoration />
         <Scripts />
       </body>
     </html>

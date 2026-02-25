@@ -29,11 +29,11 @@ register(({ analytics, settings, init, customerPrivacy }: {
     }
   }
   if (placeholderDetected && isDevMode) {
-    const errorMsg = "严重错误：检测到 BACKEND_URL 占位符未替换。像素扩展将无法发送事件到后端，导致事件丢失。这是严重的配置错误，必须在生产环境部署前修复。请在 CI/CD 流程中运行 'pnpm ext:inject' 或 'pnpm deploy:ext'。";
+    const errorMsg = "Critical error: detected unresolved BACKEND_URL placeholder. The pixel extension cannot send events to the backend, so events will be lost. This must be fixed before production deployment. Run 'pnpm ext:inject' or 'pnpm deploy:ext' in CI/CD.";
     console.error("[Tracking Guardian] ❌", errorMsg);
   }
   if (backendUrl && (!ingestionKey || (typeof ingestionKey === "string" && ingestionKey.trim() === "")) && isDevMode) {
-    console.error("[Tracking Guardian] 像素配置缺失 ingestion_key。生产严格模式下 /ingest 将拒绝所有像素事件，导致静默失败。请在 Admin 设置中配置 Ingestion Key，并确保 Web Pixel 的 settings 中包含 ingestion_key。");
+    console.error("[Tracking Guardian] Missing ingestion_key in pixel settings. In strict production mode, /ingest will reject all pixel events and cause silent data loss. Configure Ingestion Key in Admin and ensure Web Pixel settings include ingestion_key.");
   }
   if (isDevMode) {
     log("Development mode enabled", {
@@ -54,7 +54,7 @@ register(({ analytics, settings, init, customerPrivacy }: {
     }
 
     if (backendUrl) {
-      log("Backend URL resolved (硬校验)", {
+      log("Backend URL resolved (strict validation)", {
         backendUrl,
         hostname: (() => {
           try {
@@ -65,7 +65,7 @@ register(({ analytics, settings, init, customerPrivacy }: {
         })(),
       });
     } else {
-      log("Backend URL not resolved (占位符未替换或未配置)", {
+      log("Backend URL not resolved (placeholder unresolved or not configured)", {
         rawBackendUrl: BACKEND_URL,
         isAllowed: BACKEND_URL ? isAllowedBackendUrl(BACKEND_URL, { shopDomain }) : false,
         placeholderDetected,

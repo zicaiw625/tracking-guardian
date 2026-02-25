@@ -44,6 +44,28 @@ export function buildAppPageCspWithNonce(
   });
 }
 
+export const PUBLIC_PAGE_CSP_DIRECTIVES: Record<string, string[]> = {
+  "default-src": ["'self'"],
+  "script-src": ["'self'"],
+  "style-src": ["'self'"],
+  "style-src-elem": ["'self'"],
+  "style-src-attr": ["'unsafe-inline'"],
+  "img-src": ["'self'", "data:", "https:"],
+  "font-src": ["'self'"],
+  "connect-src": ["'self'"],
+  "frame-ancestors": ["'none'"],
+  "base-uri": ["'self'"],
+  "form-action": ["'self'"],
+  "object-src": ["'none'"],
+};
+
+export function buildPublicPageCspWithNonce(nonce: string): string {
+  return buildCspHeader({
+    ...PUBLIC_PAGE_CSP_DIRECTIVES,
+    "script-src": ["'self'", `'nonce-${nonce}'`],
+  });
+}
+
 export function buildCspHeader(
   directives: Record<string, string[]> = APP_PAGE_CSP_DIRECTIVES
 ): string {
@@ -111,18 +133,7 @@ export const PUBLIC_PAGE_HEADERS: Record<string, string> = {
   "Pragma": "no-cache",
   "Expires": "0",
   "X-Robots-Tag": PUBLIC_PAGE_ROBOTS_TAG,
-  "Content-Security-Policy": buildCspHeader({
-    "default-src": ["'self'"],
-    "script-src": ["'self'"],
-    "style-src": ["'self'"],
-    "img-src": ["'self'", "data:", "https:"],
-    "font-src": ["'self'"],
-    "connect-src": ["'self'"],
-    "frame-ancestors": ["'none'"],
-    "base-uri": ["'self'"],
-    "form-action": ["'self'"],
-    "object-src": ["'none'"],
-  }),
+  "Content-Security-Policy": buildCspHeader(PUBLIC_PAGE_CSP_DIRECTIVES),
 };
 export function addSecurityHeadersToHeaders(headers: Headers, securityHeaders: Record<string, string>): void {
     for (const [key, value] of Object.entries(securityHeaders)) {

@@ -73,6 +73,25 @@ vi.mock("../../app/utils/security-headers", () => ({
       .map(([k, v]) => `${k} ${v.join(" ")}`)
       .join("; ");
   },
+  buildPublicPageCspWithNonce: (nonce: string) => {
+    const directives: Record<string, string[]> = {
+      "default-src": ["'self'"],
+      "script-src": ["'self'", `'nonce-${nonce}'`],
+      "style-src": ["'self'"],
+      "style-src-elem": ["'self'"],
+      "style-src-attr": ["'unsafe-inline'"],
+      "img-src": ["'self'", "data:", "https:"],
+      "font-src": ["'self'"],
+      "connect-src": ["'self'"],
+      "frame-ancestors": ["'none'"],
+      "base-uri": ["'self'"],
+      "form-action": ["'self'"],
+      "object-src": ["'none'"],
+    };
+    return Object.entries(directives)
+      .map(([k, v]) => `${k} ${v.join(" ")}`)
+      .join("; ");
+  },
   getProductionSecurityHeaders: (base: Record<string, string>) => base,
   validateSecurityHeaders: vi.fn(() => ({ valid: true, issues: [] })),
   addSecurityHeadersToHeaders: (headers: Headers, securityHeaders: Record<string, string>) => {
