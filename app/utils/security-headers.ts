@@ -18,6 +18,7 @@ export const APP_PAGE_CSP_DIRECTIVES: Record<string, string[]> = {
   "script-src": ["'self'", "https://cdn.shopify.com"],
   "style-src": ["'self'", "https://cdn.shopify.com"],
   "style-src-elem": ["'self'", "https://cdn.shopify.com"],
+  "style-src-attr": ["'unsafe-inline'"],
   "img-src": ["'self'", "data:", "https:", "blob:"],
   "font-src": ["'self'", "https://cdn.shopify.com"],
   "connect-src": [
