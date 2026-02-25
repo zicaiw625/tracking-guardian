@@ -1584,7 +1584,7 @@
         "description": "点击开始扫描，我们会自动检测 ScriptTags 和已安装的像素配置，并给出风险等级与迁移建议。预计耗时约 10 秒，不会修改任何设置。",
         "helpText": "关于 Additional Scripts：Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts。请切换到「手动分析」标签页，粘贴脚本内容进行分析。",
         "learnMore": "了解更多",
-        "learnMoreUrl": "https://help.shopify.com/zh-CN/manual/pixels/web-pixels"
+        "learnMoreUrl": "https://help.shopify.com/zh-CN/manual/promoting-marketing/pixels"
       },
       "upgradeWindow": {
         "title": "Shopify 升级风险窗口",

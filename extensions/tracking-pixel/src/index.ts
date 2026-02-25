@@ -21,21 +21,21 @@ register(({ analytics, settings, init, customerPrivacy }: {
     }
     return false;
   })();
+  const explicitDebugEnabled = (settings as any).debug === true || (settings as any).debug === "true";
+  const debugEnabled = explicitDebugEnabled || (isDevMode && environment !== "live");
   function log(...args: unknown[]): void {
-    // Enable logging if in dev mode OR if debug setting is explicitly enabled
-    const debugEnabled = isDevMode || (settings as any).debug === true || (settings as any).debug === "true";
     if (debugEnabled) {
       console.log("[Tracking Guardian]", ...args);
     }
   }
-  if (placeholderDetected && isDevMode) {
+  if (placeholderDetected && debugEnabled) {
     const errorMsg = "严重错误：检测到 BACKEND_URL 占位符未替换。像素扩展将无法发送事件到后端，导致事件丢失。这是严重的配置错误，必须在生产环境部署前修复。请在 CI/CD 流程中运行 'pnpm ext:inject' 或 'pnpm deploy:ext'。";
-    console.error("[Tracking Guardian] ❌", errorMsg);
+    log("❌", errorMsg);
   }
-  if (backendUrl && (!ingestionKey || (typeof ingestionKey === "string" && ingestionKey.trim() === "")) && isDevMode) {
-    console.error("[Tracking Guardian] 像素配置缺失 ingestion_key。生产严格模式下 /ingest 将拒绝所有像素事件，导致静默失败。请在 Admin 设置中配置 Ingestion Key，并确保 Web Pixel 的 settings 中包含 ingestion_key。");
+  if (backendUrl && (!ingestionKey || (typeof ingestionKey === "string" && ingestionKey.trim() === "")) && debugEnabled) {
+    log("❌ 像素配置缺失 ingestion_key。生产严格模式下 /ingest 将拒绝所有像素事件，导致静默失败。请在 Admin 设置中配置 Ingestion Key，并确保 Web Pixel 的 settings 中包含 ingestion_key。");
   }
-  if (isDevMode) {
+  if (debugEnabled) {
     log("Development mode enabled", {
       shopDomain,
       hasIngestionKey: !!ingestionKey,
@@ -87,7 +87,7 @@ register(({ analytics, settings, init, customerPrivacy }: {
     environment,
   });
   const mode = (settings.mode === "full_funnel" ? "full_funnel" : "purchase_only") as "purchase_only" | "full_funnel";
-  if (isDevMode) {
+  if (debugEnabled) {
     log(`Pixel mode: ${mode}`, {
       fromSettings: settings.mode,
     });

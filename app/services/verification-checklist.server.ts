@@ -46,8 +46,8 @@ export interface TestChecklist {
   };
 }
 
-const SHOPIFY_OFFICIAL_TEST_GUIDE = "https://help.shopify.com/en/manual/checkout-settings/test-checkout";
-const SHOPIFY_PIXEL_TEST_GUIDE = "https://help.shopify.com/en/manual/online-store/themes/customizing-themes/checkout-extensibility/web-pixels-api/test-custom-pixels";
+const SHOPIFY_OFFICIAL_TEST_GUIDE = "https://help.shopify.com/en/manual/checkout-settings/test-orders";
+const SHOPIFY_PIXEL_TEST_GUIDE = "https://help.shopify.com/en/manual/promoting-marketing/pixels/custom-pixels/testing";
 
 export function generateTestChecklist(
   shopId: string,

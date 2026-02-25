@@ -422,7 +422,7 @@ export default function PixelTestPage() {
                   <Text as="p" variant="bodySm" tone="subdued">
                     {t("pixels.test.officialGuide.intro.desc")}
                   </Text>
-                  <Link url="https://help.shopify.com/en/manual/online-store/themes/customizing-themes/checkout-extensibility/web-pixels-api/test-custom-pixels" external>
+                  <Link url="https://help.shopify.com/en/manual/promoting-marketing/pixels/custom-pixels/testing" external>
                     {t("pixels.test.officialGuide.intro.link")}
                   </Link>
                 </BlockStack>
