@@ -86,6 +86,11 @@ export interface SettingsLoaderData {
     invalidSignatureCount: number;
     lastInvalidSignature: Date | null;
   } | null;
+  capabilityFlags?: {
+    pcdApproved: boolean;
+    orderWebhookEnabled: boolean;
+    serverSideConversionsEnabled: boolean;
+  };
 }
 
 export interface ActionSuccessResponse {

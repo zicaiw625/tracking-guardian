@@ -16,24 +16,36 @@ import { shopLoadingMiddleware } from "~/lib/pixel-events/middleware/shop-loadin
 import { hmacValidationMiddleware } from "~/lib/pixel-events/middleware/hmac-validation.middleware";
 import { rateLimitPostShopMiddleware } from "~/lib/pixel-events/middleware/rate-limit-post-shop.middleware";
 import { enqueueMiddleware } from "~/lib/pixel-events/middleware/enqueue.middleware";
+import { ingestRequestTracker } from "~/lib/pixel-events/ingest-request-tracker.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
+  const startedAt = Date.now();
   const initialContext = buildInitialContext(request);
   const middlewares = [
     corsMiddleware,
     rateLimitPreBodyMiddleware,
-    earlyRejectNoSignatureMiddleware,
     originValidationPreBodyMiddleware,
     timestampValidationMiddleware,
     bodyReaderMiddleware,
     eventValidationMiddleware,
+    earlyRejectNoSignatureMiddleware,
     shopLoadingMiddleware,
     hmacValidationMiddleware,
     originValidationPostShopMiddleware,
     rateLimitPostShopMiddleware,
     enqueueMiddleware,
   ];
-  return composeIngestMiddleware(middlewares, initialContext);
+  const response = await composeIngestMiddleware(middlewares, initialContext);
+  const elapsedMs = Date.now() - startedAt;
+  ingestRequestTracker.record({
+    requestId: initialContext.requestId,
+    shopDomain: initialContext.shopDomainHeader || "unknown",
+    method: request.method.toUpperCase(),
+    status: response.status,
+    durationMs: elapsedMs,
+    timestamp: Date.now(),
+  });
+  return response;
 };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {

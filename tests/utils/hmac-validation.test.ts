@@ -257,5 +257,40 @@ describe("HMAC Validation", () => {
       expect(result.errorCode).toBe("timestamp_out_of_window");
       expect(result.trustLevel).toBe("untrusted");
     });
+
+    it("should return valid=true for body signature without headers", async () => {
+      const timestamp = Date.now();
+      const unsignedBodyData = {
+        events: [{ eventName: "checkout_completed", timestamp, shopDomain: testShopDomain, data: { value: 1 } }],
+        timestamp,
+      };
+      const unsignedBody = JSON.stringify(unsignedBodyData);
+      const bodyHash = createBodyHash(unsignedBody);
+      const signature = generateHMACSignature(testToken, timestamp, testShopDomain, bodyHash);
+      const bodyData = {
+        ...unsignedBodyData,
+        signature,
+        signatureTimestamp: timestamp,
+        signatureShopDomain: testShopDomain,
+      };
+      const request = new Request("https://example.com/ingest", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(bodyData),
+      });
+      const result = await validatePixelEventHMAC(
+        request,
+        bodyHash,
+        testToken,
+        testShopDomain,
+        timestamp,
+        timestampWindowMs,
+        bodyData
+      );
+      expect(result.valid).toBe(true);
+      expect(result.trustLevel).toBe("trusted");
+    });
   });
 });

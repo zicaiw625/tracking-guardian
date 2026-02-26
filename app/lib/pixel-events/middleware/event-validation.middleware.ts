@@ -10,6 +10,17 @@ import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types"
 const MAX_BATCH_SIZE = 100;
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
 
+function toIntegerOrNull(value: unknown): number | null {
+  if (typeof value === "number" && Number.isInteger(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = parseInt(value, 10);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
+}
+
 export const eventValidationMiddleware: IngestMiddleware = async (
   context: IngestContext
 ): Promise<MiddlewareResult> => {
@@ -262,13 +273,34 @@ export const eventValidationMiddleware: IngestMiddleware = async (
   // But we don't want to reject the whole request if one event is old, we just want to process valid ones.
   // So we should remove this block.
   
+  const bodyEnvelope = context.bodyData && typeof context.bodyData === "object"
+    ? (context.bodyData as Record<string, unknown>)
+    : null;
+  const bodySignature = typeof bodyEnvelope?.signature === "string" && bodyEnvelope.signature.trim().length > 0
+    ? bodyEnvelope.signature.trim()
+    : null;
+  const bodySignatureTimestamp = toIntegerOrNull(bodyEnvelope?.signatureTimestamp);
+  const bodySignatureShopDomain = typeof bodyEnvelope?.signatureShopDomain === "string" && bodyEnvelope.signatureShopDomain.trim().length > 0
+    ? bodyEnvelope.signatureShopDomain.trim()
+    : null;
+  const resolvedSignature = context.signature ?? bodySignature;
+  const resolvedTimestampHeader = context.timestampHeader ?? (bodySignatureTimestamp === null ? null : String(bodySignatureTimestamp));
+  const resolvedTimestamp = context.timestamp ?? bodySignatureTimestamp ?? timestamp;
+
   return {
     continue: true,
     context: {
       ...context,
       validatedEvents,
       shopDomain,
-      timestamp, // This might be "old" but it doesn't matter as events are filtered
+      timestamp: resolvedTimestamp,
+      signature: resolvedSignature,
+      timestampHeader: resolvedTimestampHeader,
+      bodySignature,
+      hasBodySignature: Boolean(bodySignature),
+      bodySignatureTimestamp,
+      bodySignatureShopDomain,
+      signatureSource: context.signature ? "header" : bodySignature ? "body" : "none",
     },
   };
 };

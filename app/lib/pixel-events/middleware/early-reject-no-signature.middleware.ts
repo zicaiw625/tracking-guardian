@@ -4,7 +4,7 @@ import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types"
 export const earlyRejectNoSignatureMiddleware: IngestMiddleware = async (
   context: IngestContext
 ): Promise<MiddlewareResult> => {
-  if (context.isProduction && !context.hasSignatureHeader) {
+  if (context.isProduction && context.signatureSource === "none") {
     return {
       continue: false,
       response: jsonWithCors(

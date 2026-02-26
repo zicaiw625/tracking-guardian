@@ -27,6 +27,8 @@ import { getAggregatedMetrics } from "~/services/dashboard-aggregation.server";
 import { checkPlanGate } from "~/middleware/plan-gate";
 import { normalizePlanId, type PlanId } from "~/services/billing/plans";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
+import { ingestRequestTracker } from "~/lib/pixel-events/ingest-request-tracker.server";
+import { rejectionTracker } from "~/lib/pixel-events/rejection-tracker.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -73,6 +75,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const lossRateVal = shopifyOrders > 0 
     ? Math.max(0, (shopifyOrders - pixelOrders) / shopifyOrders) 
     : 0;
+  const ingestStats = ingestRequestTracker.getStats(shopDomain, 24);
+  const rejectionStats = rejectionTracker.getRejectionStats(shopDomain, 24);
+  const totalRejected = rejectionStats.reduce((sum, item) => sum + item.count, 0);
 
   const stats = {
     last7Days: {
@@ -88,6 +93,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       failureRate: ((1 - metrics24Hours.successRate) * 100).toFixed(1),
       lossRate: (lossRateVal * 100).toFixed(1),
       received: metrics24Hours.totalEventVolume,
+    },
+    ingest: ingestStats,
+    diagnostics: {
+      pixelNotLoadedLikely: ingestStats.totalRequests === 0 ? 1 : 0,
+      loadedButNotSentLikely: ingestStats.optionsRequests > 0 && ingestStats.postRequests === 0 ? ingestStats.optionsRequests : 0,
+      sentButRejected: totalRejected,
     },
   };
 
@@ -130,7 +141,9 @@ export default function MonitoringPage() {
 
   const safeStats = stats || {
     last7Days: { orders: 0, value: "0", currency: "", successRate: 0, totalEvents: 0 },
-    last24Hours: { totalEvents: 0, successRate: 0, failureRate: 0, lossRate: "0.0", received: 0 }
+    last24Hours: { totalEvents: 0, successRate: 0, failureRate: 0, lossRate: "0.0", received: 0 },
+    ingest: { totalRequests: 0, optionsRequests: 0, postRequests: 0, optionsRatio: 0, error4xx: 0, error5xx: 0, avgLatencyMs: 0 },
+    diagnostics: { pixelNotLoadedLikely: 0, loadedButNotSentLikely: 0, sentButRejected: 0 },
   };
 
   const rowMarkup = alerts.map(
@@ -256,6 +269,61 @@ export default function MonitoringPage() {
                     label={t("monitoring.loss.rate")}
                     value={`${safeStats.last24Hours.lossRate}%`}
                     tone={Number(safeStats.last24Hours.lossRate) < 1 ? "success" : undefined}
+                  />
+                </InlineStack>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+
+          <Layout.Section variant="oneHalf">
+            <Card>
+              <BlockStack gap="400">
+                <Text as="h2" variant="headingMd">
+                  {t("monitoring.ingest.title")}
+                </Text>
+                <InlineStack gap="400" align="space-between">
+                  <StatItem
+                    label={t("monitoring.ingest.optionsRatio")}
+                    value={`${(safeStats.ingest.optionsRatio * 100).toFixed(1)}%`}
+                  />
+                  <StatItem
+                    label={t("monitoring.ingest.error4xx")}
+                    value={safeStats.ingest.error4xx.toString()}
+                    tone={safeStats.ingest.error4xx > 0 ? "critical" : undefined}
+                  />
+                  <StatItem
+                    label={t("monitoring.ingest.error5xx")}
+                    value={safeStats.ingest.error5xx.toString()}
+                    tone={safeStats.ingest.error5xx > 0 ? "critical" : undefined}
+                  />
+                  <StatItem
+                    label={t("monitoring.ingest.avgLatency")}
+                    value={`${safeStats.ingest.avgLatencyMs.toFixed(0)}ms`}
+                  />
+                </InlineStack>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+
+          <Layout.Section variant="oneHalf">
+            <Card>
+              <BlockStack gap="400">
+                <Text as="h2" variant="headingMd">
+                  {t("monitoring.diagnostics.title")}
+                </Text>
+                <InlineStack gap="400" align="space-between">
+                  <StatItem
+                    label={t("monitoring.diagnostics.notLoaded")}
+                    value={safeStats.diagnostics.pixelNotLoadedLikely.toString()}
+                  />
+                  <StatItem
+                    label={t("monitoring.diagnostics.loadedNotSent")}
+                    value={safeStats.diagnostics.loadedButNotSentLikely.toString()}
+                  />
+                  <StatItem
+                    label={t("monitoring.diagnostics.sentRejected")}
+                    value={safeStats.diagnostics.sentButRejected.toString()}
+                    tone={safeStats.diagnostics.sentButRejected > 0 ? "critical" : undefined}
                   />
                 </InlineStack>
               </BlockStack>

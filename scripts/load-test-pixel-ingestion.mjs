@@ -1,27 +1,32 @@
 #!/usr/bin/env node
 
 import { performance } from "perf_hooks";
+import { createHash, createHmac } from "crypto";
 
 const BACKEND_URL = process.env.SHOPIFY_APP_URL || "http://localhost:3000";
 const CONCURRENT_REQUESTS = parseInt(process.env.CONCURRENT_REQUESTS || "10", 10);
 const TOTAL_REQUESTS = parseInt(process.env.TOTAL_REQUESTS || "100", 10);
 const SHOP_DOMAIN = process.env.SHOP_DOMAIN || "test-shop.myshopify.com";
 const INGESTION_SECRET = process.env.INGESTION_SECRET || "test-secret";
+const INCLUDE_PREFLIGHT = process.env.INCLUDE_PREFLIGHT !== "false";
 
-async function generateHMAC(body, secret, timestamp) {
-  const crypto = await import("crypto");
-  const message = `${timestamp}.${body}`;
-  const hmac = crypto.default.createHmac("sha256", secret);
+function generateHMAC(secret, timestamp, shopDomain, bodyHash) {
+  const message = `${timestamp}:${shopDomain}:${bodyHash}`;
+  const hmac = createHmac("sha256", secret);
   hmac.update(message);
   return hmac.digest("hex");
 }
 
-function createPixelEvent(shopDomain, timestamp) {
+function sha256Hex(input) {
+  return createHash("sha256").update(input).digest("hex");
+}
+
+function createPixelEvent(timestamp) {
   return {
     eventName: "checkout_started",
-    timestamp: timestamp,
+    timestamp,
+    shopDomain: SHOP_DOMAIN,
     data: {
-      shopDomain: shopDomain,
       checkoutToken: `test-checkout-${Date.now()}-${Math.random()}`,
       items: [
         {
@@ -37,20 +42,64 @@ function createPixelEvent(shopDomain, timestamp) {
   };
 }
 
-async function sendPixelEvent(event, signature, timestamp) {
-  const body = JSON.stringify(event);
+function buildSignedBody(timestamp) {
+  const unsignedPayload = createPixelEvent(timestamp);
+  const unsignedBody = JSON.stringify(unsignedPayload);
+  const unsignedBodyHash = sha256Hex(unsignedBody);
+  const bodySignature = generateHMAC(INGESTION_SECRET, timestamp, SHOP_DOMAIN, unsignedBodyHash);
+  const signedPayload = {
+    ...unsignedPayload,
+    signature: bodySignature,
+    signatureTimestamp: timestamp,
+    signatureShopDomain: SHOP_DOMAIN,
+  };
+  const body = JSON.stringify(signedPayload);
+  const headerBodyHash = sha256Hex(body);
+  const headerSignature = generateHMAC(INGESTION_SECRET, timestamp, SHOP_DOMAIN, headerBodyHash);
+  return { body, headerSignature };
+}
+
+async function sendPreflightRequest() {
+  const startTime = performance.now();
+  try {
+    const response = await fetch(`${BACKEND_URL}/ingest`, {
+      method: "OPTIONS",
+      headers: {
+        Origin: `https://${SHOP_DOMAIN}`,
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers":
+          "content-type,x-tracking-guardian-timestamp,x-tracking-guardian-signature,x-shopify-shop-domain",
+      },
+    });
+    return {
+      success: response.status >= 200 && response.status < 300,
+      status: response.status,
+      duration: performance.now() - startTime,
+      kind: "preflight",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message,
+      duration: performance.now() - startTime,
+      kind: "preflight",
+    };
+  }
+}
+
+async function sendPixelEvent(body, signature, timestamp) {
   const startTime = performance.now();
   try {
     const response = await fetch(`${BACKEND_URL}/ingest`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Shopify-Shop-Domain": SHOP_DOMAIN,
-        "X-Shopify-Event-Signature": signature,
-        "X-Shopify-Event-Timestamp": timestamp.toString(),
-        "Origin": `https://${SHOP_DOMAIN}`,
+        "x-shopify-shop-domain": SHOP_DOMAIN,
+        "X-Tracking-Guardian-Signature": signature,
+        "X-Tracking-Guardian-Timestamp": timestamp.toString(),
+        Origin: `https://${SHOP_DOMAIN}`,
       },
-      body: body,
+      body,
     });
     const endTime = performance.now();
     const duration = endTime - startTime;
@@ -61,6 +110,7 @@ async function sendPixelEvent(event, signature, timestamp) {
       success: status >= 200 && status < 300,
       status,
       duration,
+      kind: "post",
       rateLimitRemaining: rateLimitRemaining ? parseInt(rateLimitRemaining, 10) : null,
       rateLimitReset: rateLimitReset ? parseInt(rateLimitReset, 10) : null,
     };
@@ -70,6 +120,7 @@ async function sendPixelEvent(event, signature, timestamp) {
       success: false,
       error: error.message,
       duration: endTime - startTime,
+      kind: "post",
     };
   }
 }
@@ -91,13 +142,11 @@ async function runLoadTest() {
     const promises = [];
     for (let i = 0; i < batchSize; i++) {
       const timestamp = Date.now();
-      const event = createPixelEvent(SHOP_DOMAIN, timestamp);
-      const body = JSON.stringify(event);
-      promises.push(
-        generateHMAC(body, INGESTION_SECRET, timestamp).then((signature) =>
-          sendPixelEvent(event, signature, timestamp)
-        )
-      );
+      const { body, headerSignature } = buildSignedBody(timestamp);
+      if (INCLUDE_PREFLIGHT) {
+        promises.push(sendPreflightRequest());
+      }
+      promises.push(sendPixelEvent(body, headerSignature, timestamp));
     }
     const batchResults = await Promise.all(promises);
     return batchResults;
@@ -132,6 +181,10 @@ async function runLoadTest() {
   console.log("压测结果:");
   console.log("=".repeat(50));
   console.log(`总请求数: ${TOTAL_REQUESTS}`);
+  const postResults = results.filter((r) => r.kind === "post");
+  const preflightResults = results.filter((r) => r.kind === "preflight");
+  console.log(`POST 请求: ${postResults.length}`);
+  console.log(`OPTIONS 预检: ${preflightResults.length}`);
   console.log(`成功请求: ${results.filter((r) => r.success).length}`);
   console.log(`失败请求: ${results.filter((r) => !r.success).length}`);
   console.log(`Rate Limit 触发: ${rateLimitHits.length}`);
@@ -169,21 +222,19 @@ async function runLoadTest() {
 async function testNullOrigin() {
   console.log("\n测试 Origin: null 场景...");
   const timestamp = Date.now();
-  const event = createPixelEvent(SHOP_DOMAIN, timestamp);
-  const body = JSON.stringify(event);
-  const signature = await generateHMAC(body, INGESTION_SECRET, timestamp);
+  const { body, headerSignature } = buildSignedBody(timestamp);
 
   try {
     const response = await fetch(`${BACKEND_URL}/ingest`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Shopify-Shop-Domain": SHOP_DOMAIN,
-        "X-Shopify-Event-Signature": signature,
-        "X-Shopify-Event-Timestamp": timestamp.toString(),
-        "Origin": "null",
+        "x-shopify-shop-domain": SHOP_DOMAIN,
+        "X-Tracking-Guardian-Signature": headerSignature,
+        "X-Tracking-Guardian-Timestamp": timestamp.toString(),
+        Origin: "null",
       },
-      body: body,
+      body,
     });
     const status = response.status;
     if (status >= 200 && status < 300) {

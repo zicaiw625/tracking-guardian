@@ -255,12 +255,25 @@ export function createEventSender(config: EventSenderConfig) {
       environment,
     },
   });
-  const buildBatchBody = (events: QueuedEvent[], batchTimestamp: number): string => {
-    const batchPayload = {
-      events: events.map(buildEventPayload),
-      timestamp: batchTimestamp,
-    };
-    return JSON.stringify(batchPayload);
+  const buildUnsignedBatchPayload = (events: QueuedEvent[], batchTimestamp: number) => ({
+    events: events.map(buildEventPayload),
+    timestamp: batchTimestamp,
+  });
+  const buildBatchBody = (
+    events: QueuedEvent[],
+    batchTimestamp: number,
+    signatureData?: { signature: string; signatureTimestamp: number; signatureShopDomain: string }
+  ): string => {
+    const batchPayload = buildUnsignedBatchPayload(events, batchTimestamp);
+    if (!signatureData) {
+      return JSON.stringify(batchPayload);
+    }
+    return JSON.stringify({
+      ...batchPayload,
+      signature: signatureData.signature,
+      signatureTimestamp: signatureData.signatureTimestamp,
+      signatureShopDomain: signatureData.signatureShopDomain,
+    });
   };
   const fitSingleEventToBytes = (event: QueuedEvent, maxBytes: number): QueuedEvent => {
     const baseTimestamp = Date.now();
@@ -352,7 +365,7 @@ export function createEventSender(config: EventSenderConfig) {
       const url = `${backendUrl}/ingest`;
       const batches = splitIntoBatches(eventsToSend, timestamp);
       for (const batchEvents of batches) {
-        const body = buildBatchBody(batchEvents, timestamp);
+        let body = buildBatchBody(batchEvents, timestamp);
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
           "X-Tracking-Guardian-Timestamp": String(timestamp),
@@ -360,6 +373,14 @@ export function createEventSender(config: EventSenderConfig) {
         };
         if (normalizedIngestionKey) {
           try {
+            const unsignedBody = JSON.stringify(buildUnsignedBatchPayload(batchEvents, timestamp));
+            const unsignedBodyHash = sha256Hex(unsignedBody);
+            const bodySignature = generateHMACSignature(normalizedIngestionKey, timestamp, shopDomain, unsignedBodyHash);
+            body = buildBatchBody(batchEvents, timestamp, {
+              signature: bodySignature,
+              signatureTimestamp: timestamp,
+              signatureShopDomain: shopDomain,
+            });
             const bodyHash = sha256Hex(body);
             const signature = generateHMACSignature(normalizedIngestionKey, timestamp, shopDomain, bodyHash);
             headers["X-Tracking-Guardian-Signature"] = signature;

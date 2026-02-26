@@ -10,9 +10,14 @@ export interface IngestContext {
   originHeaderPresent: boolean;
   signature: string | null;
   hasSignatureHeader: boolean;
+  bodySignature: string | null;
+  hasBodySignature: boolean;
   timestampHeader: string | null;
+  bodySignatureTimestamp: number | null;
   timestamp: number | null;
   shopDomainHeader: string;
+  bodySignatureShopDomain: string | null;
+  signatureSource: "header" | "body" | "none";
   contentType: string | null;
   strictOrigin: boolean;
   allowUnsignedEvents: boolean;

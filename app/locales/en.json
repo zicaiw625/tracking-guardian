@@ -2103,7 +2103,7 @@
     "exportJson": "Export JSON",
     "limitWarning": "⚠️ Results may be incomplete: Max event limit (1000) reached. Some earlier events may be missing. Consider shortening the time window or contacting support.",
     "originWarningTitle": "Event Origin Check: Currently Loose Origin Check",
-    "originWarningBody": "Requests from non-whitelisted origins or with failed HMAC may still be accepted and marked as low trust. It is recommended to set PIXEL_STRICT_ORIGIN=true and configure Origin whitelist in production.",
+    "originWarningBody": "Requests from non-whitelisted origins or with failed HMAC may still be accepted and marked as low signature integrity. It is recommended to set PIXEL_STRICT_ORIGIN=true and configure Origin whitelist in production.",
     "strictLimitTitle": "⚠️ Strict Sandbox Limitations (Automatically Tagged)",
     "toggleDetailsShow": "Show Details",
     "toggleDetailsHide": "Hide Details",
@@ -2363,7 +2363,7 @@
       },
       "originWarning": {
         "title": "Loose Origin Check Active",
-        "desc": "Requests from non-whitelisted origins or with failed HMAC may still be accepted and marked as <strong>low trust</strong>. It is recommended to set <code>PIXEL_STRICT_ORIGIN=true</code> and configure an origin whitelist in production."
+        "desc": "Requests from non-whitelisted origins or with failed HMAC may still be accepted and marked as <strong>low signature integrity</strong>. It is recommended to set <code>PIXEL_STRICT_ORIGIN=true</code> and configure an origin whitelist in production."
       },
       "sandbox": {
         "title": "Sandbox Limitations",
@@ -2732,6 +2732,15 @@
         }
       }
     },
+    "capabilities": {
+      "title": "Feature Gate Status",
+      "description": "Current capability switches for review alignment. Disabled means the code path is present but not active.",
+      "pcd": "PCD Approved",
+      "ordersWebhook": "Orders Webhook",
+      "serverSideConversions": "Server-side Conversions",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
     "alerts": {
       "banner": {
         "title": "Configure Alerts",
@@ -2829,6 +2838,19 @@
       "title": "Event Loss (24h)",
       "received": "Received",
       "rate": "Loss Rate"
+    },
+    "ingest": {
+      "title": "Ingest Request Health (24h)",
+      "optionsRatio": "OPTIONS Ratio",
+      "error4xx": "4xx",
+      "error5xx": "5xx",
+      "avgLatency": "Avg Latency"
+    },
+    "diagnostics": {
+      "title": "Missing Data Diagnostics (24h)",
+      "notLoaded": "Pixel Not Loaded (Likely)",
+      "loadedNotSent": "Loaded But Not Sent (Likely)",
+      "sentRejected": "Sent But Rejected"
     },
     "alerts": {
       "title": "Alert List",
@@ -3553,7 +3575,7 @@
         "Lax": "Lax",
         "StrictDesc": "Origin must be whitelisted",
         "LaxDesc": "Non-whitelisted/HMAC failure may still be accepted",
-        "LaxWarning": "Requests from non-whitelisted sources or HMAC verification failures that are not rejected may still be accepted and marked as low trust.",
+        "LaxWarning": "Requests from non-whitelisted sources or HMAC verification failures that are not rejected may still be accepted and marked as low signature integrity.",
         "GraceWindow": "<strong>Old token still valid:</strong> Previous token will expire on {{date}}. Until then, both new and old tokens can be used for smooth transition.",
         "GraceWindowEnd": "After the transition period, the old token will automatically expire.",
         "OldTokenExpired": "<strong>Old token expired:</strong> Previous token has been automatically cleaned up.",
@@ -3624,15 +3646,15 @@
         "Description": "Understand pixel loading strategy and backend filtering logic.",
         "LoadingStrategyTitle": "📋 Pixel Loading Strategy",
         "LoadingStrategyDesc": "Web Pixel Extension loading conditions:",
-        "LoadingStrategyItems": "• <strong>analytics = true</strong>: Requires analytics consent\n• <strong>marketing = true</strong>: Requires marketing consent\n• <strong>sale_of_data = \"disabled\"</strong>",
-        "StrategyNote": "<strong>Strategy Description:</strong> Pixel loads if analytics OR marketing consent is granted. Backend filters based on platform usage (GA4 vs Meta/TikTok).",
+        "LoadingStrategyItems": "• <strong>analytics = true</strong>: Requires analytics consent\n• <strong>marketing = false</strong>: Marketing consent alone does not load this pixel\n• <strong>sale_of_data = \"disabled\"</strong>",
+        "StrategyNote": "<strong>Strategy Description:</strong> Pixel load depends on analytics consent for this extension. Backend filters by platform-specific consent and sale_of_data rules.",
         "BackendFilterTitle": "🔍 Backend Filtering Strategy",
         "BackendFilterDesc": "Backend filters events based on compliance requirements:",
-        "BackendFilterItems": "• <strong>GA4</strong>: Requires analytics consent\n• <strong>Meta/TikTok</strong>: Requires marketing consent",
+        "BackendFilterItems": "• <strong>GA4</strong>: Requires analytics consent\n• <strong>Meta/TikTok</strong>: Requires marketing consent and explicit sale_of_data_allowed = true",
         "DesignReason": "<strong>Why this design?</strong> Improve coverage while ensuring compliance.",
         "ActualEffectTitle": "✅ Actual Effect",
         "ActualEffectDesc": "Based on user consent status, events are routed to appropriate platforms.",
-        "ActualEffectItems": "• Analytics only: GA4 only\n• Marketing only: Meta/TikTok only\n• Both: All platforms",
+        "ActualEffectItems": "• No analytics consent: Pixel may not load\n• Analytics only: GA4 only\n• Analytics + marketing + sale_of_data_allowed=true: Eligible for Meta/TikTok",
         "ComplianceNote": "Backend filtering helps support GDPR/CCPA compliance (not legal advice).",
         "StatsTitle": "📊 View Filtering Statistics",
         "StatsDesc": "View success rates and filtered event counts in Dashboard."
@@ -3643,15 +3665,15 @@
         "Label": "Strategy Selection",
         "Strict": "🔒 Strict Mode (Recommended)",
         "Balanced": "⚖️ Balanced Mode",
-        "HelpTextStrict": "Must have trusted pixel receipt + explicit consent. Suitable for GDPR/CCPA.",
-        "HelpTextBalanced": "Allows 'partially trusted' receipts if explicit consent is present.",
+        "HelpTextStrict": "Must have signature-integrity verified pixel receipt + explicit consent. Suitable for GDPR/CCPA.",
+        "HelpTextBalanced": "Allows partially verified signature-integrity receipts if explicit consent is present.",
         "StrictNote": "Current version only receives and verifies Web Pixel events.",
-        "BalancedNote": "Allows 'partially trusted' receipts. Slightly looser than strict mode.",
+        "BalancedNote": "Allows partially verified signature-integrity receipts. Slightly looser than strict mode.",
         "BalancedAdvice": "Suggestion: Use Strict Mode for EU/UK customers.",
         "UnknownStrategy": "⚠️ Unknown Strategy",
         "UnknownStrategyDesc": "Invalid strategy, defaulting to Strict Mode.",
         "ModalTitle": "Confirm Switch Privacy Strategy",
-        "ModalContent": "Balanced mode allows 'partially trusted' receipts.",
+        "ModalContent": "Balanced mode allows partially verified signature-integrity receipts.",
         "ModalConfirm": "Strict Mode is recommended for GDPR regions. Switch anyway?",
         "ConfirmAction": "Confirm Switch",
         "Cancel": "Cancel"

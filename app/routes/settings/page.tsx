@@ -17,7 +17,7 @@ import type { settingsLoader } from "./loader.server";
 
 export default function SettingsPage() {
   const { t } = useTranslation();
-  const { shop, hmacSecurityStats, pixelStrictOrigin, alertChannelsEnabled, typOspStatus } =
+  const { shop, hmacSecurityStats, pixelStrictOrigin, alertChannelsEnabled, typOspStatus, capabilityFlags } =
     useLoaderData<typeof settingsLoader>();
   const actionData = useActionData<SettingsActionResponse>();
   const submit = useSubmit();
@@ -163,6 +163,27 @@ export default function SettingsPage() {
                 {t("settings.card.modules.status.explanation")}{typOspStatus.unknownReason === "NOT_PLUS" ? t("settings.card.modules.reason.notPlus") : typOspStatus.unknownReason === "NO_EDITOR_ACCESS" ? t("settings.card.modules.reason.noAccess") : typOspStatus.unknownReason}
               </Text>
             )}
+          </BlockStack>
+        </Card>
+        <Card>
+          <BlockStack gap="300">
+            <Text as="h2" variant="headingMd">
+              {t("settings.capabilities.title")}
+            </Text>
+            <Text as="p" variant="bodySm" tone="subdued">
+              {t("settings.capabilities.description")}
+            </Text>
+            <InlineStack gap="300" wrap>
+              <Badge tone={capabilityFlags?.pcdApproved ? "success" : "attention"}>
+                {`${t("settings.capabilities.pcd")}: ${capabilityFlags?.pcdApproved ? t("settings.capabilities.enabled") : t("settings.capabilities.disabled")}`}
+              </Badge>
+              <Badge tone={capabilityFlags?.orderWebhookEnabled ? "success" : "attention"}>
+                {`${t("settings.capabilities.ordersWebhook")}: ${capabilityFlags?.orderWebhookEnabled ? t("settings.capabilities.enabled") : t("settings.capabilities.disabled")}`}
+              </Badge>
+              <Badge tone={capabilityFlags?.serverSideConversionsEnabled ? "success" : "attention"}>
+                {`${t("settings.capabilities.serverSideConversions")}: ${capabilityFlags?.serverSideConversionsEnabled ? t("settings.capabilities.enabled") : t("settings.capabilities.disabled")}`}
+              </Badge>
+            </InlineStack>
           </BlockStack>
         </Card>
         <Tabs tabs={tabs} selected={selectedTab} onSelect={handleTabChange}>

@@ -350,5 +350,23 @@ describe("/ingest Security Policy Tests", () => {
       const data = await response.json();
       expect(data.accepted_count).toBeDefined();
     });
+
+    it("should accept valid request with body signature only", async () => {
+      const payload = createValidEventPayload("test-shop.myshopify.com");
+      const signedPayload = {
+        ...payload,
+        signature: "valid-signature",
+        signatureTimestamp: payload.timestamp,
+        signatureShopDomain: payload.shopDomain,
+      };
+      const request = createRequest(signedPayload, {
+        Origin: "https://test-shop.myshopify.com",
+      });
+
+      const response = await action({ request, params: {}, context: {} });
+      expect(response.status).toBe(202);
+      const data = await response.json();
+      expect(data.accepted_count).toBeDefined();
+    });
   });
 });

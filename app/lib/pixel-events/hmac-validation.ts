@@ -28,6 +28,13 @@ export interface HMACValidationResult {
   trustLevel?: "trusted" | "partial" | "untrusted";
 }
 
+interface HMACInput {
+  signature: string | null;
+  timestamp: number | null;
+  shopDomain: string;
+  source: "header" | "body" | "none";
+}
+
 export function generateHMACSignature(
   token: string,
   timestamp: number,
@@ -125,40 +132,125 @@ export function extractTimestampHeader(request: Request): number | null {
   return timestamp;
 }
 
+function extractTimestampFromBody(bodyData: unknown): number | null {
+  if (!bodyData || typeof bodyData !== "object") {
+    return null;
+  }
+  const candidate = (bodyData as Record<string, unknown>).signatureTimestamp;
+  if (typeof candidate === "number" && Number.isInteger(candidate)) {
+    return candidate;
+  }
+  if (typeof candidate === "string" && candidate.trim().length > 0) {
+    const parsed = parseInt(candidate, 10);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
+}
+
+function extractSignatureFromBody(bodyData: unknown): string | null {
+  if (!bodyData || typeof bodyData !== "object") {
+    return null;
+  }
+  const signature = (bodyData as Record<string, unknown>).signature;
+  if (typeof signature !== "string") {
+    return null;
+  }
+  const normalized = signature.trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function extractShopDomainFromBody(bodyData: unknown): string | null {
+  if (!bodyData || typeof bodyData !== "object") {
+    return null;
+  }
+  const shopDomain = (bodyData as Record<string, unknown>).signatureShopDomain;
+  if (typeof shopDomain !== "string") {
+    return null;
+  }
+  const normalized = shopDomain.trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function extractHMACInput(
+  request: Request,
+  payloadTimestamp: number,
+  payloadShopDomain: string,
+  bodyData?: unknown
+): HMACInput {
+  const headerSignature = extractHMACSignature(request);
+  if (headerSignature) {
+    return {
+      signature: headerSignature,
+      timestamp: extractTimestampHeader(request),
+      shopDomain: payloadShopDomain,
+      source: "header",
+    };
+  }
+  const bodySignature = extractSignatureFromBody(bodyData);
+  if (bodySignature) {
+    return {
+      signature: bodySignature,
+      timestamp: extractTimestampFromBody(bodyData) ?? payloadTimestamp,
+      shopDomain: extractShopDomainFromBody(bodyData) ?? payloadShopDomain,
+      source: "body",
+    };
+  }
+  return {
+    signature: null,
+    timestamp: null,
+    shopDomain: payloadShopDomain,
+    source: "none",
+  };
+}
+
 export async function validatePixelEventHMAC(
   request: Request,
   bodyHash: string,
   token: string,
   shopDomain: string,
   payloadTimestamp: number,
-  timestampWindowMs: number
+  timestampWindowMs: number,
+  bodyData?: unknown
 ): Promise<HMACValidationResult> {
-  const signature = extractHMACSignature(request);
-  if (!signature) {
+  const hmacInput = extractHMACInput(request, payloadTimestamp, shopDomain, bodyData);
+  if (!hmacInput.signature) {
     return {
       valid: false,
-      reason: "Missing HMAC signature header",
+      reason: "Missing HMAC signature",
       errorCode: "missing_signature",
       trustLevel: "untrusted",
     };
   }
-  const headerTimestamp = extractTimestampHeader(request);
-  if (headerTimestamp === null) {
+  if (hmacInput.timestamp === null) {
     return {
       valid: false,
-      reason: "Missing timestamp header",
+      reason: "Missing signature timestamp",
       errorCode: "missing_timestamp_header",
       trustLevel: "untrusted",
     };
   }
-  if (headerTimestamp !== payloadTimestamp) {
+  if (hmacInput.source === "header" && hmacInput.timestamp !== payloadTimestamp) {
     return {
       valid: false,
-      reason: `Timestamp mismatch: header=${headerTimestamp}, payload=${payloadTimestamp}`,
+      reason: `Timestamp mismatch: header=${hmacInput.timestamp}, payload=${payloadTimestamp}`,
       errorCode: "timestamp_mismatch",
       trustLevel: "untrusted",
     };
   }
-  // bodyHash is now pre-calculated and passed in
-  return verifyHMACSignature(signature, token, headerTimestamp, shopDomain, bodyHash, timestampWindowMs);
+  if (hmacInput.source === "body" && hmacInput.shopDomain !== shopDomain) {
+    return {
+      valid: false,
+      reason: `Shop domain mismatch: signature=${hmacInput.shopDomain}, payload=${shopDomain}`,
+      errorCode: "invalid_signature",
+      trustLevel: "untrusted",
+    };
+  }
+  return verifyHMACSignature(
+    hmacInput.signature,
+    token,
+    hmacInput.timestamp,
+    hmacInput.shopDomain,
+    bodyHash,
+    timestampWindowMs
+  );
 }

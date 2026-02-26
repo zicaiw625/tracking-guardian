@@ -337,6 +337,7 @@ export const PCD_CONFIG = {
 } as const;
 
 export const ORDER_WEBHOOK_ENABLED = getBoolEnv("ORDER_WEBHOOK_ENABLED", false);
+export const SERVER_SIDE_CONVERSIONS_ENABLED = getBoolEnv("SERVER_SIDE_CONVERSIONS_ENABLED", false);
 
 export const FEATURE_FLAGS = {
   FUNNEL_EVENTS: getBoolEnv("FEATURE_FUNNEL_EVENTS", false),

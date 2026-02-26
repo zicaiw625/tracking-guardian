@@ -2103,7 +2103,7 @@
     "exportJson": "导出 JSON",
     "limitWarning": "⚠️ 结果可能不完整：已达到单次验证的最大事件数量限制（1000条）。部分早期事件可能未包含在本次分析中。建议缩短验证时间窗口或联系支持团队。",
     "originWarningTitle": "事件接收校验：当前为宽松的 Origin 校验",
-    "originWarningBody": "来自非白名单来源或 HMAC 验证失败但未被拒绝的请求仍可能被接收并标为低信任。建议在部署环境设置 PIXEL_STRICT_ORIGIN=true 并配置 Origin 白名单。",
+    "originWarningBody": "来自非白名单来源或 HMAC 验证失败但未被拒绝的请求仍可能被接收并标为低签名完整性。建议在部署环境设置 PIXEL_STRICT_ORIGIN=true 并配置 Origin 白名单。",
     "strictLimitTitle": "⚠️ Strict Sandbox 限制说明（已自动标注）",
     "toggleDetailsShow": "查看详细说明",
     "toggleDetailsHide": "收起详细说明",
@@ -2363,7 +2363,7 @@
       },
       "originWarning": {
         "title": "宽松 Origin 检查已启用",
-        "desc": "来自未白名单来源或 HMAC 验证失败的请求仍可被接受，并标记为<strong>低信任</strong>。建议在生产环境中设置 <code>PIXEL_STRICT_ORIGIN=true</code> 并配置 Origin 白名单。"
+        "desc": "来自未白名单来源或 HMAC 验证失败的请求仍可被接受，并标记为<strong>低签名完整性</strong>。建议在生产环境中设置 <code>PIXEL_STRICT_ORIGIN=true</code> 并配置 Origin 白名单。"
       },
       "sandbox": {
         "title": "沙箱限制",
@@ -2732,6 +2732,15 @@
         }
       }
     },
+    "capabilities": {
+      "title": "能力开关状态",
+      "description": "用于审核一致性的当前能力开关。关闭表示代码路径存在但当前未启用。",
+      "pcd": "PCD 审批",
+      "ordersWebhook": "订单 Webhook",
+      "serverSideConversions": "服务端转化投递",
+      "enabled": "已启用",
+      "disabled": "已关闭"
+    },
     "alerts": {
       "banner": {
         "title": "配置告警",
@@ -2829,6 +2838,19 @@
       "title": "事件流失（24h）",
       "received": "接收",
       "rate": "流失率"
+    },
+    "ingest": {
+      "title": "Ingest 请求健康度（24h）",
+      "optionsRatio": "OPTIONS 占比",
+      "error4xx": "4xx",
+      "error5xx": "5xx",
+      "avgLatency": "平均延迟"
+    },
+    "diagnostics": {
+      "title": "缺失诊断（24h）",
+      "notLoaded": "像素未加载（推测）",
+      "loadedNotSent": "已加载未发送（推测）",
+      "sentRejected": "已发送被拒绝"
     },
     "alerts": {
       "title": "告警列表",
@@ -3553,7 +3575,7 @@
         "Lax": "宽松",
         "StrictDesc": "Origin 必须过白名单",
         "LaxDesc": "非白名单/HMAC 失败仍可能被接收",
-        "LaxWarning": "来自非白名单来源或 HMAC 验证失败但未被拒绝的请求仍可能被接收并标为低信任。",
+        "LaxWarning": "来自非白名单来源或 HMAC 验证失败但未被拒绝的请求仍可能被接收并标为低签名完整性。",
         "GraceWindow": "<strong>旧令牌仍有效：</strong>之前的令牌将于 {{date}} 失效。在此之前，新旧令牌均可使用。",
         "GraceWindowEnd": "过渡期结束后，旧令牌将自动失效。",
         "OldTokenExpired": "<strong>旧令牌已过期：</strong>之前的令牌已自动清理。",
@@ -3624,15 +3646,15 @@
         "Description": "了解像素加载策略与后端过滤逻辑。",
         "LoadingStrategyTitle": "📋 像素加载策略",
         "LoadingStrategyDesc": "Web Pixel Extension 加载条件：",
-        "LoadingStrategyItems": "• <strong>analytics = true</strong>：需要 analytics consent\n• <strong>marketing = true</strong>：需要 marketing consent\n• <strong>sale_of_data = \"disabled\"</strong>",
-        "StrategyNote": "<strong>策略说明：</strong>当前配置需要 analytics 或 marketing 同意才能加载像素。后端根据平台合规要求过滤事件。",
+        "LoadingStrategyItems": "• <strong>analytics = true</strong>：需要 analytics consent\n• <strong>marketing = false</strong>：仅 marketing 同意不会加载此像素\n• <strong>sale_of_data = \"disabled\"</strong>",
+        "StrategyNote": "<strong>策略说明：</strong>当前扩展是否加载主要取决于 analytics 同意。后端再按平台同意与 sale_of_data 规则过滤事件。",
         "BackendFilterTitle": "🔍 后端过滤策略",
         "BackendFilterDesc": "后端会根据各平台的合规要求进一步过滤事件：",
-        "BackendFilterItems": "• <strong>GA4</strong>：需 analytics 同意\n• <strong>Meta/TikTok</strong>：需 marketing 同意",
+        "BackendFilterItems": "• <strong>GA4</strong>：需 analytics 同意\n• <strong>Meta/TikTok</strong>：需 marketing 同意且 sale_of_data_allowed = true",
         "DesignReason": "<strong>为什么这样设计？</strong> 提高覆盖率并确保合规。",
         "ActualEffectTitle": "✅ 实际效果",
         "ActualEffectDesc": "根据用户的同意状态发送事件。",
-        "ActualEffectItems": "• 仅同意 analytics：仅 GA4\n• 仅同意 marketing：仅 Meta/TikTok\n• 同时同意：所有平台",
+        "ActualEffectItems": "• 无 analytics 同意：像素可能不加载\n• 仅同意 analytics：仅 GA4\n• analytics + marketing + sale_of_data_allowed=true：可发送 Meta/TikTok",
         "ComplianceNote": "后端过滤有助于支持 GDPR/CCPA 合规（不构成法律建议）。",
         "StatsTitle": "📊 查看过滤统计",
         "StatsDesc": "在 Dashboard 查看发送统计和过滤原因。"
@@ -3643,15 +3665,15 @@
         "Label": "策略选择",
         "Strict": "🔒 严格模式（推荐）",
         "Balanced": "⚖️ 平衡模式",
-        "HelpTextStrict": "必须有可信的像素回执 + 明确同意。",
-        "HelpTextBalanced": "允许'部分可信'的回执。",
+        "HelpTextStrict": "必须有签名完整性已校验的像素回执 + 明确同意。",
+        "HelpTextBalanced": "允许签名完整性部分校验的回执。",
         "StrictNote": "当前版本仅接收与校验 Web Pixel 事件。",
-        "BalancedNote": "允许信任等级为「部分可信」的回执。",
+        "BalancedNote": "允许签名完整性为「部分校验」的回执。",
         "BalancedAdvice": "建议：欧盟/英国地区推荐使用严格模式。",
         "UnknownStrategy": "⚠️ 未知策略",
         "UnknownStrategyDesc": "默认按严格模式处理。",
         "ModalTitle": "确认切换隐私策略",
-        "ModalContent": "平衡模式允许'部分可信'的回执。",
+        "ModalContent": "平衡模式允许签名完整性部分校验的回执。",
         "ModalConfirm": "推荐使用严格模式。确定要切换吗？",
         "ConfirmAction": "确认切换",
         "Cancel": "取消"

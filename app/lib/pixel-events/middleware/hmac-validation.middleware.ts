@@ -21,7 +21,7 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
   const hasAnySecret = Boolean(context.shop.ingestionSecret || context.shop.previousIngestionSecret);
 
   // P0-1: Enforce timestamp presence in production when signature or secret is present
-  if (context.isProduction && (context.signature || hasAnySecret) && !context.timestampHeader) {
+  if (context.isProduction && (context.signature || hasAnySecret) && !context.timestamp) {
     if (shouldRecordRejection(context.isProduction, false, "timestamp_missing")) {
       rejectionTracker.record({
         requestId: context.requestId,
@@ -57,7 +57,17 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
 
   if (context.signature && hasAnySecret && context.timestamp) {
     const crypto = await import("crypto");
-    const bodyHash = crypto.createHash("sha256").update(context.bodyText!).digest("hex");
+    const hmacSourcePayload = (() => {
+      if (context.signatureSource !== "body" || !context.bodyData || typeof context.bodyData !== "object") {
+        return context.bodyText!;
+      }
+      const envelope = { ...(context.bodyData as Record<string, unknown>) };
+      delete envelope.signature;
+      delete envelope.signatureTimestamp;
+      delete envelope.signatureShopDomain;
+      return JSON.stringify(envelope);
+    })();
+    const bodyHash = crypto.createHash("sha256").update(hmacSourcePayload).digest("hex");
 
     const verifyWithToken = async (token: string) => {
       const result = await validatePixelEventHMAC(
@@ -66,7 +76,8 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
         token,
         context.shopDomain!,
         context.timestamp!,
-        TIMESTAMP_WINDOW_MS
+        TIMESTAMP_WINDOW_MS,
+        context.bodyData
       );
       return result;
     };

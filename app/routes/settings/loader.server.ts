@@ -7,6 +7,7 @@ import { checkTokenExpirationIssues } from "../../services/retry.server";
 import { getCachedTypOspStatus, refreshTypOspStatus } from "../../services/checkout-profile.server";
 import { getEventMonitoringStats, getEventVolumeStats } from "../../services/monitoring.server";
 import { logger } from "../../utils/logger.server";
+import { ORDER_WEBHOOK_ENABLED, PCD_CONFIG, SERVER_SIDE_CONVERSIONS_ENABLED } from "../../utils/config.server";
 import type { SettingsLoaderData, PixelConfigDisplay, AlertConfigDisplay, TypOspStatusDisplay } from "./types";
 
 export async function settingsLoader({ request }: LoaderFunctionArgs) {
@@ -238,13 +239,18 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
           }
         : null,
       tokenIssues,
-      pcdApproved: false,
+      pcdApproved: PCD_CONFIG.APPROVED,
       pcdStatusMessage: t("settings.loader.pcdStatusMessage"),
       typOspStatus,
       pixelStrictOrigin,
       alertChannelsEnabled,
       currentMonitoringData,
       hmacSecurityStats: null,
+      capabilityFlags: {
+        pcdApproved: PCD_CONFIG.APPROVED,
+        orderWebhookEnabled: ORDER_WEBHOOK_ENABLED,
+        serverSideConversionsEnabled: SERVER_SIDE_CONVERSIONS_ENABLED,
+      },
     };
     return json(data);
   } catch (error) {
