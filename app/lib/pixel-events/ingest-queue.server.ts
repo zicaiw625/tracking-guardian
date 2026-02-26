@@ -1,5 +1,5 @@
 import { getRedisClient } from "~/utils/redis-client.server";
-import { logger } from "~/utils/logger.server";
+import { logger, metrics } from "~/utils/logger.server";
 import type { PixelEventPayload, KeyValidationResult } from "./types";
 
 const QUEUE_KEY = "ingest:queue";
@@ -46,8 +46,25 @@ export async function enqueueIngestBatch(entry: IngestQueueEntry): Promise<boole
     entry.enqueuedAt = Date.now();
     const serialized = JSON.stringify(entry);
     
-    await redis.lPush(QUEUE_KEY, serialized);
+    const newLength = await redis.lPush(QUEUE_KEY, serialized);
     await redis.lTrim(QUEUE_KEY, 0, MAX_QUEUE_SIZE - 1);
+    const dropped = Math.max(0, newLength - MAX_QUEUE_SIZE);
+    if (dropped > 0) {
+      logger.warn("Ingest queue trimmed - events dropped", {
+        queueLengthBeforeTrim: newLength,
+        dropped,
+        maxQueueSize: MAX_QUEUE_SIZE,
+        requestId: entry.requestId,
+        shopDomain: entry.shopDomain,
+      });
+      metrics.silentDrop({
+        requestId: entry.requestId,
+        shopDomain: entry.shopDomain,
+        reason: "ingest_queue_overflow",
+        category: "rate_limit",
+        sampleRate: 1,
+      });
+    }
     
     return true;
   } catch (e) {

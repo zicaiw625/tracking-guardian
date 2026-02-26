@@ -382,9 +382,14 @@ export function TestingStep({
                   </List>
                 </BlockStack>
                 <Banner tone="warning">
-                  <Text as="p" variant="bodySm">
-                    {t("migrate.testingStep.production.tip")}
-                  </Text>
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm">
+                      {t("migrate.testingStep.production.tip")}
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      {t("migrate.testingStep.production.marketingPurposeNote")}
+                    </Text>
+                  </BlockStack>
                 </Banner>
               </BlockStack>
             </Banner>

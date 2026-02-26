@@ -261,6 +261,11 @@ export function EnvironmentToggle({
                       {t("components.environmentToggle.switchWarning3")}
                     </Text>
                   </li>
+                  <li>
+                    <Text as="span" variant="bodySm">
+                      {t("components.environmentToggle.switchWarning4")}
+                    </Text>
+                  </li>
                 </ul>
               </BlockStack>
             </Banner>

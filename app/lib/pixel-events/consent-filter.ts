@@ -4,7 +4,7 @@ import type { ConsentState } from "./types";
 
 function platformRequiresSaleOfData(platform: string): boolean {
   const config = PLATFORM_CONSENT_CONFIG[platform];
-  return config?.requiresSaleOfData ?? true;
+  return config?.requiresSaleOfData ?? false;
 }
 
 export interface ConsentCheckResult {
@@ -77,7 +77,7 @@ export function filterPlatformsByConsent(
     const isMarketing = consentCategory === "marketing";
     const isAnalytics = consentCategory === "analytics";
     const requiresSaleOfData = platformRequiresSaleOfData(platform);
-    if (requiresSaleOfData && consentResult.saleOfDataAllowed !== true) {
+    if (requiresSaleOfData && consentResult.saleOfDataAllowed === false) {
       logger.debug(
         `Skipping ${platform} ConversionLog: ` +
           `sale_of_data required but not allowed (saleOfData=${consentResult.saleOfDataAllowed})`

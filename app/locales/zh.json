@@ -3429,6 +3429,7 @@
           "monitor": "已了解如何查看和监控生产环境事件"
         },
         "tip": "💡 提示：切换到生产模式后，建议先运行一次验收测试，确保所有事件正常发送。您可以在「验收向导」页面进行完整的验收测试。",
+        "marketingPurposeNote": "如果未来要启用真实营销投递，请发布启用 marketing purpose 的新像素版本，或拆分为独立营销像素后再上线。",
         "action": "切换到生产模式并前往验收",
         "note": "切换后，您可以在「设置」页面随时切换回测试模式或回滚配置。",
         "validatedTitle": "✅ 配置验证通过！建议您运行验收测试以确保一切正常。",
@@ -3466,6 +3467,7 @@
       "switchWarning1": "生产环境的事件将影响实际的广告归因和转化数据",
       "switchWarning2": "请确保已在测试环境中验证配置正确",
       "switchWarning3": "切换后，当前配置版本将自动保存",
+      "switchWarning4": "若要进行真实营销投递，请使用启用 marketing purpose 的独立像素版本（或拆分第二个像素）。",
       "confirmContinue": "确定要继续吗？",
       "confirmRollbackTitle": "确认回滚配置版本",
       "confirmRollbackBtn": "确认回滚",

@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { jsonWithCors } from "../cors";
 import { validatePixelEventHMAC } from "../hmac-validation";
 import { verifyWithGraceWindowAsync } from "~/utils/shop-access.server";
@@ -56,7 +57,6 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
   };
 
   if (context.signature && hasAnySecret && context.timestamp) {
-    const crypto = await import("crypto");
     const hmacSourcePayload = (() => {
       if (context.signatureSource !== "body" || !context.bodyData || typeof context.bodyData !== "object") {
         return context.bodyText!;

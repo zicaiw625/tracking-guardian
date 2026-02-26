@@ -3429,6 +3429,7 @@
           "monitor": "Understood how to view and monitor production events"
         },
         "tip": "💡 Tip: After switching to production mode, it is recommended to run a verification test to ensure all events are sent normally. You can perform a full verification test in the 'Verification Wizard' page.",
+        "marketingPurposeNote": "If you need real marketing delivery in the future, publish a new pixel version with marketing purpose enabled, or split it into a dedicated marketing pixel.",
         "action": "Switch to Production Mode & Go to Verification",
         "note": "After switching, you can switch back to test mode or rollback configuration in 'Settings' page at any time.",
         "validatedTitle": "✅ Configuration Validated! Recommended to run verification test.",
@@ -3466,6 +3467,7 @@
       "switchWarning1": "Events in Production Environment will affect actual ad attribution and conversion data",
       "switchWarning2": "Please ensure you have verified the configuration in Test Environment",
       "switchWarning3": "Current configuration version will be automatically saved after switching",
+      "switchWarning4": "For real marketing delivery, use a dedicated pixel version with marketing purpose enabled (or split into a second pixel).",
       "confirmContinue": "Are you sure you want to continue?",
       "confirmRollbackTitle": "Confirm Rollback Configuration",
       "confirmRollbackBtn": "Confirm Rollback",

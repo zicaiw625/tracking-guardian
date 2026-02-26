@@ -167,9 +167,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   return json({ success: false, error: "Unknown action" }, { status: 400 });
 };
 
-import { useTranslation } from "react-i18next";
-
-// ... existing imports ...
+import { Trans, useTranslation } from "react-i18next";
 
 export function ErrorBoundary() {
   const { t } = useTranslation();
@@ -498,7 +496,7 @@ export default function VerificationReportPage() {
                 {t("verification.report.originWarning.title")}
               </Text>
               <Text as="p" variant="bodySm">
-                <span dangerouslySetInnerHTML={{ __html: t("verification.report.originWarning.desc") }} />
+                <Trans t={t} i18nKey="verification.report.originWarning.desc" />
               </Text>
             </BlockStack>
           </Banner>
@@ -660,31 +658,30 @@ export default function VerificationReportPage() {
 
 function SandboxLimitationsInfo() {
     const { t } = useTranslation();
-    // This component renders the detailed sandbox limitations info 
-    // Uses translations to avoid hardcoded text
+    const limitsList = t("verification.report.sandbox.infoBanner.limitsList", { returnObjects: true }) as string[];
     return (
         <Banner tone="info">
             <BlockStack gap="200">
                 <Text as="p" variant="bodySm">
-                    <span dangerouslySetInnerHTML={{__html: t("verification.report.sandbox.infoBanner.p1")}} />
+                    <Trans t={t} i18nKey="verification.report.sandbox.infoBanner.p1" />
                 </Text>
                 <Text as="p" variant="bodySm" fontWeight="semibold">
-                    <span dangerouslySetInnerHTML={{__html: t("verification.report.sandbox.infoBanner.p2")}} />
+                    <Trans t={t} i18nKey="verification.report.sandbox.infoBanner.p2" />
                 </Text>
                 <Text as="p" variant="bodySm">
-                    <span dangerouslySetInnerHTML={{__html: t("verification.report.sandbox.infoBanner.p3")}} />
+                    <Trans t={t} i18nKey="verification.report.sandbox.infoBanner.p3" />
                 </Text>
                 <Text as="p" variant="bodySm">
-                    <span dangerouslySetInnerHTML={{__html: t("verification.report.sandbox.infoBanner.p4")}} />
+                    <Trans t={t} i18nKey="verification.report.sandbox.infoBanner.p4" />
                 </Text>
                 <Text as="p" variant="bodySm" fontWeight="semibold">
                     {t("verification.report.sandbox.infoBanner.knownLimits")}
                 </Text>
                 <List type="bullet">
-                    {(t("verification.report.sandbox.infoBanner.limitsList", { returnObjects: true }) as string[]).map((item, i) => (
+                    {limitsList.map((_, i) => (
                         <List.Item key={i}>
                              <Text as="span" variant="bodySm">
-                                <span dangerouslySetInnerHTML={{__html: item}} />
+                                <Trans t={t} i18nKey={`verification.report.sandbox.infoBanner.limitsList.${i}`} />
                              </Text>
                         </List.Item>
                     ))}
@@ -696,7 +693,7 @@ function SandboxLimitationsInfo() {
                     {t("verification.report.sandbox.infoBanner.unavailableEventsDesc")}
                 </Text>
                  <Text as="p" variant="bodySm" tone="subdued">
-                    <span dangerouslySetInnerHTML={{__html: t("verification.report.sandbox.infoBanner.autoLabelDesc")}} />
+                    <Trans t={t} i18nKey="verification.report.sandbox.infoBanner.autoLabelDesc" />
                  </Text>
             </BlockStack>
         </Banner>

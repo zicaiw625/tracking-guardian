@@ -1,22 +1,22 @@
 import { describe, it, expect } from "vitest";
 
-function isStrictSaleOfDataAllowed(saleOfData: boolean | undefined | null): boolean {
-  return saleOfData === true;
+function isOptOutSaleOfDataAllowed(saleOfData: boolean | undefined | null): boolean {
+  return saleOfData !== false;
 }
 
-describe("P0-04: sale_of_data Strict Mode Consistency", () => {
+describe("P0-04: sale_of_data Opt-Out Mode Consistency", () => {
   describe("Core Logic Validation", () => {
-    it("should ALLOW when saleOfData is explicitly true", () => {
-      expect(isStrictSaleOfDataAllowed(true)).toBe(true);
+    it("should allow when saleOfData is explicitly true", () => {
+      expect(isOptOutSaleOfDataAllowed(true)).toBe(true);
     });
-    it("should BLOCK when saleOfData is explicitly false", () => {
-      expect(isStrictSaleOfDataAllowed(false)).toBe(false);
+    it("should block when saleOfData is explicitly false", () => {
+      expect(isOptOutSaleOfDataAllowed(false)).toBe(false);
     });
-    it("should BLOCK when saleOfData is undefined (deny-by-default)", () => {
-      expect(isStrictSaleOfDataAllowed(undefined)).toBe(false);
+    it("should allow when saleOfData is undefined", () => {
+      expect(isOptOutSaleOfDataAllowed(undefined)).toBe(true);
     });
-    it("should BLOCK when saleOfData is null (deny-by-default)", () => {
-      expect(isStrictSaleOfDataAllowed(null)).toBe(false);
+    it("should allow when saleOfData is null", () => {
+      expect(isOptOutSaleOfDataAllowed(null)).toBe(true);
     });
   });
   describe("ConsentState Mapping Consistency", () => {
@@ -24,10 +24,16 @@ describe("P0-04: sale_of_data Strict Mode Consistency", () => {
       marketing?: boolean;
       analytics?: boolean;
       saleOfData?: boolean;
-    } | null): { saleOfDataAllowed: boolean } | null {
+    } | null): { saleOfDataAllowed?: boolean } | null {
       if (!rawConsentState) return null;
+      if (rawConsentState.saleOfData === true) {
+        return { saleOfDataAllowed: true };
+      }
+      if (rawConsentState.saleOfData === false) {
+        return { saleOfDataAllowed: false };
+      }
       return {
-        saleOfDataAllowed: rawConsentState.saleOfData === true,
+        saleOfDataAllowed: undefined,
       };
     }
     it("should map saleOfData=true to saleOfDataAllowed=true", () => {
@@ -38,9 +44,9 @@ describe("P0-04: sale_of_data Strict Mode Consistency", () => {
       const result = mapToConsentState({ saleOfData: false });
       expect(result?.saleOfDataAllowed).toBe(false);
     });
-    it("should map saleOfData=undefined to saleOfDataAllowed=false (P0-04)", () => {
+    it("should map saleOfData=undefined to saleOfDataAllowed=undefined (P0-04)", () => {
       const result = mapToConsentState({ marketing: true, analytics: true });
-      expect(result?.saleOfDataAllowed).toBe(false);
+      expect(result?.saleOfDataAllowed).toBeUndefined();
     });
     it("should map null consentState to null", () => {
       const result = mapToConsentState(null);
@@ -58,18 +64,24 @@ describe("P0-04: sale_of_data Strict Mode Consistency", () => {
       } | null) {
         const rawConsentState = receipt?.consentState;
         if (!rawConsentState) return null;
+        let saleOfDataAllowed: boolean | undefined;
+        if (rawConsentState.saleOfData === true) {
+          saleOfDataAllowed = true;
+        } else if (rawConsentState.saleOfData === false) {
+          saleOfDataAllowed = false;
+        }
         return {
           marketing: rawConsentState.marketing,
           analytics: rawConsentState.analytics,
-          saleOfDataAllowed: rawConsentState.saleOfData === true,
+          saleOfDataAllowed,
         };
       }
-      it("should block send when receipt has undefined saleOfData", () => {
+      it("should allow send when receipt has undefined saleOfData", () => {
         const receipt = {
           consentState: { marketing: true, analytics: true },
         };
         const result = processConversionJobConsentMapping(receipt);
-        expect(result?.saleOfDataAllowed).toBe(false);
+        expect(result?.saleOfDataAllowed).toBeUndefined();
       });
       it("should allow send when receipt has explicit saleOfData=true", () => {
         const receipt = {
@@ -100,18 +112,24 @@ describe("P0-04: sale_of_data Strict Mode Consistency", () => {
       }) {
         const rawConsentState = receipt.consentState;
         if (!rawConsentState) return null;
+        let saleOfDataAllowed: boolean | undefined;
+        if (rawConsentState.saleOfData === true) {
+          saleOfDataAllowed = true;
+        } else if (rawConsentState.saleOfData === false) {
+          saleOfDataAllowed = false;
+        }
         return {
           marketing: rawConsentState.marketing,
           analytics: rawConsentState.analytics,
-          saleOfDataAllowed: rawConsentState.saleOfData === true,
+          saleOfDataAllowed,
         };
       }
-      it("should block reconciliation when saleOfData is missing", () => {
+      it("should allow reconciliation when saleOfData is missing", () => {
         const receipt = {
           consentState: { marketing: true, analytics: true },
         };
         const result = reconcileConsentState(receipt);
-        expect(result?.saleOfDataAllowed).toBe(false);
+        expect(result?.saleOfDataAllowed).toBeUndefined();
       });
       it("should allow reconciliation when saleOfData=true", () => {
         const receipt = {
@@ -134,14 +152,14 @@ describe("P0-04: sale_of_data Strict Mode Consistency", () => {
         analytics?: boolean;
         saleOfData?: boolean;
       } | undefined) {
-        return consent?.saleOfData === true;
+        return consent?.saleOfData !== false;
       }
-      it("should block when saleOfData is undefined", () => {
+      it("should allow when saleOfData is undefined", () => {
         const consent = { marketing: true, analytics: true };
-        expect(checkPixelEventSaleOfData(consent)).toBe(false);
+        expect(checkPixelEventSaleOfData(consent)).toBe(true);
       });
-      it("should block when consent object is undefined", () => {
-        expect(checkPixelEventSaleOfData(undefined)).toBe(false);
+      it("should allow when consent object is undefined", () => {
+        expect(checkPixelEventSaleOfData(undefined)).toBe(true);
       });
       it("should allow when saleOfData=true", () => {
         const consent = { marketing: true, analytics: true, saleOfData: true };
@@ -153,36 +171,30 @@ describe("P0-04: sale_of_data Strict Mode Consistency", () => {
       });
     });
   });
-  describe("Anti-Regression: Old Loose Logic Should Fail", () => {
-    function oldLooseLogic(saleOfData: boolean | undefined): boolean {
+  describe("Anti-Regression: Explicit false still blocks", () => {
+    function optOutOnlyLogic(saleOfData: boolean | undefined): boolean {
       return saleOfData !== false;
     }
-    function newStrictLogic(saleOfData: boolean | undefined): boolean {
-      return saleOfData === true;
-    }
-    it("demonstrates the difference: undefined should be BLOCKED, not allowed", () => {
-      expect(oldLooseLogic(undefined)).toBe(true);
-      expect(newStrictLogic(undefined)).toBe(false);
+    it("keeps undefined allowed in opt-out-only mode", () => {
+      expect(optOutOnlyLogic(undefined)).toBe(true);
     });
-    it("demonstrates the difference: explicit true works the same", () => {
-      expect(oldLooseLogic(true)).toBe(true);
-      expect(newStrictLogic(true)).toBe(true);
+    it("keeps explicit true allowed", () => {
+      expect(optOutOnlyLogic(true)).toBe(true);
     });
-    it("demonstrates the difference: explicit false works the same", () => {
-      expect(oldLooseLogic(false)).toBe(false);
-      expect(newStrictLogic(false)).toBe(false);
+    it("keeps explicit false blocked", () => {
+      expect(optOutOnlyLogic(false)).toBe(false);
     });
   });
   describe("Historical Data Migration Notes", () => {
-    it("documents that old receipts without saleOfData are now blocked", () => {
+    it("documents that old receipts without saleOfData remain allowed unless explicit opt-out", () => {
       const historicalReceipt = {
         consentState: {
           marketing: true,
           analytics: true,
         },
       };
-      const saleOfDataAllowed = historicalReceipt.consentState.saleOfData === true;
-      expect(saleOfDataAllowed).toBe(false);
+      const saleOfDataAllowed = historicalReceipt.consentState.saleOfData !== false;
+      expect(saleOfDataAllowed).toBe(true);
     });
   });
 });

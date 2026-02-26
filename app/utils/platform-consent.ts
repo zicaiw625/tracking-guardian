@@ -112,9 +112,8 @@ export function evaluatePlatformConsent(platform: string, consentState: ConsentS
         category = config?.category || "marketing";
     }
     if (category === "marketing") {
-        const requiresSaleOfData = config?.requiresSaleOfData ?? true;
-        // P1: Strict check - if sale_of_data is required, it must be explicitly true. Undefined/null means denied.
-        if (requiresSaleOfData && consentState.saleOfDataAllowed !== true) {
+        const requiresSaleOfData = config?.requiresSaleOfData ?? false;
+        if (requiresSaleOfData && consentState.saleOfDataAllowed === false) {
             return {
                 allowed: false,
                 reason: `Sale of data not explicitly allowed for ${platformName} (P1: saleOfData=${String(consentState.saleOfDataAllowed)})`,
@@ -138,9 +137,8 @@ export function evaluatePlatformConsent(platform: string, consentState: ConsentS
         };
     }
     else {
-        const requiresSaleOfData = config?.requiresSaleOfData ?? true;
-        // P1: Strict check
-        if (requiresSaleOfData && consentState.saleOfDataAllowed !== true) {
+        const requiresSaleOfData = config?.requiresSaleOfData ?? false;
+        if (requiresSaleOfData && consentState.saleOfDataAllowed === false) {
             return {
                 allowed: false,
                 reason: `Sale of data not explicitly allowed for ${platformName} (P1: saleOfData=${String(consentState.saleOfDataAllowed)})`,
@@ -168,8 +166,8 @@ export function evaluatePlatformConsentWithStrategy(platform: string, consentStr
     const config = PLATFORM_CONSENT_CONFIG[platform];
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const category = getEffectiveConsentCategory(platform, treatAsMarketing);
-    const requiresSaleOfData = config?.requiresSaleOfData ?? true;
-    if (requiresSaleOfData && consentState?.saleOfDataAllowed !== true) {
+    const requiresSaleOfData = config?.requiresSaleOfData ?? false;
+    if (requiresSaleOfData && consentState?.saleOfDataAllowed === false) {
         return {
             allowed: false,
             reason: `sale_of_data_not_allowed (P1: ${String(consentState?.saleOfDataAllowed)})`,
@@ -247,7 +245,7 @@ export function getPlatformConsentRequirements(platform: string): {
             category: "marketing",
             requiresMarketing: true,
             requiresAnalytics: false,
-            requiresSaleOfData: true,
+            requiresSaleOfData: false,
             explanation: `Unknown platform "${platform}" - defaulting to marketing consent requirements`,
         };
     }

@@ -224,7 +224,7 @@ describe("Consent Filter - filterPlatformsByConsent", () => {
       expect(result.platformsToRecord).toEqual([]);
       expect(result.skippedPlatforms).toEqual(["meta", "google", "tiktok"]);
     });
-    it("should skip marketing platforms when marketing=true and saleOfDataAllowed=undefined (opt-out only)", () => {
+    it("should allow marketing platforms when marketing=true and saleOfDataAllowed=undefined (opt-out only)", () => {
       const consent: ConsentCheckResult = {
         hasMarketingConsent: true,
         hasAnalyticsConsent: true,
@@ -233,9 +233,11 @@ describe("Consent Filter - filterPlatformsByConsent", () => {
       };
       const result = filterPlatformsByConsent(mixedPlatforms, consent);
       expect(result.platformsToRecord).toEqual([
-        { platform: "google" }
+        { platform: "meta" },
+        { platform: "google" },
+        { platform: "tiktok" }
       ]);
-      expect(result.skippedPlatforms).toEqual(["meta", "tiktok"]);
+      expect(result.skippedPlatforms).toEqual([]);
     });
   });
   describe("Empty Configurations", () => {
@@ -283,14 +285,14 @@ describe("Platform Consent - evaluatePlatformConsent", () => {
       expect(result.allowed).toBe(false);
       expect(result.reason).toContain("Marketing consent denied");
     });
-    it("should deny Meta when saleOfData is undefined (opt-out only)", () => {
+    it("should allow Meta when saleOfData is undefined (opt-out only)", () => {
       const consent: ConsentState = {
         marketing: true,
         saleOfDataAllowed: undefined,
       };
       const result = evaluatePlatformConsent("meta", consent);
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toContain("Sale of data not explicitly allowed");
+      expect(result.allowed).toBe(true);
+      expect(result.usedConsent).toBe("marketing");
     });
   });
   describe("Google Analytics (Analytics Platform)", () => {
@@ -436,7 +438,7 @@ describe("Platform Consent - evaluatePlatformConsentWithStrategy", () => {
     });
   });
   describe("P0-04: saleOfData Opt-Out Only Across Strategies", () => {
-    it("should deny in strict mode when saleOfData undefined (opt-out only)", () => {
+    it("should allow in strict mode when saleOfData undefined (opt-out only)", () => {
       const consent: ConsentState = {
         marketing: true,
         saleOfDataAllowed: undefined,
@@ -447,10 +449,10 @@ describe("Platform Consent - evaluatePlatformConsentWithStrategy", () => {
         consent,
         true
       );
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toContain("sale_of_data_not_allowed");
+      expect(result.allowed).toBe(true);
+      expect(result.usedConsent).toBe("marketing");
     });
-    it("should deny in balanced mode when saleOfData undefined (opt-out only)", () => {
+    it("should allow in balanced mode when saleOfData undefined (opt-out only)", () => {
       const consent: ConsentState = {
         marketing: true,
         saleOfDataAllowed: undefined,
@@ -461,8 +463,8 @@ describe("Platform Consent - evaluatePlatformConsentWithStrategy", () => {
         consent,
         true
       );
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toContain("sale_of_data_not_allowed");
+      expect(result.allowed).toBe(true);
+      expect(result.usedConsent).toBe("marketing");
     });
     it("should deny when saleOfData explicitly false", () => {
       const consent: ConsentState = {
