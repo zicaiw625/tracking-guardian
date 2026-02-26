@@ -77,16 +77,26 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
         );
     }
     const environment = options?.environment || "live";
-    const existingConfig = await prisma.pixelConfig.findUnique({
-        where: {
-            shopId_platform_environment_platformId: {
+    const normalizedPlatformId = platformId.trim().length > 0 ? platformId.trim() : null;
+    const existingConfig = normalizedPlatformId
+        ? await prisma.pixelConfig.findUnique({
+            where: {
+                shopId_platform_environment_platformId: {
+                    shopId,
+                    platform,
+                    environment: environment as string,
+                    platformId: normalizedPlatformId,
+                },
+            },
+        })
+        : await prisma.pixelConfig.findFirst({
+            where: {
                 shopId,
                 platform,
                 environment: environment as string,
-                platformId: platformId,
+                OR: [{ platformId: null }, { platformId: "" }],
             },
-        },
-    });
+        });
     if (serverSideEnabled) {
         const { checkV1FeatureBoundary } = await import("../utils/version-gate");
         const gateResult = checkV1FeatureBoundary("server_side");
@@ -108,28 +118,61 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
     if (existingConfig) {
         await saveConfigSnapshot(shopId, platform, environment as "test" | "live");
     }
-    return prisma.pixelConfig.upsert({
-        where: {
-            shopId_platform_environment_platformId: {
+    if (normalizedPlatformId) {
+        return prisma.pixelConfig.upsert({
+            where: {
+                shopId_platform_environment_platformId: {
+                    shopId,
+                    platform,
+                    environment: environment as string,
+                    platformId: normalizedPlatformId,
+                },
+            },
+            update: {
+                platformId: normalizedPlatformId,
+                clientConfig: clientConfig ?? undefined,
+                credentialsEncrypted: credentialsEncrypted ?? undefined,
+                serverSideEnabled: serverSideEnabled ?? false,
+                migrationStatus: "in_progress",
+                updatedAt: new Date(),
+            },
+            create: {
+                id: randomUUID(),
                 shopId,
                 platform,
-                environment: environment as string,
-                platformId: platformId,
+                platformId: normalizedPlatformId,
+                clientConfig: clientConfig ?? Prisma.JsonNull,
+                credentialsEncrypted: credentialsEncrypted ?? null,
+                serverSideEnabled: serverSideEnabled ?? false,
+                migrationStatus: "in_progress",
+                configVersion: 1,
+                rollbackAllowed: false,
+                environment: environment as "test" | "live",
+                updatedAt: new Date(),
             },
-        },
-        update: {
-            platformId,
-            clientConfig: clientConfig ?? undefined,
-            credentialsEncrypted: credentialsEncrypted ?? undefined,
-            serverSideEnabled: serverSideEnabled ?? false,
-            migrationStatus: "in_progress",
-            updatedAt: new Date(),
-        },
-        create: {
+        });
+    }
+
+    if (existingConfig) {
+        return prisma.pixelConfig.update({
+            where: { id: existingConfig.id },
+            data: {
+                platformId: null,
+                clientConfig: clientConfig ?? undefined,
+                credentialsEncrypted: credentialsEncrypted ?? undefined,
+                serverSideEnabled: serverSideEnabled ?? false,
+                migrationStatus: "in_progress",
+                updatedAt: new Date(),
+            },
+        });
+    }
+
+    return prisma.pixelConfig.create({
+        data: {
             id: randomUUID(),
             shopId,
             platform,
-            platformId,
+            platformId: null,
             clientConfig: clientConfig ?? Prisma.JsonNull,
             credentialsEncrypted: credentialsEncrypted ?? null,
             serverSideEnabled: serverSideEnabled ?? false,

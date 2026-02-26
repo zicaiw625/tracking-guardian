@@ -1,6 +1,7 @@
 import { jsonWithCors } from "../cors";
 import { enqueueIngestBatch } from "../ingest-queue.server";
 import { ipKeyExtractor } from "~/middleware/rate-limit.server";
+import { encrypt } from "~/utils/crypto.server";
 import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types";
 
 function clampString(s: string | null | undefined, max: number): string | null {
@@ -34,10 +35,12 @@ export const enqueueMiddleware: IngestMiddleware = async (
 
   const firstPayload = context.validatedEvents[0]?.payload;
   const pageUrlRaw = typeof firstPayload?.data?.url === "string" ? firstPayload.data.url : null;
+  const shouldIncludeSensitiveContext = process.env.SERVER_SIDE_CONVERSIONS_ENABLED === "true";
+  const rawIp = shouldIncludeSensitiveContext ? ipKeyExtractor(context.request) : null;
+  const rawUserAgent = shouldIncludeSensitiveContext ? clampString(context.request.headers.get("user-agent"), 512) : null;
   const requestContext = {
-    // Keep raw IP for queue/distribution (S2S requirements), will be handled/hashed at storage time if needed
-    ip: ipKeyExtractor(context.request), 
-    user_agent: clampString(context.request.headers.get("user-agent"), 512),
+    ip_encrypted: rawIp ? encrypt(rawIp) : null,
+    user_agent_encrypted: rawUserAgent ? encrypt(rawUserAgent) : null,
     page_url: sanitizeUrl(pageUrlRaw),
     referrer: null as string | null,
   };

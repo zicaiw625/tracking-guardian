@@ -108,9 +108,9 @@ export async function sendEvent(
   if (testEventCode) {
     body.test_event_code = testEventCode;
   }
-  // P0-2: Attach access_token as query parameter as recommended by Meta documentation
-  const url = `${META_GRAPH_BASE}/${pixelId}/events?access_token=${encodeURIComponent(accessToken)}`;
-  try {
+  const baseUrl = `${META_GRAPH_BASE}/${pixelId}/events`;
+  const fallbackUrl = `${baseUrl}?access_token=${encodeURIComponent(accessToken)}`;
+  const sendToMeta = async (url: string) => {
     const res = await postJson(url, body, {
       timeout: S2S_FETCH_TIMEOUT_MS,
       headers: {
@@ -118,11 +118,19 @@ export async function sendEvent(
       },
     });
     const json = (res.data && typeof res.data === "object" ? res.data : {}) as Record<string, any>;
-    
+    const errMsg = (json as { error?: { message?: string } }).error?.message ?? res.statusText ?? `HTTP ${res.status}`;
+    return { res, json, errMsg };
+  };
+
+  try {
+    let { res, json, errMsg } = await sendToMeta(baseUrl);
+    if (!res.ok && (res.status === 401 || res.status === 403)) {
+      ({ res, json, errMsg } = await sendToMeta(fallbackUrl));
+    }
+
     if (res.ok && !json.error) {
       return { ok: true, statusCode: res.status };
     }
-    const errMsg = (json as { error?: { message?: string } }).error?.message ?? res.statusText ?? `HTTP ${res.status}`;
     return { ok: false, statusCode: res.status, error: errMsg };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

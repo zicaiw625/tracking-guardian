@@ -11,7 +11,9 @@ const MAX_RETRIES = 5;
 
 export interface IngestRequestContext {
   ip?: string | null;
+  ip_encrypted?: string | null;
   user_agent?: string | null;
+  user_agent_encrypted?: string | null;
   page_url?: string | null;
   referrer?: string | null;
 }

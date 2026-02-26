@@ -99,7 +99,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
              return json({ success: false, error: "Invalid environment" }, { status: 400 });
         }
         
-        const platformIdValue = config.platformId?.trim() || null;
+        const platformIdTrimmed = config.platformId?.trim() ?? "";
+        const platformIdValue = platformIdTrimmed.length > 0 ? platformIdTrimmed : null;
         const creds = (typeof config.credentials === 'object' && config.credentials !== null) ? config.credentials : {};
         const hasCredentials =
           platform === "google"
@@ -157,40 +158,60 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         );
         const mode: "purchase_only" | "full_funnel" = hasFullFunnelEvents ? "full_funnel" : "purchase_only";
         const clientConfig = { mode };
-        const savedConfig = await prisma.pixelConfig.upsert({
-          where: {
-            shopId_platform_environment_platformId: {
+        const commonData = {
+          credentialsEncrypted,
+          serverSideEnabled,
+          eventMappings: config.eventMappings as object,
+          clientConfig: clientConfig as object,
+          environment: config.environment,
+          migrationStatus: "in_progress" as const,
+          updatedAt: new Date(),
+        };
+        let savedConfig: { id: string };
+        if (platformIdValue) {
+          savedConfig = await prisma.pixelConfig.upsert({
+            where: {
+              shopId_platform_environment_platformId: {
+                shopId: shop.id,
+                platform,
+                environment: config.environment,
+                platformId: platformIdValue,
+              },
+            },
+            update: {
+              platformId: platformIdValue,
+              ...commonData,
+            },
+            create: {
+              id: generateSimpleId("pixel-config"),
               shopId: shop.id,
               platform,
-              environment: config.environment,
-              platformId: platformIdValue || "",
+              platformId: platformIdValue,
+              ...commonData,
             },
-          },
-          update: {
-            platformId: platformIdValue as string | null,
-            credentialsEncrypted,
-            serverSideEnabled,
-            eventMappings: config.eventMappings as object,
-            clientConfig: clientConfig as object,
-            environment: config.environment,
-            migrationStatus: "in_progress",
-            updatedAt: new Date(),
-          },
-          create: {
-            id: generateSimpleId("pixel-config"),
-            shopId: shop.id,
-            platform,
-            platformId: platformIdValue,
-            credentialsEncrypted,
-            serverSideEnabled,
-            eventMappings: config.eventMappings as object,
-            clientConfig: clientConfig as object,
-            environment: config.environment,
-            migrationStatus: "in_progress",
-            updatedAt: new Date(),
-          },
-          select: { id: true },
-        });
+            select: { id: true },
+          });
+        } else if (existingConfig) {
+          savedConfig = await prisma.pixelConfig.update({
+            where: { id: existingConfig.id },
+            data: {
+              platformId: null,
+              ...commonData,
+            },
+            select: { id: true },
+          });
+        } else {
+          savedConfig = await prisma.pixelConfig.create({
+            data: {
+              id: generateSimpleId("pixel-config"),
+              shopId: shop.id,
+              platform,
+              platformId: null,
+              ...commonData,
+            },
+            select: { id: true },
+          });
+        }
         configIds.push(savedConfig.id);
         if (!existingConfig) {
           createdPlatforms.push(platform);

@@ -94,6 +94,7 @@ export async function saveWizardConfigs(
       continue;
     }
     try {
+      const normalizedPlatformId = config.platformId.trim();
       let credentials: Record<string, string> = {};
       if (config.platform === "google") {
         credentials = {
@@ -114,7 +115,7 @@ export async function saveWizardConfigs(
             shopId,
             platform: config.platform as Platform,
             environment: (config.environment || "live") as string,
-            platformId: config.platformId,
+            platformId: normalizedPlatformId,
           },
         },
       });
@@ -132,11 +133,11 @@ export async function saveWizardConfigs(
             shopId,
             platform: config.platform as Platform,
             environment: (config.environment || "live") as string,
-            platformId: config.platformId,
+            platformId: normalizedPlatformId,
           },
         },
         update: {
-          platformId: config.platformId,
+          platformId: normalizedPlatformId,
           credentialsEncrypted: encryptedCredentials,
           serverSideEnabled: config.serverSideEnabled ?? false,
           eventMappings: config.eventMappings as object,
@@ -152,7 +153,7 @@ export async function saveWizardConfigs(
           id: randomUUID(),
           shopId,
       platform: config.platform as Platform,
-      platformId: config.platformId,
+      platformId: normalizedPlatformId,
       credentialsEncrypted: encryptedCredentials,
       serverSideEnabled: config.serverSideEnabled ?? false,
       eventMappings: config.eventMappings as object,

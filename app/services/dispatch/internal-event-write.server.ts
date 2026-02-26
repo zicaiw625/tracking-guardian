@@ -1,7 +1,7 @@
 import { randomUUID, createHash } from "crypto";
 import { Prisma } from "@prisma/client";
 import prisma from "~/db.server";
-import { normalizeOrderId, encrypt } from "~/utils/crypto.server";
+import { normalizeOrderId, encrypt, decrypt } from "~/utils/crypto.server";
 import type { ProcessedEvent } from "~/lib/pixel-events/ingest-pipeline.server";
 import type { IngestRequestContext } from "~/lib/pixel-events/ingest-queue.server";
 import type { DispatchDestination } from "./queue";
@@ -62,25 +62,35 @@ export async function persistInternalEventsAndDispatchJobs(
 
   if (s2sDestinations.length === 0) return;
 
-  // P1-3: Anonymize IP and UA for privacy compliance
-  const rawIp = requestContext?.ip ?? null;
-  const ip_encrypted = rawIp ? encrypt(rawIp) : null;
+  let rawIp = requestContext?.ip ?? null;
+  if (!rawIp && requestContext?.ip_encrypted) {
+    try {
+      rawIp = decrypt(requestContext.ip_encrypted);
+    } catch {
+      rawIp = null;
+    }
+  }
+  const ip_encrypted = requestContext?.ip_encrypted ?? (rawIp ? encrypt(rawIp) : null);
   let ip = rawIp;
   if (ip) {
     if (ip.includes(".") && ip.split(".").length === 4) {
-      // IPv4: Anonymize last octet (e.g., 1.2.3.4 -> 1.2.3.0)
       const parts = ip.split(".");
       parts[3] = "0";
       ip = parts.join(".");
     } else {
-      // IPv6 or other: Hash
       ip = createHash("sha256").update(ip).digest("hex");
     }
   }
-  
-  // Hash user agent
-  const rawUa = requestContext?.user_agent ?? null;
-  const user_agent_encrypted = rawUa ? encrypt(rawUa) : null;
+
+  let rawUa = requestContext?.user_agent ?? null;
+  if (!rawUa && requestContext?.user_agent_encrypted) {
+    try {
+      rawUa = decrypt(requestContext.user_agent_encrypted);
+    } catch {
+      rawUa = null;
+    }
+  }
+  const user_agent_encrypted = requestContext?.user_agent_encrypted ?? (rawUa ? encrypt(rawUa) : null);
   const user_agent = rawUa ? createHash("sha256").update(rawUa).digest("hex") : null;
   const page_url = sanitizeStoredUrl(requestContext?.page_url);
   const referrer = sanitizeStoredUrl(requestContext?.referrer);
