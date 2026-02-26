@@ -16,6 +16,16 @@ export const RATE_LIMIT_CONFIG = {
     maxRequests: 50,
     windowMs: 60 * 1000,
   },
+  PIXEL_EVENTS_TOKEN_BUCKET: {
+    purchase_only: {
+      refillRatePerSec: 1.5,
+      burstCapacity: 120,
+    },
+    full_funnel: {
+      refillRatePerSec: 8,
+      burstCapacity: 600,
+    },
+  },
   TRACKING: {
     maxRequests: 30,
     windowMs: 60 * 1000,

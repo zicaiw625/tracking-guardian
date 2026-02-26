@@ -78,6 +78,48 @@ const REQUEST_TIMEOUT_MS = 4000;
 const MAX_TOTAL_RETRY_MS = 5000;
 const RETRY_DELAYS_MS = [0, 300, 1200];
 const MAX_RETRIES = RETRY_DELAYS_MS.length;
+const reportedDiagnostics = new Set<string>();
+
+function reportConfigDiagnostic(
+  backendUrl: string,
+  shopDomain: string,
+  reason: "missing_ingestion_key" | "backend_unavailable",
+  isDevMode: boolean,
+  log: (...args: unknown[]) => void
+): void {
+  const dedupeKey = `${shopDomain}:${reason}`;
+  if (reportedDiagnostics.has(dedupeKey)) return;
+  reportedDiagnostics.add(dedupeKey);
+  const url = `${backendUrl}/ingest`;
+  const payload = {
+    events: [
+      {
+        eventName: "pixel_config_diagnostic",
+        timestamp: Date.now(),
+        nonce: `diag-${Date.now()}`,
+        shopDomain,
+        data: {
+          reason,
+        },
+      },
+    ],
+    timestamp: Date.now(),
+  };
+  fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-shopify-shop-domain": shopDomain,
+      "X-Tracking-Guardian-Diagnostic": "1",
+    },
+    keepalive: true,
+    body: JSON.stringify(payload),
+  }).catch((error) => {
+    if (isDevMode) {
+      log("Failed to send pixel diagnostic ping", error);
+    }
+  });
+}
 
 async function sendCheckoutCompletedWithRetry(
   url: string,
@@ -227,6 +269,7 @@ export function createEventSender(config: EventSenderConfig) {
   const normalizedIngestionKey =
     typeof ingestionKey === "string" ? ingestionKey.trim() : "";
   if (!normalizedIngestionKey && !isDevMode) {
+    reportConfigDiagnostic(backendUrl, shopDomain, "missing_ingestion_key", isDevMode, log);
     return async function sendToBackendDisabled(
       _eventName: string,
       _data: Record<string, unknown>,

@@ -2331,6 +2331,25 @@
           "Sandbox limitation annotations"
         ]
       },
+      "share": {
+        "title": "Public Share Link",
+        "description": "Create a read-only public link for this verification report. Shared view is redacted and revocation takes effect immediately.",
+        "newLink": "New link created:",
+        "activeMeta": "Active link prefix: {{prefix}}, expires at: {{expiresAt}}",
+        "actions": {
+          "create": "Create Link",
+          "copy": "Copy Link",
+          "revoke": "Revoke Link"
+        },
+        "toast": {
+          "created": "Share link created",
+          "revoked": "Share link revoked",
+          "createFirst": "Create a new share link first",
+          "copied": "Share link copied",
+          "copyNotSupported": "Clipboard is not supported in this browser",
+          "copyFailed": "Copy failed, please copy manually"
+        }
+      },
       "summary": {
         "title": "Summary",
         "totalTests": "Total Tests",

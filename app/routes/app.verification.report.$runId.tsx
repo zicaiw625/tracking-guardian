@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useActionData } from "@remix-run/react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Page,
   Layout,
@@ -38,6 +38,12 @@ import { trackEvent } from "../services/analytics.server";
 import { safeFireAndForget } from "../utils/helpers.server";
 import { sanitizeFilename } from "../utils/responses";
 import { withSecurityHeaders } from "../utils/security-headers";
+import {
+  createVerificationReportShareLink,
+  getLatestVerificationReportShareMeta,
+  revokeVerificationReportShareLinks,
+} from "../services/report-share.server";
+import { getPublicAppDomain } from "../utils/config.server";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -61,6 +67,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       shop: null,
       run: null,
       reportData: null,
+      shareLinkMeta: null,
       canExportReports: false,
       gateResult: null as FeatureGateResult | null,
       currentPlan: "free" as PlanId,
@@ -77,6 +84,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       shop: { id: shop.id, domain: shopDomain },
       run: null,
       reportData: null,
+      shareLinkMeta: null,
       canExportReports: false,
       gateResult,
       currentPlan: planId,
@@ -93,6 +101,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       shop: { id: shop.id, domain: shopDomain },
       run: null,
       reportData: null,
+      shareLinkMeta: null,
       canExportReports,
       gateResult: gateResult.allowed ? null : gateResult,
       currentPlan: planId,
@@ -100,6 +109,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     });
   }
   const reportData = await generateVerificationReportData(shop.id, runId);
+  const shareLinkMeta = await getLatestVerificationReportShareMeta(shop.id, runId);
     if (!canExportReports && reportData) {
     safeFireAndForget(
       trackEvent({
@@ -121,6 +131,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     shop: { id: shop.id, domain: shopDomain },
     run,
     reportData,
+    shareLinkMeta,
     canExportReports,
     gateResult: gateResult.allowed ? undefined : gateResult,
     currentPlan: planId,
@@ -146,6 +157,31 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   }
   const planId = normalizePlanId(shop.plan || "free") as PlanId;
   const canExportReports = planSupportsReportExport(planId);
+  if (actionType === "create_share_link") {
+    const expiresInDaysRaw = Number(formData.get("expiresInDays") || 7);
+    const created = await createVerificationReportShareLink({
+      shopId: shop.id,
+      runId,
+      createdBy: session.id,
+      expiresInDays: Number.isFinite(expiresInDaysRaw) ? expiresInDaysRaw : 7,
+    });
+    const baseUrl = getPublicAppDomain().replace(/\/+$/, "");
+    const shareUrl = `${baseUrl}/r/${created.token}`;
+    return json({
+      success: true,
+      action: "create_share_link",
+      shareUrl,
+      expiresAt: created.expiresAt.toISOString(),
+    });
+  }
+  if (actionType === "revoke_share_link") {
+    const revokedCount = await revokeVerificationReportShareLinks(shop.id, runId);
+    return json({
+      success: true,
+      action: "revoke_share_link",
+      revokedCount,
+    });
+  }
   if (actionType === "export_csv") {
     if (!canExportReports) {
       return json({ success: false, error: "Growth or Agency plan is required to export reports" }, { status: 403 });
@@ -182,13 +218,42 @@ export function ErrorBoundary() {
 }
 
 export default function VerificationReportPage() {
-  const { shop, run, reportData, canExportReports, gateResult, currentPlan, pixelStrictOrigin } = useLoaderData<typeof loader>();
+  const { shop, run, reportData, shareLinkMeta, canExportReports, gateResult, currentPlan, pixelStrictOrigin } = useLoaderData<typeof loader>();
   const submit = useSubmit();
-  useActionData<typeof action>();
-  useToastContext();
+  const actionData = useActionData<typeof action>();
+  const { showSuccess, showError } = useToastContext();
   const { t, i18n } = useTranslation();
   const locale = i18n.resolvedLanguage || i18n.language || undefined;
   const [isExporting, setIsExporting] = useState(false);
+  const [latestShareUrl, setLatestShareUrl] = useState<string | null>(null);
+  const activeShareMeta = useMemo(() => {
+    if (actionData?.success && actionData.action === "create_share_link" && actionData.expiresAt) {
+      return {
+        tokenPrefix: "new",
+        expiresAt: actionData.expiresAt,
+      };
+    }
+    return shareLinkMeta;
+  }, [actionData, shareLinkMeta]);
+
+  useEffect(() => {
+    if (!actionData) return;
+    if (!actionData.success) {
+      if (actionData.error) showError(actionData.error);
+      return;
+    }
+    if (actionData.action === "create_share_link") {
+      if (actionData.shareUrl) {
+        setLatestShareUrl(actionData.shareUrl);
+      }
+      showSuccess(t("verification.report.share.toast.created"));
+      return;
+    }
+    if (actionData.action === "revoke_share_link") {
+      setLatestShareUrl(null);
+      showSuccess(t("verification.report.share.toast.revoked"));
+    }
+  }, [actionData, showError, showSuccess, t]);
 
   if (!shop) {
     return (
@@ -227,6 +292,33 @@ export default function VerificationReportPage() {
     formData.append("_action", "export_csv");
     submit(formData, { method: "post" });
     setTimeout(() => setIsExporting(false), 2000);
+  };
+  const handleCreateShareLink = () => {
+    const formData = new FormData();
+    formData.append("_action", "create_share_link");
+    formData.append("expiresInDays", "7");
+    submit(formData, { method: "post" });
+  };
+  const handleRevokeShareLink = () => {
+    const formData = new FormData();
+    formData.append("_action", "revoke_share_link");
+    submit(formData, { method: "post" });
+  };
+  const handleCopyShareUrl = async () => {
+    if (!latestShareUrl) {
+      showError(t("verification.report.share.toast.createFirst"));
+      return;
+    }
+    if (!navigator.clipboard?.writeText) {
+      showError(t("verification.report.share.toast.copyNotSupported"));
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(latestShareUrl);
+      showSuccess(t("verification.report.share.toast.copied"));
+    } catch {
+      showError(t("verification.report.share.toast.copyFailed"));
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -272,6 +364,45 @@ export default function VerificationReportPage() {
           primaryAction={{ content: t("verification.report.actions.back"), url: "/app/verification" }}
           secondaryAction={{ content: t("verification.report.actions.reportCenter"), url: "/app/reports" }}
         />
+        <Card>
+          <BlockStack gap="300">
+            <InlineStack align="space-between" blockAlign="center">
+              <Text as="h2" variant="headingMd">
+                {t("verification.report.share.title")}
+              </Text>
+              <InlineStack gap="200">
+                <Button onClick={handleCreateShareLink} size="slim">
+                  {t("verification.report.share.actions.create")}
+                </Button>
+                <Button onClick={handleCopyShareUrl} size="slim" disabled={!latestShareUrl}>
+                  {t("verification.report.share.actions.copy")}
+                </Button>
+                <Button onClick={handleRevokeShareLink} size="slim" tone="critical" disabled={!activeShareMeta}>
+                  {t("verification.report.share.actions.revoke")}
+                </Button>
+              </InlineStack>
+            </InlineStack>
+            {latestShareUrl ? (
+              <Banner tone="success">
+                <Text as="p" variant="bodySm">
+                  {t("verification.report.share.newLink")} {latestShareUrl}
+                </Text>
+              </Banner>
+            ) : (
+              <Text as="p" variant="bodySm" tone="subdued">
+                {t("verification.report.share.description")}
+              </Text>
+            )}
+            {activeShareMeta && (
+              <Text as="p" variant="bodySm" tone="subdued">
+                {t("verification.report.share.activeMeta", {
+                  prefix: activeShareMeta.tokenPrefix,
+                  expiresAt: new Date(activeShareMeta.expiresAt).toLocaleString(locale),
+                })}
+              </Text>
+            )}
+          </BlockStack>
+        </Card>
         {reportData.limitReached && (
             <Banner tone="warning" title={t("verification.report.limitReached.title")}>
                 <Text as="p" variant="bodySm">

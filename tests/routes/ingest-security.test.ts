@@ -53,6 +53,12 @@ vi.mock("../../app/middleware/rate-limit.server", () => ({
     remaining: 100,
     resetAt: Date.now() + 60000,
   }),
+  checkTokenBucketRateLimitAsync: vi.fn().mockResolvedValue({
+    allowed: true,
+    remaining: 100,
+    resetAt: Date.now() + 60000,
+    tokens: 100,
+  }),
   shopDomainIpKeyExtractor: vi.fn((req) => `shop-${req.headers.get("x-shopify-shop-domain") || "unknown"}`),
   ipKeyExtractor: vi.fn(() => "test-ip"),
 }));

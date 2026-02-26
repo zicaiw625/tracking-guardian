@@ -76,6 +76,7 @@ model Shop {
   InternalEvent            InternalEvent[]
   BatchAuditJob            BatchAuditJob[]
   ExtensionError           ExtensionError[]
+  ReportShareLink          ReportShareLink[]
 }
 
 model ExtensionError {
@@ -284,6 +285,7 @@ model VerificationRun {
   createdAt           DateTime            @default(now())
   Shop                Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
   PixelEventReceipt   PixelEventReceipt[]
+  ReportShareLink     ReportShareLink[]
 
   @@index([createdAt])
   @@index([shopId, createdAt])
@@ -291,6 +293,28 @@ model VerificationRun {
   @@index([shopId, status, createdAt])
   @@index([shopId, status])
   @@index([status])
+}
+
+model ReportShareLink {
+  id            String          @id
+  shopId         String
+  runId          String
+  tokenHash      String          @unique
+  tokenPrefix    String
+  scope          String          @default("verification_report")
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  createdBy      String?
+  accessCount    Int             @default(0)
+  lastAccessedAt DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  Shop           Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  VerificationRun VerificationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, runId])
+  @@index([runId, revokedAt, expiresAt])
+  @@index([expiresAt])
 }
 
 model EventLog {

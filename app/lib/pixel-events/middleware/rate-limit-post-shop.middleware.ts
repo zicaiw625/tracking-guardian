@@ -1,12 +1,10 @@
 import { jsonWithCors } from "../cors";
-import { checkRateLimitAsync, shopDomainIpKeyExtractor } from "~/middleware/rate-limit.server";
-import { logger } from "~/utils/logger.server";
+import { checkTokenBucketRateLimitAsync, shopDomainIpKeyExtractor } from "~/middleware/rate-limit.server";
+import { logger, metrics } from "~/utils/logger.server";
 import { RATE_LIMIT_CONFIG } from "~/utils/config.server";
 import { rejectionTracker } from "../rejection-tracker.server";
 import { shouldRecordRejection } from "../stats-sampling";
 import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types";
-
-const INGEST_RATE_LIMIT = RATE_LIMIT_CONFIG.PIXEL_EVENTS;
 
 export const rateLimitPostShopMiddleware: IngestMiddleware = async (
   context: IngestContext
@@ -15,13 +13,18 @@ export const rateLimitPostShopMiddleware: IngestMiddleware = async (
     return { continue: true, context };
   }
 
+  const bucketProfile =
+    context.mode === "full_funnel"
+      ? RATE_LIMIT_CONFIG.PIXEL_EVENTS_TOKEN_BUCKET.full_funnel
+      : RATE_LIMIT_CONFIG.PIXEL_EVENTS_TOKEN_BUCKET.purchase_only;
   const rateLimitKey = shopDomainIpKeyExtractor(context.request);
-  const rateLimit = await checkRateLimitAsync(
+  const rateLimit = await checkTokenBucketRateLimitAsync(
     rateLimitKey,
-    INGEST_RATE_LIMIT.maxRequests,
-    INGEST_RATE_LIMIT.windowMs,
+    bucketProfile.refillRatePerSec,
+    bucketProfile.burstCapacity,
     context.isProduction && !context.allowFallback,
-    context.allowFallback
+    context.allowFallback,
+    1
   );
 
   if (context.isProduction && rateLimit.usingFallback && !context.allowFallback) {
@@ -36,6 +39,17 @@ export const rateLimitPostShopMiddleware: IngestMiddleware = async (
     logger.error("Redis unavailable for rate limiting in production, rejecting request", {
       requestId: context.requestId,
       shopDomain: context.shopDomain!,
+    });
+    metrics.rateLimit({
+      endpoint: "/ingest",
+      key: rateLimitKey,
+      blocked: true,
+      remaining: 0,
+    });
+    metrics.pixelRejection({
+      requestId: context.requestId,
+      shopDomain: context.shopDomain!,
+      reason: "rate_limited",
     });
     return {
       continue: false,
@@ -70,6 +84,20 @@ export const rateLimitPostShopMiddleware: IngestMiddleware = async (
       shopDomain: context.shopDomain!,
       retryAfter: rateLimit.retryAfter,
       remaining: rateLimit.remaining,
+      mode: context.mode,
+      refillRatePerSec: bucketProfile.refillRatePerSec,
+      burstCapacity: bucketProfile.burstCapacity,
+    });
+    metrics.rateLimit({
+      endpoint: "/ingest",
+      key: rateLimitKey,
+      blocked: true,
+      remaining: rateLimit.remaining,
+    });
+    metrics.pixelRejection({
+      requestId: context.requestId,
+      shopDomain: context.shopDomain!,
+      reason: "rate_limited",
     });
     return {
       continue: false,
@@ -85,7 +113,7 @@ export const rateLimitPostShopMiddleware: IngestMiddleware = async (
           requestId: context.requestId,
           headers: {
             "Retry-After": String(rateLimit.retryAfter || 60),
-            "X-RateLimit-Limit": String(INGEST_RATE_LIMIT.maxRequests),
+            "X-RateLimit-Limit": String(bucketProfile.burstCapacity),
             "X-RateLimit-Remaining": String(rateLimit.remaining || 0),
             "X-RateLimit-Reset": String(Math.ceil((rateLimit.resetAt || Date.now()) / 1000)),
           },

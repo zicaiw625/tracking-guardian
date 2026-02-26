@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import { hashValueSync, normalizeOrderId as normalizeOrderIdForReceipt, encrypt } from "../../utils/crypto.server";
-import { ORDER_WEBHOOK_ENABLED } from "../../utils/config.server";
+import { ORDER_WEBHOOK_COLLECT_IP_UA, ORDER_WEBHOOK_ENABLED } from "../../utils/config.server";
 import { evaluatePlatformConsentWithStrategy } from "../../utils/platform-consent";
 import type { ConsentState } from "../../utils/platform-consent";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "../types";
@@ -115,6 +115,8 @@ export async function handleOrdersPaid(
     return { success: true, status: 200, message: "OK" };
   }
   const shopId = shopRecord.id;
+  const rawIp = ORDER_WEBHOOK_COLLECT_IP_UA ? parsed.ip : null;
+  const rawUserAgent = ORDER_WEBHOOK_COLLECT_IP_UA ? parsed.user_agent : null;
   try {
     const existingInternal = await prisma.internalEvent.findUnique({
       where: {
@@ -184,13 +186,13 @@ export async function handleOrdersPaid(
     const s2sDestinations: ("GA4" | "META" | "TIKTOK")[] = [];
     for (const dest of allS2sDestinations) {
       // P0-2: TikTok requires IP/UA. If missing, skip.
-      if (dest === "TIKTOK" && !parsed.ip && !parsed.user_agent) {
+      if (dest === "TIKTOK" && !rawIp && !rawUserAgent) {
         continue;
       }
 
       // P0: Meta requires UA + URL for website events.
       if (dest === "META") {
-        const hasUA = !!parsed.user_agent;
+        const hasUA = !!rawUserAgent;
         const hasUrl = !!receiptPageUrl; // parsed.page_url is null
         if (!hasUA || !hasUrl) {
            continue;
@@ -231,7 +233,7 @@ export async function handleOrdersPaid(
         : Prisma.JsonNull;
 
     // Process IP/UA
-    let ip = parsed.ip;
+    let ip = rawIp;
     if (ip) {
       if (ip.includes(".") && ip.split(".").length === 4) {
         const parts = ip.split(".");
@@ -241,7 +243,7 @@ export async function handleOrdersPaid(
         ip = createHash("sha256").update(ip).digest("hex");
       }
     }
-    const user_agent = parsed.user_agent ? createHash("sha256").update(parsed.user_agent).digest("hex") : null;
+    const user_agent = rawUserAgent ? createHash("sha256").update(rawUserAgent).digest("hex") : null;
 
     const now = Date.now();
     await prisma.$transaction(async (tx) => {
@@ -256,9 +258,9 @@ export async function handleOrdersPaid(
           timestamp: BigInt(now),
           occurred_at: new Date(now),
           ip: ip,
-          ip_encrypted: parsed.ip ? encrypt(parsed.ip) : null,
+          ip_encrypted: rawIp ? encrypt(rawIp) : null,
           user_agent: user_agent,
-          user_agent_encrypted: parsed.user_agent ? encrypt(parsed.user_agent) : null,
+          user_agent_encrypted: rawUserAgent ? encrypt(rawUserAgent) : null,
           page_url: receiptPageUrl,
           referrer: null,
           querystring: null,

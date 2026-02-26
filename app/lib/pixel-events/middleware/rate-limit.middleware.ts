@@ -1,7 +1,7 @@
 import { jsonWithCors } from "../cors";
 import { checkRateLimitAsync, ipKeyExtractor } from "~/middleware/rate-limit.server";
 import { hashValueSync } from "~/utils/crypto.server";
-import { logger } from "~/utils/logger.server";
+import { logger, metrics } from "~/utils/logger.server";
 import { RATE_LIMIT_CONFIG } from "~/utils/config.server";
 import { rejectionTracker } from "../rejection-tracker.server";
 import { shouldRecordRejection } from "../stats-sampling";
@@ -32,6 +32,17 @@ export const rateLimitPreBodyMiddleware: IngestMiddleware = async (
     }
     logger.error("Redis unavailable for rate limiting in production, rejecting request", {
       requestId: context.requestId,
+    });
+    metrics.rateLimit({
+      endpoint: "/ingest-prebody",
+      key: ipKey,
+      blocked: true,
+      remaining: 0,
+    });
+    metrics.pixelRejection({
+      requestId: context.requestId,
+      shopDomain: context.shopDomainHeader,
+      reason: "rate_limited",
     });
     return {
       continue: false,
@@ -66,6 +77,17 @@ export const rateLimitPreBodyMiddleware: IngestMiddleware = async (
       requestId: context.requestId,
       ipHash,
       retryAfter: ipRateLimit.retryAfter,
+    });
+    metrics.rateLimit({
+      endpoint: "/ingest-prebody",
+      key: ipHash,
+      blocked: true,
+      remaining: ipRateLimit.remaining,
+    });
+    metrics.pixelRejection({
+      requestId: context.requestId,
+      shopDomain: context.shopDomainHeader,
+      reason: "rate_limited",
     });
     return {
       continue: false,

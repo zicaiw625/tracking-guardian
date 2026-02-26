@@ -42,7 +42,7 @@
 - **截止日期提醒**：根据店铺类型（Plus/非Plus）显示 Shopify 官方截止日期
   - Plus 店铺：2026-01 开始自动升级
   - 非 Plus 店铺：最晚 2026-08-26
-- **可分享报告链接**：免费用户可查看和分享报告链接，但导出功能需付费
+- **可分享报告链接**：支持创建公开只读分享链接（token、可撤销、可过期，订单号脱敏）
 
 ### (B) 付费：像素"最小可用迁移"（标准事件映射 + 参数完整率）
 - **支持的平台**（v1 只做这3个）：
@@ -136,7 +136,7 @@ v1 的隐私目的边界如下：
 
 > **注意**：Monitor 计划（$29/月，可选叠加）不在 v1.0 正式套餐列表中，将在后续版本中提供。
 
-> **付费墙设计原则**：把"看报告"做免费，把"导出报告/分享给客户"做付费，非常适合 Agency 场景。
+> **付费墙设计原则**：把"看报告"做免费，把"导出报告/对外分享交付件"做付费，非常适合 Agency 场景。
 > 
 > **付费触发点**（3个强 CTA，直接对应商家的"升级项目交付"）：
 > 1. **启用像素迁移（Test 环境）** → 进入付费试用/订阅（Starter $29/月）
@@ -276,7 +276,7 @@ pnpm dev
 
 - **生产环境部署必须使用**：`pnpm deploy:ext`（该命令会自动执行 `pnpm ext:inject` 和 `pnpm ext:validate`）
 - **禁止直接使用**：`shopify app deploy`（不会注入 BACKEND_URL，会导致像素扩展无法工作）
-- **如果占位符未被替换**：像素扩展会静默禁用事件发送，不会显示错误，导致事件丢失
+- **如果占位符未被替换**：像素扩展无法发送业务事件，并会尝试上报配置诊断事件（用于后台排查）
 - **CI/CD 强制验证**：`pnpm ext:validate` 已集成到部署流程中，验证失败将返回 exit code 1，**直接中断构建**，避免部署有问题的扩展
 
 **CI/CD 构建流程说明（关键要求）**：
@@ -497,7 +497,7 @@ ScriptTag 清理需要商家手动操作：
 - `shop/redact` - 店铺数据完全删除
 
 ### 订单 Webhook（V2 能力，当前未启用）
-当前仅启用 `app/uninstalled` 与 GDPR 合规 webhook；**不**订阅 `orders/create`、`orders/paid`。订单层对账为 V2 能力，由 `ORDER_WEBHOOK_ENABLED` 及 PCD 审批控制；启用后才会处理订单 webhook 并落库订单摘要。
+当前仅启用 `app/uninstalled` 与 GDPR 合规 webhook；**不**订阅 `orders/create`、`orders/paid`。订单层对账为 V2 能力，由 `ORDER_WEBHOOK_ENABLED` 及 PCD 审批控制；启用后才会处理订单 webhook 并落库订单摘要。启用订单 webhook 后，IP/UA 采集还需单独开启 `ORDER_WEBHOOK_COLLECT_IP_UA=true`。
 
 ## 上架前 Checklist
 
@@ -608,7 +608,7 @@ Customer Account / Thank you block 与 Web Pixel 的配合、以及 PCD 的说�
      - 检查事件队列处理能力和延迟情况
      - 监控数据库连接池和 API 调用频率
      - 验证事件处理吞吐量和响应时间
-   - **重点验证**：rate limit 阈值是否合理，避免在高并发场景下误杀正常请求。建议根据实际业务峰值调整 `RATE_LIMIT_CONFIG.PIXEL_EVENTS` 配置。如果压测中发现误杀，需要调整 `app/utils/rate-limiter.ts` 中的 `pixel-events` 配置。
+  - **重点验证**：token bucket 配置是否合理，避免在高并发场景下误杀正常请求。建议根据实际业务峰值调整 `RATE_LIMIT_CONFIG.PIXEL_EVENTS_TOKEN_BUCKET`（`purchase_only` / `full_funnel`）配置。
    - **实战建议**：使用项目内置压测脚本 `scripts/load-test-pixel-ingestion.mjs` 进行测试，建议在测试环境先验证，确认无误后再部署到生产环境。
    - **执行命令**：
      ```bash

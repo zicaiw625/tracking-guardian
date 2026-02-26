@@ -25,6 +25,10 @@ export interface RateLimitResult {
   usingFallback?: boolean;
 }
 
+export interface TokenBucketResult extends RateLimitResult {
+  tokens: number;
+}
+
 export type RateLimitedHandler<T> = (
   args: LoaderFunctionArgs | ActionFunctionArgs
 ) => Promise<T>;
@@ -35,8 +39,15 @@ interface MemoryRateLimitEntry {
   expiresAt: number;
 }
 
+interface MemoryTokenBucketEntry {
+  tokens: number;
+  lastRefillAt: number;
+  expiresAt: number;
+}
+
 class InMemoryRateLimitStore {
   private store = new Map<string, MemoryRateLimitEntry>();
+  private tokenBucketStore = new Map<string, MemoryTokenBucketEntry>();
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
   private readonly maxKeys: number;
   private readonly cleanupIntervalMs: number;
@@ -63,12 +74,27 @@ class InMemoryRateLimitStore {
         cleaned++;
       }
     }
+    for (const [key, entry] of this.tokenBucketStore.entries()) {
+      if (now >= entry.expiresAt) {
+        this.tokenBucketStore.delete(key);
+        cleaned++;
+      }
+    }
     if (this.store.size > this.maxKeys) {
       const entries = Array.from(this.store.entries())
         .sort((a, b) => a[1].expiresAt - b[1].expiresAt);
       const toRemove = entries.slice(0, this.store.size - this.maxKeys);
       for (const [key] of toRemove) {
         this.store.delete(key);
+        cleaned++;
+      }
+    }
+    if (this.tokenBucketStore.size > this.maxKeys) {
+      const entries = Array.from(this.tokenBucketStore.entries())
+        .sort((a, b) => a[1].expiresAt - b[1].expiresAt);
+      const toRemove = entries.slice(0, this.tokenBucketStore.size - this.maxKeys);
+      for (const [key] of toRemove) {
+        this.tokenBucketStore.delete(key);
         cleaned++;
       }
     }
@@ -107,11 +133,44 @@ class InMemoryRateLimitStore {
       resetAt,
     };
   }
+  checkTokenBucket(
+    key: string,
+    refillRatePerSec: number,
+    burstCapacity: number,
+    cost = 1
+  ): TokenBucketResult {
+    const now = Date.now();
+    const safeRefillRate = Math.max(0.01, refillRatePerSec);
+    const safeBurst = Math.max(1, Math.floor(burstCapacity));
+    const safeCost = Math.max(1, cost);
+    const entry = this.tokenBucketStore.get(key);
+    const baseTokens = !entry || now >= entry.expiresAt ? safeBurst : entry.tokens;
+    const lastRefillAt = !entry || now >= entry.expiresAt ? now : entry.lastRefillAt;
+    const elapsedSeconds = Math.max(0, (now - lastRefillAt) / 1000);
+    const refilledTokens = Math.min(safeBurst, baseTokens + elapsedSeconds * safeRefillRate);
+    const allowed = refilledTokens >= safeCost;
+    const tokens = allowed ? refilledTokens - safeCost : refilledTokens;
+    const retryAfterSeconds = allowed ? 0 : Math.ceil((safeCost - refilledTokens) / safeRefillRate);
+    const idleTtlMs = Math.ceil((safeBurst / safeRefillRate) * 2000);
+    this.tokenBucketStore.set(key, {
+      tokens,
+      lastRefillAt: now,
+      expiresAt: now + Math.max(1000, idleTtlMs),
+    });
+    return {
+      allowed,
+      remaining: Math.max(0, Math.floor(tokens)),
+      resetAt: now + Math.max(1000, idleTtlMs),
+      retryAfter: allowed ? undefined : retryAfterSeconds,
+      tokens,
+    };
+  }
   getSize(): number {
-    return this.store.size;
+    return this.store.size + this.tokenBucketStore.size;
   }
   clear(): void {
     this.store.clear();
+    this.tokenBucketStore.clear();
   }
   stopCleanup(): void {
     if (this.cleanupInterval) {
@@ -272,6 +331,128 @@ class DistributedRateLimitStore {
           originalLimit: maxRequests,
           strictLimit: strictMaxRequests,
         });
+      }
+      return { ...memoryResult, usingFallback: true };
+    }
+  }
+  async checkTokenBucketAsync(
+    key: string,
+    refillRatePerSec: number,
+    burstCapacity: number,
+    failClosed = false,
+    allowFallback = false,
+    cost = 1
+  ): Promise<TokenBucketResult> {
+    const now = Date.now();
+    const safeRefillRate = Math.max(0.01, refillRatePerSec);
+    const safeBurst = Math.max(1, Math.floor(burstCapacity));
+    const safeCost = Math.max(1, cost);
+    const bucketKey = `${RATE_LIMIT_PREFIX}tb:${key}`;
+    const calculate = (raw: string | null): TokenBucketResult => {
+      let tokens = safeBurst;
+      let lastRefillAt = now;
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw) as { tokens?: number; lastRefillAt?: number };
+          if (typeof parsed.tokens === "number" && Number.isFinite(parsed.tokens)) {
+            tokens = Math.max(0, Math.min(safeBurst, parsed.tokens));
+          }
+          if (typeof parsed.lastRefillAt === "number" && Number.isFinite(parsed.lastRefillAt)) {
+            lastRefillAt = Math.min(now, Math.max(0, parsed.lastRefillAt));
+          }
+        } catch {
+          tokens = safeBurst;
+          lastRefillAt = now;
+        }
+      }
+      const elapsedSeconds = Math.max(0, (now - lastRefillAt) / 1000);
+      const refilled = Math.min(safeBurst, tokens + elapsedSeconds * safeRefillRate);
+      const allowed = refilled >= safeCost;
+      const remainingTokens = allowed ? refilled - safeCost : refilled;
+      const retryAfter = allowed ? undefined : Math.ceil((safeCost - refilled) / safeRefillRate);
+      const idleTtlMs = Math.ceil((safeBurst / safeRefillRate) * 2000);
+      return {
+        allowed,
+        remaining: Math.max(0, Math.floor(remainingTokens)),
+        resetAt: now + Math.max(1000, idleTtlMs),
+        retryAfter,
+        tokens: remainingTokens,
+      };
+    };
+    const setState = async (client: RedisClientWrapper, result: TokenBucketResult) => {
+      const ttlSeconds = Math.max(1, Math.ceil((safeBurst / safeRefillRate) * 2));
+      await client.set(
+        bucketKey,
+        JSON.stringify({
+          tokens: result.tokens,
+          lastRefillAt: now,
+        }),
+        { EX: ttlSeconds }
+      );
+    };
+    if (!this.shouldRetryRedis()) {
+      if (this.isFallbackExpired()) {
+        logger.error("[Rate Limit] Fallback period expired, forcing fail-closed", {
+          fallbackDurationMs: this.fallbackStartTime ? now - this.fallbackStartTime : 0,
+        });
+        const memoryResult = memoryRateLimitStore.checkTokenBucket(key, safeRefillRate, safeBurst, safeCost);
+        return {
+          allowed: false,
+          remaining: 0,
+          resetAt: memoryResult.resetAt,
+          retryAfter: memoryResult.retryAfter,
+          tokens: 0,
+          usingFallback: true,
+        };
+      }
+      const strictRefillRate = allowFallback ? safeRefillRate * 0.5 : safeRefillRate;
+      const strictBurst = allowFallback ? Math.max(1, Math.floor(safeBurst * 0.5)) : safeBurst;
+      const memoryResult = memoryRateLimitStore.checkTokenBucket(key, strictRefillRate, strictBurst, safeCost);
+      if (failClosed && !allowFallback) {
+        return {
+          allowed: false,
+          remaining: 0,
+          resetAt: memoryResult.resetAt,
+          retryAfter: memoryResult.retryAfter,
+          tokens: 0,
+          usingFallback: true,
+        };
+      }
+      return { ...memoryResult, usingFallback: true };
+    }
+    try {
+      const client = await this.getClient();
+      const raw = await client.get(bucketKey);
+      const result = calculate(raw);
+      await setState(client, result);
+      this.markRedisHealthy();
+      return { ...result, usingFallback: false };
+    } catch (error) {
+      this.markRedisUnhealthy();
+      logger.error("[Rate Limit] Redis error in token bucket, using memory fallback", error);
+      if (this.isFallbackExpired()) {
+        const memoryResult = memoryRateLimitStore.checkTokenBucket(key, safeRefillRate, safeBurst, safeCost);
+        return {
+          allowed: false,
+          remaining: 0,
+          resetAt: memoryResult.resetAt,
+          retryAfter: memoryResult.retryAfter,
+          tokens: 0,
+          usingFallback: true,
+        };
+      }
+      const strictRefillRate = allowFallback ? safeRefillRate * 0.5 : safeRefillRate;
+      const strictBurst = allowFallback ? Math.max(1, Math.floor(safeBurst * 0.5)) : safeBurst;
+      const memoryResult = memoryRateLimitStore.checkTokenBucket(key, strictRefillRate, strictBurst, safeCost);
+      if (failClosed && !allowFallback) {
+        return {
+          allowed: false,
+          remaining: 0,
+          resetAt: memoryResult.resetAt,
+          retryAfter: memoryResult.retryAfter,
+          tokens: 0,
+          usingFallback: true,
+        };
       }
       return { ...memoryResult, usingFallback: true };
     }
@@ -593,6 +774,25 @@ export async function checkRateLimitAsync(
 ): Promise<RateLimitResult> {
   enforceTrustedProxy();
   return rateLimitStore.checkAsync(key, maxRequests, windowMs, failClosed, allowFallback);
+}
+
+export async function checkTokenBucketRateLimitAsync(
+  key: string,
+  refillRatePerSec: number,
+  burstCapacity: number,
+  failClosed = false,
+  allowFallback = false,
+  cost = 1
+): Promise<TokenBucketResult> {
+  enforceTrustedProxy();
+  return rateLimitStore.checkTokenBucketAsync(
+    key,
+    refillRatePerSec,
+    burstCapacity,
+    failClosed,
+    allowFallback,
+    cost
+  );
 }
 
 export function checkRateLimitSync(
