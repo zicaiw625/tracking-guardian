@@ -113,7 +113,7 @@ function main() {
     extractTomlApiVersion("shopify.app.toml.template"),
     extractServerApiVersion("app/services/shopify/app-config.server.ts"),
     extractTomlApiVersion("extensions/tracking-pixel/shopify.extension.toml"),
-    // extractTomlApiVersion("extensions/post-checkout-badge/shopify.extension.toml"), // Allow different version for UI extension (React compatibility)
+    // extractTomlApiVersion("extensions/post-checkout-badge/shopify.extension.toml"), // UI extension tracks a separate compatibility window
   ];
   const hasReadErrors = sources.some((source) => source.version === null);
   if (hasReadErrors) {

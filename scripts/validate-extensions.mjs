@@ -47,6 +47,7 @@ const ALLOWED_PATTERNS = [
     /".*document.*"/,
     /'.*document.*'/,
     /`.*document.*`/,
+    /\brender\s*\(.*\bdocument\.body\b.*\)/,
 ];
 
 const FILE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx"];
