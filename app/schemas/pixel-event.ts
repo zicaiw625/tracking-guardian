@@ -102,6 +102,7 @@ export const ShopDomainSchema = z.string()
 const BasePixelEventSchema = z.object({
   eventName: PixelEventNameSchema,
   timestamp: createTimestampSchema(),
+  occurredAt: createTimestampSchema().optional(),
   shopDomain: ShopDomainSchema,
   consent: ConsentSchema.optional(),
 });
@@ -151,6 +152,7 @@ export type PixelEventInput = z.infer<typeof PixelEventSchema>;
 export const SimplePixelEventSchema = z.object({
   eventName: z.string().min(1),
   timestamp: z.number().int(),
+  occurredAt: z.number().int().optional(),
   shopDomain: z.string().min(1),
   consent: z.object({
     marketing: z.boolean().optional(),

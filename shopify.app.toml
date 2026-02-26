@@ -4,7 +4,7 @@ application_url = "https://tracking-guardian.onrender.com"
 embedded = true
 
 [access_scopes]
-scopes = "read_script_tags,read_pixels,write_pixels,read_customer_events"
+scopes = "read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders"
 
 [auth]
 redirect_urls = [
@@ -22,6 +22,10 @@ uri = "/webhooks"
 
 [[webhooks.subscriptions]]
 topics = ["app_subscriptions/update"]
+uri = "/webhooks"
+
+[[webhooks.subscriptions]]
+topics = ["orders/create", "orders/paid"]
 uri = "/webhooks"
 
 [[webhooks.subscriptions]]

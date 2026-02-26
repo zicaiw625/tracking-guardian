@@ -74,7 +74,7 @@
   > **⚠️ v1.0 验收范围说明**：
   > - ✅ **支持的事件类型**：checkout_started、checkout_completed、checkout_contact_info_submitted、checkout_shipping_info_submitted、payment_info_submitted、product_added_to_cart、product_viewed、page_viewed 等 Web Pixels 标准 checkout 漏斗事件
   > - ❌ **不支持的事件类型**：退款（refund）、订单取消（cancel）、订单编辑（order_edit）、订阅订单（subscription）等事件在 v1.0 中不可验收
-  > - **原因**：Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件。退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取，将在 v1.1+ 版本中通过订单 webhooks 实现（严格做 PII 最小化）
+  > - **原因**：Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件。退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取；当前版本已提供订单 webhook 成交补偿链路（严格做 PII 最小化）
   > 
   > **⚠️ checkout_completed 事件触发行为说明（重要）**：
   > - **触发位置**：`checkout_completed` 不一定在 Thank you 页触发。当存在 upsell 或 post-purchase offer 时，事件会在第一层 upsell 页触发，且不会在 Thank you 页再次触发。这是 Shopify 的预期行为，不是故障。
@@ -182,7 +182,7 @@ pnpm install
 ```env
 SHOPIFY_API_KEY=your_api_key
 SHOPIFY_API_SECRET=your_api_secret
-SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
+SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders
 SHOPIFY_APP_URL=https://your-app-url.com
 DATABASE_URL=postgresql://user:password@localhost:5432/tracking_guardian
 ```
@@ -197,12 +197,13 @@ DATABASE_URL=postgresql://user:password@localhost:5432/tracking_guardian
 
 **标准配置（所有环境必须完全一致，包括顺序和拼写）**：
 ```
-SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
+SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders
 ```
 
 **⚠️ 关键要求**：
 - 所有三个位置的配置必须**完全一致**（包括权限顺序和拼写）
 - 如果配置不一致，会导致安装后需要反复 re-auth、某些页面/功能偶发 403 错误
+- 新增 `read_orders` 后，已安装店铺需要重新授权一次以刷新 access token scopes
 
 **权限说明**：
 
@@ -210,7 +211,7 @@ SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
 - `read_pixels`：查询已安装的 Web Pixel 状态
 - `write_pixels`：创建/更新 App Pixel Extension
 
-当前版本不申请 `read_orders`，不订阅订单 webhook；验收基于 Web Pixel 的 `checkout_completed` 等标准事件。
+当前版本申请 `read_orders`，可启用 `orders/create`、`orders/paid` webhook 作为 `checkout_completed` 缺失时的补偿真相源；验收仍以 Web Pixel 标准事件为主，并结合订单 webhook 做一致性补偿。
 
 # P0-2: Web Pixel Origin null 兼容配置（生产环境必须显式设置）
 # ⚠️ 生产环境部署必配项：此变量在生产环境必须显式设置，否则应用启动会失败
@@ -418,7 +419,7 @@ railway up
 | `read_pixels` | 查询已安装的 Web Pixel 状态 | `migration.server.ts` | ✅ 是 |
 | `write_pixels` | 创建/更新 App Pixel Extension | `migration.server.ts` | ✅ 是 |
 
-**权限说明**：所有权限均为当前版本的核心功能所必需，**必须全部包含在 SCOPES 环境变量中**。当前不申请 `read_orders`，不订阅订单 webhook。
+**权限说明**：所有权限均为当前版本的核心功能所必需，**必须全部包含在 SCOPES 环境变量中**，其中 `read_orders` 用于订单 webhook 补偿链路。
 
 **配置一致性要求**：
 
@@ -429,7 +430,7 @@ railway up
 
 **标准配置**（所有环境必须完全一致）：
 ```
-SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
+SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders
 ```
 
 **⚠️ 关键要求**：
@@ -459,6 +460,7 @@ SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
   - Web Pixel Extension 使用批量格式发送到 `/ingest` 端点，提高性能
   - 批量格式支持最多 100 个事件，自动批处理提高并发处理能力
   - 单事件格式和批量格式都在 `/ingest` 端点中统一处理
+  - 事件体同时包含 `timestamp`（发送时刻）与 `occurredAt`（优先取 Shopify 事件发生时刻，缺失时回退发送时刻）
   - 详细实现见 `app/routes/ingest.tsx`
 
 **配置获取**：
@@ -479,7 +481,7 @@ ScriptTag 清理需要商家手动操作：
 - ❌ 直接删除 ScriptTag（需商家手动操作）
 - ❌ 在 TYP/OSP 页面注入任何客户端脚本
 
-当前公开版本的追踪与对账均依赖 **Web Pixel Extension**（不订阅订单 webhook），**不会代表商家向 Meta/GA4/TikTok 等平台发起服务端 CAPI/MP 请求**。当前版本核心价值为「迁移 + 像素链路验收 + 断档监控」，不提供默认的 CAPI/服务端全自动投递；若需 CAPI/MP，需在未来版本或单独能力中显式启用。
+当前公开版本的追踪与对账以 **Web Pixel Extension** 为主，并可通过订单 webhook 进行成交补偿；默认仍不会代表商家向 Meta/GA4/TikTok 等平台发起服务端 CAPI/MP 请求。当前版本核心价值为「迁移 + 像素链路验收 + 断档监控 + 订单真相补偿」。
 
 ### P0-3: 最小权限说明
 
@@ -496,8 +498,8 @@ ScriptTag 清理需要商家手动操作：
 - `customers/redact` - 客户数据删除请求
 - `shop/redact` - 店铺数据完全删除
 
-### 订单 Webhook（V2 能力，当前未启用）
-当前仅启用 `app/uninstalled` 与 GDPR 合规 webhook；**不**订阅 `orders/create`、`orders/paid`。订单层对账为 V2 能力，由 `ORDER_WEBHOOK_ENABLED` 及 PCD 审批控制；启用后才会处理订单 webhook 并落库订单摘要。启用订单 webhook 后，IP/UA 采集还需单独开启 `ORDER_WEBHOOK_COLLECT_IP_UA=true`。
+### 订单 Webhook（成交补偿能力）
+应用已注册 `orders/create`、`orders/paid` 主题，是否处理由 `ORDER_WEBHOOK_ENABLED` 控制。启用后会将订单事件写入补偿链路，用于弥补 `checkout_completed` 的天然缺失场景；IP/UA 采集仍由 `ORDER_WEBHOOK_COLLECT_IP_UA=true` 单独控制。
 
 ## 上架前 Checklist
 

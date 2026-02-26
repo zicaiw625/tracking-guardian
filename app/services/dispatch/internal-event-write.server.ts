@@ -136,7 +136,8 @@ export async function persistInternalEventsAndDispatchJobs(
         ? { marketing: event.payload.consent.marketing, analytics: event.payload.consent.analytics }
         : null;
       const timestampMs = event.payload.timestamp;
-      const occurredAt = new Date(timestampMs);
+      const occurredAtMs = event.payload.occurredAt ?? timestampMs;
+      const occurredAt = new Date(occurredAtMs);
 
       // Upsert to avoid duplicates if webhook/pixel race occurs
       // We prioritize the existing entry if it exists (idempotency)

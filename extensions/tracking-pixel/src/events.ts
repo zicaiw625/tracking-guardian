@@ -196,11 +196,59 @@ interface QueuedEvent {
   eventName: string;
   data: Record<string, unknown>;
   timestamp: number;
+  occurredAt: number;
   nonce: string;
   eventId?: string;
 }
 
 let cryptoUnavailableWarningLogged = false;
+
+function extractContextMeta(event: unknown): { url: string | null; title: string | null } {
+  const typedEvent = event as {
+    context?: {
+      document?: {
+        location?: { href?: string };
+        title?: string;
+      };
+      window?: {
+        location?: { href?: string };
+      };
+    };
+  };
+  const url =
+    typedEvent.context?.document?.location?.href ||
+    typedEvent.context?.window?.location?.href ||
+    null;
+  const title = typedEvent.context?.document?.title || null;
+  return { url, title };
+}
+
+function parseOccurredAtMs(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return Math.floor(value);
+  }
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return null;
+}
+
+function extractOccurredAtMs(event: unknown): number {
+  const typedEvent = event as {
+    timestamp?: number | string;
+    ts?: number | string;
+    createdAt?: number | string;
+  };
+  return (
+    parseOccurredAtMs(typedEvent.timestamp) ||
+    parseOccurredAtMs(typedEvent.ts) ||
+    parseOccurredAtMs(typedEvent.createdAt) ||
+    Date.now()
+  );
+}
 
 function generateNonce(
   isDevMode: boolean,
@@ -277,6 +325,7 @@ export function createEventSender(config: EventSenderConfig) {
     eventName: event.eventName,
     eventId: event.eventId,
     timestamp: event.timestamp,
+    occurredAt: event.occurredAt,
     nonce: event.nonce,
     shopDomain,
     consent: {
@@ -496,7 +545,12 @@ export function createEventSender(config: EventSenderConfig) {
     }
     return "either";
   };
-  return async function sendToBackend(eventName: string, data: Record<string, unknown>, eventId?: string): Promise<void> {
+  return async function sendToBackend(
+    eventName: string,
+    data: Record<string, unknown>,
+    eventId?: string,
+    occurredAt?: number
+  ): Promise<void> {
     const requiredConsent = getRequiredConsentForEvent(eventName);
     let hasRequiredConsent = false;
     if (requiredConsent === "marketing") {
@@ -530,6 +584,7 @@ export function createEventSender(config: EventSenderConfig) {
           eventName,
           data,
           timestamp,
+          occurredAt: occurredAt ?? timestamp,
           nonce,
           eventId,
         });
@@ -544,6 +599,7 @@ export function createEventSender(config: EventSenderConfig) {
         eventName,
         data,
         timestamp,
+        occurredAt: occurredAt ?? timestamp,
         nonce,
         eventId,
       });
@@ -571,12 +627,13 @@ export function subscribeToCheckoutCompleted(
   analytics: {
     subscribe: (event: string, handler: (event: unknown) => void) => void;
   },
-  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string) => Promise<void>,
+  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string, occurredAt?: number) => Promise<void>,
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
   analytics.subscribe("checkout_completed", (event: unknown) => {
     const typedEvent = event as { id?: string; data?: { checkout?: CheckoutData } };
+    const occurredAt = extractOccurredAtMs(event);
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
     const orderId = checkout.order?.id;
@@ -594,7 +651,7 @@ export function subscribeToCheckoutCompleted(
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: mapCheckoutLineItems(checkout),
-    }, typedEvent.id);
+    }, typedEvent.id, occurredAt);
   });
   log("Tracking Guardian pixel initialized - checkout_completed subscribed");
 }
@@ -603,20 +660,24 @@ function subscribeToCheckoutStarted(
   analytics: {
     subscribe: (event: string, handler: (event: unknown) => void) => void;
   },
-  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string) => Promise<void>,
+  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string, occurredAt?: number) => Promise<void>,
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
   analytics.subscribe("checkout_started", (event: unknown) => {
     const typedEvent = event as { id?: string; data?: { checkout?: CheckoutData } };
+    const occurredAt = extractOccurredAtMs(event);
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
+    const { url, title } = extractContextMeta(event);
     sendToBackend("checkout_started", {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: mapCheckoutLineItems(checkout),
-    }, typedEvent.id);
+      url,
+      title,
+    }, typedEvent.id, occurredAt);
   });
   log("checkout_started event subscribed");
 }
@@ -625,14 +686,16 @@ function subscribeToProductAddedToCart(
   analytics: {
     subscribe: (event: string, handler: (event: unknown) => void) => void;
   },
-  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string) => Promise<void>,
+  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string, occurredAt?: number) => Promise<void>,
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
   analytics.subscribe("product_added_to_cart", (event: unknown) => {
     const typedEvent = event as { id?: string; data?: { cartLine?: CartLine; cart?: { currencyCode?: string } } };
+    const occurredAt = extractOccurredAtMs(event);
     const cartLine = typedEvent.data?.cartLine;
     if (!cartLine) return;
+    const { url, title } = extractContextMeta(event);
     const price = toNumber(cartLine.merchandise?.price?.amount);
     const quantity = cartLine.quantity || 1;
     const currency = typedEvent.data?.cart?.currencyCode || null;
@@ -652,7 +715,9 @@ function subscribeToProductAddedToCart(
         productId: productId,
         productTitle: cartLine.merchandise?.product?.title || null,
       }],
-    }, typedEvent.id);
+      url,
+      title,
+    }, typedEvent.id, occurredAt);
   });
   log("product_added_to_cart event subscribed");
 }
@@ -661,7 +726,7 @@ function subscribeToPageViewed(
   analytics: {
     subscribe: (event: string, handler: (event: unknown) => void) => void;
   },
-  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string) => Promise<void>,
+  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string, occurredAt?: number) => Promise<void>,
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
@@ -671,18 +736,19 @@ function subscribeToPageViewed(
       data?: {
         page?: { url?: string; title?: string; currencyCode?: string };
         cart?: { currencyCode?: string };
-      }
+      };
     };
     const page = typedEvent.data?.page;
-    if (!page) return;
-    const currency = page.currencyCode || typedEvent.data?.cart?.currencyCode || null;
+    const occurredAt = extractOccurredAtMs(event);
+    const { url: contextUrl, title: contextTitle } = extractContextMeta(event);
+    const currency = page?.currencyCode || typedEvent.data?.cart?.currencyCode || null;
     sendToBackend("page_viewed", {
-      url: page.url || null,
-      title: page.title || null,
+      url: page?.url || contextUrl,
+      title: page?.title || contextTitle,
       value: 0,
       currency: currency,
       items: [],
-    }, typedEvent.id);
+    }, typedEvent.id, occurredAt);
   });
   log("page_viewed event subscribed");
 }
@@ -691,7 +757,7 @@ function subscribeToProductViewed(
   analytics: {
     subscribe: (event: string, handler: (event: unknown) => void) => void;
   },
-  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string) => Promise<void>,
+  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string, occurredAt?: number) => Promise<void>,
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
@@ -707,7 +773,9 @@ function subscribeToProductViewed(
       };
     };
     const productVariant = typedEvent.data?.productVariant;
+    const occurredAt = extractOccurredAtMs(event);
     if (!productVariant) return;
+    const { url, title } = extractContextMeta(event);
     const price = toNumber(productVariant.price?.amount);
     const currency = (productVariant.price as { currencyCode?: string } | undefined)?.currencyCode || null;
     const variantId = productVariant.id || null;
@@ -725,7 +793,9 @@ function subscribeToProductViewed(
         productId: productId,
         productTitle: productVariant.product?.title || null,
       }],
-    }, typedEvent.id);
+      url,
+      title,
+    }, typedEvent.id, occurredAt);
   });
   log("product_viewed event subscribed");
 }
@@ -734,20 +804,24 @@ function subscribeToCheckoutContactInfoSubmitted(
   analytics: {
     subscribe: (event: string, handler: (event: unknown) => void) => void;
   },
-  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string) => Promise<void>,
+  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string, occurredAt?: number) => Promise<void>,
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
   analytics.subscribe("checkout_contact_info_submitted", (event: unknown) => {
     const typedEvent = event as { id?: string; data?: { checkout?: CheckoutData } };
+    const occurredAt = extractOccurredAtMs(event);
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
+    const { url, title } = extractContextMeta(event);
     sendToBackend("checkout_contact_info_submitted", {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: mapCheckoutLineItems(checkout),
-    }, typedEvent.id);
+      url,
+      title,
+    }, typedEvent.id, occurredAt);
   });
   log("checkout_contact_info_submitted event subscribed");
 }
@@ -756,20 +830,24 @@ function subscribeToCheckoutShippingInfoSubmitted(
   analytics: {
     subscribe: (event: string, handler: (event: unknown) => void) => void;
   },
-  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string) => Promise<void>,
+  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string, occurredAt?: number) => Promise<void>,
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
   analytics.subscribe("checkout_shipping_info_submitted", (event: unknown) => {
     const typedEvent = event as { id?: string; data?: { checkout?: CheckoutData } };
+    const occurredAt = extractOccurredAtMs(event);
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
+    const { url, title } = extractContextMeta(event);
     sendToBackend("checkout_shipping_info_submitted", {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: mapCheckoutLineItems(checkout),
-    }, typedEvent.id);
+      url,
+      title,
+    }, typedEvent.id, occurredAt);
   });
   log("checkout_shipping_info_submitted event subscribed");
 }
@@ -778,20 +856,24 @@ function subscribeToPaymentInfoSubmitted(
   analytics: {
     subscribe: (event: string, handler: (event: unknown) => void) => void;
   },
-  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string) => Promise<void>,
+  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string, occurredAt?: number) => Promise<void>,
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
   analytics.subscribe("payment_info_submitted", (event: unknown) => {
     const typedEvent = event as { id?: string; data?: { checkout?: CheckoutData } };
+    const occurredAt = extractOccurredAtMs(event);
     const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
+    const { url, title } = extractContextMeta(event);
     sendToBackend("payment_info_submitted", {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: mapCheckoutLineItems(checkout),
-    }, typedEvent.id);
+      url,
+      title,
+    }, typedEvent.id, occurredAt);
   });
   log("payment_info_submitted event subscribed");
 }
@@ -800,7 +882,7 @@ export function subscribeToAnalyticsEvents(
   analytics: {
     subscribe: (event: string, handler: (event: unknown) => void) => void;
   },
-  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string) => Promise<void>,
+  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string, occurredAt?: number) => Promise<void>,
   logger?: (...args: unknown[]) => void,
   mode: "purchase_only" | "full_funnel" = "purchase_only"
 ): void {

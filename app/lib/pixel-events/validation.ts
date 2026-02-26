@@ -29,6 +29,7 @@ function normalizeEventFields(
 ): {
   eventName: string;
   timestamp: number;
+  occurredAt?: number;
   shopDomain: string;
   eventId?: string;
   nonce?: string;
@@ -40,6 +41,7 @@ function normalizeEventFields(
   let shopDomain: string | undefined;
   let eventId: string | undefined;
   let nonce: string | undefined;
+  let occurredAt: number | undefined;
   let context: unknown | undefined;
   if (isPRDFormat) {
     eventName = data.event_name as string | undefined;
@@ -50,6 +52,7 @@ function normalizeEventFields(
   } else {
     eventName = data.eventName as string | undefined;
     timestamp = data.timestamp as number | undefined;
+    occurredAt = data.occurredAt as number | undefined;
     shopDomain = data.shopDomain as string | undefined;
     nonce = data.nonce as string | undefined;
     eventId = data.eventId as string | undefined;
@@ -69,6 +72,7 @@ function normalizeEventFields(
   return {
     eventName,
     timestamp,
+    occurredAt,
     shopDomain,
     eventId,
     nonce,
@@ -109,7 +113,7 @@ function validateRequiredFields(
     }
     return { valid: false, error: "Invalid event format", code: "invalid_body" };
   }
-  const { shopDomain, timestamp } = normalized;
+  const { shopDomain, timestamp, occurredAt } = normalized;
   if (!SHOP_DOMAIN_PATTERN.test(shopDomain)) {
     return {
       valid: false,
@@ -125,6 +129,18 @@ function validateRequiredFields(
     return {
       valid: false,
       error: "Timestamp outside reasonable range",
+      code: "invalid_timestamp_value",
+    };
+  }
+  if (
+    occurredAt !== undefined &&
+    (typeof occurredAt !== "number" ||
+      occurredAt < MIN_REASONABLE_TIMESTAMP ||
+      occurredAt > now + MAX_FUTURE_TIMESTAMP_MS)
+  ) {
+    return {
+      valid: false,
+      error: "OccurredAt outside reasonable range",
       code: "invalid_timestamp_value",
     };
   }
@@ -341,7 +357,7 @@ export function validateRequest(body: unknown): ValidationResult {
   if (!normalized) {
     return { valid: false, error: "Invalid event format", code: "invalid_body" };
   }
-  const { eventName, timestamp, shopDomain, nonce, context } = normalized;
+  const { eventName, timestamp, occurredAt, shopDomain, nonce, context } = normalized;
   const rawConsent = (data.consent || (context as Record<string, unknown>)?.consent) as Record<string, unknown> | undefined;
   const consentError = validateConsentFormat(rawConsent);
   if (consentError) {
@@ -370,6 +386,7 @@ export function validateRequest(body: unknown): ValidationResult {
     payload: {
       eventName: eventName as PixelEventName,
       timestamp,
+      occurredAt: occurredAt || undefined,
       shopDomain,
       nonce: nonce || undefined,
       consent: normalizedConsent,
