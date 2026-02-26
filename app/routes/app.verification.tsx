@@ -245,7 +245,8 @@ export default function VerificationPage() {
         t("verification.testItems.purchase_test.steps.1"),
         t("verification.testItems.purchase_test.steps.2")
       ],
-      expectedEvents: ["purchase"]
+      expectedEvents: ["purchase"],
+      eventType: "checkout_completed"
     }
   ];
   

@@ -150,6 +150,9 @@ export function TestOrderGuide({
               <br />
               • <a href="https://help.shopify.com/en/manual/online-store/themes/customizing-themes/checkout-extensibility/web-pixels-api/test-custom-pixels" target="_blank" rel="noopener noreferrer">{t("verification.guide.references.pixels")}</a>
             </Text>
+            <Text as="p" variant="bodySm" tone="subdued">
+              {t("verification.guide.mapping")}
+            </Text>
           </BlockStack>
         </Banner>
         <Divider />

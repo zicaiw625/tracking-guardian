@@ -2502,6 +2502,7 @@
         "step2": "使用测试支付方式（Bogus Gateway）完成订单",
         "step3": "在实时监控中查看事件触发情况"
       },
+      "mapping": "事件名映射说明：系统会将 Shopify 的 checkout_completed 归一化为 purchase 作为验收判定事件。",
       "references": {
         "title": "参考 Shopify 官方文档：",
         "checkout": "测试结账流程",

@@ -60,6 +60,7 @@ vi.mock("../../app/middleware/rate-limit.server", () => ({
     tokens: 100,
   }),
   shopDomainIpKeyExtractor: vi.fn((req) => `shop-${req.headers.get("x-shopify-shop-domain") || "unknown"}`),
+  shopScopedIpKeyExtractor: vi.fn((req, shopDomain) => `${shopDomain || "unknown"}:test-ip`),
   ipKeyExtractor: vi.fn(() => "test-ip"),
 }));
 

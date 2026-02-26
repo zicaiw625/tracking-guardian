@@ -2502,6 +2502,7 @@
         "step2": "Complete order using Bogus Gateway",
         "step3": "Check event triggering in real-time monitoring"
       },
+      "mapping": "Event mapping note: the system normalizes Shopify checkout_completed to purchase for verification checks.",
       "references": {
         "title": "Shopify Official Documentation:",
         "checkout": "Test Checkout Process",

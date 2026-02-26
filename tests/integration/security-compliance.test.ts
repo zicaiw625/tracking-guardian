@@ -56,6 +56,7 @@ vi.mock("../../app/middleware/rate-limit.server", () => ({
   }),
   ipKeyExtractor: vi.fn(() => "test-ip"),
   shopDomainIpKeyExtractor: vi.fn(() => "test-shop-ip"),
+  shopScopedIpKeyExtractor: vi.fn((req, shopDomain) => `${shopDomain || "unknown"}:test-ip`),
 }));
 
 import { addDocumentResponseHeaders } from "../../app/services/shopify/app-config.server";

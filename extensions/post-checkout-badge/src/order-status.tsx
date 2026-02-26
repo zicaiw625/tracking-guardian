@@ -1,6 +1,7 @@
 import "@shopify/ui-extensions/preact";
 import { render } from "preact";
 import { getExtensionCopy, resolveExtensionLanguage } from "./i18n";
+import { normalizeExtensionUrl } from "./url";
 
 type ExtensionSettings = {
   ui_language?: string;
@@ -47,30 +48,21 @@ function OrderStatusExtension() {
     settings.invoice_button_text.trim()
       ? settings.invoice_button_text
       : copy.invoice;
-  const invoiceUrl =
-    typeof settings.invoice_url === "string" && settings.invoice_url.trim()
-      ? settings.invoice_url
-      : "";
+  const invoiceUrl = normalizeExtensionUrl(settings.invoice_url);
   const showSurvey = settings.show_survey_link === true;
   const surveyText =
     typeof settings.survey_button_text === "string" &&
     settings.survey_button_text.trim()
       ? settings.survey_button_text
       : copy.survey;
-  const surveyUrl =
-    typeof settings.survey_url === "string" && settings.survey_url.trim()
-      ? settings.survey_url
-      : "";
+  const surveyUrl = normalizeExtensionUrl(settings.survey_url);
   const showAftersales = settings.show_aftersales_link === true;
   const aftersalesText =
     typeof settings.aftersales_button_text === "string" &&
     settings.aftersales_button_text.trim()
       ? settings.aftersales_button_text
       : copy.aftersales;
-  const aftersalesUrl =
-    typeof settings.aftersales_url === "string" && settings.aftersales_url.trim()
-      ? settings.aftersales_url
-      : "";
+  const aftersalesUrl = normalizeExtensionUrl(settings.aftersales_url);
 
   return (
     <s-stack direction="block">

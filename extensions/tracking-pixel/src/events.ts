@@ -90,19 +90,10 @@ function reportConfigDiagnostic(
   const dedupeKey = `${shopDomain}:${reason}`;
   if (reportedDiagnostics.has(dedupeKey)) return;
   reportedDiagnostics.add(dedupeKey);
-  const url = `${backendUrl}/ingest`;
+  const url = `${backendUrl}/api/pixel-diagnostics`;
   const payload = {
-    events: [
-      {
-        eventName: "pixel_config_diagnostic",
-        timestamp: Date.now(),
-        nonce: `diag-${Date.now()}`,
-        shopDomain,
-        data: {
-          reason,
-        },
-      },
-    ],
+    reason,
+    shopDomain,
     timestamp: Date.now(),
   };
   fetch(url, {

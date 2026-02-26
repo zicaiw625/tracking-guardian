@@ -130,11 +130,6 @@ export const eventValidationMiddleware: IngestMiddleware = async (
       });
       continue;
     }
-    if (i === 0 && !context.batchTimestamp) {
-      context.batchTimestamp = eventValidation.payload.timestamp;
-    }
-
-    // Fix P1-4: Filter events by individual timestamp to prevent queue waste
     const nowForEvent = Date.now();
     if (Math.abs(nowForEvent - eventValidation.payload.timestamp) > TIMESTAMP_WINDOW_MS) {
       logger.debug(`Event at index ${i} timestamp outside window: diff=${Math.abs(nowForEvent - eventValidation.payload.timestamp)}ms, skipping`, {
@@ -143,6 +138,10 @@ export const eventValidationMiddleware: IngestMiddleware = async (
         eventTimestamp: eventValidation.payload.timestamp,
       });
       continue;
+    }
+
+    if (!context.batchTimestamp) {
+      context.batchTimestamp = eventValidation.payload.timestamp;
     }
 
     validatedEvents.push({

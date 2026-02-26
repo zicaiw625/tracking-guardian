@@ -12,7 +12,16 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
   if (!report) {
     throw new Response("Share link expired or revoked", { status: 404 });
   }
-  return json({ report });
+  return json(
+    { report },
+    {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+    }
+  );
 };
 
 export default function PublicVerificationReportPage() {
