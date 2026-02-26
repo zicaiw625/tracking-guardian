@@ -25,6 +25,10 @@ i18next
     interpolation: {
       escapeValue: false, // react already safes from xss => https://www.i18next.com/translation-function/interpolation#unescape
     },
+    react: {
+      transSupportBasicHtmlNodes: true,
+      transKeepBasicHtmlNodesFor: ["br", "strong", "i", "p", "code"],
+    },
     detection: {
         order: ["htmlTag"],
         caches: [],

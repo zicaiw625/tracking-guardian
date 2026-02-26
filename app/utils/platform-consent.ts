@@ -116,7 +116,7 @@ export function evaluatePlatformConsent(platform: string, consentState: ConsentS
         if (requiresSaleOfData && consentState.saleOfDataAllowed === false) {
             return {
                 allowed: false,
-                reason: `Sale of data not explicitly allowed for ${platformName} (P1: saleOfData=${String(consentState.saleOfDataAllowed)})`,
+                reason: `Sale of data explicitly opted out for ${platformName} (P1: saleOfData=${String(consentState.saleOfDataAllowed)})`,
                 usedConsent: "none",
             };
         }
@@ -141,7 +141,7 @@ export function evaluatePlatformConsent(platform: string, consentState: ConsentS
         if (requiresSaleOfData && consentState.saleOfDataAllowed === false) {
             return {
                 allowed: false,
-                reason: `Sale of data not explicitly allowed for ${platformName} (P1: saleOfData=${String(consentState.saleOfDataAllowed)})`,
+                reason: `Sale of data explicitly opted out for ${platformName} (P1: saleOfData=${String(consentState.saleOfDataAllowed)})`,
                 usedConsent: "none",
             };
         }

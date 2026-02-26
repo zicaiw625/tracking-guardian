@@ -60,8 +60,8 @@ export async function enqueueIngestBatch(entry: IngestQueueEntry): Promise<boole
       metrics.silentDrop({
         requestId: entry.requestId,
         shopDomain: entry.shopDomain,
-        reason: "ingest_queue_overflow",
-        category: "rate_limit",
+        reason: "ingest_queue_trimmed_backpressure",
+        category: "backpressure",
         sampleRate: 1,
       });
     }

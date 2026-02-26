@@ -529,7 +529,7 @@ export const metrics = {
     requestId?: string;
     shopDomain?: string;
     reason: string;
-    category: "security" | "validation" | "duplicate" | "rate_limit";
+    category: "security" | "validation" | "duplicate" | "rate_limit" | "backpressure";
     sampleRate?: number;
   }): void {
     const rate = context.sampleRate ?? 1;
