@@ -282,9 +282,13 @@ export const eventValidationMiddleware: IngestMiddleware = async (
   const bodySignatureShopDomain = typeof bodyEnvelope?.signatureShopDomain === "string" && bodyEnvelope.signatureShopDomain.trim().length > 0
     ? bodyEnvelope.signatureShopDomain.trim()
     : null;
-  const resolvedSignature = context.signature ?? bodySignature;
-  const resolvedTimestampHeader = context.timestampHeader ?? (bodySignatureTimestamp === null ? null : String(bodySignatureTimestamp));
-  const resolvedTimestamp = context.timestamp ?? bodySignatureTimestamp ?? timestamp;
+  const allowBodySignature = !context.isProduction;
+  const resolvedBodySignature = allowBodySignature ? bodySignature : null;
+  const resolvedSignature = context.signature ?? resolvedBodySignature;
+  const resolvedTimestampHeader = context.timestampHeader ?? (
+    allowBodySignature && bodySignatureTimestamp !== null ? String(bodySignatureTimestamp) : null
+  );
+  const resolvedTimestamp = context.timestamp ?? (allowBodySignature ? bodySignatureTimestamp : null) ?? timestamp;
 
   return {
     continue: true,
@@ -295,11 +299,11 @@ export const eventValidationMiddleware: IngestMiddleware = async (
       timestamp: resolvedTimestamp,
       signature: resolvedSignature,
       timestampHeader: resolvedTimestampHeader,
-      bodySignature,
-      hasBodySignature: Boolean(bodySignature),
+      bodySignature: resolvedBodySignature,
+      hasBodySignature: Boolean(resolvedBodySignature),
       bodySignatureTimestamp,
       bodySignatureShopDomain,
-      signatureSource: context.signature ? "header" : bodySignature ? "body" : "none",
+      signatureSource: context.signature ? "header" : resolvedBodySignature ? "body" : "none",
     },
   };
 };

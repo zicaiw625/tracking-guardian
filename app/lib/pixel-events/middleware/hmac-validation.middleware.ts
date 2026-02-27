@@ -21,7 +21,29 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
 
   const hasAnySecret = Boolean(context.shop.ingestionSecret || context.shop.previousIngestionSecret);
 
-  // P0-1: Enforce timestamp presence in production when signature or secret is present
+  if (context.isProduction && context.signatureSource === "body") {
+    if (shouldRecordRejection(context.isProduction, false, "invalid_key")) {
+      rejectionTracker.record({
+        requestId: context.requestId,
+        shopDomain: context.shopDomain!,
+        reason: "invalid_key",
+        timestamp: Date.now(),
+      });
+    }
+    metrics.pixelRejection({
+      requestId: context.requestId,
+      shopDomain: context.shopDomain!,
+      reason: "invalid_key",
+    });
+    return {
+      continue: false,
+      response: jsonWithCors(
+        { error: "Invalid request" },
+        { status: 403, request: context.request, requestId: context.requestId }
+      ),
+    };
+  }
+
   if (context.isProduction && (context.signature || hasAnySecret) && !context.timestamp) {
     if (shouldRecordRejection(context.isProduction, false, "timestamp_missing")) {
       rejectionTracker.record({

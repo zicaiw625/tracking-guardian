@@ -27,6 +27,7 @@ export interface RedisClientWrapper {
   lLen(key: string): Promise<number>;
   lRem(key: string, count: number, element: string): Promise<number>;
   lIndex(key: string, index: number): Promise<string | null>;
+  lSet(key: string, index: number, element: string): Promise<void>;
   rPopLPush(source: string, destination: string): Promise<string | null>;
   isConnected(): boolean;
   getConnectionInfo(): ConnectionInfo;
@@ -321,6 +322,17 @@ class InMemoryFallback implements RedisClientWrapper {
     if (!list) return null;
     const idx = index < 0 ? list.length + index : index;
     return list[idx] || null;
+  }
+  async lSet(key: string, index: number, element: string): Promise<void> {
+    const list = this.listStore.get(key);
+    if (!list) {
+      throw new Error("ERR no such key");
+    }
+    const idx = index < 0 ? list.length + index : index;
+    if (idx < 0 || idx >= list.length) {
+      throw new Error("ERR index out of range");
+    }
+    list[idx] = element;
   }
   async rPopLPush(source: string, destination: string): Promise<string | null> {
     const value = await this.rPop(source);
@@ -692,6 +704,13 @@ class RedisClientFactory {
           return this.fallback.lIndex(key, index);
         }
       },
+      lSet: async (key: string, index: number, element: string): Promise<void> => {
+        try {
+          await client.lSet(key, index, element);
+        } catch {
+          await this.fallback.lSet(key, index, element);
+        }
+      },
       rPopLPush: async (source: string, destination: string): Promise<string | null> => {
         try {
           if (typeof client.lMove === "function") {
@@ -778,6 +797,9 @@ class RedisClientFactory {
         }
       },
       lIndex: async (key: string, index: number): Promise<string | null> => client.lIndex(key, index),
+      lSet: async (key: string, index: number, element: string): Promise<void> => {
+        await client.lSet(key, index, element);
+      },
       rPopLPush: async (source: string, destination: string): Promise<string | null> => {
         try {
           if (typeof client.lMove === "function") {

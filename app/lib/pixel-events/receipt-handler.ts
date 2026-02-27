@@ -373,16 +373,16 @@ export async function createEventNonce(
   timestamp: number,
   nonce: string | null | undefined,
   eventType: string
-): Promise<{ isReplay: boolean }> {
+): Promise<{ isReplay: boolean; checkFailed: boolean }> {
   if (!nonce) {
-    return { isReplay: false };
+    return { isReplay: false, checkFailed: false };
   }
   const ttlMs = RETENTION_CONFIG.NONCE_EXPIRY_MS;
   const key = `tg:nonce:${shopId}:${eventType}:${nonce}`;
   try {
     const redis = await getRedisClientStrict();
     const ok = await redis.setNX(key, "1", ttlMs);
-    return { isReplay: !ok };
+    return { isReplay: !ok, checkFailed: false };
   } catch (redisError) {
     logger.error("Failed to check event nonce in Redis", {
       shopId,
@@ -391,8 +391,7 @@ export async function createEventNonce(
       timestamp,
       error: redisError instanceof Error ? redisError.message : String(redisError),
     });
-    // Redis failure should not disable replay protection. Fail closed for nonce-protected events.
-    return { isReplay: true };
+    return { isReplay: false, checkFailed: true };
   }
 }
 

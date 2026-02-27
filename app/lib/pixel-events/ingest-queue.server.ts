@@ -92,15 +92,16 @@ export async function processIngestQueue(
   for (let i = 0; i < maxBatches; i++) {
     const raw = await redis.rPopLPush(QUEUE_KEY, PROCESSING_KEY);
     if (!raw) break;
-    const processingRaw = raw;
+    let processingRaw = raw;
 
     let entry: IngestQueueEntry;
     try {
       entry = JSON.parse(processingRaw) as IngestQueueEntry;
       if (!entry.processingStartedAt) {
-        // Keep timestamp in-memory for this worker run to avoid a non-atomic
-        // remove+push rewrite window that could drop the batch on crash.
         entry.processingStartedAt = Date.now();
+        const updatedRaw = JSON.stringify(entry);
+        await redis.lSet(PROCESSING_KEY, 0, updatedRaw);
+        processingRaw = updatedRaw;
       }
     } catch (e) {
       logger.warn("Invalid ingest queue entry JSON", {

@@ -105,6 +105,7 @@ import { action } from "../../app/routes/ingest";
 import { getShopForPixelVerificationWithConfigs } from "../../app/lib/pixel-events/key-validation";
 import { validatePixelEventHMAC } from "../../app/lib/pixel-events/hmac-validation";
 import { verifyWithGraceWindowAsync } from "../../app/utils/shop-access";
+import { checkRateLimitAsync } from "../../app/middleware/rate-limit.server";
 
 const originalEnv = process.env;
 
@@ -374,6 +375,48 @@ describe("/ingest Security Policy Tests", () => {
       expect(response.status).toBe(202);
       const data = await response.json();
       expect(data.accepted_count).toBeDefined();
+    });
+
+    it("should reject body signature only in production", async () => {
+      process.env.NODE_ENV = "production";
+      const payload = createValidEventPayload("test-shop.myshopify.com");
+      const signedPayload = {
+        ...payload,
+        signature: "valid-signature",
+        signatureTimestamp: payload.timestamp,
+        signatureShopDomain: payload.shopDomain,
+      };
+      const request = createRequest(signedPayload, {
+        Origin: "https://test-shop.myshopify.com",
+      });
+
+      const response = await action({ request, params: {}, context: {} });
+      expect(response.status).toBe(403);
+    });
+  });
+
+  describe("Pre-body rate-limit keying", () => {
+    it("should use same pre-body key across spoofed shop headers", async () => {
+      const payload = createValidEventPayload("test-shop.myshopify.com");
+      const requestA = createRequest(payload, {
+        Origin: "https://test-shop.myshopify.com",
+        "x-shopify-shop-domain": "shop-a.myshopify.com",
+        "X-Tracking-Guardian-Signature": "valid-signature",
+        "X-Tracking-Guardian-Timestamp": String(payload.timestamp),
+      });
+      const requestB = createRequest(payload, {
+        Origin: "https://test-shop.myshopify.com",
+        "x-shopify-shop-domain": "shop-b.myshopify.com",
+        "X-Tracking-Guardian-Signature": "valid-signature",
+        "X-Tracking-Guardian-Timestamp": String(payload.timestamp),
+      });
+
+      await action({ request: requestA, params: {}, context: {} });
+      await action({ request: requestB, params: {}, context: {} });
+
+      const allCalls = vi.mocked(checkRateLimitAsync).mock.calls;
+      expect(allCalls.length).toBeGreaterThanOrEqual(2);
+      expect(allCalls[0][0]).toBe(allCalls[1][0]);
     });
   });
 });

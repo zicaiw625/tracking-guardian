@@ -1,5 +1,5 @@
 import { jsonWithCors } from "../cors";
-import { checkRateLimitAsync, shopScopedIpKeyExtractor } from "~/middleware/rate-limit.server";
+import { checkRateLimitAsync, ipKeyExtractor } from "~/middleware/rate-limit.server";
 import { hashValueSync } from "~/utils/crypto.server";
 import { logger, metrics } from "~/utils/logger.server";
 import { RATE_LIMIT_CONFIG } from "~/utils/config.server";
@@ -12,10 +12,7 @@ const PREBODY_RATE_LIMIT = RATE_LIMIT_CONFIG.PIXEL_EVENTS_PREBODY;
 export const rateLimitPreBodyMiddleware: IngestMiddleware = async (
   context: IngestContext
 ): Promise<MiddlewareResult> => {
-  const ipKey = shopScopedIpKeyExtractor(
-    context.request,
-    context.shopDomainHeader !== "unknown" ? context.shopDomainHeader : null
-  );
+  const ipKey = ipKeyExtractor(context.request);
   const ipRateLimit = await checkRateLimitAsync(
     ipKey,
     PREBODY_RATE_LIMIT.maxRequests,

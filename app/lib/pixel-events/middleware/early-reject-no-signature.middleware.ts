@@ -5,7 +5,7 @@ import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types"
 export const earlyRejectNoSignatureMiddleware: IngestMiddleware = async (
   context: IngestContext
 ): Promise<MiddlewareResult> => {
-  if (context.isProduction && context.signatureSource === "none") {
+  if (context.isProduction && !context.signature) {
     metrics.pixelRejection({
       requestId: context.requestId,
       shopDomain: context.shopDomainHeader,

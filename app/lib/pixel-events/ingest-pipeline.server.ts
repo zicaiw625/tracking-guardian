@@ -32,6 +32,7 @@ export interface NormalizedEvent {
 export interface DeduplicatedEvent extends NormalizedEvent {
   isDuplicate: boolean;
   isReplay: boolean;
+  nonceCheckFailed: boolean;
 }
 
 export interface ProcessedEvent extends DeduplicatedEvent {
@@ -306,6 +307,7 @@ export async function deduplicateEvents(
     
     let isDuplicate = false;
     let isReplay = false;
+    let nonceCheckFailed = false;
     
     if (isPurchaseEvent && event.orderId) {
       try {
@@ -333,6 +335,9 @@ export async function deduplicateEvents(
             nonceFromBody,
             eventType
           );
+          if (nonceResult.checkFailed) {
+            nonceCheckFailed = true;
+          }
           
           if (nonceResult.isReplay) {
             const orderIdHash = hashValueSync(event.orderId).slice(0, 12);
@@ -362,6 +367,7 @@ export async function deduplicateEvents(
         ...event,
         isDuplicate,
         isReplay,
+        nonceCheckFailed,
       });
     }
   }
@@ -441,6 +447,12 @@ export async function distributeEvents(
       try {
         const eventType = "purchase";
         const shouldStorePayload = activeVerificationRunId !== null || destinations.length > 0;
+        const resolvedTrustLevel =
+          event.nonceCheckFailed && keyValidation.trustLevel === "trusted"
+            ? "partial"
+            : event.nonceCheckFailed
+              ? "untrusted"
+              : keyValidation.trustLevel;
         for (const { platform } of platformsToRecord) {
           await upsertPixelEventReceipt(
             shopId,
@@ -453,7 +465,7 @@ export async function distributeEvents(
             event.orderId || null,
             event.altOrderKey,
             shouldStorePayload,
-            keyValidation.trustLevel,
+            resolvedTrustLevel,
             keyValidation.matched,
             environment
           );
