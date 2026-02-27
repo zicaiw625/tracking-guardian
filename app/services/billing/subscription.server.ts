@@ -425,7 +425,17 @@ export async function createSubscription(
   try {
     const currentStatus = await getSubscriptionStatus(admin, shopDomain);
     const currentPlan = currentStatus.plan;
-    if (currentPlan === planId && currentStatus.hasActiveSubscription) {
+    const hasCurrentPlanEntitlement =
+      currentPlan === planId &&
+      (
+        currentStatus.hasActiveSubscription ||
+        (
+          currentStatus.status === "CANCELLED" &&
+          !!currentStatus.currentPeriodEnd &&
+          new Date(currentStatus.currentPeriodEnd).getTime() > Date.now()
+        )
+      );
+    if (hasCurrentPlanEntitlement) {
       return { success: false, error: "You are already on this plan. No need to subscribe again." };
     }
 

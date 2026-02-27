@@ -465,6 +465,7 @@ export async function distributeEvents(
           orderIdHash,
           error: error instanceof Error ? error.message : String(error),
         });
+        throw error;
       }
     } else if (!isPurchaseEvent && event.eventId) {
       try {
@@ -492,6 +493,7 @@ export async function distributeEvents(
           eventName: event.payload.eventName,
           error: error instanceof Error ? error.message : String(error),
         });
+        throw error;
       }
     }
 

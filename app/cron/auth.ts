@@ -1,6 +1,7 @@
 import { timingSafeEqual , createHmac, createHash } from "crypto";
 import { logger } from "../utils/logger.server";
 import { readTextWithLimit } from "../utils/body-reader";
+import { getRedisClient } from "../utils/redis-client.server";
 
 const REPLAY_WINDOW_SECONDS = 300;
 const MIN_SECRET_LENGTH = 32;
@@ -96,6 +97,7 @@ export async function verifyReplayProtection(
 
   const timestampHeader = request.headers.get("X-Cron-Timestamp");
   const signatureHeader = request.headers.get("X-Cron-Signature");
+  const nonceHeader = request.headers.get("X-Cron-Nonce");
 
   if (!timestampHeader) {
     return { valid: false, error: "Missing timestamp header" };
@@ -103,6 +105,12 @@ export async function verifyReplayProtection(
 
   if (!signatureHeader) {
     return { valid: false, error: "Missing signature header" };
+  }
+  if (!nonceHeader) {
+    return { valid: false, error: "Missing nonce header" };
+  }
+  if (nonceHeader.length < 8 || nonceHeader.length > 128) {
+    return { valid: false, error: "Invalid nonce format" };
   }
 
   const timestamp = parseInt(timestampHeader, 10);
@@ -134,7 +142,7 @@ export async function verifyReplayProtection(
     bodyHash = "";
   }
 
-  const signatureContent = `${method}:${pathname}:${timestampHeader}:${bodyHash}`;
+  const signatureContent = `${method}:${pathname}:${timestampHeader}:${nonceHeader}:${bodyHash}`;
   const secrets = Array.isArray(secretOrSecrets) ? secretOrSecrets : [secretOrSecrets];
   
   let validSignatureFound = false;
@@ -163,6 +171,26 @@ export async function verifyReplayProtection(
 
   if (!validSignatureFound) {
     return { valid: false, error: "Invalid signature" };
+  }
+
+  try {
+    const redis = await getRedisClient();
+    const nonceKey = `cron:nonce:${timestampHeader}:${nonceHeader}`;
+    const acquired = await redis.setNX(
+      nonceKey,
+      "1",
+      REPLAY_WINDOW_SECONDS * 1000
+    );
+    if (!acquired) {
+      return { valid: false, error: "Replay detected (nonce already used)" };
+    }
+  } catch (error) {
+    if (isProduction) {
+      logger.warn("Cron replay nonce check failed in production", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return { valid: false, error: "Replay protection storage unavailable" };
+    }
   }
 
   return { valid: true };

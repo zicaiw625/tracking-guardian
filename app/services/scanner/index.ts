@@ -114,8 +114,9 @@ function isCheckoutConfig(value: unknown): value is CheckoutConfig {
     );
 }
 
-async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> {
+async function fetchAllScriptTags(admin: AdminApiContext): Promise<{ tags: ScriptTag[]; truncated: boolean }> {
     const allTags: ScriptTag[] = [];
+    let truncated = false;
     let hasNextPage = true;
     let cursor: string | null = null;
     let previousCursor: string | null = null;
@@ -174,7 +175,7 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
                 if (allTags.length > 0) {
                     logger.warn(`Returning ${allTags.length} ScriptTags despite JSON parse error`);
                 }
-                return allTags;
+                return { tags: allTags, truncated };
             }
             if (data.errors && data.errors.length > 0) {
                 const errorMessage = data.errors[0]?.message || "Unknown GraphQL error";
@@ -182,7 +183,7 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
                 if (allTags.length > 0) {
                     logger.warn(`Returning ${allTags.length} ScriptTags despite errors`);
                 }
-                return allTags;
+                return { tags: allTags, truncated };
             }
             const scriptTagsData = data.data?.scriptTags;
             if (!scriptTagsData || typeof scriptTagsData !== "object") {
@@ -190,7 +191,7 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
                 if (allTags.length > 0) {
                     logger.warn(`Returning ${allTags.length} ScriptTags despite invalid response structure`);
                 }
-                return allTags;
+                return { tags: allTags, truncated };
             }
             const edges = scriptTagsData.edges;
             if (!validateGraphQLEdges<{
@@ -205,7 +206,7 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
                 if (allTags.length > 0) {
                     logger.warn(`Returning ${allTags.length} ScriptTags despite invalid edges`);
                 }
-                return allTags;
+                return { tags: allTags, truncated };
             }
             let pageInfo: GraphQLPageInfo = scriptTagsData.pageInfo || { hasNextPage: false, endCursor: null };
             if (typeof pageInfo !== "object" || pageInfo === null) {
@@ -253,11 +254,13 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
             previousCursor = cursor;
             if (allTags.length >= MAX_SCRIPT_TAGS) {
                 logger.warn(`ScriptTags pagination limit reached (${MAX_SCRIPT_TAGS})`);
+                truncated = true;
                 break;
             }
         }
         if (iterationCount >= MAX_PAGINATION_ITERATIONS) {
             logger.warn(`ScriptTags pagination reached max iterations (${MAX_PAGINATION_ITERATIONS})`);
+            truncated = true;
         }
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -266,7 +269,7 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
             logger.warn(`Returning ${allTags.length} ScriptTags despite error`);
         }
     }
-    return allTags;
+    return { tags: allTags, truncated };
 }
 
 async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]> {
@@ -626,7 +629,15 @@ export async function scanShopTracking(
     ]);
 
     if (scriptTagsResult.status === "fulfilled") {
-        result.scriptTags = scriptTagsResult.value;
+        result.scriptTags = scriptTagsResult.value.tags;
+        result._scriptTagsTruncated = scriptTagsResult.value.truncated;
+        if (scriptTagsResult.value.truncated) {
+            errors.push({
+                stage: "script_tags",
+                message: "ScriptTags pagination was truncated by safety limits",
+                timestamp: new Date(),
+            });
+        }
         logger.info(`Found ${result.scriptTags.length} script tags (with pagination)`);
     } else {
         const errorMessage = scriptTagsResult.reason instanceof Error ? scriptTagsResult.reason.message : "Unknown error";

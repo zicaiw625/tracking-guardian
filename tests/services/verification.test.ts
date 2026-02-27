@@ -7,6 +7,7 @@ vi.mock("../../app/db.server", () => ({
       findUnique: vi.fn(),
       findMany: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
     },
     conversionLog: {
       findMany: vi.fn(),
@@ -152,18 +153,19 @@ describe("Verification Service", () => {
   });
   describe("startVerificationRun", () => {
     it("should update run status to running", async () => {
-      vi.mocked(prisma.verificationRun.update).mockResolvedValue({
-        id: "run-1",
-        status: "running",
-      } as any);
+      vi.mocked(prisma.verificationRun.updateMany).mockResolvedValue({ count: 1 } as any);
       await startVerificationRun("run-1");
-      expect(prisma.verificationRun.update).toHaveBeenCalledWith({
-        where: { id: "run-1" },
+      expect(prisma.verificationRun.updateMany).toHaveBeenCalledWith({
+        where: { id: "run-1", status: "pending" },
         data: {
           status: "running",
           startedAt: expect.any(Date),
         },
       });
+    });
+    it("should throw when run is not pending", async () => {
+      vi.mocked(prisma.verificationRun.updateMany).mockResolvedValue({ count: 0 } as any);
+      await expect(startVerificationRun("run-1")).rejects.toThrow("not in pending state");
     });
   });
   describe("getVerificationRun", () => {
@@ -222,6 +224,19 @@ describe("Verification Service", () => {
       await expect(
         analyzeRecentEvents("shop-1", "non-existent", {})
       ).rejects.toThrow("Verification run not found");
+    });
+    it("should throw error when run belongs to another shop", async () => {
+      vi.mocked(prisma.verificationRun.findUnique).mockResolvedValue({
+        id: "run-1",
+        shopId: "shop-2",
+        platforms: [],
+        runType: "quick",
+        runName: "x",
+        startedAt: new Date(),
+      } as any);
+      await expect(
+        analyzeRecentEvents("shop-1", "run-1", {})
+      ).rejects.toThrow("does not belong to the provided shop");
     });
     it("should analyze conversion logs and generate summary", async () => {
       const mockRun = {

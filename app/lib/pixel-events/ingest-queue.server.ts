@@ -1,6 +1,7 @@
 import { getRedisClient } from "~/utils/redis-client.server";
 import { logger, metrics } from "~/utils/logger.server";
 import type { PixelEventPayload, KeyValidationResult } from "./types";
+import prisma from "~/db.server";
 
 const QUEUE_KEY = "ingest:queue";
 const PROCESSING_KEY = "ingest:processing";
@@ -91,17 +92,15 @@ export async function processIngestQueue(
   for (let i = 0; i < maxBatches; i++) {
     const raw = await redis.rPopLPush(QUEUE_KEY, PROCESSING_KEY);
     if (!raw) break;
-    let processingRaw = raw;
+    const processingRaw = raw;
 
     let entry: IngestQueueEntry;
     try {
       entry = JSON.parse(processingRaw) as IngestQueueEntry;
       if (!entry.processingStartedAt) {
+        // Keep timestamp in-memory for this worker run to avoid a non-atomic
+        // remove+push rewrite window that could drop the batch on crash.
         entry.processingStartedAt = Date.now();
-        const updatedRaw = JSON.stringify(entry);
-        await redis.lRem(PROCESSING_KEY, 1, processingRaw);
-        await redis.lPush(PROCESSING_KEY, updatedRaw);
-        processingRaw = updatedRaw;
       }
     } catch (e) {
       logger.warn("Invalid ingest queue entry JSON", {
@@ -163,6 +162,7 @@ export async function processIngestQueue(
           shopDomain: entry.shopDomain,
           error: e instanceof Error ? e.message : String(e),
         });
+        await rollbackReceiptsForFailedBatch(entry.shopId, processedEvents);
         // If persistence fails, we might want to retry. 
         // For now, we throw so it stays in processing queue (or we could rely on this catch to NOT acknowledge).
         throw e; 
@@ -216,6 +216,45 @@ export async function processIngestQueue(
   }
 
   return { processed, errors };
+}
+
+async function rollbackReceiptsForFailedBatch(
+  shopId: string,
+  processedEvents: Array<{
+    eventId: string | null;
+    payload: { eventName: string };
+    platformsToRecord: Array<{ platform: string }>;
+  }>
+): Promise<void> {
+  const receiptFilters: Array<{ eventId: string; eventType: string; platform: string }> = [];
+  for (const event of processedEvents) {
+    if (!event.eventId) continue;
+    const eventType =
+      event.payload.eventName === "checkout_completed" ? "purchase" : event.payload.eventName;
+    for (const { platform } of event.platformsToRecord) {
+      if (!platform) continue;
+      receiptFilters.push({
+        eventId: event.eventId,
+        eventType,
+        platform,
+      });
+    }
+  }
+  if (receiptFilters.length === 0) return;
+
+  try {
+    await prisma.pixelEventReceipt.deleteMany({
+      where: {
+        shopId,
+        OR: receiptFilters,
+      },
+    });
+  } catch (error) {
+    logger.warn("Failed to rollback receipts after ingest persistence failure", {
+      shopId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 export async function recoverStuckProcessingItems(limit = 100, maxAgeMs = 15 * 60 * 1000): Promise<number> {

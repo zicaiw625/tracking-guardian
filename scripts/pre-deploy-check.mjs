@@ -438,8 +438,23 @@ function checkPixelNullOriginConfig() {
                 isHardError: false,
             };
         }
-        const afterKey = content.slice(keyIdx);
-        const hasTrue = /value:\s*("true"|'true'|true)(?:\s|$|#)/m.test(afterKey);
+        const lines = content.split(/\r?\n/);
+        const keyLine = lines.findIndex((line) => /key:\s*PIXEL_ALLOW_NULL_ORIGIN_WITH_SIGNATURE_ONLY\b/.test(line));
+        const hasTrue = keyLine >= 0 && (() => {
+            const keyIndent = (lines[keyLine].match(/^\s*/) || [""])[0].length;
+            for (let i = keyLine + 1; i < lines.length; i++) {
+                const line = lines[i];
+                if (!line.trim()) continue;
+                const indent = (line.match(/^\s*/) || [""])[0].length;
+                if (indent <= keyIndent && /^\s*-\s*key:/.test(line)) {
+                    break;
+                }
+                if (/^\s*value:\s*("true"|'true'|true)(?:\s|$|#)/.test(line)) {
+                    return true;
+                }
+            }
+            return false;
+        })();
         if (hasTrue) {
             return {
                 name: "PIXEL_ALLOW_NULL_ORIGIN 配置检查",
@@ -464,8 +479,6 @@ function checkPixelNullOriginConfig() {
 }
 
 loadEnv();
-
-if (!process.env.SHOPIFY_APP_URL) process.env.SHOPIFY_APP_URL = 'https://app.tracking-guardian.com';
 
 results.push(checkBuildExtensionsSyntax());
 results.push(checkExtensionUids());
@@ -501,7 +514,9 @@ function checkDistForPlaceholder() {
                     if (placeholderPattern.test(content)) {
                         violations.push(path.relative(path.join(__dirname, ".."), fullPath));
                     }
-                } catch (e) {}
+                } catch (e) {
+                    violations.push(`${path.relative(path.join(__dirname, ".."), fullPath)} (read error: ${e instanceof Error ? e.message : String(e)})`);
+                }
             }
         }
     }

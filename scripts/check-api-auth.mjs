@@ -9,9 +9,12 @@ const AUTH_PATTERNS = [
   "authenticate.admin",
   "authenticate.webhook",
   "authenticatePublic",
+  "tryAuthenticatePublicWithShop",
   "validateCronAuth",
   "validatePerformanceAuth",
   "validateDetailedHealthAuth",
+  "hasValidDiagnosticSignature",
+  "DIAGNOSTIC_NONCE_HEADER",
 ];
 
 const WHITELIST = [

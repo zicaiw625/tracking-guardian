@@ -103,8 +103,14 @@ export async function handleUpdatePrivacySettings(
 ) {
   const consentStrategy =
     (formData.get("consentStrategy") as string) || "strict";
-  const dataRetentionDays =
-    parseInt(formData.get("dataRetentionDays") as string) || 90;
+  const parsedRetention = parseInt(formData.get("dataRetentionDays") as string, 10);
+  const dataRetentionDays = Number.isFinite(parsedRetention) ? parsedRetention : 90;
+  if (dataRetentionDays < 1 || dataRetentionDays > 3650) {
+    return json({
+      success: false,
+      error: t("settings.action.invalidDataRetentionDays"),
+    }, { status: 400 });
+  }
   await prisma.shop.update({
     where: { id: shopId },
     data: {
@@ -209,6 +215,8 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
         }, { status: 400 });
       }
       const result = await switchEnvironment(shop.id, platform, newEnvironment);
+      let pixelSyncSucceeded = true;
+      let pixelSyncError: string | null = null;
       if (result.success) {
         try {
           const shopData = await prisma.shop.findUnique({
@@ -220,15 +228,21 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
             const ingestionKey = shopData.ingestionSecret
               ? decryptIngestionSecret(shopData.ingestionSecret)
               : undefined;
-            await updateWebPixel(
+            const pixelResult = await updateWebPixel(
               admin,
               shopData.webPixelId,
               ingestionKey,
               shopData.shopDomain || session.shop,
               newEnvironment
             );
+            if (!pixelResult.success) {
+              pixelSyncSucceeded = false;
+              pixelSyncError = pixelResult.error || "web_pixel_sync_failed";
+            }
           }
         } catch (syncError) {
+          pixelSyncSucceeded = false;
+          pixelSyncError = syncError instanceof Error ? syncError.message : String(syncError);
           logger.warn("Failed to sync environment to pixel settings", {
             shopId: shop.id,
             platform,
@@ -240,9 +254,12 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
       }
       return json({
         success: result.success,
+        partialSuccess: result.success && !pixelSyncSucceeded,
         message: result.message,
         previousEnvironment: result.previousEnvironment,
         newEnvironment: result.newEnvironment,
+        pixelSyncSucceeded,
+        pixelSyncError,
       });
     }
     case "rollbackEnvironment": {

@@ -12,7 +12,7 @@ import { getRedisClient } from "~/utils/redis-client.server";
 const DEFAULT_MAX_JOBS = 100;
 const RATE_LIMIT_WINDOW_SECONDS = 10;
 const RATE_LIMIT_MAX_REQUESTS = 50; // 5 req/s average
-const IDEMPOTENCY_INFLIGHT_TTL_SECONDS = 5 * 60;
+const IDEMPOTENCY_INFLIGHT_TTL_SECONDS = 15 * 60;
 const IDEMPOTENCY_SUCCESS_TTL_SECONDS = 24 * 60 * 60;
 
 const DESTINATION_TO_PLATFORM: Record<string, string> = {
@@ -173,7 +173,18 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
           continue;
         }
       } catch (e) {
-        logger.warn("Failed to claim idempotency lock", { error: String(e) });
+        logger.warn("Failed to claim idempotency lock", { error: String(e), jobId: job.id });
+        const retryDelayMs = 15_000 + Math.floor(Math.random() * 10_000);
+        await prisma.eventDispatchJob.update({
+          where: { id: job.id },
+          data: {
+            status: "PENDING",
+            next_retry_at: new Date(Date.now() + retryDelayMs),
+            last_error: "Idempotency lock unavailable",
+            updatedAt: new Date(),
+          },
+        });
+        continue;
       }
     }
 
@@ -256,14 +267,41 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
       continue;
     }
     if (result.ok) {
+      try {
+        await markSent(job.id);
+      } catch (e) {
+        logger.error("Dispatch send succeeded but markSent failed", {
+          jobId: job.id,
+          error: String(e),
+        });
+        if (redis && hasIdempotencyClaim) {
+          try {
+            await redis.del(idempotencyKey);
+          } catch (releaseError) {
+            logger.warn("Failed to release idempotency lock after markSent failure", {
+              error: String(releaseError),
+            });
+          }
+        }
+        await prisma.eventDispatchJob.update({
+          where: { id: job.id },
+          data: {
+            status: "PENDING",
+            next_retry_at: new Date(Date.now() + 10_000),
+            last_error: "markSent failed after successful delivery",
+            updatedAt: new Date(),
+          },
+        });
+        failed++;
+        continue;
+      }
       if (redis) {
         try {
           await redis.set(idempotencyKey, "1", { EX: IDEMPOTENCY_SUCCESS_TTL_SECONDS });
         } catch (e) {
-          logger.warn("Failed to set idempotency key", { error: String(e) });
+          logger.warn("Failed to set idempotency success key", { error: String(e) });
         }
       }
-      await markSent(job.id);
       sent++;
     } else {
       if (redis && hasIdempotencyClaim) {

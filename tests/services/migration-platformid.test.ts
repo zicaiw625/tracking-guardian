@@ -107,4 +107,22 @@ describe("savePixelConfig platformId normalization", () => {
       })
     );
   });
+
+  it("does not force-disable serverSideEnabled when option is omitted", async () => {
+    vi.mocked(prisma.pixelConfig.findUnique).mockResolvedValue({
+      id: "cfg-keep",
+      serverSideEnabled: true,
+    } as any);
+    vi.mocked(prisma.pixelConfig.upsert).mockResolvedValue({ id: "cfg-keep" } as any);
+
+    await savePixelConfig("shop-1", "meta", "pixel_456", { environment: "live" });
+
+    expect(prisma.pixelConfig.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          serverSideEnabled: undefined,
+        }),
+      })
+    );
+  });
 });

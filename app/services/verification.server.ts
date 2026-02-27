@@ -184,13 +184,16 @@ export async function createVerificationRun(
 }
 
 export async function startVerificationRun(runId: string): Promise<void> {
-  await prisma.verificationRun.update({
-    where: { id: runId },
+  const updated = await prisma.verificationRun.updateMany({
+    where: { id: runId, status: "pending" },
     data: {
       status: "running",
       startedAt: new Date(),
     },
   });
+  if (updated.count === 0) {
+    throw new Error(`Verification run ${runId} is not in pending state`);
+  }
 }
 
 // Define Zod schema for runtime validation of stored JSON
@@ -310,6 +313,9 @@ export async function analyzeRecentEvents(
   });
   if (!run) {
     throw new Error("Verification run not found");
+  }
+  if (run.shopId !== shopId) {
+    throw new Error("Verification run does not belong to the provided shop");
   }
   const targetPlatforms = platforms || run.platforms;
   const receipts = await prisma.pixelEventReceipt.findMany({

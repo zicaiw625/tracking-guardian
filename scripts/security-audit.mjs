@@ -49,7 +49,12 @@ function checkDataEncryption() {
           foundEncryption = true;
           break;
         }
-      } catch {
+      } catch (error) {
+        checks.push({
+          name: "Data Encryption Check",
+          status: "warning",
+          message: `读取失败: ${file} (${error instanceof Error ? error.message : String(error)})`,
+        });
       }
     }
   }
@@ -104,7 +109,13 @@ function checkHMACValidation() {
         foundHMAC = true;
         break;
       }
-    } catch {}
+    } catch (error) {
+      checks.push({
+        name: "HMAC Validation Check",
+        status: "warning",
+        message: `读取失败: ${file} (${error instanceof Error ? error.message : String(error)})`,
+      });
+    }
   }
   
   if (!foundHMAC) {
@@ -116,7 +127,13 @@ function checkHMACValidation() {
           foundHMAC = true;
           break;
         }
-      } catch {}
+      } catch (error) {
+        checks.push({
+          name: "HMAC Validation Check",
+          status: "warning",
+          message: `读取失败: ${file} (${error instanceof Error ? error.message : String(error)})`,
+        });
+      }
     }
   }
   
@@ -170,7 +187,12 @@ function checkGDPRWebhooks() {
         break;
       }
     }
-  } catch {
+  } catch (error) {
+    checks.push({
+      name: "GDPR Webhook Check",
+      status: "warning",
+      message: `读取 GDPR 目录失败: ${error instanceof Error ? error.message : String(error)}`,
+    });
   }
   
   try {
@@ -182,7 +204,12 @@ function checkGDPRWebhooks() {
         break;
       }
     }
-  } catch {
+  } catch (error) {
+    checks.push({
+      name: "GDPR Webhook Check",
+      status: "warning",
+      message: `读取 webhook 目录失败: ${error instanceof Error ? error.message : String(error)}`,
+    });
   }
   
   if (foundGDPR) {
@@ -239,11 +266,36 @@ function checkScopes() {
 
 function checkSQLInjection() {
   const prismaSchema = join(process.cwd(), "prisma/schema.prisma");
+  const appDir = join(process.cwd(), "app");
+  const serviceFiles = getFilesInDir(appDir, ".ts");
+  const unsafeRawSql = [];
+  for (const file of serviceFiles) {
+    try {
+      const content = readFileSync(file, "utf-8");
+      if (content.includes("$queryRawUnsafe") || content.includes("$executeRawUnsafe")) {
+        unsafeRawSql.push(file);
+      }
+    } catch (error) {
+      checks.push({
+        name: "SQL Injection Protection Check",
+        status: "warning",
+        message: `读取失败: ${file} (${error instanceof Error ? error.message : String(error)})`,
+      });
+    }
+  }
+  if (unsafeRawSql.length > 0) {
+    checks.push({
+      name: "SQL Injection Protection Check",
+      status: "fail",
+      message: `发现不安全原生 SQL 调用: ${unsafeRawSql.slice(0, 5).join(", ")}`,
+    });
+    return;
+  }
   if (existsSync(prismaSchema)) {
     checks.push({
       name: "SQL Injection Protection Check",
       status: "pass",
-      message: "使用 Prisma ORM，自动防护 SQL 注入",
+      message: "未发现不安全原生 SQL，且 Prisma schema 存在",
     });
   } else {
     checks.push({
@@ -315,6 +367,11 @@ function getFilesInDir(dir, ext) {
       }
     });
   } catch (error) {
+    checks.push({
+      name: "File Discovery Check",
+      status: "warning",
+      message: `扫描目录失败: ${dir} (${error instanceof Error ? error.message : String(error)})`,
+    });
   }
   return files;
 }

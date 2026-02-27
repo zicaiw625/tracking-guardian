@@ -57,11 +57,13 @@ HEADERS+=(-H "User-Agent: RenderCronJob/1.0")
 
 if [ "${REPLAY_PROTECTION}" = "true" ]; then
     TIMESTAMP=$(date +%s)
+    NONCE=$(openssl rand -hex 16)
 
-    SIGNATURE_CONTENT="POST:/api/cron:${TIMESTAMP}:"
+    SIGNATURE_CONTENT="POST:/api/cron:${TIMESTAMP}:${NONCE}:"
     SIGNATURE=$(echo -n "${SIGNATURE_CONTENT}" | openssl dgst -sha256 -hmac "${CRON_SECRET}" | sed 's/^.* //')
     HEADERS+=(-H "X-Cron-Timestamp: ${TIMESTAMP}")
     HEADERS+=(-H "X-Cron-Signature: ${SIGNATURE}")
+    HEADERS+=(-H "X-Cron-Nonce: ${NONCE}")
     echo "[Cron] Replay protection enabled (timestamp: ${TIMESTAMP})"
 fi
 

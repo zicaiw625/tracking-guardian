@@ -179,6 +179,40 @@ describe("Subscription Service", () => {
       expect(result.success).toBe(false);
       expect(result.error).toBe("Network error");
     });
+    it("should block duplicate subscribe when cancelled subscription is still entitled", async () => {
+      const futurePeriodEnd = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      const mockGetSubscriptionStatus = {
+        json: vi.fn().mockResolvedValue({
+          data: {
+            appInstallation: {
+              allSubscriptions: {
+                edges: [
+                  {
+                    node: {
+                      id: "gid://shopify/AppSubscription/111",
+                      name: "Tracking Guardian - Starter",
+                      status: "CANCELLED",
+                      currentPeriodEnd: futurePeriodEnd,
+                      lineItems: [],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        }),
+      };
+      (mockAdmin.graphql as ReturnType<typeof vi.fn>).mockResolvedValueOnce(mockGetSubscriptionStatus);
+      const result = await createSubscription(
+        mockAdmin,
+        "test-store.myshopify.com",
+        "starter",
+        "https://example.com/return"
+      );
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("already on this plan");
+      expect(mockAdmin.graphql).toHaveBeenCalledTimes(1);
+    });
     it("should use correct plan pricing", async () => {
       const mockGetSubscriptionStatus = {
         json: vi.fn().mockResolvedValue({

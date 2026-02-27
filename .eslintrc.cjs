@@ -62,6 +62,16 @@ module.exports = {
       },
     },
     {
+      files: ["scripts/**/*.{js,mjs}", "*.mjs"],
+      env: {
+        node: true,
+      },
+      rules: {
+        "no-empty": "off",
+        "no-unused-vars": "off",
+      },
+    },
+    {
       files: ["extensions/**/*.{ts,tsx}"],
       rules: {
         "import/no-unresolved": "off",

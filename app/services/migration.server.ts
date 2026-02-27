@@ -132,7 +132,7 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
                 platformId: normalizedPlatformId,
                 clientConfig: clientConfig ?? undefined,
                 credentialsEncrypted: credentialsEncrypted ?? undefined,
-                serverSideEnabled: serverSideEnabled ?? false,
+                serverSideEnabled: serverSideEnabled ?? undefined,
                 migrationStatus: "in_progress",
                 updatedAt: new Date(),
             },
@@ -160,7 +160,7 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
                 platformId: null,
                 clientConfig: clientConfig ?? undefined,
                 credentialsEncrypted: credentialsEncrypted ?? undefined,
-                serverSideEnabled: serverSideEnabled ?? false,
+                serverSideEnabled: serverSideEnabled ?? undefined,
                 migrationStatus: "in_progress",
                 updatedAt: new Date(),
             },
@@ -187,17 +187,22 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
 
 export async function completeMigration(shopId: string, platform: Platform, environment: string = "live", platformId?: string | null) {
     if (platformId === undefined) {
-        const config = await prisma.pixelConfig.findFirst({
+        const configs = await prisma.pixelConfig.findMany({
             where: {
                 shopId,
                 platform,
                 environment,
             },
         });
-        if (!config) {
+        if (configs.length === 0) {
             throw new Error(`No PixelConfig found for shopId=${shopId}, platform=${platform}, environment=${environment}`);
         }
-        platformId = config.platformId;
+        if (configs.length > 1) {
+            throw new Error(
+                `Ambiguous PixelConfig for shopId=${shopId}, platform=${platform}, environment=${environment}. platformId is required.`
+            );
+        }
+        platformId = configs[0].platformId;
     }
     if (platformId === null || platformId === undefined) {
         const config = await prisma.pixelConfig.findFirst({

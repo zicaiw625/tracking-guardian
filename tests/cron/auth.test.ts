@@ -15,6 +15,12 @@ vi.mock("../../app/utils/responses", () => ({
   unauthorizedResponse: vi.fn((msg) => new Response(msg, { status: 401 })),
   serviceUnavailableResponse: vi.fn((msg) => new Response(msg, { status: 503 })),
 }));
+const redisSetNXMock = vi.fn();
+vi.mock("../../app/utils/redis-client.server", () => ({
+  getRedisClient: vi.fn(async () => ({
+    setNX: redisSetNXMock,
+  })),
+}));
 
 import {
   validateCronAuth,
@@ -34,6 +40,7 @@ describe("Cron Authentication", () => {
     process.env.CRON_SECRET_PREVIOUS = "";
     process.env.NODE_ENV = "production";
     process.env.CRON_STRICT_REPLAY = "true";
+    redisSetNXMock.mockResolvedValue(true);
   });
   afterEach(() => {
     process.env = originalEnv;
@@ -43,6 +50,7 @@ describe("Cron Authentication", () => {
     method: string,
     url: string,
     timestamp: string,
+    nonce: string,
     body?: string
   ): Promise<string> {
     const urlObj = new URL(url);
@@ -51,7 +59,7 @@ describe("Cron Authentication", () => {
     if (body) {
       bodyHash = createHash("sha256").update(body).digest("hex");
     }
-    const signatureContent = `${method}:${pathname}:${timestamp}:${bodyHash}`;
+    const signatureContent = `${method}:${pathname}:${timestamp}:${nonce}:${bodyHash}`;
     return createHmac("sha256", secret).update(signatureContent).digest("hex");
   }
 
@@ -60,10 +68,11 @@ describe("Cron Authentication", () => {
     overrideHeaders?: Record<string, string>
   ) {
     const timestamp = String(Math.floor(Date.now() / 1000));
+    const nonce = "test-nonce-auth";
     const url = "https://example.com/cron";
     const method = "GET";
     const signature = createHmac("sha256", secret)
-      .update(`${method}:/cron:${timestamp}:`)
+      .update(`${method}:/cron:${timestamp}:${nonce}:`)
       .digest("hex");
     return createMockRequest(url, {
       method,
@@ -71,6 +80,7 @@ describe("Cron Authentication", () => {
         Authorization: `Bearer ${secret}`,
         "X-Cron-Timestamp": timestamp,
         "X-Cron-Signature": signature,
+        "X-Cron-Nonce": nonce,
         ...overrideHeaders,
       },
     });
@@ -138,14 +148,16 @@ describe("Cron Authentication", () => {
     const cronSecret = "test-secret-for-hmac";
     it("should accept request with valid timestamp and signature in production", async () => {
       const timestamp = String(Math.floor(Date.now() / 1000));
+      const nonce = "nonce-0001";
       const url = "https://example.com/cron";
       const method = "GET";
-      const signature = await createReplaySignature(cronSecret, method, url, timestamp);
+      const signature = await createReplaySignature(cronSecret, method, url, timestamp, nonce);
       const request = createMockRequest(url, {
         method,
         headers: {
           "X-Cron-Timestamp": timestamp,
           "X-Cron-Signature": signature,
+          "X-Cron-Nonce": nonce,
         },
       });
       const result = await verifyReplayProtection(request, cronSecret);
@@ -153,14 +165,16 @@ describe("Cron Authentication", () => {
     });
     it("should reject request with expired timestamp", async () => {
       const oldTimestamp = String(Math.floor(Date.now() / 1000) - 600);
+      const nonce = "nonce-0002";
       const url = "https://example.com/cron";
       const method = "GET";
-      const signature = await createReplaySignature(cronSecret, method, url, oldTimestamp);
+      const signature = await createReplaySignature(cronSecret, method, url, oldTimestamp, nonce);
       const request = createMockRequest(url, {
         method,
         headers: {
           "X-Cron-Timestamp": oldTimestamp,
           "X-Cron-Signature": signature,
+          "X-Cron-Nonce": nonce,
         },
       });
       const result = await verifyReplayProtection(request, cronSecret);
@@ -169,14 +183,16 @@ describe("Cron Authentication", () => {
     });
     it("should reject request with future timestamp", async () => {
       const futureTimestamp = String(Math.floor(Date.now() / 1000) + 600);
+      const nonce = "nonce-0003";
       const url = "https://example.com/cron";
       const method = "GET";
-      const signature = await createReplaySignature(cronSecret, method, url, futureTimestamp);
+      const signature = await createReplaySignature(cronSecret, method, url, futureTimestamp, nonce);
       const request = createMockRequest(url, {
         method,
         headers: {
           "X-Cron-Timestamp": futureTimestamp,
           "X-Cron-Signature": signature,
+          "X-Cron-Nonce": nonce,
         },
       });
       const result = await verifyReplayProtection(request, cronSecret);
@@ -187,6 +203,7 @@ describe("Cron Authentication", () => {
         headers: {
           "X-Cron-Timestamp": "not-a-number",
           "X-Cron-Signature": "00",
+          "X-Cron-Nonce": "nonce-0004",
         },
       });
       const result = await verifyReplayProtection(request, cronSecret);
@@ -205,6 +222,7 @@ describe("Cron Authentication", () => {
       const request = createMockRequest("https://example.com/cron", {
         headers: {
           "X-Cron-Timestamp": timestamp,
+          "X-Cron-Nonce": "nonce-0005",
         },
       });
       const result = await verifyReplayProtection(request, cronSecret);
@@ -213,14 +231,16 @@ describe("Cron Authentication", () => {
     });
     it("should accept valid HMAC signature", async () => {
       const timestamp = String(Math.floor(Date.now() / 1000));
+      const nonce = "nonce-0006";
       const url = "https://example.com/cron";
       const method = "GET";
-      const signature = await createReplaySignature(cronSecret, method, url, timestamp);
+      const signature = await createReplaySignature(cronSecret, method, url, timestamp, nonce);
       const request = createMockRequest(url, {
         method,
         headers: {
           "X-Cron-Timestamp": timestamp,
           "X-Cron-Signature": signature,
+          "X-Cron-Nonce": nonce,
         },
       });
       const result = await verifyReplayProtection(request, cronSecret);
@@ -232,11 +252,40 @@ describe("Cron Authentication", () => {
         headers: {
           "X-Cron-Timestamp": timestamp,
           "X-Cron-Signature": "invalidsignature",
+          "X-Cron-Nonce": "nonce-0007",
         },
       });
       const result = await verifyReplayProtection(request, cronSecret);
       expect(result.valid).toBe(false);
       expect(result.error).toContain("Invalid signature");
+    });
+    it("should reject replayed nonce", async () => {
+      redisSetNXMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+      const timestamp = String(Math.floor(Date.now() / 1000));
+      const nonce = "nonce-replay-0001";
+      const url = "https://example.com/cron";
+      const method = "GET";
+      const signature = await createReplaySignature(cronSecret, method, url, timestamp, nonce);
+      const requestA = createMockRequest(url, {
+        method,
+        headers: {
+          "X-Cron-Timestamp": timestamp,
+          "X-Cron-Signature": signature,
+          "X-Cron-Nonce": nonce,
+        },
+      });
+      const requestB = createMockRequest(url, {
+        method,
+        headers: {
+          "X-Cron-Timestamp": timestamp,
+          "X-Cron-Signature": signature,
+          "X-Cron-Nonce": nonce,
+        },
+      });
+      expect((await verifyReplayProtection(requestA, cronSecret)).valid).toBe(true);
+      const result = await verifyReplayProtection(requestB, cronSecret);
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("Replay detected");
     });
   });
 

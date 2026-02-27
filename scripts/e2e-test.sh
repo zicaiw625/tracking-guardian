@@ -74,7 +74,7 @@ log_success "pnpm 版本: $(pnpm --version)"
 
 if [ ! -d "node_modules" ]; then
     log_warn "未找到 node_modules，正在安装依赖..."
-    pnpm install
+    pnpm install --frozen-lockfile
 fi
 
 
@@ -97,7 +97,8 @@ log_info "运行 ESLint..."
 if pnpm lint; then
     log_success "Linting 通过"
 else
-    log_warn "Linting 有警告，继续执行..."
+    log_error "Linting 失败"
+    exit 1
 fi
 
 

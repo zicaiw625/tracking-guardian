@@ -65,4 +65,5 @@ export interface EnhancedScanResult extends ScanResult {
     _cachedAt?: Date;
     _refreshRecommended?: boolean;
     _additionalScriptsNote?: string;
+    _scriptTagsTruncated?: boolean;
 }

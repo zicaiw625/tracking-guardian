@@ -77,14 +77,36 @@ export async function releaseCronLock(lockType: string, lockId: string): Promise
         return false;
     }
 }
-export async function withCronLock<T>(lockType: string, instanceId: string, job: () => Promise<T>): Promise<{
+
+async function extendCronLock(lockType: string, lockId: string, timeoutMs: number): Promise<boolean> {
+    const lockKey = `cron_lock:${lockType}`;
+    try {
+        const redis = await getRedisClientStrict();
+        const extendScript = "if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('PEXPIRE', KEYS[1], ARGV[2]) else return 0 end";
+        const extended = await redis.eval(extendScript, [lockKey], [lockId, String(timeoutMs)]);
+        return Number(extended) === 1;
+    } catch (error) {
+        logger.warn(`[P1-03] Failed to extend cron lock for ${lockType}`, {
+            lockId,
+            error: error instanceof Error ? error.message : String(error),
+        });
+        return false;
+    }
+}
+
+export async function withCronLock<T>(
+    lockType: string,
+    instanceId: string,
+    job: () => Promise<T>,
+    timeoutMs: number = LOCK_TIMEOUT_MS
+): Promise<{
     executed: boolean;
     result?: T;
     lockSkipped?: boolean;
     reason?: string;
     lockError?: boolean;
 }> {
-    const lockResult = await acquireCronLock(lockType, instanceId);
+    const lockResult = await acquireCronLock(lockType, instanceId, timeoutMs);
     if (!lockResult.acquired) {
         return {
             executed: false,
@@ -93,6 +115,13 @@ export async function withCronLock<T>(lockType: string, instanceId: string, job:
             lockError: lockResult.lockError,
         };
     }
+    let stopped = false;
+    const renewEveryMs = Math.max(30_000, Math.floor(timeoutMs / 2));
+    const renewTimer = lockResult.lockId ? setInterval(() => {
+        if (stopped || !lockResult.lockId) return;
+        void extendCronLock(lockType, lockResult.lockId, timeoutMs);
+    }, renewEveryMs) : null;
+
     try {
         const result = await job();
         return {
@@ -101,6 +130,10 @@ export async function withCronLock<T>(lockType: string, instanceId: string, job:
         };
     }
     finally {
+        stopped = true;
+        if (renewTimer) {
+            clearInterval(renewTimer);
+        }
         if (lockResult.lockId) {
             await releaseCronLock(lockType, lockResult.lockId);
         }

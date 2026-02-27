@@ -216,6 +216,7 @@ function checkBackendUrlInjection() {
     const buildTimeUrlPattern = /const\s+BUILD_TIME_URL\s*=\s*(["'])([^"']+)\1;/;
     const sharedConfigImportPattern = /import\s+.*\bBACKEND_URL\b.*from\s+["']\.\.\/\.\.\/shared\/config["']/;
     const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.RENDER === "true";
+    const hasConfiguredAppUrl = !!process.env.SHOPIFY_APP_URL;
     
     for (const configFile of configFiles) {
         const filePath = path.join(PROJECT_ROOT, configFile.path);
@@ -243,12 +244,16 @@ function checkBackendUrlInjection() {
             }
             const urlValue = match[2];
             if (placeholderPattern.test(urlValue)) {
-                violations.push({
-                    file: configFile.path,
-                    line: 0,
-                    content: urlValue,
-                    description: "URL 仍为占位符，需要在部署前运行 'pnpm ext:inject' 或 'pnpm deploy:ext'",
-                });
+                // In local/dev this placeholder is expected before ext:inject.
+                // Treat as failure only in CI or when deployment URL is configured.
+                if (isCI || hasConfiguredAppUrl) {
+                    violations.push({
+                        file: configFile.path,
+                        line: 0,
+                        content: urlValue,
+                        description: "URL 仍为占位符，需要在部署前运行 'pnpm ext:inject' 或 'pnpm deploy:ext'",
+                    });
+                }
             } else if (urlValue.includes("localhost") || urlValue.includes("127.0.0.1")) {
                 if (isCI) {
                     violations.push({
