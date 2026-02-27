@@ -1,6 +1,7 @@
 import type {
   PlatformError,
 } from "../types";
+import prisma from "../db.server";
 
 export { decryptCredentials } from "./credentials.server";
 
@@ -126,9 +127,36 @@ export async function checkTokenExpirationIssues(_shopId: string): Promise<{
   hasIssues: boolean;
   affectedPlatforms: string[];
 }> {
+  const tokenPatterns = [
+    "401",
+    "unauthorized",
+    "token expired",
+    "invalid token",
+    "access token",
+  ];
+
+  const failedJobs = await prisma.eventDispatchJob.findMany({
+    where: {
+      status: "FAILED",
+      InternalEvent: {
+        shopId: _shopId,
+      },
+      OR: tokenPatterns.map((pattern) => ({
+        last_error: {
+          contains: pattern,
+          mode: "insensitive",
+        },
+      })),
+    },
+    select: {
+      destination: true,
+    },
+  });
+
+  const affectedPlatforms = Array.from(new Set(failedJobs.map((job) => job.destination)));
   return {
-    hasIssues: false,
-    affectedPlatforms: [],
+    hasIssues: affectedPlatforms.length > 0,
+    affectedPlatforms,
   };
 }
 
@@ -139,11 +167,45 @@ export async function getRetryStats(_shopId: string): Promise<{
   sent: number;
   failed: number;
 }> {
+  const [pending, retrying, deadLetter, sent, failed] = await Promise.all([
+    prisma.eventDispatchJob.count({
+      where: {
+        status: "PENDING",
+        InternalEvent: { shopId: _shopId },
+      },
+    }),
+    prisma.eventDispatchJob.count({
+      where: {
+        status: "PROCESSING",
+        InternalEvent: { shopId: _shopId },
+      },
+    }),
+    prisma.eventDispatchJob.count({
+      where: {
+        status: "FAILED",
+        attempts: { gte: 4 },
+        InternalEvent: { shopId: _shopId },
+      },
+    }),
+    prisma.eventDispatchJob.count({
+      where: {
+        status: "SENT",
+        InternalEvent: { shopId: _shopId },
+      },
+    }),
+    prisma.eventDispatchJob.count({
+      where: {
+        status: "FAILED",
+        InternalEvent: { shopId: _shopId },
+      },
+    }),
+  ]);
+
   return {
-    pending: 0,
-    retrying: 0,
-    deadLetter: 0,
-    sent: 0,
-    failed: 0,
+    pending,
+    retrying,
+    deadLetter,
+    sent,
+    failed,
   };
 }

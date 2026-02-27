@@ -649,10 +649,7 @@ export function shopScopedIpKeyExtractor(request: Request, shopDomain: string | 
   const sanitizedShop = shopDomain
     ? shopDomain.replace(/[^a-zA-Z0-9.\-_]/g, "").slice(0, 100)
     : "unknown";
-  if (ip === "untrusted" || ip === "unknown") {
-    return `${sanitizedShop}:${ip}`;
-  }
-  return ip;
+  return `${sanitizedShop}:${ip}`;
 }
 
 function resolveRequest(args: unknown): Request | undefined {

@@ -74,7 +74,13 @@ export function withPlanLimit(config: PlanLimitConfig): Middleware {
         error: error instanceof Error ? error.message : String(error),
         errorName: error instanceof Error ? error.name : "Unknown",
       });
-      return { continue: true, context };
+      return {
+        continue: false,
+        response: json(
+          { error: "Unauthorized or plan limit check failed" },
+          { status: 401 }
+        ),
+      };
     }
   };
 }

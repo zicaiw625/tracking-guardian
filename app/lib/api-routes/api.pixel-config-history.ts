@@ -29,7 +29,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       const comparison = await getConfigComparison(shop.id, platform);
       return jsonApi({ comparison });
     } else if (type === "history") {
-      const limit = parseInt(url.searchParams.get("limit") || "10");
+      const rawLimit = url.searchParams.get("limit");
+      const parsedLimit = rawLimit ? Number.parseInt(rawLimit, 10) : 10;
+      if (!Number.isFinite(parsedLimit) || parsedLimit < 1) {
+        return jsonApi({ error: "Invalid limit parameter" }, { status: 400 });
+      }
+      const limit = Math.min(parsedLimit, 100);
       const history = await getConfigVersionHistory(shop.id, platform, limit);
       return jsonApi({ history });
     } else {

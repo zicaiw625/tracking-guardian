@@ -116,7 +116,11 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
   try {
     redis = await getRedisClient();
   } catch (error) {
-    logger.warn("Redis unavailable for dispatch worker, proceeding without idempotency/rate-limit", { error: String(error) });
+    logger.error("Redis unavailable for dispatch worker, pausing dispatch for safety", {
+      error: String(error),
+      pendingJobs: jobs.length,
+    });
+    return { processed: 0, sent: 0, failed: 0 };
   }
 
   for (const job of jobs) {

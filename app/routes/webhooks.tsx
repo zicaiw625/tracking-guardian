@@ -7,7 +7,7 @@ import { RATE_LIMIT_CONFIG } from "../utils/config.server";
 import { checkRateLimitAsync, ipKeyExtractor } from "../middleware/rate-limit.server";
 import { hashValueSync } from "../utils/crypto.server";
 import { dispatchWebhook, type WebhookContext, type ShopWithPixelConfigs } from "../webhooks";
-import { tryAcquireWebhookLock } from "../webhooks/middleware/idempotency";
+import { tryAcquireWebhookLock, updateWebhookStatus } from "../webhooks/middleware/idempotency";
 
 function getWebhookId(authResult: Awaited<ReturnType<typeof authenticate.webhook>>, request: Request): string | null {
   if (authResult && typeof authResult === "object" && "webhookId" in authResult && typeof authResult.webhookId === "string") {
@@ -183,6 +183,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           logger.info(`[Webhook Idempotency] Skipping duplicate (early check): ${context.topic} for ${context.shop}`);
           return new Response("OK (duplicate)", { status: 200 });
         }
+        if (context.webhookId) {
+          await updateWebhookStatus(context.shop, context.webhookId, context.topic, "failed");
+        }
         logger.error(`[Webhook Idempotency] Failed to acquire lock (system error): ${context.topic} for ${context.shop}`);
         return new Response("Temporary error", { status: 500 });
       }
@@ -232,6 +235,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     logger.error(`[Webhook] Failed to fetch shop record for ${context.shop}:`, error);
   }
   if (shopLookupFailed) {
+    if (context.webhookId) {
+      await updateWebhookStatus(context.shop, context.webhookId, context.topic, "failed");
+    }
     return new Response("Temporary error", { status: 503 });
   }
   return dispatchWebhook(context, shopRecord, true);

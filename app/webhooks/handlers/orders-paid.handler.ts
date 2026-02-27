@@ -118,31 +118,6 @@ export async function handleOrdersPaid(
   const rawIp = ORDER_WEBHOOK_COLLECT_IP_UA ? parsed.ip : null;
   const rawUserAgent = ORDER_WEBHOOK_COLLECT_IP_UA ? parsed.user_agent : null;
   try {
-    const existingInternal = await prisma.internalEvent.findUnique({
-      where: {
-        shopId_event_id_event_name: {
-          shopId,
-          event_id: parsed.orderId,
-          event_name: "purchase",
-        },
-      },
-      select: { id: true },
-    });
-    if (existingInternal) {
-      await prisma.orderSummary.upsert({
-        where: { shopId_orderId: { shopId, orderId: parsed.orderId } },
-        create: {
-          id: randomUUID(),
-          shopId,
-          orderId: parsed.orderId,
-          totalPrice: parsed.totalPrice,
-          currency: parsed.currency,
-        },
-        update: { totalPrice: parsed.totalPrice, currency: parsed.currency },
-      });
-      return { success: true, status: 200, message: "OK", orderId: parsed.orderId };
-    }
-
     const normalizedOrderIdForReceipt = normalizeOrderIdForReceipt(parsed.orderId);
     const receipt = await prisma.pixelEventReceipt.findFirst({
       where: {
@@ -249,8 +224,16 @@ export async function handleOrdersPaid(
 
     const now = Date.now();
     await prisma.$transaction(async (tx) => {
-      const internalEvent = await tx.internalEvent.create({
-        data: {
+      const internalEvent = await tx.internalEvent.upsert({
+        where: {
+          shopId_event_id_event_name: {
+            shopId,
+            event_id: parsed.orderId,
+            event_name: "purchase",
+          },
+        },
+        update: {},
+        create: {
           id: randomUUID(),
           shopId,
           source: "order_webhook",
@@ -274,9 +257,10 @@ export async function handleOrdersPaid(
           consent_purposes: consentPurposes,
         },
       });
-      for (const destination of destinationsToDispatch) {
-        await tx.eventDispatchJob.create({
-          data: {
+
+      if (destinationsToDispatch.length > 0) {
+        await tx.eventDispatchJob.createMany({
+          data: destinationsToDispatch.map((destination) => ({
             id: randomUUID(),
             internal_event_id: internalEvent.id,
             destination,
@@ -284,7 +268,8 @@ export async function handleOrdersPaid(
             attempts: 0,
             next_retry_at: new Date(),
             updatedAt: new Date(),
-          },
+          })),
+          skipDuplicates: true,
         });
       }
       await tx.orderSummary.upsert({

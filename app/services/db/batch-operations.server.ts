@@ -36,9 +36,103 @@ export interface BatchResult<T = unknown> {
 }
 
 export async function batchCompleteJobs(
-  _completions: JobCompletionData[]
+  completions: JobCompletionData[]
 ): Promise<BatchResult> {
-  return { success: true, processed: 0, failed: 0, errors: [] };
+  if (completions.length === 0) {
+    return { success: true, processed: 0, failed: 0, errors: [] };
+  }
+
+  const errors: Array<{ id: string; error: string }> = [];
+  let processed = 0;
+  const db = getDb();
+
+  try {
+    await db.$transaction(async (tx) => {
+      const updateResults = await Promise.allSettled(
+        completions.map((completion) => {
+          let status: "SENT" | "FAILED";
+          let lastError: string | null = completion.errorMessage ?? null;
+          let lastResponseCode: number | null = null;
+
+          if (completion.status === "completed") {
+            status = "SENT";
+            lastError = null;
+          } else {
+            status = "FAILED";
+            if (!lastError) {
+              lastError =
+                completion.status === "limit_exceeded"
+                  ? "Dispatch blocked: limit exceeded"
+                  : completion.status === "dead_letter"
+                    ? "Dispatch moved to dead letter"
+                    : "Dispatch failed";
+            }
+            if (completion.status === "limit_exceeded") {
+              lastResponseCode = 429;
+            }
+          }
+
+          return tx.eventDispatchJob.update({
+            where: { id: completion.jobId },
+            data: {
+              status,
+              last_error: lastError,
+              last_response_code: lastResponseCode,
+              next_retry_at: completion.nextRetryAt ?? new Date(),
+              updatedAt: new Date(),
+            },
+          });
+        })
+      );
+
+      updateResults.forEach((result, index) => {
+        if (index >= completions.length) {
+          logger.error("Index out of bounds: completions/updateResults mismatch", {
+            index,
+            completionsLength: completions.length,
+            updateResultsLength: updateResults.length,
+          });
+          return;
+        }
+
+        const completion = completions[index];
+        if (result.status === "fulfilled") {
+          processed++;
+          return;
+        }
+
+        const errorMsg =
+          result.reason instanceof Error ? result.reason.message : String(result.reason);
+        errors.push({ id: completion.jobId, error: errorMsg });
+      });
+    });
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    logger.error("Batch complete jobs transaction failed", {
+      error: errorMsg,
+      count: completions.length,
+    });
+    const allErrors =
+      errors.length > 0
+        ? errors
+        : completions.map((c) => ({
+            id: c.jobId,
+            error: `Transaction failed: ${errorMsg}`,
+          }));
+    return {
+      success: false,
+      processed,
+      failed: completions.length - processed,
+      errors: allErrors,
+    };
+  }
+
+  return {
+    success: errors.length === 0,
+    processed,
+    failed: errors.length,
+    errors,
+  };
 }
 
 export async function batchInsertReceipts(

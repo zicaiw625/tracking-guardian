@@ -30,19 +30,49 @@ export interface EnvironmentSwitchResult {
   newEnvironment?: PixelEnvironment;
 }
 
+async function findDeterministicConfig(params: {
+  shopId: string;
+  platform: string;
+  environment: PixelEnvironment;
+  platformId?: string | null;
+  select?: Prisma.PixelConfigSelect;
+}) {
+  const { shopId, platform, environment, platformId, select } = params;
+  const configs = await prisma.pixelConfig.findMany({
+    where: {
+      shopId,
+      platform,
+      environment,
+      ...(platformId !== undefined ? { platformId } : {}),
+    },
+    orderBy: [
+      { isActive: "desc" },
+      { updatedAt: "desc" },
+      { id: "asc" },
+    ],
+    ...(select ? { select } : {}),
+    take: 2,
+  });
+
+  if (configs.length > 1 && platformId === undefined) {
+    logger.warn("Multiple pixel configs matched; using deterministic selection", {
+      shopId,
+      platform,
+      environment,
+      candidates: configs.map((c) => ("id" in c ? c.id : "unknown")),
+    });
+  }
+
+  return configs[0] ?? null;
+}
+
 export async function saveConfigSnapshot(
   shopId: string,
   platform: string,
   environment: PixelEnvironment = "live"
 ): Promise<boolean> {
   try {
-    const config = await prisma.pixelConfig.findFirst({
-      where: {
-        shopId,
-        platform,
-        environment,
-      },
-    });
+    const config = await findDeterministicConfig({ shopId, platform, environment });
     if (!config) {
       logger.warn("No config to snapshot", { shopId, platform });
       return false;
@@ -82,13 +112,7 @@ export async function rollbackConfig(
   environment: PixelEnvironment = "live"
 ): Promise<RollbackResult> {
   try {
-    const config = await prisma.pixelConfig.findFirst({
-      where: {
-        shopId,
-        platform,
-        environment,
-      },
-    });
+    const config = await findDeterministicConfig({ shopId, platform, environment });
     if (!config) {
       return {
         success: false,
@@ -172,12 +196,10 @@ export async function switchEnvironment(
       });
       actualCurrentEnvironment = (activeConfig?.environment as PixelEnvironment) || "test";
     }
-    const config = await prisma.pixelConfig.findFirst({
-      where: {
-        shopId,
-        platform,
-        environment: actualCurrentEnvironment,
-      },
+    const config = await findDeterministicConfig({
+      shopId,
+      platform,
+      environment: actualCurrentEnvironment,
     });
     if (!config) {
       return {
@@ -194,42 +216,63 @@ export async function switchEnvironment(
         newEnvironment,
       };
     }
-    await saveConfigSnapshot(shopId, platform, actualCurrentEnvironment);
-    const targetConfig = await prisma.pixelConfig.findFirst({
-      where: {
-        shopId,
-        platform,
-        environment: newEnvironment,
+    await prisma.$transaction(async (tx) => {
+      const snapshot: PixelConfigSnapshot = {
         platformId: config.platformId,
-      },
-    });
-    if (targetConfig) {
-      await prisma.pixelConfig.update({
-        where: { id: targetConfig.id },
-        data: {
-          platformId: config.platformId,
-          credentialsEncrypted: config.credentialsEncrypted,
-          serverSideEnabled: config.serverSideEnabled,
-          clientSideEnabled: config.clientSideEnabled,
-          eventMappings: toInputJsonValue(config.eventMappings),
-          clientConfig: toInputJsonValue(config.clientConfig),
-          isActive: config.isActive,
-        },
-      });
-      await prisma.pixelConfig.update({
+        clientSideEnabled: config.clientSideEnabled,
+        serverSideEnabled: config.serverSideEnabled,
+        eventMappings: config.eventMappings as Record<string, unknown> | null,
+        clientConfig: config.clientConfig as Record<string, unknown> | null,
+        environment: config.environment as PixelEnvironment,
+        credentialsEncrypted: config.credentialsEncrypted,
+      };
+
+      await tx.pixelConfig.update({
         where: { id: config.id },
         data: {
-          isActive: false,
+          previousConfig: snapshot as object,
+          configVersion: { increment: 1 },
+          rollbackAllowed: true,
         },
       });
-    } else {
-      await prisma.pixelConfig.update({
-        where: { id: config.id },
-        data: {
+
+      const targetConfig = await tx.pixelConfig.findFirst({
+        where: {
+          shopId,
+          platform,
           environment: newEnvironment,
+          platformId: config.platformId,
         },
       });
-    }
+
+      if (targetConfig) {
+        await tx.pixelConfig.update({
+          where: { id: targetConfig.id },
+          data: {
+            platformId: config.platformId,
+            credentialsEncrypted: config.credentialsEncrypted,
+            serverSideEnabled: config.serverSideEnabled,
+            clientSideEnabled: config.clientSideEnabled,
+            eventMappings: toInputJsonValue(config.eventMappings),
+            clientConfig: toInputJsonValue(config.clientConfig),
+            isActive: config.isActive,
+          },
+        });
+        await tx.pixelConfig.update({
+          where: { id: config.id },
+          data: {
+            isActive: false,
+          },
+        });
+      } else {
+        await tx.pixelConfig.update({
+          where: { id: config.id },
+          data: {
+            environment: newEnvironment,
+          },
+        });
+      }
+    });
     await createAuditLogEntry(shopId, {
       actorType: "user",
       action: "pixel_config_updated",
@@ -273,12 +316,10 @@ export async function getConfigVersionInfo(
   environment: PixelEnvironment;
   lastUpdated: Date;
 } | null> {
-  const config = await prisma.pixelConfig.findFirst({
-    where: {
-      shopId,
-      platform,
-      environment,
-    },
+  const config = await findDeterministicConfig({
+    shopId,
+    platform,
+    environment,
     select: {
       configVersion: true,
       rollbackAllowed: true,
@@ -347,12 +388,10 @@ export async function getConfigComparison(
     changed: boolean;
   }>;
 } | null> {
-  const config = await prisma.pixelConfig.findFirst({
-    where: {
-      shopId,
-      platform,
-      environment,
-    },
+  const config = await findDeterministicConfig({
+    shopId,
+    platform,
+    environment,
     select: {
       platformId: true,
       clientSideEnabled: true,
