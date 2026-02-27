@@ -4241,7 +4241,7 @@
       },
       "Reconciliation": "我们通过比对像素事件收据与内部日志，帮助您发现追踪缺口并优化配置。当用户未给予相应同意导致事件不向任何平台发送时，我们仍可能为去重与诊断目的保存<strong>最小元数据</strong>（如事件键、事件类型、时间戳），但<strong>不会</strong>保存商品明细、金额等敏感内容。当前版本<strong>不会</strong>从 Shopify Admin API 读取订单数据进行对账。",
       "Compliance": "根据客户的同意状态（Shopify <code>customerPrivacy</code>），自动决定是否向特定平台发送事件，确保符合 GDPR/CCPA 等隐私法规。",
-      "PCD": "当前公开上架版本<strong>不访问</strong> Shopify Protected Customer Data (PCD)。我们不请求 <code>read_orders</code>，不订阅订单 webhook，不通过 Admin API 读取订单或客户详情，仅基于 Web Pixel 事件收据进行诊断与验收。未来如引入基于订单详情的验收/对账或再购等功能，将在获得 Shopify PCD 审批后启用，并更新本隐私政策与应用内说明。"
+      "PCD": "当前公开上架版本<strong>不访问</strong> Shopify Protected Customer Data (PCD)。我们不请求订单/客户数据相关权限，不订阅订单 webhook，不通过 Admin API 读取订单或客户详情，仅基于 Web Pixel 事件收据进行诊断与验收。未来如引入基于订单详情的验收/对账或再购等功能，将在获得 Shopify PCD 审批后启用，并更新本隐私政策与应用内说明。"
     },
     "Retention": {
       "Receipt": "<strong>PixelEventReceipt（像素收据）</strong>：按店铺数据保留周期（默认 90 天）",

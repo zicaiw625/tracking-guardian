@@ -351,7 +351,7 @@ export function createMockAuthenticate(): typeof mockAuthenticate {
   mockAuthenticate = {
     admin: vi.fn().mockResolvedValue(createMockAdminContext()),
     webhook: vi.fn().mockImplementation(async (request: Request) => {
-      const topic = request.headers.get("X-Shopify-Topic") || "orders/paid";
+      const topic = request.headers.get("X-Shopify-Topic") || "app/uninstalled";
       const shop = request.headers.get("X-Shopify-Shop-Domain") || "test-shop.myshopify.com";
       const payload = await request.json();
       return { topic, shop, payload, admin: createMockAdminApi() };

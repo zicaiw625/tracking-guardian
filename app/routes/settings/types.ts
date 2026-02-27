@@ -88,7 +88,6 @@ export interface SettingsLoaderData {
   } | null;
   capabilityFlags?: {
     pcdApproved: boolean;
-    orderWebhookEnabled: boolean;
     serverSideConversionsEnabled: boolean;
   };
 }

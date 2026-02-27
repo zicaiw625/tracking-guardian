@@ -296,7 +296,7 @@ describe("Webhook Flow Integration", () => {
       const mockLog = {
         id: "log-123",
         shopId: "shop-123",
-        topic: "orders/paid",
+        topic: "app_subscriptions/update",
         orderId: "12345",
         processedAt: new Date(),
         success: true,
@@ -305,13 +305,13 @@ describe("Webhook Flow Integration", () => {
       const result = await prisma.webhookLog.create({
         data: {
           shopId: "shop-123",
-          topic: "orders/paid",
+          topic: "app_subscriptions/update",
           orderId: "12345",
           success: true,
         },
       });
       expect(result.success).toBe(true);
-      expect(result.topic).toBe("orders/paid");
+      expect(result.topic).toBe("app_subscriptions/update");
     });
   });
   describe("Error Scenarios", () => {

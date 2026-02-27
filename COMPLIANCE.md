@@ -91,9 +91,9 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 
 **当前版本（v1.0）不访问 Protected Customer Data (PCD)**。我们不会通过 Shopify Admin API 读取订单数据、客户信息或其他受保护数据。
 
-- **当前 scopes**：`read_script_tags`、`read_pixels`、`write_pixels`
-- **不请求的权限**：`read_orders`、`read_customers` 等客户与订单相关权限
-- **不订阅订单相关 webhook**：订单 webhook 处理由 `ORDER_WEBHOOK_ENABLED` 门控关闭，避免误入 PCD 路径
+- **当前 scopes**：`read_script_tags`、`read_pixels`、`write_pixels`、`read_customer_events`
+- **不请求的权限**：订单与客户数据相关权限（如订单读取、客户读取）
+- **不订阅订单相关 webhook**：应用配置中不注册订单主题 webhook，避免误入 PCD 路径
 - **数据来源**：仅基于 Web Pixel 上报的事件收据（PixelEventReceipt）及验收运行记录（VerificationRun）、扫描报告（ScanReport）等进行诊断和统计
 
 未来版本如需要访问订单数据（如订单层验收、退款对账等），将：

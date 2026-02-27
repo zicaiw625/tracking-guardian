@@ -177,9 +177,6 @@ export default function SettingsPage() {
               <Badge tone={capabilityFlags?.pcdApproved ? "success" : "attention"}>
                 {`${t("settings.capabilities.pcd")}: ${capabilityFlags?.pcdApproved ? t("settings.capabilities.enabled") : t("settings.capabilities.disabled")}`}
               </Badge>
-              <Badge tone={capabilityFlags?.orderWebhookEnabled ? "success" : "attention"}>
-                {`${t("settings.capabilities.ordersWebhook")}: ${capabilityFlags?.orderWebhookEnabled ? t("settings.capabilities.enabled") : t("settings.capabilities.disabled")}`}
-              </Badge>
               <Badge tone={capabilityFlags?.serverSideConversionsEnabled ? "success" : "attention"}>
                 {`${t("settings.capabilities.serverSideConversions")}: ${capabilityFlags?.serverSideConversionsEnabled ? t("settings.capabilities.enabled") : t("settings.capabilities.disabled")}`}
               </Badge>

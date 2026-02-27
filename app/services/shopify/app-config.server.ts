@@ -102,8 +102,6 @@ try {
     webhooks: {
       APP_UNINSTALLED: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
       APP_SUBSCRIPTIONS_UPDATE: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
-      ORDERS_CREATE: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
-      ORDERS_PAID: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
       CUSTOMERS_DATA_REQUEST: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
       CUSTOMERS_REDACT: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
       SHOP_REDACT: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },

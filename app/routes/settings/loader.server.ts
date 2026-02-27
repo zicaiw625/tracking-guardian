@@ -7,7 +7,7 @@ import { checkTokenExpirationIssues } from "../../services/retry.server";
 import { getCachedTypOspStatus, refreshTypOspStatus } from "../../services/checkout-profile.server";
 import { getEventMonitoringStats, getEventVolumeStats } from "../../services/monitoring.server";
 import { logger } from "../../utils/logger.server";
-import { ORDER_WEBHOOK_ENABLED, PCD_CONFIG, SERVER_SIDE_CONVERSIONS_ENABLED } from "../../utils/config.server";
+import { PCD_CONFIG, SERVER_SIDE_CONVERSIONS_ENABLED } from "../../utils/config.server";
 import type { SettingsLoaderData, PixelConfigDisplay, AlertConfigDisplay, TypOspStatusDisplay } from "./types";
 
 export async function settingsLoader({ request }: LoaderFunctionArgs) {
@@ -248,7 +248,6 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       hmacSecurityStats: null,
       capabilityFlags: {
         pcdApproved: PCD_CONFIG.APPROVED,
-        orderWebhookEnabled: ORDER_WEBHOOK_ENABLED,
         serverSideConversionsEnabled: SERVER_SIDE_CONVERSIONS_ENABLED,
       },
     };

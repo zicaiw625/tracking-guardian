@@ -2,23 +2,25 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 
-describe("shopify config for order webhook truth source", () => {
-  it("includes read_orders in shopify.app.toml scopes", () => {
+describe("shopify config without order webhooks", () => {
+  it("uses only the expected non-order scopes in shopify.app.toml", () => {
     const file = readFileSync(resolve(process.cwd(), "shopify.app.toml"), "utf8");
-    expect(file).toMatch(/scopes\s*=\s*".*read_orders.*"/);
+    expect(file).toContain(
+      'scopes = "read_script_tags,read_pixels,write_pixels,read_customer_events"'
+    );
   });
 
-  it("registers orders/create and orders/paid webhook subscriptions", () => {
+  it("does not register orders/create and orders/paid webhook subscriptions", () => {
     const file = readFileSync(resolve(process.cwd(), "shopify.app.toml"), "utf8");
-    expect(file).toContain("topics = [\"orders/create\", \"orders/paid\"]");
+    expect(file).not.toContain("topics = [\"orders/create\", \"orders/paid\"]");
   });
 
-  it("registers ORDERS_CREATE and ORDERS_PAID in app config", () => {
+  it("does not register ORDERS_CREATE and ORDERS_PAID in app config", () => {
     const file = readFileSync(
       resolve(process.cwd(), "app/services/shopify/app-config.server.ts"),
       "utf8"
     );
-    expect(file).toContain("ORDERS_CREATE");
-    expect(file).toContain("ORDERS_PAID");
+    expect(file).not.toContain("ORDERS_CREATE");
+    expect(file).not.toContain("ORDERS_PAID");
   });
 });

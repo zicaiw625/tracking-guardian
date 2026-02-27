@@ -133,7 +133,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Shopify-Topic": "orders/paid",
+          "X-Shopify-Topic": "app_subscriptions/update",
           "X-Shopify-Shop-Domain": "test-shop.myshopify.com",
           "X-Shopify-Hmac-Sha256": "invalid-hmac-signature",
         },
@@ -154,7 +154,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Shopify-Topic": "orders/paid",
+          "X-Shopify-Topic": "app_subscriptions/update",
           "X-Shopify-Shop-Domain": "test-shop.myshopify.com",
         },
         body: JSON.stringify({
@@ -316,7 +316,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Shopify-Topic": "orders/paid",
+          "X-Shopify-Topic": "app_subscriptions/update",
           "X-Shopify-Shop-Domain": "test-shop.myshopify.com",
           "X-Shopify-Hmac-Sha256": "some-hmac",
         },
@@ -333,7 +333,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Shopify-Topic": "orders/paid",
+          "X-Shopify-Topic": "app_subscriptions/update",
           "X-Shopify-Shop-Domain": "test-shop.myshopify.com",
           "X-Shopify-Hmac-Sha256": "some-hmac",
         },
@@ -344,9 +344,9 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
     });
   });
   describe("Business Webhooks with HMAC", () => {
-    it("returns 200 for ORDERS_PAID when order webhook gate is off without persisting", async () => {
+    it("returns 200 for APP_SUBSCRIPTIONS_UPDATE with valid HMAC", async () => {
       vi.mocked(authenticate.webhook).mockResolvedValue({
-        topic: "ORDERS_PAID",
+        topic: "APP_SUBSCRIPTIONS_UPDATE",
         shop: "test-shop.myshopify.com",
         session: { shop: "test-shop.myshopify.com" },
         admin: { graphql: vi.fn() },
@@ -371,7 +371,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Shopify-Topic": "orders/paid",
+          "X-Shopify-Topic": "app_subscriptions/update",
           "X-Shopify-Shop-Domain": "test-shop.myshopify.com",
           "X-Shopify-Hmac-Sha256": "valid-hmac-signature",
           "X-Shopify-Webhook-Id": "unique-webhook-id-gate-off",
@@ -386,9 +386,9 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
       expect(response.status).toBe(200);
       expect(prisma.orderSummary.upsert).not.toHaveBeenCalled();
     });
-    it("returns 200 for ORDERS_PAID with valid HMAC and valid shop", async () => {
+    it("returns 200 for APP_SUBSCRIPTIONS_UPDATE with valid HMAC and valid shop", async () => {
       vi.mocked(authenticate.webhook).mockResolvedValue({
-        topic: "ORDERS_PAID",
+        topic: "APP_SUBSCRIPTIONS_UPDATE",
         shop: "test-shop.myshopify.com",
         session: { shop: "test-shop.myshopify.com" },
         admin: { graphql: vi.fn() },
@@ -416,7 +416,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Shopify-Topic": "orders/paid",
+          "X-Shopify-Topic": "app_subscriptions/update",
           "X-Shopify-Shop-Domain": "test-shop.myshopify.com",
           "X-Shopify-Hmac-Sha256": "valid-hmac-signature",
           "X-Shopify-Webhook-Id": "unique-webhook-id-123",
@@ -465,7 +465,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
   describe("Idempotency with Webhook-Id", () => {
     it("returns 200 OK for duplicate webhook (idempotent)", async () => {
       vi.mocked(authenticate.webhook).mockResolvedValue({
-        topic: "ORDERS_PAID",
+        topic: "APP_SUBSCRIPTIONS_UPDATE",
         shop: "test-shop.myshopify.com",
         session: { shop: "test-shop.myshopify.com" },
         admin: { graphql: vi.fn() },
@@ -490,7 +490,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Shopify-Topic": "orders/paid",
+          "X-Shopify-Topic": "app_subscriptions/update",
           "X-Shopify-Shop-Domain": "test-shop.myshopify.com",
           "X-Shopify-Hmac-Sha256": "valid-hmac-signature",
           "X-Shopify-Webhook-Id": "duplicate-webhook-id",
@@ -508,7 +508,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
 describe("HMAC Validation Implementation", () => {
   it("should call authenticate.webhook for all incoming webhooks", async () => {
     vi.mocked(authenticate.webhook).mockResolvedValue({
-      topic: "ORDERS_PAID",
+      topic: "APP_SUBSCRIPTIONS_UPDATE",
       shop: "test-shop.myshopify.com",
       session: { shop: "test-shop.myshopify.com" },
       admin: { graphql: vi.fn() },

@@ -182,7 +182,7 @@ pnpm install
 ```env
 SHOPIFY_API_KEY=your_api_key
 SHOPIFY_API_SECRET=your_api_secret
-SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders
+SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
 SHOPIFY_APP_URL=https://your-app-url.com
 DATABASE_URL=postgresql://user:password@localhost:5432/tracking_guardian
 ```
@@ -197,13 +197,12 @@ DATABASE_URL=postgresql://user:password@localhost:5432/tracking_guardian
 
 **标准配置（所有环境必须完全一致，包括顺序和拼写）**：
 ```
-SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders
+SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
 ```
 
 **⚠️ 关键要求**：
 - 所有三个位置的配置必须**完全一致**（包括权限顺序和拼写）
 - 如果配置不一致，会导致安装后需要反复 re-auth、某些页面/功能偶发 403 错误
-- 新增 `read_orders` 后，已安装店铺需要重新授权一次以刷新 access token scopes
 
 **权限说明**：
 
@@ -211,7 +210,7 @@ SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_order
 - `read_pixels`：查询已安装的 Web Pixel 状态
 - `write_pixels`：创建/更新 App Pixel Extension
 
-当前版本申请 `read_orders`，可启用 `orders/create`、`orders/paid` webhook 作为 `checkout_completed` 缺失时的补偿真相源；验收仍以 Web Pixel 标准事件为主，并结合订单 webhook 做一致性补偿。
+当前版本不申请订单相关读取权限，验收以 Web Pixel 标准事件为主。
 
 # P0-2: Web Pixel Origin null 兼容配置（生产环境必须显式设置）
 # ⚠️ 生产环境部署必配项：此变量在生产环境必须显式设置，否则应用启动会失败
@@ -419,7 +418,7 @@ railway up
 | `read_pixels` | 查询已安装的 Web Pixel 状态 | `migration.server.ts` | ✅ 是 |
 | `write_pixels` | 创建/更新 App Pixel Extension | `migration.server.ts` | ✅ 是 |
 
-**权限说明**：所有权限均为当前版本的核心功能所必需，**必须全部包含在 SCOPES 环境变量中**，其中 `read_orders` 用于订单 webhook 补偿链路。
+**权限说明**：所有权限均为当前版本的核心功能所必需，**必须全部包含在 SCOPES 环境变量中**。
 
 **配置一致性要求**：
 
@@ -430,7 +429,7 @@ railway up
 
 **标准配置**（所有环境必须完全一致）：
 ```
-SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders
+SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
 ```
 
 **⚠️ 关键要求**：
@@ -497,9 +496,6 @@ ScriptTag 清理需要商家手动操作：
 - `customers/data_request` - 客户数据导出请求
 - `customers/redact` - 客户数据删除请求
 - `shop/redact` - 店铺数据完全删除
-
-### 订单 Webhook（成交补偿能力）
-应用已注册 `orders/create`、`orders/paid` 主题，是否处理由 `ORDER_WEBHOOK_ENABLED` 控制。启用后会将订单事件写入补偿链路，用于弥补 `checkout_completed` 的天然缺失场景；IP/UA 采集仍由 `ORDER_WEBHOOK_COLLECT_IP_UA=true` 单独控制。
 
 ## 上架前 Checklist
 

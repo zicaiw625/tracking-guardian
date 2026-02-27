@@ -1,5 +1,4 @@
 import { logger } from "../utils/logger.server";
-import { ORDER_WEBHOOK_ENABLED } from "../utils/config.server";
 import { WebhookStatus } from "../types";
 import {
   handleAppUninstalled,
@@ -7,8 +6,6 @@ import {
   handleCustomersRedact,
   handleShopRedact,
   handleAppSubscriptionsUpdate,
-  handleOrdersCreate,
-  handleOrdersPaid,
 } from "./handlers";
 import { tryAcquireWebhookLock, updateWebhookStatus } from "./middleware";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "./types";
@@ -32,8 +29,6 @@ const WEBHOOK_HANDLERS: Record<
   CUSTOMERS_REDACT: (ctx) => handleCustomersRedact(ctx),
   SHOP_REDACT: (ctx) => handleShopRedact(ctx),
   APP_SUBSCRIPTIONS_UPDATE: (ctx) => handleAppSubscriptionsUpdate(ctx),
-  ORDERS_CREATE: (ctx, shop) => handleOrdersCreate(ctx, shop),
-  ORDERS_PAID: (ctx, shop) => handleOrdersPaid(ctx, shop),
 };
 
 const GDPR_TOPICS = new Set([
@@ -73,15 +68,6 @@ export async function dispatchWebhook(
     );
     if (webhookId) {
       await updateWebhookStatus(shop, webhookId, topic, WebhookStatus.FAILED);
-    }
-    return new Response("OK", { status: 200 });
-  }
-  if (
-    (normalizedTopic === "ORDERS_CREATE" || normalizedTopic === "ORDERS_PAID") &&
-    !ORDER_WEBHOOK_ENABLED
-  ) {
-    if (webhookId) {
-      await updateWebhookStatus(shop, webhookId, topic, WebhookStatus.PROCESSED);
     }
     return new Response("OK", { status: 200 });
   }
