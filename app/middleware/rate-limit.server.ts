@@ -562,11 +562,14 @@ export function ipKeyExtractor(request: Request): string {
   }
   const isProduction = process.env.NODE_ENV === "production";
   const trustProxy = process.env.TRUST_PROXY === "true";
+  if (isProduction && !trustProxy) {
+    throw new Error("TRUST_PROXY must be true in production for correct IP rate limiting");
+  }
   const headersToCheck = !isProduction ? DEVELOPMENT_IP_HEADERS :
     trustProxy ? getTrustedIpHeaders() :
     [];
   if (headersToCheck.length === 0) {
-    return isProduction ? "untrusted" : "unknown";
+    return "unknown";
   }
   for (const headerName of headersToCheck) {
     const resolved = resolveIpFromHeader(request.headers, headerName);
@@ -574,7 +577,7 @@ export function ipKeyExtractor(request: Request): string {
       return resolved;
     }
   }
-  return isProduction ? "untrusted" : "unknown";
+  return "unknown";
 }
 
 export function shopQueryKeyExtractor(request: Request): string {

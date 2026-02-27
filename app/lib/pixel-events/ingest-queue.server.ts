@@ -5,10 +5,32 @@ import prisma from "~/db.server";
 
 const QUEUE_KEY = "ingest:queue";
 const PROCESSING_KEY = "ingest:processing";
+const PROCESSING_HASH_KEY = "ingest:processing:entries";
 const DLQ_KEY = "ingest:dlq";
 const MAX_QUEUE_SIZE = 100_000;
 const MAX_BATCHES_PER_RUN = 50;
 const MAX_RETRIES = 5;
+
+async function getProcessingEntryById(
+  redis: Awaited<ReturnType<typeof getRedisClient>>,
+  requestId: string
+): Promise<string | null> {
+  const entries = await redis.hGetAll(PROCESSING_HASH_KEY);
+  return entries[requestId] ?? null;
+}
+
+async function removeProcessingEntryById(
+  redis: Awaited<ReturnType<typeof getRedisClient>>,
+  requestId: string
+): Promise<void> {
+  const entries = await redis.hGetAll(PROCESSING_HASH_KEY);
+  if (!entries[requestId]) return;
+  delete entries[requestId];
+  await redis.del(PROCESSING_HASH_KEY);
+  if (Object.keys(entries).length > 0) {
+    await redis.hMSet(PROCESSING_HASH_KEY, entries);
+  }
+}
 
 export interface IngestRequestContext {
   ip?: string | null;
@@ -92,23 +114,37 @@ export async function processIngestQueue(
   for (let i = 0; i < maxBatches; i++) {
     const raw = await redis.rPopLPush(QUEUE_KEY, PROCESSING_KEY);
     if (!raw) break;
-    let processingRaw = raw;
 
     let entry: IngestQueueEntry;
     try {
-      entry = JSON.parse(processingRaw) as IngestQueueEntry;
-      if (!entry.processingStartedAt) {
-        entry.processingStartedAt = Date.now();
-        const updatedRaw = JSON.stringify(entry);
-        await redis.lSet(PROCESSING_KEY, 0, updatedRaw);
-        processingRaw = updatedRaw;
-      }
+      entry = JSON.parse(raw) as IngestQueueEntry;
     } catch (e) {
       logger.warn("Invalid ingest queue entry JSON", {
         error: e instanceof Error ? e.message : String(e),
       });
-      // Invalid JSON, remove from processing queue as it can't be processed
-      await redis.lRem(PROCESSING_KEY, 1, processingRaw);
+      await redis.lRem(PROCESSING_KEY, 1, raw);
+      errors++;
+      continue;
+    }
+
+    if (!entry.processingStartedAt) {
+      entry.processingStartedAt = Date.now();
+    }
+
+    const processingRaw = JSON.stringify(entry);
+    const processingMarker = entry.requestId;
+    try {
+      await redis.hSet(PROCESSING_HASH_KEY, processingMarker, processingRaw);
+      await redis.lRem(PROCESSING_KEY, 1, raw);
+      await redis.lPush(PROCESSING_KEY, processingMarker);
+    } catch (e) {
+      logger.error("Failed to register processing entry", {
+        requestId: entry.requestId,
+        shopDomain: entry.shopDomain,
+        error: e instanceof Error ? e.message : String(e),
+      });
+      await redis.lRem(PROCESSING_KEY, 1, raw);
+      await redis.lPush(QUEUE_KEY, raw);
       errors++;
       continue;
     }
@@ -169,8 +205,8 @@ export async function processIngestQueue(
         throw e; 
       }
       
-      // Success - remove from processing queue (ACK)
-      await redis.lRem(PROCESSING_KEY, 1, processingRaw);
+      await redis.lRem(PROCESSING_KEY, 1, processingMarker);
+      await removeProcessingEntryById(redis, processingMarker);
       processed++;
     } catch (e) {
       const currentRetry = entry.retryCount || 0;
@@ -191,25 +227,21 @@ export async function processIngestQueue(
           entry.retryCount = currentRetry + 1;
           entry.processingStartedAt = undefined;
           await redis.lPush(DLQ_KEY, JSON.stringify(entry));
-          await redis.lRem(PROCESSING_KEY, 1, processingRaw);
+          await redis.lRem(PROCESSING_KEY, 1, processingMarker);
+          await removeProcessingEntryById(redis, processingMarker);
         } else {
-          // Re-queue with incremented retry count
-          // Push to Head of Queue (will be processed last, acting as backoff)
           entry.retryCount = currentRetry + 1;
-          entry.enqueuedAt = Date.now(); // Update timestamp to prevent immediate stuck recovery
+          entry.enqueuedAt = Date.now();
           entry.processingStartedAt = undefined;
           await redis.lPush(QUEUE_KEY, JSON.stringify(entry));
-          await redis.lRem(PROCESSING_KEY, 1, processingRaw);
+          await redis.lRem(PROCESSING_KEY, 1, processingMarker);
+          await removeProcessingEntryById(redis, processingMarker);
         }
       } catch (queueError) {
         logger.error("Failed to handle failed ingest batch (DLQ/Retry)", {
           requestId: entry.requestId,
           error: queueError instanceof Error ? queueError.message : String(queueError)
         });
-        // If we fail here, we leave it in PROCESSING_KEY. 
-        // It will be picked up by recoverStuckProcessingItems later, 
-        // effectively resetting its retry loop (since we couldn't update the JSON).
-        // This is a safe fallback.
       }
       
       errors++;
@@ -261,40 +293,65 @@ async function rollbackReceiptsForFailedBatch(
 export async function recoverStuckProcessingItems(limit = 100, maxAgeMs = 15 * 60 * 1000): Promise<number> {
   const redis = await getRedisClient();
   let recovered = 0;
-  
-  // Check items at the tail of the processing list (oldest items)
+
   while (recovered < limit) {
     const lastItem = await redis.lIndex(PROCESSING_KEY, -1);
     if (!lastItem) break;
-    
+    if (lastItem.startsWith("{")) {
+      let shouldRecover = false;
+      try {
+        const entry = JSON.parse(lastItem) as IngestQueueEntry;
+        const startedAt = entry.processingStartedAt ?? entry.enqueuedAt;
+        if (startedAt && (Date.now() - startedAt > maxAgeMs)) {
+          shouldRecover = true;
+        } else if (!startedAt) {
+          shouldRecover = true;
+        }
+      } catch {
+        shouldRecover = true;
+      }
+
+      if (shouldRecover) {
+        const moved = await redis.rPopLPush(PROCESSING_KEY, QUEUE_KEY);
+        if (moved) {
+          recovered++;
+          logger.warn("Recovered stuck ingest item", { from: PROCESSING_KEY, to: QUEUE_KEY, format: "legacy" });
+          continue;
+        }
+      }
+      break;
+    }
+
+    const requestId = lastItem;
+    const processingRaw = await getProcessingEntryById(redis, requestId);
+    if (!processingRaw) {
+      await redis.lRem(PROCESSING_KEY, 1, requestId);
+      logger.warn("Removed orphan processing marker", { requestId });
+      continue;
+    }
+
     let shouldRecover = false;
     try {
-      const entry = JSON.parse(lastItem) as IngestQueueEntry;
+      const entry = JSON.parse(processingRaw) as IngestQueueEntry;
       const startedAt = entry.processingStartedAt ?? entry.enqueuedAt;
       if (startedAt && (Date.now() - startedAt > maxAgeMs)) {
         shouldRecover = true;
       } else if (!startedAt) {
-        // Legacy item without timestamp, treat as stuck if it's at the tail
         shouldRecover = true;
       }
     } catch {
-      // Invalid JSON, move it out to avoid blocking
       shouldRecover = true;
     }
-    
-    if (shouldRecover) {
-      // Move from Tail of Processing to Head of Queue
-      const moved = await redis.rPopLPush(PROCESSING_KEY, QUEUE_KEY);
-      if (moved) {
-        recovered++;
-        logger.warn("Recovered stuck ingest item", { from: PROCESSING_KEY, to: QUEUE_KEY });
-      } else {
-        break;
-      }
-    } else {
-      // Oldest item is not stuck yet, so newer items won't be either
+
+    if (!shouldRecover) {
       break;
     }
+
+    await redis.lPush(QUEUE_KEY, processingRaw);
+    await redis.lRem(PROCESSING_KEY, 1, requestId);
+    await removeProcessingEntryById(redis, requestId);
+    recovered++;
+    logger.warn("Recovered stuck ingest item", { from: PROCESSING_KEY, to: QUEUE_KEY, requestId, format: "hash" });
   }
   return recovered;
 }

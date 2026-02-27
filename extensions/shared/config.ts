@@ -1,7 +1,9 @@
 const BUILD_TIME_URL = "__BACKEND_URL_PLACEHOLDER__";
+export const RAW_BACKEND_URL: string = BUILD_TIME_URL;
+export const BACKEND_URL_PLACEHOLDER_DETECTED = BUILD_TIME_URL.includes("PLACEHOLDER");
 
 function resolveBackendUrl(): string | null {
-  if (BUILD_TIME_URL && !BUILD_TIME_URL.includes("PLACEHOLDER")) {
+  if (BUILD_TIME_URL && !BACKEND_URL_PLACEHOLDER_DETECTED) {
     return BUILD_TIME_URL;
   }
   return null;

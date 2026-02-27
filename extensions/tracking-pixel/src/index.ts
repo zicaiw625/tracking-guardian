@@ -1,5 +1,10 @@
 import { register } from "@shopify/web-pixels-extension";
-import { BACKEND_URL, isAllowedBackendUrl } from "../../shared/config";
+import {
+  BACKEND_URL,
+  RAW_BACKEND_URL,
+  BACKEND_URL_PLACEHOLDER_DETECTED,
+  isAllowedBackendUrl,
+} from "../../shared/config";
 import { createConsentManager, subscribeToConsentChanges } from "./consent";
 import { createEventSender, subscribeToAnalyticsEvents } from "./events";
 import type { PixelSettings, PixelInit, CustomerPrivacyState, VisitorConsentCollectedEvent } from "./types";
@@ -12,8 +17,12 @@ register(({ analytics, settings, init, customerPrivacy }: {
 }) => {
   const ingestionKey = settings.ingestion_key;
   const shopDomain = settings.shop_domain || init.data?.shop?.myshopifyDomain || "";
-  const placeholderDetected = BACKEND_URL && (BACKEND_URL.includes("__BACKEND_URL_PLACEHOLDER__") || BACKEND_URL.includes("PLACEHOLDER"));
+  const placeholderDetected = BACKEND_URL_PLACEHOLDER_DETECTED;
   const backendUrl = !placeholderDetected && BACKEND_URL && isAllowedBackendUrl(BACKEND_URL, { shopDomain }) ? BACKEND_URL : null;
+  const diagnosticBackendUrl =
+    typeof RAW_BACKEND_URL === "string" && /^https?:\/\//i.test(RAW_BACKEND_URL) ? RAW_BACKEND_URL : null;
+  const backendDisabledReason =
+    !backendUrl && placeholderDetected ? "backend_url_not_injected" : undefined;
   const environment = (settings.environment as "test" | "live" | undefined) || "live";
   const isDevMode = (() => {
     if (shopDomain.includes(".myshopify.dev") || /-(dev|staging|test)\./i.test(shopDomain)) {
@@ -79,6 +88,8 @@ register(({ analytics, settings, init, customerPrivacy }: {
   }
   const sendToBackend = createEventSender({
     backendUrl,
+    diagnosticBackendUrl,
+    backendDisabledReason,
     shopDomain,
     ingestionKey,
     isDevMode,

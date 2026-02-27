@@ -52,6 +52,8 @@ function mapCheckoutLineItems(checkout: CheckoutData): Array<{ id: string; quant
 
 export interface EventSenderConfig {
   backendUrl: string | null;
+  diagnosticBackendUrl?: string | null;
+  backendDisabledReason?: "backend_url_not_injected";
   shopDomain: string;
   ingestionKey?: string;
   isDevMode: boolean;
@@ -83,7 +85,7 @@ const reportedDiagnostics = new Set<string>();
 function reportConfigDiagnostic(
   backendUrl: string,
   shopDomain: string,
-  reason: "missing_ingestion_key" | "backend_unavailable",
+  reason: "missing_ingestion_key" | "backend_unavailable" | "backend_url_not_injected",
   isDevMode: boolean,
   log: (...args: unknown[]) => void
 ): void {
@@ -290,9 +292,22 @@ function generateNonce(
 }
 
 export function createEventSender(config: EventSenderConfig) {
-  const { backendUrl, shopDomain, ingestionKey, isDevMode, consentManager, logger, environment = "live" } = config;
+  const {
+    backendUrl,
+    diagnosticBackendUrl = null,
+    backendDisabledReason,
+    shopDomain,
+    ingestionKey,
+    isDevMode,
+    consentManager,
+    logger,
+    environment = "live",
+  } = config;
   const log = logger || (() => {});
   if (!backendUrl) {
+    if (!isDevMode && backendDisabledReason && diagnosticBackendUrl) {
+      reportConfigDiagnostic(diagnosticBackendUrl, shopDomain, backendDisabledReason, isDevMode, log);
+    }
     if (isDevMode) {
       log("⚠️ BACKEND_URL not configured - event sending disabled. " +
           "Run pnpm ext:inject to inject the backend URL at build time. " +

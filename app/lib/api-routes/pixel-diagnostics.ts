@@ -16,7 +16,7 @@ const DIAGNOSTIC_SIGNATURE_HEADER = "X-Tracking-Guardian-Signature";
 const DIAGNOSTIC_NONCE_HEADER = "X-Tracking-Guardian-Nonce";
 
 const pixelDiagnosticSchema = z.object({
-  reason: z.enum(["missing_ingestion_key", "backend_unavailable"]),
+  reason: z.enum(["missing_ingestion_key", "backend_unavailable", "backend_url_not_injected"]),
   shopDomain: z.string().regex(SHOP_DOMAIN_PATTERN),
   timestamp: z.number().int(),
 }).strict();

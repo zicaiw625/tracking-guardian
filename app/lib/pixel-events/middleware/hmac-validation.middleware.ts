@@ -12,6 +12,21 @@ import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types"
 
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
 
+function canonicalJSONStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => canonicalJSONStringify(item)).join(",")}]`;
+  }
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, v]) => v !== undefined)
+    .sort(([a], [b]) => a.localeCompare(b));
+  return `{${entries
+    .map(([key, entryValue]) => `${JSON.stringify(key)}:${canonicalJSONStringify(entryValue)}`)
+    .join(",")}}`;
+}
+
 export const hmacValidationMiddleware: IngestMiddleware = async (
   context: IngestContext
 ): Promise<MiddlewareResult> => {
@@ -87,7 +102,7 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
       delete envelope.signature;
       delete envelope.signatureTimestamp;
       delete envelope.signatureShopDomain;
-      return JSON.stringify(envelope);
+      return canonicalJSONStringify(envelope);
     })();
     const bodyHash = crypto.createHash("sha256").update(hmacSourcePayload).digest("hex");
 

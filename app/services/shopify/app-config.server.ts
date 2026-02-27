@@ -90,6 +90,13 @@ try {
   if (process.env.NODE_ENV === "production" && scopes.length === 0) {
     throw new Error("SCOPES must be set and contain at least one scope in production");
   }
+  const webhooksConfig = {
+    APP_UNINSTALLED: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
+    APP_SUBSCRIPTIONS_UPDATE: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
+    CUSTOMERS_DATA_REQUEST: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
+    CUSTOMERS_REDACT: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
+    SHOP_REDACT: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
+  } satisfies NonNullable<Parameters<typeof shopifyApp>[0]["webhooks"]>;
   const config = {
     apiKey: finalApiKey,
     apiSecretKey: finalApiSecretKey,
@@ -99,13 +106,7 @@ try {
     authPathPrefix: "/auth",
     sessionStorage: encryptedSessionStorage,
     distribution: AppDistribution.AppStore,
-    webhooks: {
-      APP_UNINSTALLED: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
-      APP_SUBSCRIPTIONS_UPDATE: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
-      CUSTOMERS_DATA_REQUEST: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
-      CUSTOMERS_REDACT: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
-      SHOP_REDACT: { deliveryMethod: DeliveryMethod.Http, callbackUrl: "/webhooks" },
-    } as any,
+    webhooks: webhooksConfig,
     hooks: {
       afterAuth: async ({ session, admin }: { session: { shop: string; accessToken?: string }; admin?: AdminApiContext }) => {
         if (shopify) {

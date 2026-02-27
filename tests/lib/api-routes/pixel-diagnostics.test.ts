@@ -95,6 +95,21 @@ describe("pixel diagnostics api", () => {
     expect(body.accepted).toBe(true);
   });
 
+  it("accepts backend_url_not_injected diagnostic reason", async () => {
+    const response = await action({
+      request: createRequest({
+        reason: "backend_url_not_injected",
+        shopDomain: "demo-shop.myshopify.com",
+        timestamp: Date.now(),
+      }),
+      params: {},
+      context: {},
+    });
+    expect(response.status).toBe(202);
+    const body = await response.json();
+    expect(body.accepted).toBe(true);
+  });
+
   it("rejects payload with extra fields", async () => {
     const response = await action({
       request: createRequest({
