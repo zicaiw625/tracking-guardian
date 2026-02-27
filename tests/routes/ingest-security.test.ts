@@ -91,7 +91,7 @@ vi.mock("../../app/lib/pixel-events/ingest-pipeline.server", () => ({
 }));
 
 vi.mock("../../app/lib/pixel-events/ingest-queue.server", () => ({
-  enqueueIngestBatch: vi.fn().mockResolvedValue(true),
+  enqueueIngestBatch: vi.fn().mockResolvedValue({ ok: true, dropped: 0 }),
   processIngestQueue: vi.fn(),
 }));
 

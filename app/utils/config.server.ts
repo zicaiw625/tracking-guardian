@@ -305,7 +305,14 @@ export function getSupportConfig(): {
 }
 
 export function getPublicAppDomain(): string {
-  return getEnv("SHOPIFY_APP_URL", getEnv("APP_URL", "https://tracking-guardian.onrender.com"));
+  const configured = getEnv("SHOPIFY_APP_URL", getEnv("APP_URL", ""));
+  if (configured) {
+    return configured;
+  }
+  if (isProduction()) {
+    throw new Error("Missing public app domain: set SHOPIFY_APP_URL or APP_URL in production.");
+  }
+  return "https://tracking-guardian.onrender.com";
 }
 
 export function isProduction(): boolean {

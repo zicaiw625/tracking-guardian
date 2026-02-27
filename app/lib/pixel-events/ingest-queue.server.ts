@@ -41,7 +41,7 @@ export interface IngestQueueEntry {
   }>;
 }
 
-export async function enqueueIngestBatch(entry: IngestQueueEntry): Promise<boolean> {
+export async function enqueueIngestBatch(entry: IngestQueueEntry): Promise<{ ok: boolean; dropped: number }> {
   try {
     const redis = await getRedisClient();
     entry.enqueuedAt = Date.now();
@@ -67,14 +67,14 @@ export async function enqueueIngestBatch(entry: IngestQueueEntry): Promise<boole
       });
     }
     
-    return true;
+    return { ok: true, dropped };
   } catch (e) {
     logger.error("Failed to enqueue ingest batch", {
       requestId: entry.requestId,
       shopDomain: entry.shopDomain,
       error: e instanceof Error ? e.message : String(e),
     });
-    return false;
+    return { ok: false, dropped: 0 };
   }
 }
 

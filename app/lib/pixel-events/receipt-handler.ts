@@ -175,7 +175,8 @@ export async function upsertPixelEventReceipt(
     let receipt;
     const trustLevelValue = trustLevel ?? "untrusted";
     const hmacMatchedValue = hmacMatched ?? false;
-    const totalValue = payloadData?.value ? new Prisma.Decimal(Number(payloadData.value) || 0) : null;
+    const hasNumericValue = payloadData?.value !== undefined && payloadData?.value !== null;
+    const totalValue = hasNumericValue ? new Prisma.Decimal(Number(payloadData.value) || 0) : null;
     const currency = typeof payloadData?.currency === "string" ? payloadData.currency : null;
 
     try {
@@ -390,8 +391,8 @@ export async function createEventNonce(
       timestamp,
       error: redisError instanceof Error ? redisError.message : String(redisError),
     });
-    // P1-1: DB fallback removed as EventNonce table is deleted. Fail open (allow event).
-    return { isReplay: false };
+    // Redis failure should not disable replay protection. Fail closed for nonce-protected events.
+    return { isReplay: true };
   }
 }
 

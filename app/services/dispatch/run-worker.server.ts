@@ -155,9 +155,17 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
           IDEMPOTENCY_INFLIGHT_TTL_SECONDS * 1000
         );
         if (!hasIdempotencyClaim) {
-          logger.info(`[Dispatch Idempotency] Skipping duplicate: ${job.id}`);
-          await markSent(job.id);
-          sent++;
+          logger.warn(`[Dispatch Idempotency] Lock already held, requeueing job: ${job.id}`);
+          const retryDelayMs = 10_000 + Math.floor(Math.random() * 5_000);
+          await prisma.eventDispatchJob.update({
+            where: { id: job.id },
+            data: {
+              status: "PENDING",
+              next_retry_at: new Date(Date.now() + retryDelayMs),
+              last_error: "Idempotency lock currently held",
+              updatedAt: new Date(),
+            },
+          });
           continue;
         }
       } catch (e) {

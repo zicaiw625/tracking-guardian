@@ -181,7 +181,7 @@ describe("P0 Fix: checkoutToken and nonce preservation after sanitizePII removal
       expect(mockRedis.setNX).toHaveBeenCalledWith(expectedKey, "1", expect.any(Number));
     });
 
-    it("should fail open (allow event) when Redis fails and NOT fallback to database", async () => {
+    it("should fail closed (mark replay) when Redis fails and NOT fallback to database", async () => {
       const shopId = "shop-123";
       const orderId = "order-123";
       const timestamp = Date.now();
@@ -193,11 +193,11 @@ describe("P0 Fix: checkoutToken and nonce preservation after sanitizePII removal
       };
       vi.mocked(getRedisClientStrict).mockResolvedValue(mockRedis as any);
 
-      // We expect createEventNonce to catch the error, log it, and return isReplay: false
+      // We expect createEventNonce to catch the error, log it, and return isReplay: true
       // It should NOT call prisma.eventNonce.create
       const result = await createEventNonce(shopId, orderId, timestamp, nonce, eventType);
       
-      expect(result.isReplay).toBe(false);
+      expect(result.isReplay).toBe(true);
       expect(prisma.eventNonce.create).not.toHaveBeenCalled();
     });
 

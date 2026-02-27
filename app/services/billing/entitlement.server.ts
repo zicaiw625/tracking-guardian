@@ -169,9 +169,12 @@ export async function requireMultipleEntitlementsOrThrow(
   shopId: string,
   entitlements: Entitlement[]
 ): Promise<void> {
-  const result = await checkMultipleEntitlements(shopId, entitlements);
-  if (!result.allowed) {
-    await requireEntitlementOrThrow(shopId, entitlements[0]);
+  for (const entitlement of entitlements) {
+    const result = await checkEntitlement(shopId, entitlement);
+    if (!result.allowed) {
+      await requireEntitlementOrThrow(shopId, entitlement);
+      return;
+    }
   }
 }
 

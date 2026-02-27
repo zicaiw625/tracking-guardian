@@ -321,6 +321,7 @@ export async function analyzeRecentEvents(
     take: LIMIT,
     select: {
       id: true,
+      eventId: true,
       eventType: true,
       platform: true,
       payloadJson: true,
@@ -454,7 +455,7 @@ export async function analyzeRecentEvents(
     const discrepancies: string[] = [];
     const hasValue = value !== undefined && value !== null;
     const hasCurrency = !!currency;
-    const hasEventId = !!payload?.eventId || !!receipt.id;
+    const hasEventId = !!payload?.eventId || !!receipt.eventId;
     let dedupInfo: { existingEventId?: string; reason?: string } | undefined;
     if (receipt.eventType !== "purchase") {
       const hasBasicFields = !!payload?.eventId && !!(payload?.eventName ?? receipt.eventType);
@@ -527,7 +528,7 @@ export async function analyzeRecentEvents(
           status: "deduplicated",
           triggeredAt: receipt.pixelTimestamp,
           params: {
-            value: value || undefined,
+            value: value ?? undefined,
             currency: currency || undefined,
             items: items || undefined,
             hasEventId,
@@ -595,7 +596,7 @@ export async function analyzeRecentEvents(
             status: "failed",
             triggeredAt: receipt.pixelTimestamp,
             params: {
-              value: value || undefined,
+              value: value ?? undefined,
               currency: currency || undefined,
               items: items || undefined,
               hasEventId,
@@ -615,7 +616,7 @@ export async function analyzeRecentEvents(
             status: discrepancyNote ? "warning" : "success",
             triggeredAt: receipt.pixelTimestamp,
             params: {
-              value: value || undefined,
+              value: value ?? undefined,
               currency: currency || undefined,
               items: items || undefined,
               hasEventId,
@@ -667,7 +668,7 @@ export async function analyzeRecentEvents(
         status: "missing_params",
         triggeredAt: receipt.pixelTimestamp,
         params: {
-          value: value || undefined,
+          value: value ?? undefined,
           currency: currency || undefined,
           items: items || undefined,
           hasEventId,

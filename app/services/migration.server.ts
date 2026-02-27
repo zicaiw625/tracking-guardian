@@ -806,6 +806,6 @@ export async function checkAppScopes(admin: AdminApiContext): Promise<boolean> {
         return scopes.includes("read_pixels") && scopes.includes("write_pixels");
     } catch (error) {
         logger.error("Failed to check app scopes:", error);
-        return true;
+        return false;
     }
 }

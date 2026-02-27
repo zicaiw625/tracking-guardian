@@ -1,11 +1,21 @@
 function parseEnvDate(envVar: string | undefined, defaultDate: string): Date {
-    if (envVar && /^\d{4}-\d{2}-\d{2}$/.test(envVar)) {
-        const parsed = new Date(envVar);
-        if (!isNaN(parsed.getTime())) {
-            return parsed;
-        }
+    const rawDate = envVar && /^\d{4}-\d{2}-\d{2}$/.test(envVar) ? envVar : defaultDate;
+    const [yearStr, monthStr, dayStr] = rawDate.split("-");
+    const year = Number(yearStr);
+    const month = Number(monthStr);
+    const day = Number(dayStr);
+    if (
+        Number.isFinite(year) &&
+        Number.isFinite(month) &&
+        Number.isFinite(day) &&
+        month >= 1 &&
+        month <= 12 &&
+        day >= 1 &&
+        day <= 31
+    ) {
+        return new Date(Date.UTC(year, month - 1, day));
     }
-    return new Date(defaultDate);
+    return new Date(Date.UTC(1970, 0, 1));
 }
 
 const DEFAULT_DATES = {
@@ -59,9 +69,9 @@ export interface DateDisplayInfo {
 }
 
 export function getDateDisplayLabel(date: Date, precision: DatePrecision = "month"): string {
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth() + 1;
+    const day = date.getUTCDate();
 
     switch (precision) {
         case "exact":

@@ -53,7 +53,7 @@ describe("enqueueMiddleware requestContext", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env = { ...originalEnv };
-    mocks.enqueueIngestBatch.mockResolvedValue(true);
+    mocks.enqueueIngestBatch.mockResolvedValue({ ok: true, dropped: 0 });
     mocks.ipKeyExtractor.mockReturnValue("1.2.3.4");
     mocks.encrypt.mockImplementation((value: string) => `enc:${value}`);
   });

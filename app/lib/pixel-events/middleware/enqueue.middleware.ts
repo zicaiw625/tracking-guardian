@@ -63,8 +63,8 @@ export const enqueueMiddleware: IngestMiddleware = async (
     })),
   };
 
-  const ok = await enqueueIngestBatch(entry);
-  if (!ok) {
+  const enqueueResult = await enqueueIngestBatch(entry);
+  if (!enqueueResult.ok) {
     return {
       continue: false,
       response: jsonWithCors(
@@ -74,10 +74,15 @@ export const enqueueMiddleware: IngestMiddleware = async (
     };
   }
 
+  const dropped = enqueueResult.dropped || 0;
   return {
     continue: false,
     response: jsonWithCors(
-      { accepted_count: context.validatedEvents.length, errors: [] },
+      {
+        accepted_count: context.validatedEvents.length,
+        errors: dropped > 0 ? [`Queue backpressure dropped ${dropped} older batch(es)`] : [],
+        warnings: dropped > 0 ? ["queue_backpressure_drop"] : [],
+      },
       { status: 202, request: context.request, requestId: context.requestId }
     ),
   };

@@ -33,7 +33,7 @@ describe("createEventNonce Redis down", () => {
     vi.clearAllMocks();
   });
 
-  it("fails open when Redis strict fails (no DB fallback)", async () => {
+  it("fails closed when Redis strict fails (no DB fallback)", async () => {
     const result = await createEventNonce(
       "shop_1",
       "order_1",
@@ -43,7 +43,7 @@ describe("createEventNonce Redis down", () => {
     );
     expect(getRedisClientStrict).toHaveBeenCalled();
     expect(prisma.eventNonce.create).not.toHaveBeenCalled();
-    expect(result.isReplay).toBe(false);
+    expect(result.isReplay).toBe(true);
   });
 });
 
