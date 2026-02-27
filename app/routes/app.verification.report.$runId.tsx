@@ -158,6 +158,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const planId = normalizePlanId(shop.plan || "free") as PlanId;
   const canExportReports = planSupportsReportExport(planId);
   if (actionType === "create_share_link") {
+    if (!canExportReports) {
+      return json({ success: false, error: "Growth or Agency plan is required to share reports" }, { status: 403 });
+    }
     const expiresInDaysRaw = Number(formData.get("expiresInDays") || 7);
     const created = await createVerificationReportShareLink({
       shopId: shop.id,
@@ -175,6 +178,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     });
   }
   if (actionType === "revoke_share_link") {
+    if (!canExportReports) {
+      return json({ success: false, error: "Growth or Agency plan is required to manage shared reports" }, { status: 403 });
+    }
     const revokedCount = await revokeVerificationReportShareLinks(shop.id, runId);
     return json({
       success: true,

@@ -295,6 +295,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
   if (actionType === "complete_onboarding") {
     const autoSetup = formData.get("auto_setup") !== "false";
+    let webPixelSetupFailed = false;
     if (autoSetup) {
       try {
         let ingestionSecret: string | undefined = undefined;
@@ -343,6 +344,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           const result = await updateWebPixel(admin, ourPixelId, ingestionSecret, shopDomain);
           if (!result.success) {
             logger.warn(`[Onboarding] Failed to update WebPixel for ${shopDomain}: ${result.error}`);
+            webPixelSetupFailed = true;
           }
         } else {
           const result = await createWebPixel(admin, ingestionSecret, shopDomain);
@@ -353,11 +355,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             });
           } else {
             logger.warn(`[Onboarding] Failed to create WebPixel for ${shopDomain}: ${result.error}`);
+            webPixelSetupFailed = true;
           }
         }
       } catch (error) {
         logger.error(`[Onboarding] Failed to auto-setup WebPixel for ${shopDomain}`, error);
+        webPixelSetupFailed = true;
       }
+    }
+    if (webPixelSetupFailed) {
+      return json({ success: false, error: t("onboarding.errors.apiError") }, { status: 500 });
     }
     return redirect("/app/scan");
   }

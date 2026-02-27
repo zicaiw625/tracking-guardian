@@ -14,6 +14,13 @@ import { logger } from "~/utils/logger.server";
 import { useTranslation } from "react-i18next";
 import { i18nServer } from "~/i18n.server";
 
+function toSupportedPlatform(platform: string | null | undefined): Platform | null {
+  if (platform === "meta" || platform === "google" || platform === "tiktok") {
+    return platform;
+  }
+  return null;
+}
+
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
@@ -75,8 +82,16 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const actionType = formData.get("_action");
   if (actionType === "getConfigVersionHistory") {
     try {
-      const platform = (pixelConfig.platform && ["meta", "google", "tiktok"].includes(pixelConfig.platform) ? pixelConfig.platform : "meta") as Platform;
-      const history = await getConfigVersionHistory(shop.id, platform, pixelConfig.environment as "test" | "live");
+      const platform = toSupportedPlatform(pixelConfig.platform);
+      if (!platform) {
+        return json({ success: false, error: t("pixels.versions.errors.unsupportedPlatform") }, { status: 400 });
+      }
+      const history = await getConfigVersionHistory(
+        shop.id,
+        platform,
+        pixelConfig.environment as "test" | "live",
+        pixelConfigId
+      );
       if (!history) {
         return json({ success: false, error: t("pixels.versions.errors.configNotFound") }, { status: 404 });
       }
@@ -91,8 +106,16 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   }
   if (actionType === "rollbackConfig") {
     try {
-      const platform = (pixelConfig.platform && ["meta", "google", "tiktok"].includes(pixelConfig.platform) ? pixelConfig.platform : "meta") as Platform;
-      const result = await rollbackConfig(shop.id, platform, pixelConfig.environment as "test" | "live");
+      const platform = toSupportedPlatform(pixelConfig.platform);
+      if (!platform) {
+        return json({ success: false, error: t("pixels.versions.errors.unsupportedPlatform") }, { status: 400 });
+      }
+      const result = await rollbackConfig(
+        shop.id,
+        platform,
+        pixelConfig.environment as "test" | "live",
+        pixelConfigId
+      );
       return json(result);
     } catch (error) {
       logger.error("Failed to rollback config", error);
@@ -108,6 +131,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 export default function PixelVersionsPage() {
   const { t } = useTranslation();
   const { shop, pixelConfig } = useLoaderData<typeof loader>();
+  const supportedPlatform = toSupportedPlatform(pixelConfig?.platform);
   if (!shop || !pixelConfig) {
     return (
       <Page title={t("pixels.versions.title")}>
@@ -147,10 +171,17 @@ export default function PixelVersionsPage() {
       </Card>
       <ConfigVersionManager
         shopId={shop.id}
-        platform={(pixelConfig.platform && ["meta", "google", "tiktok"].includes(pixelConfig.platform) ? pixelConfig.platform : "meta") as PlatformType}
+        platform={(supportedPlatform ?? "meta") as PlatformType}
         currentVersion={pixelConfig.configVersion}
         historyEndpoint={`/app/pixels/${pixelConfig.id}/versions`}
       />
+      {!supportedPlatform && (
+        <Banner tone="warning">
+          <Text as="p" variant="bodySm">
+            {t("pixels.versions.errors.unsupportedPlatform")}
+          </Text>
+        </Banner>
+      )}
       <Banner tone="info">
         <BlockStack gap="200">
           <Text as="p" variant="bodySm">

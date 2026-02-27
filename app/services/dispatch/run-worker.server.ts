@@ -12,6 +12,8 @@ import { getRedisClient } from "~/utils/redis-client.server";
 const DEFAULT_MAX_JOBS = 100;
 const RATE_LIMIT_WINDOW_SECONDS = 10;
 const RATE_LIMIT_MAX_REQUESTS = 50; // 5 req/s average
+const IDEMPOTENCY_INFLIGHT_TTL_SECONDS = 5 * 60;
+const IDEMPOTENCY_SUCCESS_TTL_SECONDS = 24 * 60 * 60;
 
 const DESTINATION_TO_PLATFORM: Record<string, string> = {
   GA4: "google",
@@ -118,20 +120,9 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
   }
 
   for (const job of jobs) {
+    const idempotencyKey = `dispatch:idempotency:${job.InternalEvent.shopId}:${job.destination}:${job.InternalEvent.event_id}`;
+    let hasIdempotencyClaim = false;
     if (redis) {
-      const idempotencyKey = `dispatch:idempotency:${job.InternalEvent.shopId}:${job.destination}:${job.InternalEvent.event_id}`;
-      try {
-        const isProcessed = await redis.get(idempotencyKey);
-        if (isProcessed) {
-          logger.info(`[Dispatch Idempotency] Skipping duplicate: ${job.id}`);
-          await markSent(job.id);
-          sent++;
-          continue;
-        }
-      } catch (e) {
-        logger.warn("Failed to check idempotency", { error: String(e) });
-      }
-
       const rateLimitKey = `dispatch:ratelimit:${job.InternalEvent.shopId}:${job.destination}`;
       try {
         const currentRate = await redis.incr(rateLimitKey);
@@ -156,10 +147,33 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
       } catch (e) {
         logger.warn("Failed to check rate limit", { error: String(e) });
       }
+
+      try {
+        hasIdempotencyClaim = await redis.setNX(
+          idempotencyKey,
+          "processing",
+          IDEMPOTENCY_INFLIGHT_TTL_SECONDS * 1000
+        );
+        if (!hasIdempotencyClaim) {
+          logger.info(`[Dispatch Idempotency] Skipping duplicate: ${job.id}`);
+          await markSent(job.id);
+          sent++;
+          continue;
+        }
+      } catch (e) {
+        logger.warn("Failed to claim idempotency lock", { error: String(e) });
+      }
     }
 
     const platform = DESTINATION_TO_PLATFORM[job.destination];
     if (!platform) {
+      if (redis && hasIdempotencyClaim) {
+        try {
+          await redis.del(idempotencyKey);
+        } catch (e) {
+          logger.warn("Failed to release idempotency lock for invalid destination", { error: String(e) });
+        }
+      }
       await markFailed(job.id, `Unknown destination: ${job.destination}`, null, job.attempts + 1);
       failed++;
       continue;
@@ -167,6 +181,13 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
     const environment = job.InternalEvent.environment;
     const config = configsMap.get(`${job.InternalEvent.shopId}:${platform}:${environment}`);
     if (!config) {
+      if (redis && hasIdempotencyClaim) {
+        try {
+          await redis.del(idempotencyKey);
+        } catch (e) {
+          logger.warn("Failed to release idempotency lock for missing config", { error: String(e) });
+        }
+      }
       await markFailed(job.id, "No S2S credentials for destination", null, job.attempts + 1);
       failed++;
       continue;
@@ -176,6 +197,13 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
       platform
     );
     if (!credResult.ok) {
+      if (redis && hasIdempotencyClaim) {
+        try {
+          await redis.del(idempotencyKey);
+        } catch (e) {
+          logger.warn("Failed to release idempotency lock for invalid credentials", { error: String(e) });
+        }
+      }
       await markFailed(job.id, credResult.error.message, null, job.attempts + 1);
       failed++;
       continue;
@@ -190,6 +218,13 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
       } else if (job.destination === "TIKTOK") {
         result = await sendTiktok(payload, credResult.value.credentials as TikTokCredentials);
       } else {
+        if (redis && hasIdempotencyClaim) {
+          try {
+            await redis.del(idempotencyKey);
+          } catch (e) {
+            logger.warn("Failed to release idempotency lock for unsupported destination", { error: String(e) });
+          }
+        }
         await markFailed(job.id, `Unsupported destination: ${job.destination}`, null, job.attempts + 1);
         failed++;
         continue;
@@ -197,15 +232,21 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.error("Dispatch worker adapter threw", { jobId: job.id, destination: job.destination, error: message });
+      if (redis && hasIdempotencyClaim) {
+        try {
+          await redis.del(idempotencyKey);
+        } catch (e) {
+          logger.warn("Failed to release idempotency lock after adapter error", { error: String(e) });
+        }
+      }
       await markFailed(job.id, message, null, job.attempts + 1);
       failed++;
       continue;
     }
     if (result.ok) {
       if (redis) {
-        const idempotencyKey = `dispatch:idempotency:${job.InternalEvent.shopId}:${job.destination}:${job.InternalEvent.event_id}`;
         try {
-          await redis.set(idempotencyKey, "1", { EX: 86400 });
+          await redis.set(idempotencyKey, "1", { EX: IDEMPOTENCY_SUCCESS_TTL_SECONDS });
         } catch (e) {
           logger.warn("Failed to set idempotency key", { error: String(e) });
         }
@@ -213,6 +254,13 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
       await markSent(job.id);
       sent++;
     } else {
+      if (redis && hasIdempotencyClaim) {
+        try {
+          await redis.del(idempotencyKey);
+        } catch (e) {
+          logger.warn("Failed to release idempotency lock after failed send", { error: String(e) });
+        }
+      }
       await markFailed(
         job.id,
         result.error ?? "Unknown error",

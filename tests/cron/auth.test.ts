@@ -195,6 +195,7 @@ describe("Cron Authentication", () => {
     });
     it("should allow missing timestamp in development", async () => {
       process.env.NODE_ENV = "development";
+      process.env.CRON_STRICT_REPLAY = "false";
       const request = createMockRequest("https://example.com/cron");
       const result = await verifyReplayProtection(request, cronSecret);
       expect(result.valid).toBe(true);

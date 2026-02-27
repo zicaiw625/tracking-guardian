@@ -85,6 +85,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       const configIds: string[] = [];
       const createdPlatforms: string[] = [];
+      const uniqueEnvironments = new Set<string>(configs.map((c) => c.environment));
+      if (uniqueEnvironments.size > 1) {
+        return json({
+          success: false,
+          error: "Mixed environments are not supported in one save operation",
+        }, { status: 400 });
+      }
+      const globalEnvironment =
+        (configs[0]?.environment as "test" | "live" | undefined) ?? "live";
       for (const config of configs) {
         const platform = config.platform as SupportedPlatform;
 
@@ -257,10 +266,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         ourPixelId = ourPixel?.id ?? null;
       }
       if (ourPixelId) {
-        const globalEnvironment = configs.length > 0 ? (configs[0].environment as "test" | "live") : "live";
         await syncWebPixelMode(admin, shop.id, shopDomain, ourPixelId, ingestionSecret, globalEnvironment);
       } else {
-        const globalEnvironment = configs.length > 0 ? (configs[0].environment as "test" | "live") : "live";
         const fullFunnelEventsList = ["page_viewed", "product_viewed", "product_added_to_cart", "checkout_started"];
         const globalMode = configs.some(c => 
             Object.keys(c.eventMappings || {}).some(eventName => fullFunnelEventsList.includes(eventName))
@@ -307,7 +314,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               plan: shop.plan ?? "free",
               role: isAgency ? "agency" : "merchant",
               destination_type: firstPlatform,
-              environment: "test",
+              environment: globalEnvironment,
               risk_score: riskScore,
               asset_count: assetCount,
             },

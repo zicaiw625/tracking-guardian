@@ -1,5 +1,6 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
+import { createHmac, timingSafeEqual } from "crypto";
 import { z } from "zod";
 import prisma from "../../db.server";
 import { checkRateLimitAsync, ipKeyExtractor } from "../../middleware/rate-limit.server";
@@ -7,9 +8,12 @@ import { addSecurityHeaders } from "../../utils/security-headers";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 import { logger } from "../../utils/logger.server";
 import { SHOP_DOMAIN_PATTERN } from "../../schemas/pixel-event";
+import { getRedisClient } from "../../utils/redis-client.server";
 
 const MAX_DIAGNOSTIC_BODY_BYTES = 2048;
 const MAX_TIMESTAMP_SKEW_MS = 10 * 60 * 1000;
+const DIAGNOSTIC_SIGNATURE_HEADER = "X-Tracking-Guardian-Signature";
+const DIAGNOSTIC_NONCE_HEADER = "X-Tracking-Guardian-Nonce";
 
 const pixelDiagnosticSchema = z.object({
   reason: z.enum(["missing_ingestion_key", "backend_unavailable"]),
@@ -23,7 +27,7 @@ function withCors(response: Response): Response {
   headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
   headers.set(
     "Access-Control-Allow-Headers",
-    "Content-Type, x-shopify-shop-domain, X-Tracking-Guardian-Diagnostic"
+    "Content-Type, x-shopify-shop-domain, X-Tracking-Guardian-Diagnostic, X-Tracking-Guardian-Signature, X-Tracking-Guardian-Nonce"
   );
   return new Response(response.body, {
     status: response.status,
@@ -93,6 +97,30 @@ function hasValidUserAgent(request: Request): boolean {
   return trimmed.length <= 512;
 }
 
+function hasValidDiagnosticSignature(
+  body: z.infer<typeof pixelDiagnosticSchema>,
+  signatureHeader: string | null
+): boolean {
+  const secret = process.env.PIXEL_DIAGNOSTIC_SECRET;
+  const isProduction = process.env.NODE_ENV === "production";
+  if (!secret) {
+    return !isProduction;
+  }
+  if (!signatureHeader) {
+    return false;
+  }
+  const payload = `${body.shopDomain}:${body.timestamp}:${body.reason}`;
+  const expected = createHmac("sha256", secret).update(payload).digest("hex");
+  if (signatureHeader.length !== expected.length) {
+    return false;
+  }
+  try {
+    return timingSafeEqual(Buffer.from(signatureHeader, "utf8"), Buffer.from(expected, "utf8"));
+  } catch {
+    return false;
+  }
+}
+
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
     return respond(null, 204);
@@ -121,6 +149,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const headerShopDomain = request.headers.get("x-shopify-shop-domain");
   if (headerShopDomain && headerShopDomain !== body.shopDomain) {
     return respond({ error: "Invalid request" }, 403);
+  }
+  const signatureHeader = request.headers.get(DIAGNOSTIC_SIGNATURE_HEADER);
+  if (!hasValidDiagnosticSignature(body, signatureHeader)) {
+    return respond({ error: "Invalid request" }, 403);
+  }
+  const nonce = request.headers.get(DIAGNOSTIC_NONCE_HEADER)?.trim();
+  if (!nonce || nonce.length > 128) {
+    return respond({ error: "Invalid request" }, 403);
+  }
+  try {
+    const redis = await getRedisClient();
+    const acquired = await redis.setNX(
+      `pixel-diagnostics:nonce:${body.shopDomain}:${nonce}`,
+      "1",
+      MAX_TIMESTAMP_SKEW_MS
+    );
+    if (!acquired) {
+      return respond({ error: "Invalid request" }, 403);
+    }
+  } catch (error) {
+    if (process.env.NODE_ENV === "production") {
+      logger.warn("Pixel diagnostics nonce check failed in production", {
+        shopDomain: body.shopDomain,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return respond({ error: "Invalid request" }, 403);
+    }
   }
 
   const now = Date.now();

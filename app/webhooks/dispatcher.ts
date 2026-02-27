@@ -72,7 +72,7 @@ export async function dispatchWebhook(
         `Responding 200 to prevent Shopify retries.`
     );
     if (webhookId) {
-      await updateWebhookStatus(shop, webhookId, topic, WebhookStatus.PROCESSED);
+      await updateWebhookStatus(shop, webhookId, topic, WebhookStatus.FAILED);
     }
     return new Response("OK", { status: 200 });
   }

@@ -52,13 +52,24 @@ function summarizeGdprResult(jobType: string, result: GDPRJobResult | unknown): 
 }
 
 export async function processGDPRJobs(): Promise<ProcessGDPRJobsResult> {
-  const jobs = await prisma.gDPRJob.findMany({
-    where: {
-      status: { in: ["queued", "pending", "PENDING", "QUEUED"] },
-    },
-    take: 5,
-    orderBy: { createdAt: "asc" },
-  });
+  const jobs = await prisma.$queryRaw<Array<{
+    id: string;
+    shopDomain: string;
+    jobType: string;
+    payload: unknown;
+  }>>`
+    UPDATE "GDPRJob"
+    SET status = ${GDPRJobStatus.PROCESSING}, "processedAt" = NOW()
+    WHERE id IN (
+      SELECT id
+      FROM "GDPRJob"
+      WHERE status IN ('queued', 'pending', 'PENDING', 'QUEUED')
+      ORDER BY "createdAt" ASC
+      LIMIT 5
+      FOR UPDATE SKIP LOCKED
+    )
+    RETURNING id, "shopDomain", "jobType", payload
+  `;
 
   let processed = 0;
   let succeeded = 0;
@@ -69,11 +80,6 @@ export async function processGDPRJobs(): Promise<ProcessGDPRJobsResult> {
     const { id, shopDomain, jobType, payload } = job;
     
     try {
-      await prisma.gDPRJob.update({
-        where: { id },
-        data: { status: GDPRJobStatus.PROCESSING, processedAt: new Date() },
-      });
-
       let result: any;
       const payloadRecord =
         payload && typeof payload === "object" && !Array.isArray(payload)

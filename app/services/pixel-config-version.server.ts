@@ -24,16 +24,15 @@ export interface ConfigVersionHistory {
 export async function saveConfigSnapshot(
   shopId: string,
   platform: Platform,
-  environment: "test" | "live" = "live"
+  environment: "test" | "live" = "live",
+  pixelConfigId?: string
 ): Promise<{ success: boolean; version?: number; error?: string }> {
   try {
+    const where = pixelConfigId
+      ? { id: pixelConfigId, shopId }
+      : { shopId, platform, environment, platformId: null };
     const config = await prisma.pixelConfig.findFirst({
-      where: {
-        shopId,
-        platform,
-        environment,
-        platformId: null,
-      },
+      where,
     });
     if (!config) {
       return { success: false, error: "Configuration not found" };
@@ -69,16 +68,15 @@ export async function saveConfigSnapshot(
 export async function getConfigVersionHistory(
   shopId: string,
   platform: Platform,
-  environment: "test" | "live" = "live"
+  environment: "test" | "live" = "live",
+  pixelConfigId?: string
 ): Promise<ConfigVersionHistory | null> {
   try {
+    const where = pixelConfigId
+      ? { id: pixelConfigId, shopId }
+      : { shopId, platform, environment, platformId: null };
     const config = await prisma.pixelConfig.findFirst({
-      where: {
-        shopId,
-        platform,
-        environment,
-        platformId: null,
-      },
+      where,
     });
     if (!config) {
       return null;
@@ -132,16 +130,15 @@ export async function getConfigVersionHistory(
 export async function rollbackConfig(
   shopId: string,
   platform: Platform,
-  environment: "test" | "live" = "live"
+  environment: "test" | "live" = "live",
+  pixelConfigId?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const where = pixelConfigId
+      ? { id: pixelConfigId, shopId }
+      : { shopId, platform, environment, platformId: null };
     const config = await prisma.pixelConfig.findFirst({
-      where: {
-        shopId,
-        platform,
-        environment,
-        platformId: null,
-      },
+      where,
     });
     if (!config) {
       return { success: false, error: "Configuration not found" };

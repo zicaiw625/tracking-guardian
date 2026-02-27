@@ -88,8 +88,9 @@ export async function verifyReplayProtection(
 ): Promise<ReplayProtectionResult> {
   const strictReplay = process.env.CRON_STRICT_REPLAY === "true";
   const isProduction = process.env.NODE_ENV === "production";
+  const enforceReplayProtection = strictReplay || isProduction;
 
-  if (!strictReplay && !isProduction) {
+  if (!enforceReplayProtection) {
     return { valid: true };
   }
 
@@ -97,17 +98,11 @@ export async function verifyReplayProtection(
   const signatureHeader = request.headers.get("X-Cron-Signature");
 
   if (!timestampHeader) {
-    if (isProduction && strictReplay) {
-      return { valid: false, error: "Missing timestamp header" };
-    }
-    return { valid: true };
+    return { valid: false, error: "Missing timestamp header" };
   }
 
   if (!signatureHeader) {
-    if (isProduction && strictReplay) {
-      return { valid: false, error: "Missing signature header" };
-    }
-    return { valid: true };
+    return { valid: false, error: "Missing signature header" };
   }
 
   const timestamp = parseInt(timestampHeader, 10);

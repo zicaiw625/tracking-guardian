@@ -49,6 +49,10 @@ interface VerificationRunSummary {
   missingParamTests: number;
 }
 
+const TEST_ITEM_EXPECTED_EVENTS: Record<string, string[]> = {
+  purchase_test: ["purchase"],
+};
+
 import { safeFireAndForget } from "~/utils/helpers.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -161,16 +165,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   if (actionType === "verifyTestItem") {
     const itemId = formData.get("itemId") as string;
-    // const eventType = formData.get("eventType") as string; // Currently unused in check, we use expectedEvents
-    const expectedEventsRaw = formData.get("expectedEvents") as string;
-    let expectedEvents: string[] = [];
-    try {
-      const parsed = expectedEventsRaw ? JSON.parse(expectedEventsRaw) : [];
-      if (Array.isArray(parsed)) {
-        expectedEvents = parsed;
-      }
-    } catch (e) {
-      console.error("Failed to parse expectedEvents:", e);
+    const expectedEvents = TEST_ITEM_EXPECTED_EVENTS[itemId];
+    if (!expectedEvents) {
       return json({ success: false, error: t("verification.errors.invalidEventData") }, { status: 400 });
     }
 

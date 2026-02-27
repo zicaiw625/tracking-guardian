@@ -29,6 +29,7 @@ export interface IngestQueueEntry {
   origin: string | null;
   requestContext?: IngestRequestContext;
   enqueuedAt?: number;
+  processingStartedAt?: number;
   retryCount?: number;
   enabledPixelConfigs?: Array<{
     platform: string;
@@ -90,16 +91,24 @@ export async function processIngestQueue(
   for (let i = 0; i < maxBatches; i++) {
     const raw = await redis.rPopLPush(QUEUE_KEY, PROCESSING_KEY);
     if (!raw) break;
+    let processingRaw = raw;
 
     let entry: IngestQueueEntry;
     try {
-      entry = JSON.parse(raw) as IngestQueueEntry;
+      entry = JSON.parse(processingRaw) as IngestQueueEntry;
+      if (!entry.processingStartedAt) {
+        entry.processingStartedAt = Date.now();
+        const updatedRaw = JSON.stringify(entry);
+        await redis.lRem(PROCESSING_KEY, 1, processingRaw);
+        await redis.lPush(PROCESSING_KEY, updatedRaw);
+        processingRaw = updatedRaw;
+      }
     } catch (e) {
       logger.warn("Invalid ingest queue entry JSON", {
         error: e instanceof Error ? e.message : String(e),
       });
       // Invalid JSON, remove from processing queue as it can't be processed
-      await redis.lRem(PROCESSING_KEY, 1, raw);
+      await redis.lRem(PROCESSING_KEY, 1, processingRaw);
       errors++;
       continue;
     }
@@ -160,7 +169,7 @@ export async function processIngestQueue(
       }
       
       // Success - remove from processing queue (ACK)
-      await redis.lRem(PROCESSING_KEY, 1, raw);
+      await redis.lRem(PROCESSING_KEY, 1, processingRaw);
       processed++;
     } catch (e) {
       const currentRetry = entry.retryCount || 0;
@@ -179,15 +188,17 @@ export async function processIngestQueue(
             shopDomain: entry.shopDomain
           });
           entry.retryCount = currentRetry + 1;
+          entry.processingStartedAt = undefined;
           await redis.lPush(DLQ_KEY, JSON.stringify(entry));
-          await redis.lRem(PROCESSING_KEY, 1, raw);
+          await redis.lRem(PROCESSING_KEY, 1, processingRaw);
         } else {
           // Re-queue with incremented retry count
           // Push to Head of Queue (will be processed last, acting as backoff)
           entry.retryCount = currentRetry + 1;
           entry.enqueuedAt = Date.now(); // Update timestamp to prevent immediate stuck recovery
+          entry.processingStartedAt = undefined;
           await redis.lPush(QUEUE_KEY, JSON.stringify(entry));
-          await redis.lRem(PROCESSING_KEY, 1, raw);
+          await redis.lRem(PROCESSING_KEY, 1, processingRaw);
         }
       } catch (queueError) {
         logger.error("Failed to handle failed ingest batch (DLQ/Retry)", {
@@ -219,9 +230,10 @@ export async function recoverStuckProcessingItems(limit = 100, maxAgeMs = 15 * 6
     let shouldRecover = false;
     try {
       const entry = JSON.parse(lastItem) as IngestQueueEntry;
-      if (entry.enqueuedAt && (Date.now() - entry.enqueuedAt > maxAgeMs)) {
+      const startedAt = entry.processingStartedAt ?? entry.enqueuedAt;
+      if (startedAt && (Date.now() - startedAt > maxAgeMs)) {
         shouldRecover = true;
-      } else if (!entry.enqueuedAt) {
+      } else if (!startedAt) {
         // Legacy item without timestamp, treat as stuck if it's at the tail
         shouldRecover = true;
       }

@@ -1,4 +1,5 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
+import { createHash } from "crypto";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
@@ -12,7 +13,31 @@ function getWebhookId(authResult: Awaited<ReturnType<typeof authenticate.webhook
   if (authResult && typeof authResult === "object" && "webhookId" in authResult && typeof authResult.webhookId === "string") {
     return authResult.webhookId;
   }
-  return request.headers.get("X-Shopify-Event-Id") ?? request.headers.get("X-Shopify-Webhook-Id") ?? null;
+  const headerId = request.headers.get("X-Shopify-Event-Id") ?? request.headers.get("X-Shopify-Webhook-Id");
+  if (headerId) {
+    return headerId;
+  }
+  try {
+    const payload = (authResult && typeof authResult === "object" && "payload" in authResult)
+      ? JSON.stringify(authResult.payload ?? {})
+      : "";
+    const shop = (authResult && typeof authResult === "object" && "shop" in authResult)
+      ? String(authResult.shop ?? "")
+      : "";
+    const topic = (authResult && typeof authResult === "object" && "topic" in authResult)
+      ? String(authResult.topic ?? "")
+      : "";
+    if (!shop || !topic || !payload) {
+      return null;
+    }
+    const synthetic = createHash("sha256")
+      .update(`${shop}:${topic}:${payload}`)
+      .digest("hex")
+      .slice(0, 32);
+    return `synthetic-${synthetic}`;
+  } catch {
+    return null;
+  }
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -149,6 +174,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return new Response("Bad Request: Webhook authentication failed", { status: 400 });
   }
   let shopRecord: ShopWithPixelConfigs | null = null;
+  let shopLookupFailed = false;
   try {
     if (context.webhookId) {
       const lock = await tryAcquireWebhookLock(context.shop, context.webhookId, context.topic);
@@ -202,7 +228,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       },
     }) as ShopWithPixelConfigs | null;
   } catch (error) {
+    shopLookupFailed = true;
     logger.error(`[Webhook] Failed to fetch shop record for ${context.shop}:`, error);
+  }
+  if (shopLookupFailed) {
+    return new Response("Temporary error", { status: 503 });
   }
   return dispatchWebhook(context, shopRecord, true);
 };

@@ -56,21 +56,22 @@ export async function releaseCronLock(lockType: string, lockId: string): Promise
     const lockKey = `cron_lock:${lockType}`;
     try {
         const redis = await getRedisClientStrict();
-        const existingValue = await redis.get(lockKey);
-        if (existingValue === lockId) {
-            await redis.del(lockKey);
+        const releaseScript = "if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) else return 0 end";
+        const released = await redis.eval(releaseScript, [lockKey], [lockId]);
+        if (Number(released) === 1) {
             logger.info(`[P1-03] Released cron lock for ${lockType}`, { lockId });
             return true;
-        } else if (existingValue) {
+        }
+        const existingValue = await redis.get(lockKey);
+        if (existingValue) {
             logger.warn(`[P1-03] Attempted to release lock with mismatched lockId for ${lockType}`, {
                 lockId,
                 existingValue: existingValue.substring(0, 50),
             });
             return false;
-        } else {
-            logger.warn(`[P1-03] Attempted to release non-existent lock for ${lockType}`, { lockId });
-            return false;
         }
+        logger.warn(`[P1-03] Attempted to release non-existent lock for ${lockType}`, { lockId });
+        return false;
     } catch (error) {
         logger.error(`[P1-03] Error releasing cron lock for ${lockType}`, error, { lockId });
         return false;

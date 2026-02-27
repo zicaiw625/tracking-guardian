@@ -172,6 +172,7 @@ export async function handleOrdersPaid(
         serverSideEnabled: true,
         platform: { in: ["google", "meta", "tiktok"] },
         isActive: true,
+        environment: "live",
       },
       select: { platform: true },
     });
@@ -183,7 +184,7 @@ export async function handleOrdersPaid(
     const allS2sDestinations = s2sConfigs
       .map((c) => destinationsByPlatform[c.platform])
       .filter(Boolean) as ("GA4" | "META" | "TIKTOK")[];
-    const s2sDestinations: ("GA4" | "META" | "TIKTOK")[] = [];
+    const s2sDestinations = new Set<"GA4" | "META" | "TIKTOK">();
     for (const dest of allS2sDestinations) {
       // P0-2: TikTok requires IP/UA. If missing, skip.
       if (dest === "TIKTOK" && !rawIp && !rawUserAgent) {
@@ -215,10 +216,11 @@ export async function handleOrdersPaid(
         treatAsMarketing
       );
       
-      if (decision.allowed) s2sDestinations.push(dest);
+      if (decision.allowed) s2sDestinations.add(dest);
     }
+    const destinationsToDispatch = Array.from(s2sDestinations);
 
-    const hasMarketingAllowed = s2sDestinations.some((d) => d === "META" || d === "TIKTOK");
+    const hasMarketingAllowed = destinationsToDispatch.some((d) => d === "META" || d === "TIKTOK");
     const userDataHashed: Record<string, string> = {};
     if (hasMarketingAllowed && parsed.email) {
       userDataHashed.em = hashValueSync(parsed.email.toLowerCase().trim());
@@ -272,7 +274,7 @@ export async function handleOrdersPaid(
           consent_purposes: consentPurposes,
         },
       });
-      for (const destination of s2sDestinations) {
+      for (const destination of destinationsToDispatch) {
         await tx.eventDispatchJob.create({
           data: {
             id: randomUUID(),

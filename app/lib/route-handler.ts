@@ -226,7 +226,11 @@ async function parseRequestBody(request: Request): Promise<unknown> {
         throw error;
       }
       logger.warn("Failed to parse JSON body", { error: error instanceof Error ? error.message : String(error) });
-      return {};
+      throw new AppError(
+        ErrorCode.VALIDATION_ERROR,
+        "Invalid JSON request body",
+        false
+      );
     }
   }
   if (contentType.includes("application/x-www-form-urlencoded")) {

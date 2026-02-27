@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from "crypto";
 import prisma from "../db.server";
 import { hashValueSync } from "../utils/crypto.server";
 import { generateVerificationReportData, type VerificationReportData } from "./verification-report.server";
+import { normalizePlanId, planSupportsReportExport, type PlanId } from "./billing/plans";
 
 const DEFAULT_EXPIRY_DAYS = 7;
 const MAX_EXPIRY_DAYS = 90;
@@ -217,6 +218,14 @@ export async function resolvePublicVerificationReportByToken(
   if (shareLink.scope !== "verification_report") return null;
   if (shareLink.revokedAt) return null;
   if (shareLink.expiresAt.getTime() <= Date.now()) return null;
+  const shop = await prisma.shop.findUnique({
+    where: { id: shareLink.shopId },
+    select: { plan: true },
+  });
+  const currentPlan = normalizePlanId((shop?.plan || "free") as string) as PlanId;
+  if (!planSupportsReportExport(currentPlan)) {
+    return null;
+  }
   await (prisma as any).reportShareLink.update({
     where: { id: shareLink.id },
     data: {

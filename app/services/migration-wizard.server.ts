@@ -143,10 +143,9 @@ export async function saveWizardConfigs(
           eventMappings: config.eventMappings as object,
           environment: config.environment || "live",
           migrationStatus: "in_progress",
-          ...(existingConfig && existingConfig.isActive && JSON.stringify(existingConfig.eventMappings) !== JSON.stringify(config.eventMappings) ? {
-            configVersion: { increment: 1 },
-            rollbackAllowed: true,
-          } : {}),
+          ...(existingConfig && existingConfig.isActive && JSON.stringify(existingConfig.eventMappings) !== JSON.stringify(config.eventMappings)
+            ? { rollbackAllowed: true }
+            : {}),
           updatedAt: new Date(),
         },
         create: {

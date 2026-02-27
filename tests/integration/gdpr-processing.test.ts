@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("../../app/db.server", () => ({
   default: {
+    $queryRaw: vi.fn().mockResolvedValue([]),
     gDPRJob: { 
       findUnique: vi.fn(), 
       findMany: vi.fn().mockResolvedValue([]), 
