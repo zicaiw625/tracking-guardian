@@ -109,7 +109,7 @@ services:
   # - CRON_SECRET (必须与 web service 相同)
   # - SHOPIFY_APP_URL (web service 的完整 URL，格式：https://tracking-guardian.onrender.com)
   - type: cron
-    name: tracking-guardian-cron-cleanup
+    name: tracking-guardian-cron
     runtime: node
     region: singapore  # 与 web service 相同区域
     schedule: "0 3 * * *"
@@ -130,7 +130,7 @@ services:
       - key: SHOPIFY_API_SECRET
         sync: false
       - key: CRON_TASK
-        value: cleanup
+        value: all
 
 databases:
   # PostgreSQL 数据库
