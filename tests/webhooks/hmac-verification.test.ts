@@ -92,12 +92,6 @@ vi.mock("../../app/services/billing.server", () => ({
 }));
 
 vi.mock("../../app/utils/webhook-validation", () => ({
-  parseOrderWebhookPayload: vi.fn().mockImplementation((payload) => {
-    if (!payload || typeof payload !== "object" || !("id" in payload)) {
-      return null;
-    }
-    return payload;
-  }),
   parseGDPRDataRequestPayload: vi.fn().mockReturnValue({
     shop_id: 123456789,
     shop_domain: "test-shop.myshopify.com",
