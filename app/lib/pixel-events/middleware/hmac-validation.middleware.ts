@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { jsonWithCors } from "../cors";
 import { validatePixelEventHMAC } from "../hmac-validation";
 import { verifyWithGraceWindowAsync } from "~/utils/shop-access.server";
-import { trackAnomaly } from "~/utils/rate-limiter";
+import { trackAnomaly } from "~/middleware/rate-limit.server";
 import { isStrictSecurityMode, API_CONFIG } from "~/utils/config.server";
 import { logger, metrics } from "~/utils/logger.server";
 import { rejectionTracker } from "../rejection-tracker.server";

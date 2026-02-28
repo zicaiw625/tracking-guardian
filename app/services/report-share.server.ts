@@ -124,7 +124,7 @@ export async function createVerificationReportShareLink(params: {
     const token = generateShareToken();
     const tokenHash = hashValueSync(token);
     try {
-      const created = await (prisma as any).reportShareLink.create({
+      const created = await prisma.reportShareLink.create({
         data: {
           id: randomUUID(),
           shopId,
@@ -160,7 +160,7 @@ export async function createVerificationReportShareLink(params: {
 }
 
 export async function revokeVerificationReportShareLinks(shopId: string, runId: string): Promise<number> {
-  const result = await (prisma as any).reportShareLink.updateMany({
+  const result = await prisma.reportShareLink.updateMany({
     where: {
       shopId,
       runId,
@@ -177,7 +177,7 @@ export async function getLatestVerificationReportShareMeta(
   shopId: string,
   runId: string
 ): Promise<ReportShareLinkMeta | null> {
-  return await (prisma as any).reportShareLink.findFirst({
+  return await prisma.reportShareLink.findFirst({
     where: {
       shopId,
       runId,
@@ -202,7 +202,7 @@ export async function resolvePublicVerificationReportByToken(
   token: string
 ): Promise<PublicVerificationReportData | null> {
   const tokenHash = hashValueSync(token);
-  const shareLink = await (prisma as any).reportShareLink.findUnique({
+  const shareLink = await prisma.reportShareLink.findUnique({
     where: { tokenHash },
     select: {
       id: true,
@@ -226,7 +226,7 @@ export async function resolvePublicVerificationReportByToken(
   if (!planSupportsReportExport(currentPlan)) {
     return null;
   }
-  await (prisma as any).reportShareLink.update({
+  await prisma.reportShareLink.update({
     where: { id: shareLink.id },
     data: {
       accessCount: { increment: 1 },

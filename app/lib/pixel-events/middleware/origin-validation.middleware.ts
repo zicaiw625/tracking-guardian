@@ -1,6 +1,6 @@
 import { jsonWithCors } from "../cors";
 import { validatePixelOriginPreBody, validatePixelOriginForShop, trackNullOriginRequest } from "~/utils/origin-validation.server";
-import { trackAnomaly } from "~/utils/rate-limiter";
+import { trackAnomaly } from "~/middleware/rate-limit.server";
 import { logger, metrics } from "~/utils/logger.server";
 import { rejectionTracker } from "../rejection-tracker.server";
 import { shouldRecordRejection } from "../stats-sampling";

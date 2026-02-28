@@ -89,6 +89,7 @@ function reportConfigDiagnostic(
   isDevMode: boolean,
   log: (...args: unknown[]) => void
 ): void {
+  if (isDevMode) return;
   const dedupeKey = `${shopDomain}:${reason}`;
   if (reportedDiagnostics.has(dedupeKey)) return;
   reportedDiagnostics.add(dedupeKey);

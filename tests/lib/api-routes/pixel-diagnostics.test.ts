@@ -51,6 +51,25 @@ function createRequest(
   });
 }
 
+function createUnsignedRequest(
+  body: Record<string, unknown>,
+  headers: Record<string, string> = {}
+): Request {
+  return new Request("https://example.com/api/pixel-diagnostics", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Tracking-Guardian-Diagnostic": "1",
+      "x-shopify-shop-domain": "demo-shop.myshopify.com",
+      "X-Tracking-Guardian-Nonce": "nonce-1",
+      "User-Agent": "Mozilla/5.0",
+      Origin: "https://demo-shop.myshopify.com",
+      ...headers,
+    },
+    body: JSON.stringify(body),
+  });
+}
+
 describe("pixel diagnostics api", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -83,6 +102,22 @@ describe("pixel diagnostics api", () => {
   it("accepts valid diagnostic request", async () => {
     const response = await action({
       request: createRequest({
+        reason: "missing_ingestion_key",
+        shopDomain: "demo-shop.myshopify.com",
+        timestamp: Date.now(),
+      }),
+      params: {},
+      context: {},
+    });
+    expect(response.status).toBe(202);
+    const body = await response.json();
+    expect(body.accepted).toBe(true);
+  });
+
+  it("accepts unsigned diagnostic request in production as untrusted", async () => {
+    process.env.NODE_ENV = "production";
+    const response = await action({
+      request: createUnsignedRequest({
         reason: "missing_ingestion_key",
         shopDomain: "demo-shop.myshopify.com",
         timestamp: Date.now(),

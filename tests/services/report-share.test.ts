@@ -32,7 +32,7 @@ describe("report share permission consistency", () => {
   });
 
   it("returns null when current shop plan does not support report export", async () => {
-    vi.mocked((prisma as any).reportShareLink.findUnique).mockResolvedValue({
+    vi.mocked(prisma.reportShareLink.findUnique).mockResolvedValue({
       id: "share-1",
       shopId: "shop-1",
       runId: "run-1",
@@ -47,11 +47,11 @@ describe("report share permission consistency", () => {
 
     const result = await resolvePublicVerificationReportByToken("token-1");
     expect(result).toBeNull();
-    expect((prisma as any).reportShareLink.update).not.toHaveBeenCalled();
+    expect(prisma.reportShareLink.update).not.toHaveBeenCalled();
   });
 
   it("returns report data when plan supports export", async () => {
-    vi.mocked((prisma as any).reportShareLink.findUnique).mockResolvedValue({
+    vi.mocked(prisma.reportShareLink.findUnique).mockResolvedValue({
       id: "share-1",
       shopId: "shop-1",
       runId: "run-1",
@@ -63,7 +63,7 @@ describe("report share permission consistency", () => {
     vi.mocked(prisma.shop.findUnique).mockResolvedValue({
       plan: "growth",
     } as never);
-    vi.mocked((prisma as any).reportShareLink.update).mockResolvedValue({});
+    vi.mocked(prisma.reportShareLink.update).mockResolvedValue({});
     vi.mocked(generateVerificationReportData).mockResolvedValue({
       runId: "run-1",
       runName: "Test",
@@ -84,6 +84,6 @@ describe("report share permission consistency", () => {
 
     const result = await resolvePublicVerificationReportByToken("token-1");
     expect(result).not.toBeNull();
-    expect((prisma as any).reportShareLink.update).toHaveBeenCalled();
+    expect(prisma.reportShareLink.update).toHaveBeenCalled();
   });
 });

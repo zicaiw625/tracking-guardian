@@ -835,3 +835,5 @@ export function getMemoryRateLimitStoreSize(): number {
   return rateLimitStore.getMemoryStoreSize();
 }
 
+export { trackAnomaly, unblockShop, clearAllTracking, getBlockedShops, getAnomalyStats } from "../utils/rate-limiter";
+

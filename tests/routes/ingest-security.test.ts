@@ -62,9 +62,6 @@ vi.mock("../../app/middleware/rate-limit.server", () => ({
   shopDomainIpKeyExtractor: vi.fn((req) => `shop-${req.headers.get("x-shopify-shop-domain") || "unknown"}`),
   shopScopedIpKeyExtractor: vi.fn((req, shopDomain) => `${shopDomain || "unknown"}:test-ip`),
   ipKeyExtractor: vi.fn(() => "test-ip"),
-}));
-
-vi.mock("../../app/utils/rate-limiter", () => ({
   trackAnomaly: vi.fn().mockReturnValue({
     shouldBlock: false,
     reason: "ok",
@@ -143,6 +140,18 @@ function createRequest(body: any, headers: Record<string, string> = {}) {
       ...headers,
     },
     body: JSON.stringify(body),
+  });
+}
+
+function createRawRequest(rawBody: string, headers: Record<string, string> = {}) {
+  return new Request("https://example.com/ingest", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-shopify-shop-domain": "test-shop.myshopify.com",
+      ...headers,
+    },
+    body: rawBody,
   });
 }
 
@@ -302,6 +311,18 @@ describe("/ingest Security Policy Tests", () => {
       expect(data.error).toBeDefined();
     });
 
+    it("should reject before parsing body when signature is missing in production", async () => {
+      process.env.NODE_ENV = "production";
+      const request = createRawRequest("{invalid-json", {
+        Origin: "https://test-shop.myshopify.com",
+      });
+
+      const response = await action({ request, params: {}, context: {} });
+      expect(response.status).toBe(403);
+      const data = await response.json();
+      expect(data.error).toBeDefined();
+    });
+
     it("should reject request with invalid signature", async () => {
       process.env.NODE_ENV = "production";
       process.env.SECURITY_ENFORCEMENT = "strict";
@@ -392,6 +413,21 @@ describe("/ingest Security Policy Tests", () => {
 
       const response = await action({ request, params: {}, context: {} });
       expect(response.status).toBe(403);
+    });
+  });
+
+  describe("Production signed request missing timestamp header → 403", () => {
+    it("should reject request with signature but missing timestamp header", async () => {
+      process.env.NODE_ENV = "production";
+      const request = createRawRequest("{invalid-json", {
+        Origin: "https://test-shop.myshopify.com",
+        "X-Tracking-Guardian-Signature": "valid-signature",
+      });
+
+      const response = await action({ request, params: {}, context: {} });
+      expect(response.status).toBe(403);
+      const data = await response.json();
+      expect(data.error).toBe("Missing timestamp header");
     });
   });
 

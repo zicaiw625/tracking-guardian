@@ -14,6 +14,7 @@ const MAX_DIAGNOSTIC_BODY_BYTES = 2048;
 const MAX_TIMESTAMP_SKEW_MS = 10 * 60 * 1000;
 const DIAGNOSTIC_SIGNATURE_HEADER = "X-Tracking-Guardian-Signature";
 const DIAGNOSTIC_NONCE_HEADER = "X-Tracking-Guardian-Nonce";
+type DiagnosticTrustLevel = "trusted" | "untrusted";
 
 const pixelDiagnosticSchema = z.object({
   reason: z.enum(["missing_ingestion_key", "backend_unavailable", "backend_url_not_injected"]),
@@ -97,27 +98,28 @@ function hasValidUserAgent(request: Request): boolean {
   return trimmed.length <= 512;
 }
 
-function hasValidDiagnosticSignature(
+function resolveDiagnosticTrustLevel(
   body: z.infer<typeof pixelDiagnosticSchema>,
   signatureHeader: string | null
-): boolean {
+): DiagnosticTrustLevel | null {
   const secret = process.env.PIXEL_DIAGNOSTIC_SECRET;
-  const isProduction = process.env.NODE_ENV === "production";
-  if (!secret) {
-    return !isProduction;
-  }
   if (!signatureHeader) {
-    return false;
+    return "untrusted";
+  }
+  if (!secret) {
+    return "untrusted";
   }
   const payload = `${body.shopDomain}:${body.timestamp}:${body.reason}`;
   const expected = createHmac("sha256", secret).update(payload).digest("hex");
   if (signatureHeader.length !== expected.length) {
-    return false;
+    return null;
   }
   try {
-    return timingSafeEqual(Buffer.from(signatureHeader, "utf8"), Buffer.from(expected, "utf8"));
+    return timingSafeEqual(Buffer.from(signatureHeader, "utf8"), Buffer.from(expected, "utf8"))
+      ? "trusted"
+      : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -151,7 +153,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return respond({ error: "Invalid request" }, 403);
   }
   const signatureHeader = request.headers.get(DIAGNOSTIC_SIGNATURE_HEADER);
-  if (!hasValidDiagnosticSignature(body, signatureHeader)) {
+  const trustLevel = resolveDiagnosticTrustLevel(body, signatureHeader);
+  if (!trustLevel) {
     return respond({ error: "Invalid request" }, 403);
   }
   const nonce = request.headers.get(DIAGNOSTIC_NONCE_HEADER)?.trim();
@@ -211,6 +214,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     shopId: shop.id,
     shopDomain: body.shopDomain,
     reason: body.reason,
+    trustLevel,
     ipKey,
     timestamp: body.timestamp,
   });
