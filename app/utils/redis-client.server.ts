@@ -13,8 +13,10 @@ export interface RedisClientWrapper {
   expire(key: string, seconds: number): Promise<boolean>;
   ttl(key: string): Promise<number>;
   hGetAll(key: string): Promise<Record<string, string>>;
+  hGet(key: string, field: string): Promise<string | null>;
   hSet(key: string, field: string, value: string): Promise<number>;
   hMSet(key: string, fields: Record<string, string>): Promise<void>;
+  hDel(key: string, ...fields: string[]): Promise<number>;
   hIncrBy(key: string, field: string, increment: number): Promise<number>;
   keys(pattern: string): Promise<string[]>;
   scan(cursor: string, pattern: string, count?: number): Promise<{ cursor: string; keys: string[] }>;
@@ -197,6 +199,15 @@ class InMemoryFallback implements RedisClientWrapper {
     }
     return { ...entry.fields };
   }
+  async hGet(key: string, field: string): Promise<string | null> {
+    const entry = this.hashStore.get(key);
+    if (!entry) return null;
+    if (this.isExpired(entry.expiresAt)) {
+      this.hashStore.delete(key);
+      return null;
+    }
+    return entry.fields[field] ?? null;
+  }
   async hSet(key: string, field: string, value: string): Promise<number> {
     let entry = this.hashStore.get(key);
     const isNew = !entry || !entry.fields[field];
@@ -214,6 +225,25 @@ class InMemoryFallback implements RedisClientWrapper {
       this.hashStore.set(key, entry);
     }
     Object.assign(entry.fields, fields);
+  }
+  async hDel(key: string, ...fields: string[]): Promise<number> {
+    const entry = this.hashStore.get(key);
+    if (!entry) return 0;
+    if (this.isExpired(entry.expiresAt)) {
+      this.hashStore.delete(key);
+      return 0;
+    }
+    let removed = 0;
+    for (const field of fields) {
+      if (Object.prototype.hasOwnProperty.call(entry.fields, field)) {
+        delete entry.fields[field];
+        removed++;
+      }
+    }
+    if (Object.keys(entry.fields).length === 0) {
+      this.hashStore.delete(key);
+    }
+    return removed;
   }
   async hIncrBy(key: string, field: string, increment: number): Promise<number> {
     let entry = this.hashStore.get(key);
@@ -584,6 +614,13 @@ class RedisClientFactory {
           return this.fallback.hGetAll(key);
         }
       },
+      hGet: async (key: string, field: string): Promise<string | null> => {
+        try {
+          return (await client.hGet(key, field)) ?? null;
+        } catch {
+          return this.fallback.hGet(key, field);
+        }
+      },
       hSet: async (key: string, field: string, value: string): Promise<number> => {
         try {
           return await client.hSet(key, field, value);
@@ -596,6 +633,13 @@ class RedisClientFactory {
           await client.hSet(key, fields);
         } catch {
           await this.fallback.hMSet(key, fields);
+        }
+      },
+      hDel: async (key: string, ...fields: string[]): Promise<number> => {
+        try {
+          return await client.hDel(key, fields);
+        } catch {
+          return this.fallback.hDel(key, ...fields);
         }
       },
       hIncrBy: async (key: string, field: string, increment: number): Promise<number> => {
@@ -750,10 +794,12 @@ class RedisClientFactory {
       expire: async (key: string, seconds: number): Promise<boolean> => client.expire(key, seconds),
       ttl: async (key: string): Promise<number> => client.ttl(key),
       hGetAll: async (key: string): Promise<Record<string, string>> => client.hGetAll(key),
+      hGet: async (key: string, field: string): Promise<string | null> => (await client.hGet(key, field)) ?? null,
       hSet: async (key: string, field: string, value: string): Promise<number> => client.hSet(key, field, value),
       hMSet: async (key: string, fields: Record<string, string>): Promise<void> => {
         await client.hSet(key, fields);
       },
+      hDel: async (key: string, ...fields: string[]): Promise<number> => client.hDel(key, fields),
       hIncrBy: async (key: string, field: string, increment: number): Promise<number> => client.hIncrBy(key, field, increment),
       keys: async (pattern: string): Promise<string[]> => client.keys(pattern),
       scan: async (

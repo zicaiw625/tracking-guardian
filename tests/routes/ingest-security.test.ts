@@ -347,6 +347,23 @@ describe("/ingest Security Policy Tests", () => {
       const data = await response.json();
       expect(data.error).toBeDefined();
     });
+
+    it("should accept valid signature in strict mode", async () => {
+      process.env.NODE_ENV = "production";
+      process.env.SECURITY_ENFORCEMENT = "strict";
+      process.env.PIXEL_STRICT_ORIGIN = "true";
+      const payload = createValidEventPayload("test-shop.myshopify.com");
+      const request = createRequest(payload, {
+        Origin: "https://test-shop.myshopify.com",
+        "X-Tracking-Guardian-Signature": "valid-signature",
+        "X-Tracking-Guardian-Timestamp": String(payload.timestamp),
+      });
+
+      const response = await action({ request, params: {}, context: {} });
+      expect(response.status).toBe(202);
+      const data = await response.json();
+      expect(data.accepted_count).toBeDefined();
+    });
   });
 
   describe("Production: non-critical event without signature → 403", () => {

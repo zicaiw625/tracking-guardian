@@ -525,4 +525,40 @@ describe("HMAC Validation Implementation", () => {
     await action({ request, params: {}, context: {} });
     expect(authenticate.webhook).toHaveBeenCalledWith(request);
   });
+
+  it("should keep raw request body readable by authenticate.webhook", async () => {
+    vi.mocked(authenticate.webhook).mockImplementation(async (req: Request) => {
+      const rawBody = await req.text();
+      expect(rawBody).toContain("\"id\":123");
+      return {
+        topic: "APP_SUBSCRIPTIONS_UPDATE",
+        shop: "test-shop.myshopify.com",
+        session: { shop: "test-shop.myshopify.com" },
+        admin: { graphql: vi.fn() },
+        payload: { id: 123 },
+      } as any;
+    });
+    vi.mocked(prisma.shop.findUnique).mockResolvedValue({
+      id: "shop-id",
+      shopDomain: "test-shop.myshopify.com",
+      isActive: true,
+      plan: "free",
+      pixelConfigs: [],
+    } as any);
+    const request = new Request("https://example.com/webhook", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Topic": "app_subscriptions/update",
+        "X-Shopify-Shop-Domain": "test-shop.myshopify.com",
+        "X-Shopify-Hmac-Sha256": "valid-hmac",
+      },
+      body: JSON.stringify({ id: 123 }),
+    });
+
+    const response = await action({ request, params: {}, context: {} });
+
+    expect(response.status).toBe(200);
+    expect(authenticate.webhook).toHaveBeenCalledOnce();
+  });
 });

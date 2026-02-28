@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "../../db.server";
 import { generateEventId, generateMatchKey, makeOrderKey, hashValueSync } from "../../utils/crypto.server";
 import { extractOriginHost } from "../../utils/origin-validation.server";
-import { logger } from "../../utils/logger.server";
+import { logger, metrics } from "../../utils/logger.server";
 import { RETENTION_CONFIG } from "../../utils/config.server";
 import { generateSimpleId } from "../../utils/helpers";
 import type { TrustLevel } from "../../utils/receipt-trust.server";
@@ -293,10 +293,21 @@ export async function upsertPixelEventReceipt(
     }
     return { success: true, eventId };
   } catch (error) {
-    logger.warn(`Failed to write PixelEventReceipt for event ${eventType}`, {
-      error: String(error),
+    logger.error(`Failed to write PixelEventReceipt for event ${eventType}`, error, {
+      shopDomain: payload.shopDomain,
+      shopId,
+      eventId,
+      eventType,
+      platform: platformValue,
+      environment: environmentValue,
     });
-    return { success: false, eventId };
+    metrics.silentDrop({
+      shopDomain: payload.shopDomain,
+      reason: "pixel_receipt_write_failed",
+      category: "validation",
+      sampleRate: 1,
+    });
+    throw (error instanceof Error ? error : new Error(String(error)));
   }
 }
 

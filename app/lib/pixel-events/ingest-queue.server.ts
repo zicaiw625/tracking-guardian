@@ -4,10 +4,13 @@ import type { PixelEventPayload, KeyValidationResult } from "./types";
 import prisma from "~/db.server";
 
 const QUEUE_KEY = "ingest:queue";
+const PURCHASE_QUEUE_KEY = "ingest:queue:purchase";
+const GENERAL_QUEUE_KEY = "ingest:queue:general";
 const PROCESSING_KEY = "ingest:processing";
 const PROCESSING_HASH_KEY = "ingest:processing:entries";
 const DLQ_KEY = "ingest:dlq";
-const MAX_QUEUE_SIZE = 100_000;
+const MAX_PURCHASE_QUEUE_SIZE = 100_000;
+const MAX_GENERAL_QUEUE_SIZE = 100_000;
 const MAX_BATCHES_PER_RUN = 50;
 const MAX_RETRIES = 5;
 
@@ -15,21 +18,30 @@ async function getProcessingEntryById(
   redis: Awaited<ReturnType<typeof getRedisClient>>,
   requestId: string
 ): Promise<string | null> {
-  const entries = await redis.hGetAll(PROCESSING_HASH_KEY);
-  return entries[requestId] ?? null;
+  return redis.hGet(PROCESSING_HASH_KEY, requestId);
 }
 
 async function removeProcessingEntryById(
   redis: Awaited<ReturnType<typeof getRedisClient>>,
   requestId: string
 ): Promise<void> {
-  const entries = await redis.hGetAll(PROCESSING_HASH_KEY);
-  if (!entries[requestId]) return;
-  delete entries[requestId];
-  await redis.del(PROCESSING_HASH_KEY);
-  if (Object.keys(entries).length > 0) {
-    await redis.hMSet(PROCESSING_HASH_KEY, entries);
+  await redis.hDel(PROCESSING_HASH_KEY, requestId);
+}
+
+function hasPurchaseEvent(entry: IngestQueueEntry): boolean {
+  const validatedEvents = Array.isArray(entry.validatedEvents) ? entry.validatedEvents : [];
+  return validatedEvents.some((ve) => {
+    const eventName = ve.payload.eventName;
+    return eventName === "checkout_completed";
+  });
+}
+
+function resolveQueueForEntry(entry: IngestQueueEntry): { key: string; maxSize: number; queueType: "purchase" | "general" } {
+  const queueType = entry.queueType ?? (hasPurchaseEvent(entry) ? "purchase" : "general");
+  if (queueType === "purchase") {
+    return { key: PURCHASE_QUEUE_KEY, maxSize: MAX_PURCHASE_QUEUE_SIZE, queueType };
   }
+  return { key: GENERAL_QUEUE_KEY, maxSize: MAX_GENERAL_QUEUE_SIZE, queueType };
 }
 
 export interface IngestRequestContext {
@@ -62,29 +74,33 @@ export interface IngestQueueEntry {
     serverSideEnabled?: boolean | null;
     clientConfig?: unknown;
   }>;
+  queueType?: "purchase" | "general";
 }
 
 export async function enqueueIngestBatch(entry: IngestQueueEntry): Promise<{ ok: boolean; dropped: number }> {
   try {
     const redis = await getRedisClient();
     entry.enqueuedAt = Date.now();
+    const queue = resolveQueueForEntry(entry);
+    entry.queueType = queue.queueType;
     const serialized = JSON.stringify(entry);
     
-    const newLength = await redis.lPush(QUEUE_KEY, serialized);
-    await redis.lTrim(QUEUE_KEY, 0, MAX_QUEUE_SIZE - 1);
-    const dropped = Math.max(0, newLength - MAX_QUEUE_SIZE);
+    const newLength = await redis.lPush(queue.key, serialized);
+    await redis.lTrim(queue.key, 0, queue.maxSize - 1);
+    const dropped = Math.max(0, newLength - queue.maxSize);
     if (dropped > 0) {
       logger.warn("Ingest queue trimmed - events dropped", {
+        queue: queue.key,
         queueLengthBeforeTrim: newLength,
         dropped,
-        maxQueueSize: MAX_QUEUE_SIZE,
+        maxQueueSize: queue.maxSize,
         requestId: entry.requestId,
         shopDomain: entry.shopDomain,
       });
       metrics.silentDrop({
         requestId: entry.requestId,
         shopDomain: entry.shopDomain,
-        reason: "ingest_queue_trimmed_backpressure",
+        reason: `ingest_queue_trimmed_backpressure_${queue.queueType}`,
         category: "backpressure",
         sampleRate: 1,
       });
@@ -112,7 +128,10 @@ export async function processIngestQueue(
   let errors = 0;
 
   for (let i = 0; i < maxBatches; i++) {
-    const raw = await redis.rPopLPush(QUEUE_KEY, PROCESSING_KEY);
+    const raw =
+      (await redis.rPopLPush(PURCHASE_QUEUE_KEY, PROCESSING_KEY)) ??
+      (await redis.rPopLPush(GENERAL_QUEUE_KEY, PROCESSING_KEY)) ??
+      (await redis.rPopLPush(QUEUE_KEY, PROCESSING_KEY));
     if (!raw) break;
 
     let entry: IngestQueueEntry;
@@ -129,6 +148,9 @@ export async function processIngestQueue(
 
     if (!entry.processingStartedAt) {
       entry.processingStartedAt = Date.now();
+    }
+    if (!entry.queueType) {
+      entry.queueType = hasPurchaseEvent(entry) ? "purchase" : "general";
     }
 
     const processingRaw = JSON.stringify(entry);
@@ -233,7 +255,9 @@ export async function processIngestQueue(
           entry.retryCount = currentRetry + 1;
           entry.enqueuedAt = Date.now();
           entry.processingStartedAt = undefined;
-          await redis.lPush(QUEUE_KEY, JSON.stringify(entry));
+          const queue = resolveQueueForEntry(entry);
+          entry.queueType = queue.queueType;
+          await redis.lPush(queue.key, JSON.stringify(entry));
           await redis.lRem(PROCESSING_KEY, 1, processingMarker);
           await removeProcessingEntryById(redis, processingMarker);
         }
@@ -312,10 +336,10 @@ export async function recoverStuckProcessingItems(limit = 100, maxAgeMs = 15 * 6
       }
 
       if (shouldRecover) {
-        const moved = await redis.rPopLPush(PROCESSING_KEY, QUEUE_KEY);
+        const moved = await redis.rPopLPush(PROCESSING_KEY, GENERAL_QUEUE_KEY);
         if (moved) {
           recovered++;
-          logger.warn("Recovered stuck ingest item", { from: PROCESSING_KEY, to: QUEUE_KEY, format: "legacy" });
+          logger.warn("Recovered stuck ingest item", { from: PROCESSING_KEY, to: GENERAL_QUEUE_KEY, format: "legacy" });
           continue;
         }
       }
@@ -331,8 +355,10 @@ export async function recoverStuckProcessingItems(limit = 100, maxAgeMs = 15 * 6
     }
 
     let shouldRecover = false;
+    let recoveredEntry: IngestQueueEntry | null = null;
     try {
       const entry = JSON.parse(processingRaw) as IngestQueueEntry;
+      recoveredEntry = entry;
       const startedAt = entry.processingStartedAt ?? entry.enqueuedAt;
       if (startedAt && (Date.now() - startedAt > maxAgeMs)) {
         shouldRecover = true;
@@ -347,11 +373,23 @@ export async function recoverStuckProcessingItems(limit = 100, maxAgeMs = 15 * 6
       break;
     }
 
-    await redis.lPush(QUEUE_KEY, processingRaw);
+    const queue = resolveQueueForEntry(
+      recoveredEntry ?? {
+        requestId,
+        shopId: "",
+        shopDomain: "",
+        environment: "live",
+        mode: "purchase_only",
+        validatedEvents: [],
+        keyValidation: { matched: false, reason: "unknown", trustLevel: "untrusted" },
+        origin: null,
+      }
+    );
+    await redis.lPush(queue.key, processingRaw);
     await redis.lRem(PROCESSING_KEY, 1, requestId);
     await removeProcessingEntryById(redis, requestId);
     recovered++;
-    logger.warn("Recovered stuck ingest item", { from: PROCESSING_KEY, to: QUEUE_KEY, requestId, format: "hash" });
+    logger.warn("Recovered stuck ingest item", { from: PROCESSING_KEY, to: queue.key, requestId, format: "hash" });
   }
   return recovered;
 }

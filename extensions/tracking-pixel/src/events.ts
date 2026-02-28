@@ -115,13 +115,14 @@ function reportConfigDiagnostic(
   });
 }
 
-async function sendCheckoutCompletedWithRetry(
+async function sendBatchWithRetry(
   url: string,
   body: string,
   isDevMode: boolean,
   log: (...args: unknown[]) => void,
   headers: Record<string, string>,
-  startTime: number
+  startTime: number,
+  reason: string
 ): Promise<void> {
   const canAbort = typeof AbortController !== "undefined";
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -141,43 +142,43 @@ async function sendCheckoutCompletedWithRetry(
       };
       const response = await fetch(url, fetchOpts);
       if (isDevMode) {
-        log(`checkout_completed sent, status: ${response.status}, attempt: ${attempt + 1}/${MAX_RETRIES}`);
+        log(`${reason} sent, status: ${response.status}, attempt: ${attempt + 1}/${MAX_RETRIES}`);
       }
       if (response.ok) {
         if (isDevMode && attempt > 0) {
-          log(`checkout_completed succeeded on retry attempt ${attempt + 1}`);
+          log(`${reason} succeeded on retry attempt ${attempt + 1}`);
         }
         return;
       }
       if (response.status >= 400 && response.status < 500) {
         if (isDevMode) {
-          log(`checkout_completed client error ${response.status}, not retrying`);
+          log(`${reason} client error ${response.status}, not retrying`);
         }
         return;
       }
       if (attempt < MAX_RETRIES - 1 && Date.now() - startTime <= MAX_TOTAL_RETRY_MS) {
         const delay = RETRY_DELAYS_MS[attempt + 1];
         if (isDevMode) {
-          log(`checkout_completed server error ${response.status}, retrying in ${delay}ms (attempt ${attempt + 2}/${MAX_RETRIES})`);
+          log(`${reason} server error ${response.status}, retrying in ${delay}ms (attempt ${attempt + 2}/${MAX_RETRIES})`);
         }
         await new Promise(r => setTimeout(r, delay));
         continue;
       }
       if (isDevMode) {
-        log(`checkout_completed failed after ${MAX_RETRIES} attempts with server error ${response.status}`);
+        log(`${reason} failed after ${MAX_RETRIES} attempts with server error ${response.status}`);
       }
       return;
     } catch (error) {
       if (attempt < MAX_RETRIES - 1 && Date.now() - startTime <= MAX_TOTAL_RETRY_MS) {
         const delay = RETRY_DELAYS_MS[attempt + 1];
         if (isDevMode) {
-          log(`checkout_completed network error, retrying in ${delay}ms (attempt ${attempt + 2}/${MAX_RETRIES}):`, error);
+          log(`${reason} network error, retrying in ${delay}ms (attempt ${attempt + 2}/${MAX_RETRIES}):`, error);
         }
         await new Promise(r => setTimeout(r, delay));
         continue;
       }
       if (isDevMode) {
-        log(`checkout_completed failed after ${MAX_RETRIES} attempts with network error:`, error);
+        log(`${reason} failed after ${MAX_RETRIES} attempts with network error:`, error);
       }
       return;
     } finally {
@@ -194,6 +195,14 @@ const BATCH_CONFIG = {
   MAX_BATCH_BYTES: 60 * 1024,
   FLUSH_IMMEDIATE_EVENTS: ["checkout_completed"],
 } as const;
+
+const RETRYABLE_FUNNEL_EVENTS = new Set([
+  "checkout_completed",
+  "checkout_started",
+  "checkout_contact_info_submitted",
+  "checkout_shipping_info_submitted",
+  "payment_info_submitted",
+]);
 
 interface QueuedEvent {
   eventName: string;
@@ -492,9 +501,9 @@ export function createEventSender(config: EventSenderConfig) {
             }
           }
         }
-        const hasCheckoutCompleted = batchEvents.some(e => e.eventName === "checkout_completed");
-        if (hasCheckoutCompleted) {
-          await sendCheckoutCompletedWithRetry(url, body, isDevMode, log, headers, Date.now());
+        const hasRetryableEvent = batchEvents.some(e => RETRYABLE_FUNNEL_EVENTS.has(e.eventName));
+        if (hasRetryableEvent) {
+          await sendBatchWithRetry(url, body, isDevMode, log, headers, Date.now(), "critical_funnel_batch");
         } else {
           const canAbort = typeof AbortController !== "undefined";
           if (canAbort) {

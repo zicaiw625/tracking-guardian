@@ -7,9 +7,8 @@ const redisMock = {
   lTrim: vi.fn(),
   lIndex: vi.fn(),
   hSet: vi.fn(),
-  hGetAll: vi.fn(),
-  hMSet: vi.fn(),
-  del: vi.fn(),
+  hGet: vi.fn(),
+  hDel: vi.fn(),
 };
 
 vi.mock("../../../app/utils/redis-client.server", () => ({
@@ -39,6 +38,7 @@ vi.mock("../../../app/services/dispatch/internal-event-write.server", () => ({
 }));
 
 import {
+  enqueueIngestBatch,
   processIngestQueue,
   recoverStuckProcessingItems,
   type IngestQueueEntry,
@@ -53,12 +53,10 @@ describe("ingest queue processing timestamps", () => {
     redisMock.lTrim.mockReset();
     redisMock.lIndex.mockReset();
     redisMock.hSet.mockReset();
-    redisMock.hGetAll.mockReset();
-    redisMock.hMSet.mockReset();
-    redisMock.del.mockReset();
-    redisMock.hGetAll.mockResolvedValue({});
-    redisMock.del.mockResolvedValue(1);
-    redisMock.hMSet.mockResolvedValue(undefined);
+    redisMock.hGet.mockReset();
+    redisMock.hDel.mockReset();
+    redisMock.hGet.mockResolvedValue(null);
+    redisMock.hDel.mockResolvedValue(1);
   });
 
   it("persists processingStartedAt when batch starts", async () => {
@@ -76,7 +74,7 @@ describe("ingest queue processing timestamps", () => {
     redisMock.hSet.mockResolvedValue(1);
     redisMock.lRem.mockResolvedValue(1);
     redisMock.lPush.mockResolvedValue(1);
-    redisMock.hGetAll.mockResolvedValueOnce({ req_1: JSON.stringify(entry) }).mockResolvedValueOnce({});
+    redisMock.hDel.mockResolvedValueOnce(1);
 
     const result = await processIngestQueue({ maxBatches: 1 });
 
@@ -86,6 +84,68 @@ describe("ingest queue processing timestamps", () => {
     expect(redisMock.hSet.mock.calls[0][1]).toBe("req_1");
     const updated = JSON.parse(redisMock.hSet.mock.calls[0][2] as string) as IngestQueueEntry;
     expect(typeof updated.processingStartedAt).toBe("number");
+  });
+
+  it("routes purchase batches to purchase queue", async () => {
+    const now = Date.now();
+    const entry: IngestQueueEntry = {
+      requestId: "req_purchase",
+      shopId: "shop_1",
+      shopDomain: "test-shop.myshopify.com",
+      environment: "live",
+      mode: "full_funnel",
+      validatedEvents: [{
+        payload: {
+          eventName: "checkout_completed",
+          timestamp: now,
+          shopDomain: "test-shop.myshopify.com",
+          data: {},
+        } as any,
+        index: 0,
+      }],
+      keyValidation: { matched: true, reason: "ok", trustLevel: "trusted" },
+      origin: "https://test-shop.myshopify.com",
+    };
+
+    redisMock.lPush.mockResolvedValue(1);
+    redisMock.lTrim.mockResolvedValue(undefined);
+
+    const result = await enqueueIngestBatch(entry);
+
+    expect(result.ok).toBe(true);
+    expect(redisMock.lPush).toHaveBeenCalledWith("ingest:queue:purchase", expect.any(String));
+    expect(redisMock.lTrim).toHaveBeenCalledWith("ingest:queue:purchase", 0, 99999);
+  });
+
+  it("routes non-purchase batches to general queue", async () => {
+    const now = Date.now();
+    const entry: IngestQueueEntry = {
+      requestId: "req_general",
+      shopId: "shop_1",
+      shopDomain: "test-shop.myshopify.com",
+      environment: "live",
+      mode: "full_funnel",
+      validatedEvents: [{
+        payload: {
+          eventName: "page_viewed",
+          timestamp: now,
+          shopDomain: "test-shop.myshopify.com",
+          data: {},
+        } as any,
+        index: 0,
+      }],
+      keyValidation: { matched: true, reason: "ok", trustLevel: "trusted" },
+      origin: "https://test-shop.myshopify.com",
+    };
+
+    redisMock.lPush.mockResolvedValue(1);
+    redisMock.lTrim.mockResolvedValue(undefined);
+
+    const result = await enqueueIngestBatch(entry);
+
+    expect(result.ok).toBe(true);
+    expect(redisMock.lPush).toHaveBeenCalledWith("ingest:queue:general", expect.any(String));
+    expect(redisMock.lTrim).toHaveBeenCalledWith("ingest:queue:general", 0, 99999);
   });
 });
 
@@ -98,12 +158,10 @@ describe("ingest queue stuck recovery", () => {
     redisMock.lTrim.mockReset();
     redisMock.lIndex.mockReset();
     redisMock.hSet.mockReset();
-    redisMock.hGetAll.mockReset();
-    redisMock.hMSet.mockReset();
-    redisMock.del.mockReset();
-    redisMock.hGetAll.mockResolvedValue({});
-    redisMock.del.mockResolvedValue(1);
-    redisMock.hMSet.mockResolvedValue(undefined);
+    redisMock.hGet.mockReset();
+    redisMock.hDel.mockReset();
+    redisMock.hGet.mockResolvedValue(null);
+    redisMock.hDel.mockResolvedValue(1);
   });
 
   it("does not recover when processingStartedAt is recent", async () => {
@@ -132,7 +190,7 @@ describe("ingest queue stuck recovery", () => {
     const recovered = await recoverStuckProcessingItems(10, 60 * 1000);
 
     expect(recovered).toBe(1);
-    expect(redisMock.rPopLPush).toHaveBeenCalledWith("ingest:processing", "ingest:queue");
+    expect(redisMock.rPopLPush).toHaveBeenCalledWith("ingest:processing", "ingest:queue:general");
   });
 
   it("recovers hash-based stale entries by requestId", async () => {
@@ -144,17 +202,15 @@ describe("ingest queue stuck recovery", () => {
       processingStartedAt: now - 10 * 60 * 1000,
     };
     redisMock.lIndex.mockResolvedValueOnce(requestId).mockResolvedValueOnce(null);
-    redisMock.hGetAll
-      .mockResolvedValueOnce({ [requestId]: JSON.stringify(stale) })
-      .mockResolvedValueOnce({ [requestId]: JSON.stringify(stale) });
+    redisMock.hGet.mockResolvedValueOnce(JSON.stringify(stale));
     redisMock.lPush.mockResolvedValue(1);
     redisMock.lRem.mockResolvedValue(1);
 
     const recovered = await recoverStuckProcessingItems(10, 60 * 1000);
 
     expect(recovered).toBe(1);
-    expect(redisMock.lPush).toHaveBeenCalledWith("ingest:queue", JSON.stringify(stale));
+    expect(redisMock.lPush).toHaveBeenCalledWith("ingest:queue:general", JSON.stringify(stale));
     expect(redisMock.lRem).toHaveBeenCalledWith("ingest:processing", 1, requestId);
-    expect(redisMock.del).toHaveBeenCalledWith("ingest:processing:entries");
+    expect(redisMock.hDel).toHaveBeenCalledWith("ingest:processing:entries", requestId);
   });
 });
