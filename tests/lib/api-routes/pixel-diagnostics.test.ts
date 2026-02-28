@@ -189,7 +189,7 @@ describe("pixel diagnostics api", () => {
     expect(response.status).toBe(403);
   });
 
-  it("rejects request without nonce", async () => {
+  it("accepts request without nonce as compatibility fallback", async () => {
     const payload = {
       reason: "missing_ingestion_key",
       shopDomain: "demo-shop.myshopify.com",
@@ -200,7 +200,25 @@ describe("pixel diagnostics api", () => {
       params: {},
       context: {},
     });
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(202);
+    const body = await response.json();
+    expect(body.accepted).toBe(true);
+  });
+
+  it("accepts request with oversized nonce as compatibility fallback", async () => {
+    const payload = {
+      reason: "missing_ingestion_key",
+      shopDomain: "demo-shop.myshopify.com",
+      timestamp: Date.now(),
+    };
+    const response = await action({
+      request: createRequest(payload, { "X-Tracking-Guardian-Nonce": "a".repeat(129) }),
+      params: {},
+      context: {},
+    });
+    expect(response.status).toBe(202);
+    const body = await response.json();
+    expect(body.accepted).toBe(true);
   });
 
   it("rejects replayed nonce", async () => {

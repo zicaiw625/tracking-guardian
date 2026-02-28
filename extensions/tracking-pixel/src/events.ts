@@ -82,6 +82,25 @@ const RETRY_DELAYS_MS = [0, 300, 1200];
 const MAX_RETRIES = RETRY_DELAYS_MS.length;
 const reportedDiagnostics = new Set<string>();
 
+function generateDiagnosticNonce(): string {
+  const timestamp = Date.now().toString(16);
+  if (globalThis.crypto && typeof globalThis.crypto.getRandomValues === "function") {
+    try {
+      const bytes = new Uint8Array(12);
+      globalThis.crypto.getRandomValues(bytes);
+      const randomHex = Array.from(bytes)
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+      return `${timestamp}${randomHex}`;
+    } catch {
+      const fallback = `${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`;
+      return fallback.slice(0, 64);
+    }
+  }
+  const fallback = `${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`;
+  return fallback.slice(0, 64);
+}
+
 function reportConfigDiagnostic(
   backendUrl: string,
   shopDomain: string,
@@ -99,12 +118,14 @@ function reportConfigDiagnostic(
     shopDomain,
     timestamp: Date.now(),
   };
+  const nonce = generateDiagnosticNonce();
   fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "x-shopify-shop-domain": shopDomain,
       "X-Tracking-Guardian-Diagnostic": "1",
+      "X-Tracking-Guardian-Nonce": nonce,
     },
     keepalive: true,
     body: JSON.stringify(payload),

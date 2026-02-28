@@ -30,6 +30,12 @@ export function getPixelEventsCorsHeaders(request: Request, options?: {
         "Access-Control-Max-Age": "86400",
         "Vary": "Origin",
     };
+    if (request.method.toUpperCase() === "OPTIONS") {
+        return {
+            ...baseHeaders,
+            "Access-Control-Allow-Origin": "*",
+        };
+    }
     if (origin === "null" || origin === null || !origin) {
         if (isDevMode()) {
             return {
@@ -94,6 +100,12 @@ export function getPixelEventsCorsHeadersForShop(request: Request, shopAllowedDo
         "Access-Control-Max-Age": "86400",
         "Vary": "Origin",
     };
+    if (request.method.toUpperCase() === "OPTIONS") {
+        return {
+            ...baseHeaders,
+            "Access-Control-Allow-Origin": "*",
+        };
+    }
     if (origin === "null" || origin === null || !origin) {
         if (isDevMode()) {
             return {

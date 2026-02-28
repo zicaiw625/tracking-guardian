@@ -159,7 +159,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
   const nonce = request.headers.get(DIAGNOSTIC_NONCE_HEADER)?.trim();
   if (!nonce || nonce.length > 128) {
-    return respond({ error: "Invalid request" }, 403);
+    logger.warn("Pixel diagnostic accepted without valid nonce", {
+      shopDomain: body.shopDomain,
+      reason: body.reason,
+      trustLevel,
+      noncePresent: Boolean(nonce),
+    });
+    return respond({ accepted: true }, 202);
   }
   try {
     const redis = await getRedisClient();

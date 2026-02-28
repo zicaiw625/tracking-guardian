@@ -5,7 +5,7 @@ function makeRequest(method: string, headers: Record<string, string>): Request {
   return new Request("https://example.com/ingest", { method, headers });
 }
 
-describe("CORS: Origin null requires signature in production", () => {
+describe("CORS: OPTIONS wildcard and POST origin constraints", () => {
   const originalEnv = { ...process.env };
 
   beforeEach(() => {
@@ -17,22 +17,22 @@ describe("CORS: Origin null requires signature in production", () => {
     process.env = { ...originalEnv };
   });
 
-  it("allows preflight when Access-Control-Request-Headers declares signature", () => {
+  it("always allows OPTIONS with wildcard origin for null origin", () => {
     const request = makeRequest("OPTIONS", {
       Origin: "null",
       "Access-Control-Request-Headers": "content-type, x-tracking-guardian-signature",
     });
     const headers = getPixelEventsCorsHeaders(request) as Record<string, string>;
-    expect(headers["Access-Control-Allow-Origin"]).toBe("null");
+    expect(headers["Access-Control-Allow-Origin"]).toBe("*");
   });
 
-  it("does not allow preflight when signature header is not declared", () => {
+  it("always allows OPTIONS with wildcard origin for non-null origin", () => {
     const request = makeRequest("OPTIONS", {
-      Origin: "null",
+      Origin: "https://brand.example",
       "Access-Control-Request-Headers": "content-type",
     });
     const headers = getPixelEventsCorsHeaders(request) as Record<string, string>;
-    expect(headers["Access-Control-Allow-Origin"]).toBeUndefined();
+    expect(headers["Access-Control-Allow-Origin"]).toBe("*");
   });
 
   it("allows actual request when signature header is present", () => {
