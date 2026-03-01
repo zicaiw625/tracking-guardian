@@ -84,6 +84,10 @@ export interface ShopVerificationData {
     shopDomain: string;
     isActive: boolean;
     ingestionSecret: string | null;
+    pendingIngestionSecret: string | null;
+    pendingSecretIssuedAt: Date | null;
+    pendingSecretExpiry: Date | null;
+    pendingSecretMatchCount: number;
     previousIngestionSecret: string | null;
     previousSecretExpiry: Date | null;
     primaryDomain: string | null;
@@ -95,6 +99,10 @@ export interface ShopVerificationDataEncrypted {
     shopDomain: string;
     isActive: boolean;
     ingestionSecret: string | null;
+    pendingIngestionSecret: string | null;
+    pendingSecretIssuedAt: Date | null;
+    pendingSecretExpiry: Date | null;
+    pendingSecretMatchCount: number;
     previousIngestionSecret: string | null;
     previousSecretExpiry: Date | null;
     primaryDomain: string | null;
@@ -109,6 +117,10 @@ export async function getShopForVerificationEncrypted(shopDomain: string): Promi
             shopDomain: true,
             isActive: true,
             ingestionSecret: true,
+            pendingIngestionSecret: true,
+            pendingSecretIssuedAt: true,
+            pendingSecretExpiry: true,
+            pendingSecretMatchCount: true,
             previousIngestionSecret: true,
             previousSecretExpiry: true,
             primaryDomain: true,
@@ -123,6 +135,10 @@ export async function getShopForVerificationEncrypted(shopDomain: string): Promi
         shopDomain: shop.shopDomain,
         isActive: shop.isActive,
         ingestionSecret: shop.ingestionSecret,
+        pendingIngestionSecret: shop.pendingIngestionSecret,
+        pendingSecretIssuedAt: shop.pendingSecretIssuedAt,
+        pendingSecretExpiry: shop.pendingSecretExpiry,
+        pendingSecretMatchCount: shop.pendingSecretMatchCount,
         previousIngestionSecret: shop.previousIngestionSecret,
         previousSecretExpiry: shop.previousSecretExpiry,
         primaryDomain: shop.primaryDomain,
@@ -136,6 +152,14 @@ export function decryptShopVerificationData(
     const currentSecret = encrypted.ingestionSecret
         ? decryptIngestionSecret(encrypted.ingestionSecret)
         : null;
+    let pendingSecret: string | null = null;
+    if (
+        encrypted.pendingIngestionSecret &&
+        encrypted.pendingSecretExpiry &&
+        new Date() < encrypted.pendingSecretExpiry
+    ) {
+        pendingSecret = decryptIngestionSecret(encrypted.pendingIngestionSecret);
+    }
     let previousSecret: string | null = null;
     if (
         encrypted.previousIngestionSecret &&
@@ -149,6 +173,10 @@ export function decryptShopVerificationData(
         shopDomain: encrypted.shopDomain,
         isActive: encrypted.isActive,
         ingestionSecret: currentSecret,
+        pendingIngestionSecret: pendingSecret,
+        pendingSecretIssuedAt: encrypted.pendingSecretIssuedAt,
+        pendingSecretExpiry: encrypted.pendingSecretExpiry,
+        pendingSecretMatchCount: encrypted.pendingSecretMatchCount,
         previousIngestionSecret: previousSecret,
         previousSecretExpiry: encrypted.previousSecretExpiry,
         primaryDomain: encrypted.primaryDomain,
@@ -186,6 +214,10 @@ export async function getShopForVerification(shopDomain: string): Promise<ShopVe
             shopDomain: true,
             isActive: true,
             ingestionSecret: true,
+            pendingIngestionSecret: true,
+            pendingSecretIssuedAt: true,
+            pendingSecretExpiry: true,
+            pendingSecretMatchCount: true,
             previousIngestionSecret: true,
             previousSecretExpiry: true,
             primaryDomain: true,
@@ -198,6 +230,14 @@ export async function getShopForVerification(shopDomain: string): Promise<ShopVe
     const currentSecret = shop.ingestionSecret
         ? decryptIngestionSecret(shop.ingestionSecret)
         : null;
+    let pendingSecret: string | null = null;
+    if (
+        shop.pendingIngestionSecret &&
+        shop.pendingSecretExpiry &&
+        new Date() < shop.pendingSecretExpiry
+    ) {
+        pendingSecret = decryptIngestionSecret(shop.pendingIngestionSecret);
+    }
     let previousSecret: string | null = null;
     if (shop.previousIngestionSecret &&
         shop.previousSecretExpiry &&
@@ -209,6 +249,10 @@ export async function getShopForVerification(shopDomain: string): Promise<ShopVe
         shopDomain: shop.shopDomain,
         isActive: shop.isActive,
         ingestionSecret: currentSecret,
+        pendingIngestionSecret: pendingSecret,
+        pendingSecretIssuedAt: shop.pendingSecretIssuedAt,
+        pendingSecretExpiry: shop.pendingSecretExpiry,
+        pendingSecretMatchCount: shop.pendingSecretMatchCount,
         previousIngestionSecret: previousSecret,
         previousSecretExpiry: shop.previousSecretExpiry,
         primaryDomain: shop.primaryDomain,
@@ -227,6 +271,10 @@ export async function getShopForVerificationWithConfigs(
             shopDomain: true,
             isActive: true,
             ingestionSecret: true,
+            pendingIngestionSecret: true,
+            pendingSecretIssuedAt: true,
+            pendingSecretExpiry: true,
+            pendingSecretMatchCount: true,
             previousIngestionSecret: true,
             previousSecretExpiry: true,
             primaryDomain: true,
@@ -254,6 +302,14 @@ export async function getShopForVerificationWithConfigs(
     const currentSecret = shop.ingestionSecret
         ? decryptIngestionSecret(shop.ingestionSecret)
         : null;
+    let pendingSecret: string | null = null;
+    if (
+        shop.pendingIngestionSecret &&
+        shop.pendingSecretExpiry &&
+        new Date() < shop.pendingSecretExpiry
+    ) {
+        pendingSecret = decryptIngestionSecret(shop.pendingIngestionSecret);
+    }
     let previousSecret: string | null = null;
     if (
         shop.previousIngestionSecret &&
@@ -267,6 +323,10 @@ export async function getShopForVerificationWithConfigs(
         shopDomain: shop.shopDomain,
         isActive: shop.isActive,
         ingestionSecret: currentSecret,
+        pendingIngestionSecret: pendingSecret,
+        pendingSecretIssuedAt: shop.pendingSecretIssuedAt,
+        pendingSecretExpiry: shop.pendingSecretExpiry,
+        pendingSecretMatchCount: shop.pendingSecretMatchCount,
         previousIngestionSecret: previousSecret,
         previousSecretExpiry: shop.previousSecretExpiry,
         primaryDomain: shop.primaryDomain,
@@ -286,6 +346,10 @@ export async function getShopForVerificationWithConfigsEncrypted(
             shopDomain: true,
             isActive: true,
             ingestionSecret: true,
+            pendingIngestionSecret: true,
+            pendingSecretIssuedAt: true,
+            pendingSecretExpiry: true,
+            pendingSecretMatchCount: true,
             previousIngestionSecret: true,
             previousSecretExpiry: true,
             primaryDomain: true,
@@ -315,6 +379,10 @@ export async function getShopForVerificationWithConfigsEncrypted(
         shopDomain: shop.shopDomain,
         isActive: shop.isActive,
         ingestionSecret: shop.ingestionSecret,
+        pendingIngestionSecret: shop.pendingIngestionSecret,
+        pendingSecretIssuedAt: shop.pendingSecretIssuedAt,
+        pendingSecretExpiry: shop.pendingSecretExpiry,
+        pendingSecretMatchCount: shop.pendingSecretMatchCount,
         previousIngestionSecret: shop.previousIngestionSecret,
         previousSecretExpiry: shop.previousSecretExpiry,
         primaryDomain: shop.primaryDomain,
@@ -329,6 +397,14 @@ export function decryptShopWithPixelConfigs(
     const currentSecret = encrypted.ingestionSecret
         ? decryptIngestionSecret(encrypted.ingestionSecret)
         : null;
+    let pendingSecret: string | null = null;
+    if (
+        encrypted.pendingIngestionSecret &&
+        encrypted.pendingSecretExpiry &&
+        new Date() < encrypted.pendingSecretExpiry
+    ) {
+        pendingSecret = decryptIngestionSecret(encrypted.pendingIngestionSecret);
+    }
     let previousSecret: string | null = null;
     if (
         encrypted.previousIngestionSecret &&
@@ -342,6 +418,10 @@ export function decryptShopWithPixelConfigs(
         shopDomain: encrypted.shopDomain,
         isActive: encrypted.isActive,
         ingestionSecret: currentSecret,
+        pendingIngestionSecret: pendingSecret,
+        pendingSecretIssuedAt: encrypted.pendingSecretIssuedAt,
+        pendingSecretExpiry: encrypted.pendingSecretExpiry,
+        pendingSecretMatchCount: encrypted.pendingSecretMatchCount,
         previousIngestionSecret: previousSecret,
         previousSecretExpiry: encrypted.previousSecretExpiry,
         primaryDomain: encrypted.primaryDomain,
@@ -349,32 +429,42 @@ export function decryptShopWithPixelConfigs(
         pixelConfigs: encrypted.pixelConfigs,
     };
 }
+export type MatchedSecretType = "active" | "pending" | "previous";
+
 export function verifyWithGraceWindow(shop: ShopVerificationData, verifyFn: (secret: string) => boolean): {
     matched: boolean;
+    matchedSecretType?: MatchedSecretType;
     usedPreviousSecret: boolean;
 } {
     if (shop.ingestionSecret && verifyFn(shop.ingestionSecret)) {
-        return { matched: true, usedPreviousSecret: false };
+        return { matched: true, matchedSecretType: "active", usedPreviousSecret: false };
+    }
+    if (shop.pendingIngestionSecret && shop.pendingSecretExpiry && new Date() < shop.pendingSecretExpiry && verifyFn(shop.pendingIngestionSecret)) {
+        return { matched: true, matchedSecretType: "pending", usedPreviousSecret: false };
     }
     if (shop.previousIngestionSecret && shop.previousSecretExpiry && new Date() < shop.previousSecretExpiry && verifyFn(shop.previousIngestionSecret)) {
         logger.info(`[Grace Window] Request verified using previous secret for ${shop.shopDomain}. ` +
             `Expires: ${shop.previousSecretExpiry?.toISOString()}`);
-        return { matched: true, usedPreviousSecret: true };
+        return { matched: true, matchedSecretType: "previous", usedPreviousSecret: true };
     }
     return { matched: false, usedPreviousSecret: false };
 }
 
 export async function verifyWithGraceWindowAsync(shop: ShopVerificationData, verifyFn: (secret: string) => Promise<boolean>): Promise<{
     matched: boolean;
+    matchedSecretType?: MatchedSecretType;
     usedPreviousSecret: boolean;
 }> {
     if (shop.ingestionSecret && await verifyFn(shop.ingestionSecret)) {
-        return { matched: true, usedPreviousSecret: false };
+        return { matched: true, matchedSecretType: "active", usedPreviousSecret: false };
+    }
+    if (shop.pendingIngestionSecret && shop.pendingSecretExpiry && new Date() < shop.pendingSecretExpiry && await verifyFn(shop.pendingIngestionSecret)) {
+        return { matched: true, matchedSecretType: "pending", usedPreviousSecret: false };
     }
     if (shop.previousIngestionSecret && shop.previousSecretExpiry && new Date() < shop.previousSecretExpiry && await verifyFn(shop.previousIngestionSecret)) {
         logger.info(`[Grace Window] Request verified using previous secret for ${shop.shopDomain}. ` +
             `Expires: ${shop.previousSecretExpiry?.toISOString()}`);
-        return { matched: true, usedPreviousSecret: true };
+        return { matched: true, matchedSecretType: "previous", usedPreviousSecret: true };
     }
     return { matched: false, usedPreviousSecret: false };
 }

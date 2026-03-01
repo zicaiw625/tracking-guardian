@@ -25,6 +25,9 @@ interface ShopData {
   hasActiveGraceWindow: boolean;
   graceWindowExpiry: Date | string | null;
   hasExpiredPreviousSecret: boolean;
+  hasPendingRotation?: boolean;
+  pendingSecretExpiry?: Date | string | null;
+  pendingSecretMatchCount?: number;
   consentStrategy: string;
   dataRetentionDays: number;
 }
@@ -204,6 +207,21 @@ export function SecurityTab({
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
                       {t("Settings.Security.IngestionKey.GraceWindowEnd")}
+                    </Text>
+                  </BlockStack>
+                </Banner>
+              )}
+              {shop?.hasPendingRotation && shop.pendingSecretExpiry && (
+                <Banner tone="info">
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      Pending token rotation is in progress.
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      Pending token expires at {new Date(shop.pendingSecretExpiry).toLocaleString()}.
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      Pending token matched {shop.pendingSecretMatchCount || 0}/3 times.
                     </Text>
                   </BlockStack>
                 </Banner>

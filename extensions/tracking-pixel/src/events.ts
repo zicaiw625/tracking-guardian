@@ -504,14 +504,8 @@ export function createEventSender(config: EventSenderConfig) {
           try {
             const unsignedBody = JSON.stringify(buildUnsignedBatchPayload(batchEvents, timestamp));
             const unsignedBodyHash = sha256Hex(unsignedBody);
-            const bodySignature = generateHMACSignature(normalizedIngestionKey, timestamp, shopDomain, unsignedBodyHash);
-            body = buildBatchBody(batchEvents, timestamp, {
-              signature: bodySignature,
-              signatureTimestamp: timestamp,
-              signatureShopDomain: shopDomain,
-            });
-            const bodyHash = sha256Hex(body);
-            const signature = generateHMACSignature(normalizedIngestionKey, timestamp, shopDomain, bodyHash);
+            body = buildBatchBody(batchEvents, timestamp);
+            const signature = generateHMACSignature(normalizedIngestionKey, timestamp, shopDomain, unsignedBodyHash);
             headers["X-Tracking-Guardian-Signature"] = signature;
             if (isDevMode) {
               log(`Batch HMAC signature generated for ${batchEvents.length} events`);

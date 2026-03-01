@@ -61,6 +61,9 @@ export const shopLoadingMiddleware: IngestMiddleware = async (
   if (shop.previousIngestionSecret && shop.previousSecretExpiry && new Date() > shop.previousSecretExpiry) {
     shop.previousIngestionSecret = null;
   }
+  if (shop.pendingIngestionSecret && shop.pendingSecretExpiry && new Date() > shop.pendingSecretExpiry) {
+    shop.pendingIngestionSecret = null;
+  }
 
 
   const shopAllowedDomains = buildShopAllowedDomains({

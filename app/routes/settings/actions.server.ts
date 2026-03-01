@@ -26,22 +26,19 @@ export async function handleRotateIngestionSecret(
   sessionShop: string,
   admin: Awaited<ReturnType<typeof authenticate.admin>>["admin"]
 ) {
-  const currentShop = await prisma.shop.findUnique({
-    where: { id: shopId },
-    select: { ingestionSecret: true },
-  });
   const { plain: newPlainSecret, encrypted: newEncryptedSecret } =
     generateEncryptedIngestionSecret();
-  const graceWindowMinutes = 30;
-  const graceWindowExpiry = new Date(
-    Date.now() + graceWindowMinutes * 60 * 1000
+  const pendingWindowHours = 24;
+  const pendingWindowExpiry = new Date(
+    Date.now() + pendingWindowHours * 60 * 60 * 1000
   );
   await prisma.shop.update({
     where: { id: shopId },
     data: {
-      ingestionSecret: newEncryptedSecret,
-      previousIngestionSecret: currentShop?.ingestionSecret || null,
-      previousSecretExpiry: graceWindowExpiry,
+      pendingIngestionSecret: newEncryptedSecret,
+      pendingSecretIssuedAt: new Date(),
+      pendingSecretExpiry: pendingWindowExpiry,
+      pendingSecretMatchCount: 0,
     },
   });
   await invalidateAllShopCaches(sessionShop, shopId);
@@ -83,7 +80,7 @@ export async function handleRotateIngestionSecret(
     };
   }
   const baseMessage = t("settings.action.tokenUpdated");
-  const graceMessage = t("settings.action.graceWindow", { minutes: graceWindowMinutes });
+  const graceMessage = ` Pending activation window: ${pendingWindowHours}h.`;
   const syncMessage = pixelSyncResult.success
     ? pixelSyncResult.message
     : `⚠️ ${pixelSyncResult.message}`;
@@ -91,7 +88,7 @@ export async function handleRotateIngestionSecret(
     success: true,
     message: `${baseMessage}${graceMessage}${syncMessage}`,
     pixelSyncSuccess: pixelSyncResult.success,
-    graceWindowExpiry: graceWindowExpiry.toISOString(),
+    graceWindowExpiry: pendingWindowExpiry.toISOString(),
   });
 }
 

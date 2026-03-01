@@ -48,6 +48,10 @@ model Shop {
   ingestionSecret         String?
   weakConsentMode         Boolean                @default(false)
   consentStrategy         String                 @default("strict")
+  pendingIngestionSecret  String?
+  pendingSecretIssuedAt   DateTime?
+  pendingSecretExpiry     DateTime?
+  pendingSecretMatchCount Int                    @default(0)
   previousIngestionSecret String?
   previousSecretExpiry    DateTime?
   webPixelId              String?

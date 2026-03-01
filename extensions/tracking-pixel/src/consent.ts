@@ -26,8 +26,12 @@ export function createConsentManager(_logger?: (...args: unknown[]) => void): Co
       return;
     }
     customerPrivacyStatus = status;
-    marketingAllowed = customerPrivacyStatus.marketingAllowed === true;
-    analyticsAllowed = customerPrivacyStatus.analyticsProcessingAllowed === true;
+    marketingAllowed =
+      customerPrivacyStatus.marketingAllowed === true ||
+      customerPrivacyStatus.marketingProcessingAllowed === true;
+    analyticsAllowed =
+      customerPrivacyStatus.analyticsProcessingAllowed === true ||
+      customerPrivacyStatus.analyticsAllowed === true;
     saleOfDataAllowed = "saleOfDataAllowed" in customerPrivacyStatus
       ? customerPrivacyStatus.saleOfDataAllowed === true
       : undefined;

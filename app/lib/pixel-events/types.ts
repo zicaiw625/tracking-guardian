@@ -85,6 +85,7 @@ export interface KeyValidationResult {
   matched: boolean;
   reason: string;
   usedPreviousSecret?: boolean;
+  matchedSecretType?: "active" | "pending" | "previous";
   trustLevel?: "trusted" | "partial" | "untrusted";
 }
 
@@ -93,6 +94,10 @@ export interface ShopContext {
   shopDomain: string;
   isActive: boolean;
   ingestionSecret: string | null;
+  pendingIngestionSecret: string | null;
+  pendingSecretIssuedAt: Date | null;
+  pendingSecretExpiry: Date | null;
+  pendingSecretMatchCount: number;
   previousIngestionSecret: string | null;
   previousSecretExpiry: Date | null;
   primaryDomain: string | null;

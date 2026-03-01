@@ -21,6 +21,10 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       ingestionSecret: string | null;
       previousIngestionSecret: string | null;
       previousSecretExpiry: Date | null;
+      pendingIngestionSecret: string | null;
+      pendingSecretIssuedAt: Date | null;
+      pendingSecretExpiry: Date | null;
+      pendingSecretMatchCount: number;
       consentStrategy: string | null;
       dataRetentionDays: number;
       settings?: unknown;
@@ -46,6 +50,10 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
           ingestionSecret: true,
           previousIngestionSecret: true,
           previousSecretExpiry: true,
+          pendingIngestionSecret: true,
+          pendingSecretIssuedAt: true,
+          pendingSecretExpiry: true,
+          pendingSecretMatchCount: true,
           consentStrategy: true,
           dataRetentionDays: true,
           settings: true,
@@ -77,6 +85,10 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
             ingestionSecret: true,
             previousIngestionSecret: true,
             previousSecretExpiry: true,
+            pendingIngestionSecret: true,
+            pendingSecretIssuedAt: true,
+            pendingSecretExpiry: true,
+            pendingSecretMatchCount: true,
             consentStrategy: true,
             dataRetentionDays: true,
             pixelConfigs: {
@@ -120,6 +132,14 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       shop?.previousIngestionSecret &&
       shop?.previousSecretExpiry &&
       now >= shop.previousSecretExpiry;
+    const hasPendingRotation =
+      shop?.pendingIngestionSecret &&
+      shop?.pendingSecretExpiry &&
+      now < shop.pendingSecretExpiry;
+    const hasExpiredPendingSecret =
+      shop?.pendingIngestionSecret &&
+      shop?.pendingSecretExpiry &&
+      now >= shop.pendingSecretExpiry;
     
     if (shop && hasExpiredPreviousSecret) {
       try {
@@ -134,6 +154,25 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
         shop.previousSecretExpiry = null;
       } catch (error) {
         logger.error("Failed to cleanup expired previous ingestion secret", { shopId: shop.id, error });
+      }
+    }
+    if (shop && hasExpiredPendingSecret) {
+      try {
+        await prisma.shop.update({
+          where: { id: shop.id },
+          data: {
+            pendingIngestionSecret: null,
+            pendingSecretIssuedAt: null,
+            pendingSecretExpiry: null,
+            pendingSecretMatchCount: 0,
+          },
+        });
+        shop.pendingIngestionSecret = null;
+        shop.pendingSecretIssuedAt = null;
+        shop.pendingSecretExpiry = null;
+        shop.pendingSecretMatchCount = 0;
+      } catch (error) {
+        logger.error("Failed to cleanup expired pending ingestion secret", { shopId: shop.id, error });
       }
     }
     const pixelConfigs: PixelConfigDisplay[] = shop?.pixelConfigs?.map((config: {
@@ -234,6 +273,11 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
             graceWindowExpiry: hasActiveGraceWindow && shop.previousSecretExpiry
               ? shop.previousSecretExpiry
               : null,
+            hasPendingRotation: !!hasPendingRotation,
+            pendingSecretExpiry: hasPendingRotation && shop.pendingSecretExpiry
+              ? shop.pendingSecretExpiry
+              : null,
+            pendingSecretMatchCount: shop.pendingSecretMatchCount ?? 0,
             consentStrategy: shop.consentStrategy || "strict",
             dataRetentionDays: shop.dataRetentionDays,
           }

@@ -351,6 +351,25 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     if (expiredSecretsResult.count > 0) {
       logger.info(`Cleaned up ${expiredSecretsResult.count} expired previous ingestion secrets`);
     }
+    const expiredPendingResult = await prisma.shop.updateMany({
+      where: {
+        pendingIngestionSecret: {
+          not: null,
+        },
+        pendingSecretExpiry: {
+          lt: now,
+        },
+      },
+      data: {
+        pendingIngestionSecret: null,
+        pendingSecretIssuedAt: null,
+        pendingSecretExpiry: null,
+        pendingSecretMatchCount: 0,
+      },
+    });
+    if (expiredPendingResult.count > 0) {
+      logger.info(`Cleaned up ${expiredPendingResult.count} expired pending ingestion secrets`);
+    }
   } catch (error) {
     logger.error("Failed to cleanup expired previous ingestion secrets", { error });
   }

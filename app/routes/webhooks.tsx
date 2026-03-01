@@ -198,6 +198,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         primaryDomain: true,
         storefrontDomains: true,
         ingestionSecret: true,
+        pendingIngestionSecret: true,
+        pendingSecretIssuedAt: true,
+        pendingSecretExpiry: true,
+        pendingSecretMatchCount: true,
         previousIngestionSecret: true,
         previousSecretExpiry: true,
         pixelConfigs: {

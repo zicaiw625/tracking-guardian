@@ -33,9 +33,12 @@ export interface CheckoutData {
 }
 
 export interface CustomerPrivacyState {
-  analyticsProcessingAllowed: boolean;
-  marketingAllowed: boolean;
-  preferencesProcessingAllowed: boolean;
+  analyticsProcessingAllowed?: boolean;
+  analyticsAllowed?: boolean;
+  marketingAllowed?: boolean;
+  marketingProcessingAllowed?: boolean;
+  preferencesProcessingAllowed?: boolean;
+  preferencesAllowed?: boolean;
   saleOfDataAllowed?: boolean;
 }
 

@@ -7,10 +7,14 @@ import { isStrictSecurityMode, API_CONFIG } from "~/utils/config.server";
 import { logger, metrics } from "~/utils/logger.server";
 import { rejectionTracker } from "../rejection-tracker.server";
 import { shouldRecordRejection } from "../stats-sampling";
+import prisma from "~/db.server";
+import { invalidateAllShopCaches } from "~/services/shop-cache.server";
 import type { KeyValidationResult } from "../types";
 import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types";
 
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
+const PENDING_PROMOTE_MATCH_COUNT = 3;
+const PREVIOUS_SECRET_GRACE_WINDOW_MINUTES = 30;
 
 function canonicalJSONStringify(value: unknown): string {
   if (value === null || typeof value !== "object") {
@@ -27,6 +31,74 @@ function canonicalJSONStringify(value: unknown): string {
     .join(",")}}`;
 }
 
+async function promotePendingSecretIfReady(
+  context: IngestContext
+): Promise<void> {
+  if (!context.shop?.id || !context.shop?.pendingIngestionSecret) {
+    return;
+  }
+  try {
+    const shop = await prisma.shop.findUnique({
+      where: { id: context.shop.id },
+      select: {
+        id: true,
+        shopDomain: true,
+        ingestionSecret: true,
+        pendingIngestionSecret: true,
+        pendingSecretExpiry: true,
+        pendingSecretMatchCount: true,
+      },
+    });
+    if (!shop?.pendingIngestionSecret || !shop.pendingSecretExpiry || new Date() >= shop.pendingSecretExpiry) {
+      return;
+    }
+    const nextMatchCount = (shop.pendingSecretMatchCount ?? 0) + 1;
+    if (nextMatchCount < PENDING_PROMOTE_MATCH_COUNT) {
+      await prisma.shop.update({
+        where: { id: shop.id },
+        data: {
+          pendingSecretMatchCount: nextMatchCount,
+        },
+      });
+      return;
+    }
+    const previousSecretExpiry = new Date(
+      Date.now() + PREVIOUS_SECRET_GRACE_WINDOW_MINUTES * 60 * 1000
+    );
+    await prisma.$transaction(async (tx) => {
+      const latest = await tx.shop.findUnique({
+        where: { id: shop.id },
+        select: {
+          ingestionSecret: true,
+          pendingIngestionSecret: true,
+        },
+      });
+      if (!latest?.pendingIngestionSecret) {
+        return;
+      }
+      await tx.shop.update({
+        where: { id: shop.id },
+        data: {
+          ingestionSecret: latest.pendingIngestionSecret,
+          previousIngestionSecret: latest.ingestionSecret,
+          previousSecretExpiry,
+          pendingIngestionSecret: null,
+          pendingSecretIssuedAt: null,
+          pendingSecretExpiry: null,
+          pendingSecretMatchCount: 0,
+        },
+      });
+    });
+    await invalidateAllShopCaches(context.shop.shopDomain, context.shop.id);
+  } catch (error) {
+    logger.warn("Failed to promote pending ingestion secret", {
+      shopId: context.shop.id,
+      shopDomain: context.shop.shopDomain,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 export const hmacValidationMiddleware: IngestMiddleware = async (
   context: IngestContext
 ): Promise<MiddlewareResult> => {
@@ -34,7 +106,11 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
     return { continue: true, context };
   }
 
-  const hasAnySecret = Boolean(context.shop.ingestionSecret || context.shop.previousIngestionSecret);
+  const hasAnySecret = Boolean(
+    context.shop.ingestionSecret ||
+    context.shop.pendingIngestionSecret ||
+    context.shop.previousIngestionSecret
+  );
 
   if (context.isProduction && context.signatureSource === "body") {
     if (shouldRecordRejection(context.isProduction, false, "invalid_key")) {
@@ -94,8 +170,8 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
   };
 
   if (context.signature && hasAnySecret && context.timestamp) {
-    const hmacSourcePayload = (() => {
-      if (context.signatureSource !== "body" || !context.bodyData || typeof context.bodyData !== "object") {
+    const unsignedPayload = (() => {
+      if (!context.bodyData || typeof context.bodyData !== "object") {
         return context.bodyText!;
       }
       const envelope = { ...(context.bodyData as Record<string, unknown>) };
@@ -104,10 +180,11 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
       delete envelope.signatureShopDomain;
       return canonicalJSONStringify(envelope);
     })();
-    const bodyHash = crypto.createHash("sha256").update(hmacSourcePayload).digest("hex");
+    const bodyHash = crypto.createHash("sha256").update(context.bodyText!).digest("hex");
+    const unsignedBodyHash = crypto.createHash("sha256").update(unsignedPayload).digest("hex");
 
     const verifyWithToken = async (token: string) => {
-      const result = await validatePixelEventHMAC(
+      const fullBodyResult = await validatePixelEventHMAC(
         context.request,
         bodyHash,
         token,
@@ -116,7 +193,21 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
         TIMESTAMP_WINDOW_MS,
         context.bodyData
       );
-      return result;
+      if (fullBodyResult.valid) {
+        return fullBodyResult;
+      }
+      if (context.signatureSource === "header" && unsignedBodyHash !== bodyHash) {
+        return validatePixelEventHMAC(
+          context.request,
+          unsignedBodyHash,
+          token,
+          context.shopDomain!,
+          context.timestamp!,
+          TIMESTAMP_WINDOW_MS,
+          context.bodyData
+        );
+      }
+      return fullBodyResult;
     };
 
     const graceResult = await verifyWithGraceWindowAsync(context.shop, async (token: string) => {
@@ -125,14 +216,24 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
     });
 
     if (graceResult.matched) {
-      const hmacResult = await verifyWithToken(graceResult.usedPreviousSecret ? context.shop.previousIngestionSecret! : context.shop.ingestionSecret!);
+      const matchedSecret =
+        graceResult.matchedSecretType === "pending"
+          ? context.shop.pendingIngestionSecret
+          : graceResult.usedPreviousSecret
+            ? context.shop.previousIngestionSecret
+            : context.shop.ingestionSecret;
+      const hmacResult = await verifyWithToken(matchedSecret!);
       keyValidation = {
         matched: true,
         reason: "hmac_verified",
         usedPreviousSecret: graceResult.usedPreviousSecret,
+        matchedSecretType: graceResult.matchedSecretType,
         trustLevel: hmacResult.trustLevel || "trusted",
       };
-      logger.debug(`HMAC signature verified for ${context.shopDomain}${graceResult.usedPreviousSecret ? " (using previous token)" : ""}`);
+      logger.debug(`HMAC signature verified for ${context.shopDomain}${graceResult.usedPreviousSecret ? " (using previous token)" : graceResult.matchedSecretType === "pending" ? " (using pending token)" : ""}`);
+      if (graceResult.matchedSecretType === "pending") {
+        await promotePendingSecretIfReady(context);
+      }
 
       const totalEvents = context.validatedEvents.length;
       if (totalEvents >= 3) {
@@ -217,7 +318,7 @@ export const hmacValidationMiddleware: IngestMiddleware = async (
         }
       }
     } else {
-      const tokenToCheck = context.shop.ingestionSecret ?? context.shop.previousIngestionSecret;
+      const tokenToCheck = context.shop.ingestionSecret ?? context.shop.pendingIngestionSecret ?? context.shop.previousIngestionSecret;
       if (!tokenToCheck) {
         keyValidation = {
           matched: false,

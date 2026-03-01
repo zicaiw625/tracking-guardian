@@ -30,7 +30,7 @@ export function getPixelEventsCorsHeaders(request: Request, options?: {
         "Access-Control-Max-Age": "86400",
         "Vary": "Origin",
     };
-    if (request.method.toUpperCase() === "OPTIONS") {
+    if (request.method.toUpperCase() === "OPTIONS" && isDevMode()) {
         return {
             ...baseHeaders,
             "Access-Control-Allow-Origin": "*",
@@ -100,7 +100,7 @@ export function getPixelEventsCorsHeadersForShop(request: Request, shopAllowedDo
         "Access-Control-Max-Age": "86400",
         "Vary": "Origin",
     };
-    if (request.method.toUpperCase() === "OPTIONS") {
+    if (request.method.toUpperCase() === "OPTIONS" && isDevMode()) {
         return {
             ...baseHeaders,
             "Access-Control-Allow-Origin": "*",

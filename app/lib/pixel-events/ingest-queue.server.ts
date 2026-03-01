@@ -13,12 +13,61 @@ const MAX_PURCHASE_QUEUE_SIZE = 100_000;
 const MAX_GENERAL_QUEUE_SIZE = 100_000;
 const MAX_BATCHES_PER_RUN = 50;
 const MAX_RETRIES = 5;
+const POP_AND_MARK_LUA = `
+for i = 1, #KEYS do
+  local raw = redis.call("RPOP", KEYS[i])
+  if raw then
+    redis.call("LPUSH", ARGV[1], raw)
+    local ok, decoded = pcall(cjson.decode, raw)
+    if ok and decoded and decoded["requestId"] then
+      local requestId = tostring(decoded["requestId"])
+      redis.call("HSET", ARGV[2], requestId, raw)
+      redis.call("LREM", ARGV[1], 1, raw)
+      redis.call("LPUSH", ARGV[1], requestId)
+    end
+    return raw
+  end
+end
+return nil
+`;
 
 async function getProcessingEntryById(
   redis: Awaited<ReturnType<typeof getRedisClient>>,
   requestId: string
 ): Promise<string | null> {
   return redis.hGet(PROCESSING_HASH_KEY, requestId);
+}
+
+async function popAndMarkProcessing(
+  redis: Awaited<ReturnType<typeof getRedisClient>>
+): Promise<string | null> {
+  if (typeof (redis as { eval?: unknown }).eval === "function") {
+    const evalResult = await (redis as unknown as {
+      eval: (script: string, keys: string[], args: string[]) => Promise<unknown>;
+    }).eval(
+      POP_AND_MARK_LUA,
+      [PURCHASE_QUEUE_KEY, GENERAL_QUEUE_KEY, QUEUE_KEY],
+      [PROCESSING_KEY, PROCESSING_HASH_KEY]
+    );
+    return typeof evalResult === "string" ? evalResult : null;
+  }
+  const raw =
+    (await redis.rPopLPush(PURCHASE_QUEUE_KEY, PROCESSING_KEY)) ??
+    (await redis.rPopLPush(GENERAL_QUEUE_KEY, PROCESSING_KEY)) ??
+    (await redis.rPopLPush(QUEUE_KEY, PROCESSING_KEY));
+  if (!raw) {
+    return null;
+  }
+  try {
+    const entry = JSON.parse(raw) as IngestQueueEntry;
+    if (entry.requestId) {
+      await redis.lRem(PROCESSING_KEY, 1, raw);
+      await redis.lPush(PROCESSING_KEY, entry.requestId);
+    }
+  } catch {
+    return raw;
+  }
+  return raw;
 }
 
 async function removeProcessingEntryById(
@@ -128,10 +177,7 @@ export async function processIngestQueue(
   let errors = 0;
 
   for (let i = 0; i < maxBatches; i++) {
-    const raw =
-      (await redis.rPopLPush(PURCHASE_QUEUE_KEY, PROCESSING_KEY)) ??
-      (await redis.rPopLPush(GENERAL_QUEUE_KEY, PROCESSING_KEY)) ??
-      (await redis.rPopLPush(QUEUE_KEY, PROCESSING_KEY));
+    const raw = await popAndMarkProcessing(redis);
     if (!raw) break;
 
     let entry: IngestQueueEntry;
@@ -153,22 +199,15 @@ export async function processIngestQueue(
       entry.queueType = hasPurchaseEvent(entry) ? "purchase" : "general";
     }
 
-    const processingRaw = JSON.stringify(entry);
     const processingMarker = entry.requestId;
     try {
-      await redis.hSet(PROCESSING_HASH_KEY, processingMarker, processingRaw);
-      await redis.lRem(PROCESSING_KEY, 1, raw);
-      await redis.lPush(PROCESSING_KEY, processingMarker);
+      await redis.hSet(PROCESSING_HASH_KEY, processingMarker, JSON.stringify(entry));
     } catch (e) {
-      logger.error("Failed to register processing entry", {
+      logger.warn("Failed to refresh processing entry payload", {
         requestId: entry.requestId,
         shopDomain: entry.shopDomain,
         error: e instanceof Error ? e.message : String(e),
       });
-      await redis.lRem(PROCESSING_KEY, 1, raw);
-      await redis.lPush(QUEUE_KEY, raw);
-      errors++;
-      continue;
     }
 
     try {

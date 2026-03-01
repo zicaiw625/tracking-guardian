@@ -74,7 +74,7 @@
   > **⚠️ v1.0 验收范围说明**：
   > - ✅ **支持的事件类型**：checkout_started、checkout_completed、checkout_contact_info_submitted、checkout_shipping_info_submitted、payment_info_submitted、product_added_to_cart、product_viewed、page_viewed 等 Web Pixels 标准 checkout 漏斗事件
   > - ❌ **不支持的事件类型**：退款（refund）、订单取消（cancel）、订单编辑（order_edit）、订阅订单（subscription）等事件在 v1.0 中不可验收
-  > - **原因**：Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件。退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取；当前版本已提供订单 webhook 成交补偿链路（严格做 PII 最小化）
+  > - **原因**：Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件。退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取；订单 webhook 成交补偿链路属于后续版本规划（启用前需完成 Shopify PCD 审批并继续保持 PII 最小化）
   > 
   > **⚠️ checkout_completed 事件触发行为说明（重要）**：
   > - **触发位置**：`checkout_completed` 不一定在 Thank you 页触发。当存在 upsell 或 post-purchase offer 时，事件会在第一层 upsell 页触发，且不会在 Thank you 页再次触发。这是 Shopify 的预期行为，不是故障。
@@ -480,7 +480,7 @@ ScriptTag 清理需要商家手动操作：
 - ❌ 直接删除 ScriptTag（需商家手动操作）
 - ❌ 在 TYP/OSP 页面注入任何客户端脚本
 
-当前公开版本的追踪与对账以 **Web Pixel Extension** 为主，并可通过订单 webhook 进行成交补偿；默认仍不会代表商家向 Meta/GA4/TikTok 等平台发起服务端 CAPI/MP 请求。当前版本核心价值为「迁移 + 像素链路验收 + 断档监控 + 订单真相补偿」。
+当前公开版本的追踪与对账以 **Web Pixel Extension** 为主；订单 webhook 成交补偿属于后续版本规划。默认仍不会代表商家向 Meta/GA4/TikTok 等平台发起服务端 CAPI/MP 请求。当前版本核心价值为「迁移 + 像素链路验收 + 断档监控」。
 
 ### P0-3: 最小权限说明
 

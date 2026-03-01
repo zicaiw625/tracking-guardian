@@ -48,6 +48,9 @@ export interface ShopSettingsData {
   hasActiveGraceWindow: boolean;
   hasExpiredPreviousSecret: boolean;
   graceWindowExpiry: Date | null;
+  hasPendingRotation: boolean;
+  pendingSecretExpiry: Date | null;
+  pendingSecretMatchCount: number;
   consentStrategy: string;
   dataRetentionDays: number;
 }

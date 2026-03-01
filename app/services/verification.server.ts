@@ -336,6 +336,7 @@ export async function analyzeRecentEvents(
       orderKey: true,
       totalValue: true,
       currency: true,
+      trustLevel: true,
     },
   });
   const limitReached = receipts.length >= LIMIT;
@@ -455,6 +456,9 @@ export async function analyzeRecentEvents(
       continue;
     }
     const orderId = receipt.orderKey || (payload?.data as Record<string, unknown>)?.orderId as string | undefined;
+    const trustLevel = receipt.trustLevel === "trusted" ? "trusted" : "untrusted_or_review";
+    const needsReview = trustLevel !== "trusted";
+    const trustReviewMessage = needsReview ? "Signal trust level is not trusted; requires review" : undefined;
     if (orderId) {
       orderIds.add(orderId);
     }
@@ -476,10 +480,10 @@ export async function analyzeRecentEvents(
           platform: p,
           orderId: orderId || undefined,
           orderNumber: undefined,
-          status: "success",
+          status: needsReview ? "warning" : "success",
           triggeredAt: receipt.pixelTimestamp,
           params: { hasEventId },
-          discrepancies: undefined,
+          discrepancies: trustReviewMessage ? [trustReviewMessage] : undefined,
           errors: undefined,
           dedupInfo: undefined,
         });
@@ -548,6 +552,9 @@ export async function analyzeRecentEvents(
         const orderSummary = orderId ? orderSummaryMap.get(orderId) : undefined;
         let isFailed = false;
         let discrepancyNote: string | undefined;
+        if (trustReviewMessage) {
+          discrepancyNote = trustReviewMessage;
+        }
         
         if (orderSummary) {
           valueChecks++;

@@ -17,6 +17,10 @@ export interface Shop {
   readonly consentStrategy: ConsentStrategy;
   readonly dataRetentionDays: number;
   readonly ingestionSecret: string | null;
+  readonly pendingIngestionSecret: string | null;
+  readonly pendingSecretIssuedAt: Date | null;
+  readonly pendingSecretExpiry: Date | null;
+  readonly pendingSecretMatchCount: number;
   readonly previousIngestionSecret: string | null;
   readonly previousSecretExpiry: Date | null;
   readonly primaryDomain: string | null;
@@ -51,6 +55,10 @@ export interface ShopWithConsent extends ShopBasic {
 
 export interface ShopWithSecurity extends ShopBasic {
   readonly ingestionSecret: string | null;
+  readonly pendingIngestionSecret: string | null;
+  readonly pendingSecretIssuedAt: Date | null;
+  readonly pendingSecretExpiry: Date | null;
+  readonly pendingSecretMatchCount: number;
   readonly previousIngestionSecret: string | null;
   readonly previousSecretExpiry: Date | null;
   readonly primaryDomain: string | null;
@@ -80,6 +88,10 @@ export function createShop(params: {
     consentStrategy: "strict",
     dataRetentionDays: 90,
     ingestionSecret: params.ingestionSecret ?? null,
+    pendingIngestionSecret: null,
+    pendingSecretIssuedAt: null,
+    pendingSecretExpiry: null,
+    pendingSecretMatchCount: 0,
     previousIngestionSecret: null,
     previousSecretExpiry: null,
     primaryDomain: params.primaryDomain ?? null,
