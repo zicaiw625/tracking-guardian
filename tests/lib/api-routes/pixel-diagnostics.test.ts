@@ -112,6 +112,7 @@ describe("pixel diagnostics api", () => {
     expect(response.status).toBe(202);
     const body = await response.json();
     expect(body.accepted).toBe(true);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("https://demo-shop.myshopify.com");
   });
 
   it("accepts unsigned diagnostic request in production as untrusted", async () => {
@@ -189,7 +190,37 @@ describe("pixel diagnostics api", () => {
     expect(response.status).toBe(403);
   });
 
-  it("accepts request without nonce as compatibility fallback", async () => {
+  it("rejects request without nonce in production", async () => {
+    process.env.NODE_ENV = "production";
+    const payload = {
+      reason: "missing_ingestion_key",
+      shopDomain: "demo-shop.myshopify.com",
+      timestamp: Date.now(),
+    };
+    const response = await action({
+      request: createRequest(payload, { "X-Tracking-Guardian-Nonce": "" }),
+      params: {},
+      context: {},
+    });
+    expect(response.status).toBe(403);
+  });
+
+  it("rejects request with oversized nonce in production", async () => {
+    process.env.NODE_ENV = "production";
+    const payload = {
+      reason: "missing_ingestion_key",
+      shopDomain: "demo-shop.myshopify.com",
+      timestamp: Date.now(),
+    };
+    const response = await action({
+      request: createRequest(payload, { "X-Tracking-Guardian-Nonce": "a".repeat(129) }),
+      params: {},
+      context: {},
+    });
+    expect(response.status).toBe(403);
+  });
+
+  it("still evaluates rate limit and shop for nonce fallback in non-production", async () => {
     const payload = {
       reason: "missing_ingestion_key",
       shopDomain: "demo-shop.myshopify.com",
@@ -201,24 +232,8 @@ describe("pixel diagnostics api", () => {
       context: {},
     });
     expect(response.status).toBe(202);
-    const body = await response.json();
-    expect(body.accepted).toBe(true);
-  });
-
-  it("accepts request with oversized nonce as compatibility fallback", async () => {
-    const payload = {
-      reason: "missing_ingestion_key",
-      shopDomain: "demo-shop.myshopify.com",
-      timestamp: Date.now(),
-    };
-    const response = await action({
-      request: createRequest(payload, { "X-Tracking-Guardian-Nonce": "a".repeat(129) }),
-      params: {},
-      context: {},
-    });
-    expect(response.status).toBe(202);
-    const body = await response.json();
-    expect(body.accepted).toBe(true);
+    expect(checkRateLimitAsync).toHaveBeenCalledTimes(1);
+    expect(prisma.shop.findUnique).toHaveBeenCalledTimes(1);
   });
 
   it("rejects replayed nonce", async () => {

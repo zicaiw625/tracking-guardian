@@ -7,6 +7,8 @@ import { checkRateLimitAsync, ipKeyExtractor } from "../../middleware/rate-limit
 import { addSecurityHeaders } from "../../utils/security-headers";
 import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 import { logger } from "../../utils/logger.server";
+import { hashValueSync } from "../../utils/crypto.server";
+import { getPixelEventsCorsHeaders } from "../../utils/cors";
 import { SHOP_DOMAIN_PATTERN } from "../../schemas/pixel-event";
 import { getRedisClient } from "../../utils/redis-client.server";
 import { recordPixelDiagnosticSignal } from "../pixel-events/pixel-diagnostics-tracker.server";
@@ -23,14 +25,18 @@ const pixelDiagnosticSchema = z.object({
   timestamp: z.number().int(),
 }).strict();
 
-function withCors(response: Response): Response {
+function withCors(request: Request, response: Response): Response {
   const headers = new Headers(response.headers);
-  headers.set("Access-Control-Allow-Origin", "*");
-  headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-  headers.set(
-    "Access-Control-Allow-Headers",
-    "Content-Type, x-shopify-shop-domain, X-Tracking-Guardian-Diagnostic, X-Tracking-Guardian-Signature, X-Tracking-Guardian-Nonce"
-  );
+  const corsHeaders = getPixelEventsCorsHeaders(request, {
+    customHeaders: [
+      "x-shopify-shop-domain",
+      "X-Tracking-Guardian-Diagnostic",
+      "X-Tracking-Guardian-Nonce",
+    ],
+  });
+  for (const [key, value] of Object.entries(corsHeaders)) {
+    headers.set(key, value);
+  }
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -39,10 +45,11 @@ function withCors(response: Response): Response {
 }
 
 function respond(
+  request: Request,
   payload: unknown,
   status = 200
 ): Response {
-  return withCors(addSecurityHeaders(json(payload, { status })));
+  return withCors(request, addSecurityHeaders(json(payload, { status })));
 }
 
 function hasValidOriginOrReferer(request: Request, shopDomain: string): boolean {
@@ -126,15 +133,15 @@ function resolveDiagnosticTrustLevel(
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
-    return respond(null, 204);
+    return respond(request, null, 204);
   }
 
   if (request.method !== "POST") {
-    return respond({ error: "Method not allowed" }, 405);
+    return respond(request, { error: "Method not allowed" }, 405);
   }
 
   if (request.headers.get("X-Tracking-Guardian-Diagnostic") !== "1") {
-    return respond({ error: "Invalid request" }, 400);
+    return respond(request, { error: "Invalid request" }, 400);
   }
 
   let body: z.infer<typeof pixelDiagnosticSchema>;
@@ -142,31 +149,54 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const parsed = await readJsonWithSizeLimit<unknown>(request, MAX_DIAGNOSTIC_BODY_BYTES);
     const result = pixelDiagnosticSchema.safeParse(parsed);
     if (!result.success) {
-      return respond({ error: "Invalid request" }, 400);
+      return respond(request, { error: "Invalid request" }, 400);
     }
     body = result.data;
   } catch {
-    return respond({ error: "Invalid request" }, 400);
+    return respond(request, { error: "Invalid request" }, 400);
   }
 
   const headerShopDomain = request.headers.get("x-shopify-shop-domain");
   if (headerShopDomain && headerShopDomain !== body.shopDomain) {
-    return respond({ error: "Invalid request" }, 403);
+    return respond(request, { error: "Invalid request" }, 403);
   }
   const signatureHeader = request.headers.get(DIAGNOSTIC_SIGNATURE_HEADER);
   const trustLevel = resolveDiagnosticTrustLevel(body, signatureHeader);
   if (!trustLevel) {
-    return respond({ error: "Invalid request" }, 403);
+    return respond(request, { error: "Invalid request" }, 403);
   }
+
+  const ipKey = ipKeyExtractor(request);
+  const ipFingerprint = ipKey === "unknown" ? "unknown" : hashValueSync(ipKey).slice(0, 12);
+  const rateLimitKey = `pixel-diagnostics:${body.shopDomain}:${ipKey}`;
+  const rateLimit = await checkRateLimitAsync(rateLimitKey, 20, 60 * 1000, false, true);
+  if (!rateLimit.allowed) {
+    return respond(request, { error: "Too many requests" }, 429);
+  }
+
+  const shop = await prisma.shop.findUnique({
+    where: { shopDomain: body.shopDomain },
+    select: { id: true, isActive: true },
+  });
+
+  if (!shop || !shop.isActive) {
+    return respond(request, { accepted: true }, 202);
+  }
+
   const nonce = request.headers.get(DIAGNOSTIC_NONCE_HEADER)?.trim();
   if (!nonce || nonce.length > 128) {
+    if (process.env.NODE_ENV === "production") {
+      return respond(request, { error: "Invalid request" }, 403);
+    }
     logger.warn("Pixel diagnostic accepted without valid nonce", {
+      shopId: shop.id,
       shopDomain: body.shopDomain,
       reason: body.reason,
       trustLevel,
       noncePresent: Boolean(nonce),
+      ipFingerprint,
     });
-    return respond({ accepted: true }, 202);
+    return respond(request, { accepted: true }, 202);
   }
   try {
     const redis = await getRedisClient();
@@ -176,7 +206,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       MAX_TIMESTAMP_SKEW_MS
     );
     if (!acquired) {
-      return respond({ error: "Invalid request" }, 403);
+      return respond(request, { error: "Invalid request" }, 403);
     }
   } catch (error) {
     if (process.env.NODE_ENV === "production") {
@@ -184,37 +214,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         shopDomain: body.shopDomain,
         error: error instanceof Error ? error.message : String(error),
       });
-      return respond({ error: "Invalid request" }, 403);
+      return respond(request, { error: "Invalid request" }, 403);
     }
   }
 
   const now = Date.now();
   if (Math.abs(now - body.timestamp) > MAX_TIMESTAMP_SKEW_MS) {
-    return respond({ accepted: true }, 202);
+    return respond(request, { accepted: true }, 202);
   }
 
   if (!hasValidUserAgent(request)) {
-    return respond({ error: "Invalid request" }, 403);
+    return respond(request, { error: "Invalid request" }, 403);
   }
 
   if (!hasValidOriginOrReferer(request, body.shopDomain)) {
-    return respond({ error: "Invalid request" }, 403);
-  }
-
-  const ipKey = ipKeyExtractor(request);
-  const rateLimitKey = `pixel-diagnostics:${body.shopDomain}:${ipKey}`;
-  const rateLimit = await checkRateLimitAsync(rateLimitKey, 20, 60 * 1000, false, true);
-  if (!rateLimit.allowed) {
-    return respond({ error: "Too many requests" }, 429);
-  }
-
-  const shop = await prisma.shop.findUnique({
-    where: { shopDomain: body.shopDomain },
-    select: { id: true, isActive: true },
-  });
-
-  if (!shop || !shop.isActive) {
-    return respond({ accepted: true }, 202);
+    return respond(request, { error: "Invalid request" }, 403);
   }
 
   logger.warn("Pixel diagnostic reported", {
@@ -222,7 +236,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     shopDomain: body.shopDomain,
     reason: body.reason,
     trustLevel,
-    ipKey,
+    ipFingerprint,
     timestamp: body.timestamp,
   });
 
@@ -236,5 +250,5 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
   }
 
-  return respond({ accepted: true }, 202);
+  return respond(request, { accepted: true }, 202);
 };

@@ -250,6 +250,10 @@ function sanitizeContext(context: LogContext, depth: number = 0): LogContext {
       sanitized[key] = safeHash(value, 12);
       continue;
     }
+    if (lowerKey === "ipkey" || lowerKey === "ratelimitkey" || lowerKey === "rate_limit_key") {
+      sanitized[key] = safeHash(value, 12);
+      continue;
+    }
     if (lowerKey === "origin" || lowerKey === "referer" || lowerKey === "referrer" || lowerKey === "url") {
       sanitized[key] = safeUrlForLogging(value, 200);
       continue;

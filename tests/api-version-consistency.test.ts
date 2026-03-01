@@ -3,29 +3,16 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 
 describe("API Version Consistency", () => {
-  function getAppTomlVersion(): string | null {
+  function getTomlVersion(filePath: string): string | null {
     const content = readFileSync(
-      resolve(__dirname, "../shopify.app.toml"),
+      resolve(__dirname, filePath),
       "utf-8"
     );
     const match = content.match(/api_version\s*=\s*"([^"]+)"/);
     return match ? match[1] : null;
   }
-  function getExtensionTomlVersion(): string | null {
-    const content = readFileSync(
-      resolve(__dirname, "../extensions/tracking-pixel/shopify.extension.toml"),
-      "utf-8"
-    );
-    const match = content.match(/api_version\s*=\s*"([^"]+)"/);
-    return match ? match[1] : null;
-  }
-  function getServerVersion(): string | null {
-    const content = readFileSync(
-      resolve(__dirname, "../app/services/shopify/app-config.server.ts"),
-      "utf-8"
-    );
-    const match = content.match(/apiVersion:\s*ApiVersion\.(\w+)/);
-    if (!match) return null;
+
+  function convertEnumToVersion(enumValue: string): string | null {
     const enumToVersion: Record<string, string> = {
       "January23": "2023-01",
       "April23": "2023-04",
@@ -41,34 +28,79 @@ describe("API Version Consistency", () => {
       "October25": "2025-10",
       "January26": "2026-01",
     };
-    return enumToVersion[match[1]] || null;
+    return enumToVersion[enumValue] || null;
   }
+
+  function getServerVersion(filePath: string): string | null {
+    const content = readFileSync(
+      resolve(__dirname, filePath),
+      "utf-8"
+    );
+    const match = content.match(/ApiVersion\.(\w+)/);
+    if (!match) return null;
+    return convertEnumToVersion(match[1]);
+  }
+
+  function getSharedVersion(): string | null {
+    const content = readFileSync(
+      resolve(__dirname, "../app/utils/config.shared.ts"),
+      "utf-8"
+    );
+    const match = content.match(/VERSION:\s*"(\d{4}-\d{2})"/);
+    return match ? match[1] : null;
+  }
+
   it("shopify.app.toml has api_version defined", () => {
-    const version = getAppTomlVersion();
+    const version = getTomlVersion("../shopify.app.toml");
     expect(version).not.toBeNull();
     expect(version).toMatch(/^\d{4}-\d{2}$/);
   });
-  it("extension toml has api_version defined", () => {
-    const version = getExtensionTomlVersion();
+  it("shopify.app.toml.template has api_version defined", () => {
+    const version = getTomlVersion("../shopify.app.toml.template");
     expect(version).not.toBeNull();
     expect(version).toMatch(/^\d{4}-\d{2}$/);
   });
-  it("shopify.server.ts has ApiVersion defined", () => {
-    const version = getServerVersion();
+  it("tracking-pixel extension toml has api_version defined", () => {
+    const version = getTomlVersion("../extensions/tracking-pixel/shopify.extension.toml");
     expect(version).not.toBeNull();
     expect(version).toMatch(/^\d{4}-\d{2}$/);
   });
-  it("all three sources have the same API version", () => {
-    const appTomlVersion = getAppTomlVersion();
-    const extensionVersion = getExtensionTomlVersion();
-    const serverVersion = getServerVersion();
-    expect(appTomlVersion).toBe(extensionVersion);
-    expect(extensionVersion).toBe(serverVersion);
-    expect(serverVersion).toBe(appTomlVersion);
-    console.log(`✅ All API versions consistent: ${appTomlVersion}`);
+  it("post-checkout-badge extension toml has api_version defined", () => {
+    const version = getTomlVersion("../extensions/post-checkout-badge/shopify.extension.toml");
+    expect(version).not.toBeNull();
+    expect(version).toMatch(/^\d{4}-\d{2}$/);
+  });
+  it("app-config server has ApiVersion defined", () => {
+    const version = getServerVersion("../app/services/shopify/app-config.server.ts");
+    expect(version).not.toBeNull();
+    expect(version).toMatch(/^\d{4}-\d{2}$/);
+  });
+  it("admin-client server has ApiVersion defined", () => {
+    const version = getServerVersion("../app/services/shopify/admin-client.server.ts");
+    expect(version).not.toBeNull();
+    expect(version).toMatch(/^\d{4}-\d{2}$/);
+  });
+  it("shared config has VERSION defined", () => {
+    const version = getSharedVersion();
+    expect(version).not.toBeNull();
+    expect(version).toMatch(/^\d{4}-\d{2}$/);
+  });
+  it("all sources have the same API version", () => {
+    const versions = [
+      getTomlVersion("../shopify.app.toml"),
+      getTomlVersion("../shopify.app.toml.template"),
+      getTomlVersion("../extensions/tracking-pixel/shopify.extension.toml"),
+      getTomlVersion("../extensions/post-checkout-badge/shopify.extension.toml"),
+      getServerVersion("../app/services/shopify/app-config.server.ts"),
+      getServerVersion("../app/services/shopify/admin-client.server.ts"),
+      getSharedVersion(),
+    ];
+    const unique = new Set(versions);
+    expect(unique.size).toBe(1);
+    console.log(`✅ All API versions consistent: ${versions[0]}`);
   });
   it("API version is not expired (basic check)", () => {
-    const version = getAppTomlVersion();
+    const version = getTomlVersion("../shopify.app.toml");
     if (!version) {
       throw new Error("Could not read API version");
     }

@@ -39,13 +39,39 @@ function extractServerApiVersion(filePath) {
     const lines = content.split("\n");
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      const match = line.match(/apiVersion:\s*ApiVersion\.(\w+)/);
+      const match =
+        line.match(/apiVersion:\s*ApiVersion\.(\w+)/) ||
+        line.match(/apiVersion:\s*ApiVersion\s*=\s*ApiVersion\.(\w+)/) ||
+        line.match(/export const apiVersion\s*=\s*ApiVersion\.(\w+)/);
       if (match) {
         const enumValue = match[1];
         const version = convertEnumToVersion(enumValue);
         return {
           file: filePath,
           version,
+          line: i + 1,
+        };
+      }
+    }
+    return { file: filePath, version: null };
+  } catch (error) {
+    console.error(`Error reading ${filePath}:`, error);
+    return { file: filePath, version: null };
+  }
+}
+
+function extractSharedApiVersion(filePath) {
+  const fullPath = path.join(PROJECT_ROOT, filePath);
+  try {
+    const content = fs.readFileSync(fullPath, "utf-8");
+    const lines = content.split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const match = line.match(/VERSION:\s*"(\d{4}-\d{2})"/);
+      if (match) {
+        return {
+          file: filePath,
+          version: match[1],
           line: i + 1,
         };
       }
@@ -112,8 +138,10 @@ function main() {
     extractTomlApiVersion("shopify.app.toml"),
     extractTomlApiVersion("shopify.app.toml.template"),
     extractServerApiVersion("app/services/shopify/app-config.server.ts"),
+    extractServerApiVersion("app/services/shopify/admin-client.server.ts"),
+    extractSharedApiVersion("app/utils/config.shared.ts"),
     extractTomlApiVersion("extensions/tracking-pixel/shopify.extension.toml"),
-    // extractTomlApiVersion("extensions/post-checkout-badge/shopify.extension.toml"), // UI extension tracks a separate compatibility window
+    extractTomlApiVersion("extensions/post-checkout-badge/shopify.extension.toml"),
   ];
   const hasReadErrors = sources.some((source) => source.version === null);
   if (hasReadErrors) {
@@ -146,11 +174,10 @@ function main() {
   }
   console.error("❌ API version mismatch detected!");
   console.error("");
-  console.error("   All Shopify API versions must be identical across:");
-  console.error("   - shopify.app.toml [webhooks] api_version");
-  console.error("   - app/services/shopify/app-config.server.ts apiVersion");
-  console.error("   - extensions/tracking-pixel/shopify.extension.toml api_version");
-  console.error("   - extensions/post-checkout-badge/shopify.extension.toml api_version");
+  console.error("   All Shopify API versions must be identical across checked files:");
+  sources.forEach((source) => {
+    console.error(`   - ${source.file}`);
+  });
   console.error("");
   console.error("   Found different versions:");
   sources.forEach((source) => {

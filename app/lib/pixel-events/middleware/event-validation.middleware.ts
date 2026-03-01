@@ -243,35 +243,6 @@ export const eventValidationMiddleware: IngestMiddleware = async (
     }
   }
 
-  // Batch timestamp check is relaxed or removed in favor of individual event check
-  // But we still keep it for logging or rejection if the whole batch is wildly off?
-  // User suggestion: "unified standard: filter by single event timestamp".
-  // Since we already filtered individually above, validatedEvents only contains valid ones.
-  // We can skip this block or make it just a warning.
-  // However, for HMAC/replay attack prevention, we might still care about the "request" timestamp.
-  // But since HMAC usually signs the body, and the body contains timestamps...
-  // Let's rely on the individual filtering we added above. 
-  // If all events were skipped, we return early (validatedEvents.length === 0 check above).
-  
-  /* 
-  if (Math.abs(nowForWindow - timestamp) > TIMESTAMP_WINDOW_MS) {
-     ...
-  }
-  */
-  
-  // We remove the batch-level rejection because we filtered individually.
-  // If the batch timestamp (first event) was bad, it was skipped, so 'timestamp' here 
-  // would be from the first VALID event (if we update logic to pick it) OR 
-  // context.batchTimestamp might still be the first one.
-  
-  // Actually, 'timestamp' variable is defined as:
-  // const timestamp = context.batchTimestamp ?? firstPayload.timestamp;
-  // If context.batchTimestamp comes from the first event in RAW array (which we did in the loop), 
-  // it might be invalid.
-  
-  // But we don't want to reject the whole request if one event is old, we just want to process valid ones.
-  // So we should remove this block.
-  
   const bodyEnvelope = context.bodyData && typeof context.bodyData === "object"
     ? (context.bodyData as Record<string, unknown>)
     : null;
