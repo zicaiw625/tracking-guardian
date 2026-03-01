@@ -873,11 +873,15 @@
       "issueIngestionSecret": "Ingestion Key未配置",
       "issueWebPixel": "Web Pixel未安装",
       "issueIngestionKey": "Web Pixel配置缺失ingestion_key",
+      "issueBackendDiagnostics": "最近检测到 Pixel 诊断错误",
+      "issueRotationInProgress": "Ingestion Key 正在轮换中",
       "msgBoth": "数据连接未配置：需要配置Ingestion Key并安装Web Pixel才能开始接收追踪数据",
       "msgSecret": "数据连接未完成：需要配置Ingestion Key",
       "msgPixel": "数据连接未完成：需要安装Web Pixel",
       "scanHint": "提示：即使未安装 Web Pixel，您仍可进行 ScriptTag 风险扫描。",
       "msgIncomplete": "数据连接配置不完整：Web Pixel配置缺失ingestion_key，请重新同步配置",
+      "msgBackendDiagnostics": "最近的 Pixel 诊断显示后端连接或配置存在问题，请检查 backend URL、像素配置与 ingestion key 同步状态。",
+      "msgRotationInProgress": "系统正在执行 Ingestion Key 轮换，宽限期内会临时同时接受新旧密钥。",
       "actionSettings": "前往设置",
       "actionInstall": "安装Web Pixel",
       "actionFix": "修复配置",
@@ -1297,8 +1301,8 @@
           "desc": "页面侧脚本需按 Shopify 官方能力自行迁移"
         },
         "serverSide": {
-          "label": "不提供",
-          "desc": "当前版本不提供服务端投递能力"
+          "label": "默认关闭",
+          "desc": "服务端投递能力已在代码中实现，但公开 v1 默认关闭"
         },
         "none": {
           "label": "无需迁移",
@@ -1482,7 +1486,7 @@
       "migrationPath": {
         "web_pixel": "迁移到 Web Pixel",
         "ui_extension": "迁移到 UI Extension",
-        "server_side": "服务端投递（规划项）",
+        "server_side": "服务端投递（默认关闭）",
         "none": "无需迁移"
       },
       "requiredInfo": {
@@ -1491,7 +1495,7 @@
         "eventMappings": "需要配置事件映射",
         "uiExtensionManual": "需要按 Shopify 官方能力手动迁移页面逻辑",
         "moduleType": "模块类型: {{category}}",
-        "serverSideNotSupported": "当前版本不提供服务端投递",
+        "serverSideNotSupported": "当前版本服务端投递默认关闭",
         "apiKey": "需要 API Key",
         "manualHandling": "需要手动处理或移除"
       },
@@ -2870,7 +2874,9 @@
       "title": "缺失诊断（24h）",
       "notLoaded": "像素未加载（推测）",
       "loadedNotSent": "已加载未发送（推测）",
-      "sentRejected": "已发送被拒绝"
+      "sentRejected": "已发送被拒绝",
+      "rejectionTopTitle": "拒绝原因 Top（24h）",
+      "rejectionTopEmpty": "近 24 小时暂无被拒绝请求。"
     },
     "alerts": {
       "title": "告警列表",
@@ -3805,8 +3811,8 @@
         "Content": "v1 默认仅基于 Web Pixel 事件。不通过 Admin API 读取订单。"
       },
       "Warning": {
-        "Title": "重要：当前版本不提供服务端投递",
-        "Content": "服务端投递默认关闭，仅用于诊断与验收。"
+        "Title": "重要：服务端投递默认关闭",
+        "Content": "服务端投递能力已在代码中实现，但公开 v1 默认关闭；当前重点是迁移、验收与监控。"
       },
       "Reconciliation": {
         "Title": "对账与诊断",
@@ -4236,7 +4242,7 @@
         "P3": "<strong>Web Pixel 行为说明</strong>：我们的 Web Pixel 代码不会读取 checkout DOM 中的客户个人信息，只依赖 Shopify 提供的标准事件 payload。我们不会尝试通过 Web Pixel 还原客户身份（如邮箱/电话）。"
       },
       "ServerSideWarning": {
-        "Title": "重要：当前版本不提供服务端投递",
+        "Title": "重要：服务端投递默认关闭",
         "Content": "服务端向广告平台投递默认关闭，核心为客户端像素与验收对账。当前版本仅接收并校验 Web Pixel 事件，用于应用内诊断与验收，不向第三方平台发送服务端事件。"
       },
       "Reconciliation": "我们通过比对像素事件收据与内部日志，帮助您发现追踪缺口并优化配置。当用户未给予相应同意导致事件不向任何平台发送时，我们仍可能为去重与诊断目的保存<strong>最小元数据</strong>（如事件键、事件类型、时间戳），但<strong>不会</strong>保存商品明细、金额等敏感内容。当前版本<strong>不会</strong>从 Shopify Admin API 读取订单数据进行对账。",
@@ -4905,7 +4911,7 @@
     },
     "credentialsStep": {
       "title": "平台凭证（可选）",
-      "description": "当前版本不进行服务端投递；凭证可保存用于后续能力规划。"
+      "description": "默认不进行服务端投递；凭证可预先保存，后续在满足隐私与审核要求后启用。"
     },
     "reviewStep": {
       "title": "检查配置",

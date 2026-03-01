@@ -2,6 +2,7 @@ import { randomUUID, createHash } from "crypto";
 import { Prisma } from "@prisma/client";
 import prisma from "~/db.server";
 import { normalizeOrderId, encrypt, decrypt } from "~/utils/crypto.server";
+import { getBoolEnv } from "~/utils/config.server";
 import type { ProcessedEvent } from "~/lib/pixel-events/ingest-pipeline.server";
 import type { IngestRequestContext } from "~/lib/pixel-events/ingest-queue.server";
 import type { DispatchDestination } from "./queue";
@@ -40,7 +41,7 @@ export async function persistInternalEventsAndDispatchJobs(
   requestContext: IngestRequestContext | undefined,
   environment: "test" | "live"
 ): Promise<void> {
-  if (process.env.SERVER_SIDE_CONVERSIONS_ENABLED !== "true") return;
+  if (!getBoolEnv("SERVER_SIDE_CONVERSIONS_ENABLED", false)) return;
   const s2sConfigs = await prisma.pixelConfig.findMany({
     where: {
       shopId,

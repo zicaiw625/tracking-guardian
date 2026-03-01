@@ -110,6 +110,11 @@ export interface DashboardData {
     hasIngestionSecret: boolean;
     hasWebPixel: boolean;
     webPixelHasIngestionKey: boolean;
+    recentMissingIngestionKeySignal?: boolean;
+    recentBackendDiagnosticSignal?: boolean;
+    recentDiagnosticAt?: string | null;
+    pendingSecretRotation?: boolean;
+    previousSecretGraceMinutesRemaining?: number;
   };
   rejectionStats?: Array<{
     reason: string;

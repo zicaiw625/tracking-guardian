@@ -866,11 +866,15 @@
       "issueIngestionSecret": "Ingestion Key Not Configured",
       "issueWebPixel": "Web Pixel Not Installed",
       "issueIngestionKey": "Web Pixel Missing ingestion_key",
+      "issueBackendDiagnostics": "Recent Pixel Diagnostic Errors Detected",
+      "issueRotationInProgress": "Ingestion Key Rotation In Progress",
       "msgBoth": "Data connection not configured: Configure Ingestion Key and install Web Pixel to receive data",
       "msgSecret": "Data connection incomplete: Configure Ingestion Key",
       "msgPixel": "Data connection incomplete: Install Web Pixel",
       "scanHint": "Note: You can still perform ScriptTag risk scan even without Web Pixel installed.",
       "msgIncomplete": "Data connection incomplete: Web Pixel missing ingestion_key, please resync",
+      "msgBackendDiagnostics": "Recent pixel diagnostics report backend connectivity or configuration issues. Check backend URL, pixel settings, and ingestion key sync.",
+      "msgRotationInProgress": "Ingestion key rotation is in progress. During the grace window, old and new keys are accepted temporarily.",
       "actionSettings": "Go to Settings",
       "actionInstall": "Install Web Pixel",
       "actionFix": "Fix Configuration",
@@ -1246,8 +1250,8 @@
           "desc": "Page scripts need manual migration via Shopify official capabilities"
         },
         "serverSide": {
-          "label": "Not Provided",
-          "desc": "Server-side delivery not provided in current version"
+          "label": "Disabled by Default",
+          "desc": "Server-side delivery exists in code but is disabled by default for the public v1 release"
         },
         "none": {
           "label": "No Migration Needed",
@@ -1431,7 +1435,7 @@
       "migrationPath": {
         "web_pixel": "Migrate to Web Pixel",
         "ui_extension": "Migrate to UI Extension",
-        "server_side": "Server-side Delivery (Planned)",
+        "server_side": "Server-side Delivery (Disabled by default)",
         "none": "No Migration Needed"
       },
       "requiredInfo": {
@@ -1440,7 +1444,7 @@
         "eventMappings": "Event mappings required",
         "uiExtensionManual": "Manual logic migration via Shopify UI Extension required",
         "moduleType": "Module Type: {{category}}",
-        "serverSideNotSupported": "Server-side delivery not supported in current version",
+        "serverSideNotSupported": "Server-side delivery is disabled by default in current version",
         "apiKey": "API Key required",
         "manualHandling": "Manual handling or removal required"
       },
@@ -2047,7 +2051,7 @@
       "migrationTypes": {
         "web_pixel": "Web Pixel",
         "ui_extension": "Manual Migration",
-        "server_side": "Not available",
+        "server_side": "Disabled by default",
         "none": "External redirect / not supported"
       }
     },
@@ -2870,7 +2874,9 @@
       "title": "Missing Data Diagnostics (24h)",
       "notLoaded": "Pixel Not Loaded (Likely)",
       "loadedNotSent": "Loaded But Not Sent (Likely)",
-      "sentRejected": "Sent But Rejected"
+      "sentRejected": "Sent But Rejected",
+      "rejectionTopTitle": "Top Rejection Reasons (24h)",
+      "rejectionTopEmpty": "No rejected requests in the last 24 hours."
     },
     "alerts": {
       "title": "Alert List",
@@ -3805,8 +3811,8 @@
         "Content": "v1 relies on Web Pixel events. We do not read orders via Admin API or subscribe to order webhooks."
       },
       "Warning": {
-        "Title": "Important: Server-side delivery not available",
-        "Content": "Server-side delivery is disabled. Current version is for diagnosis and verification only."
+        "Title": "Important: Server-side delivery is disabled by default",
+        "Content": "Server-side delivery exists in code but is disabled by default. Current public v1 focuses on migration, verification, and monitoring."
       },
       "Reconciliation": {
         "Title": "Reconciliation & Diagnosis",

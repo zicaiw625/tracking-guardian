@@ -19,12 +19,16 @@ export function DataConnectionBanner({
     if (issue === ConnectionIssue.INGESTION_SECRET_MISSING) return t("dashboard.dataConnection.issueIngestionSecret");
     if (issue === ConnectionIssue.WEB_PIXEL_NOT_INSTALLED) return t("dashboard.dataConnection.issueWebPixel");
     if (issue === ConnectionIssue.WEB_PIXEL_MISSING_INGESTION_KEY) return t("dashboard.dataConnection.issueIngestionKey");
+    if (issue === ConnectionIssue.BACKEND_DIAGNOSTIC_ERRORS) return t("dashboard.dataConnection.issueBackendDiagnostics");
+    if (issue === ConnectionIssue.INGESTION_KEY_ROTATION_IN_PROGRESS) return t("dashboard.dataConnection.issueRotationInProgress");
     return issue;
   };
 
   const hasIngestionSecretIssue = issues.includes(ConnectionIssue.INGESTION_SECRET_MISSING);
   const hasWebPixelIssue = issues.includes(ConnectionIssue.WEB_PIXEL_NOT_INSTALLED);
   const hasIngestionKeyIssue = issues.includes(ConnectionIssue.WEB_PIXEL_MISSING_INGESTION_KEY);
+  const hasBackendDiagnosticIssue = issues.includes(ConnectionIssue.BACKEND_DIAGNOSTIC_ERRORS);
+  const hasRotationIssue = issues.includes(ConnectionIssue.INGESTION_KEY_ROTATION_IN_PROGRESS);
 
   if (hasIngestionSecretIssue && hasWebPixelIssue) {
     return (
@@ -87,6 +91,34 @@ export function DataConnectionBanner({
               {t("dashboard.dataConnection.actionFix")}
             </Button>
           )}
+        </BlockStack>
+      </Banner>
+    );
+  }
+  if (hasBackendDiagnosticIssue) {
+    return (
+      <Banner tone="warning" title={t("dashboard.dataConnection.title")}>
+        <BlockStack gap="200">
+          <Text as="p">
+            {t("dashboard.dataConnection.msgBackendDiagnostics")}
+          </Text>
+          <Button url="/app/settings" variant="primary">
+            {t("dashboard.dataConnection.actionSettings")}
+          </Button>
+        </BlockStack>
+      </Banner>
+    );
+  }
+  if (hasRotationIssue) {
+    return (
+      <Banner tone="info" title={t("dashboard.dataConnection.title")}>
+        <BlockStack gap="200">
+          <Text as="p">
+            {t("dashboard.dataConnection.msgRotationInProgress")}
+          </Text>
+          <Button url="/app/settings" variant="primary">
+            {t("dashboard.dataConnection.actionSettings")}
+          </Button>
         </BlockStack>
       </Banner>
     );

@@ -8,6 +8,7 @@ import { sendEvent as sendTiktok } from "~/services/destinations/tiktok";
 import type { InternalEventPayload } from "~/services/destinations/types";
 import type { GoogleCredentials, MetaCredentials, TikTokCredentials } from "~/types";
 import { getRedisClient } from "~/utils/redis-client.server";
+import { getBoolEnv } from "~/utils/config.server";
 
 const DEFAULT_MAX_JOBS = 100;
 const RATE_LIMIT_WINDOW_SECONDS = 10;
@@ -52,7 +53,8 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
   sent: number;
   failed: number;
 }> {
-  if (process.env.SERVER_SIDE_CONVERSIONS_ENABLED !== "true") {
+  const serverSideConversionsEnabled = getBoolEnv("SERVER_SIDE_CONVERSIONS_ENABLED", false);
+  if (!serverSideConversionsEnabled) {
     return { processed: 0, sent: 0, failed: 0 };
   }
 

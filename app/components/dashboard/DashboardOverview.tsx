@@ -54,6 +54,15 @@ export function DashboardOverview({
     if (!data.dataConnection.hasIngestionSecret) connectionIssues.push(ConnectionIssue.INGESTION_SECRET_MISSING);
     if (!data.dataConnection.hasWebPixel) connectionIssues.push(ConnectionIssue.WEB_PIXEL_NOT_INSTALLED);
     if (!data.dataConnection.webPixelHasIngestionKey) connectionIssues.push(ConnectionIssue.WEB_PIXEL_MISSING_INGESTION_KEY);
+    if (data.dataConnection.recentBackendDiagnosticSignal) {
+      connectionIssues.push(ConnectionIssue.BACKEND_DIAGNOSTIC_ERRORS);
+    }
+    if (
+      data.dataConnection.pendingSecretRotation ||
+      (data.dataConnection.previousSecretGraceMinutesRemaining ?? 0) > 0
+    ) {
+      connectionIssues.push(ConnectionIssue.INGESTION_KEY_ROTATION_IN_PROGRESS);
+    }
   }
 
   return (

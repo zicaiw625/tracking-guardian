@@ -124,6 +124,7 @@ export const SSE_SECURITY_HEADERS: Record<string, string> = {
 };
 
 const PUBLIC_PAGE_ROBOTS_TAG = process.env.NODE_ENV === "production" ? "index, follow" : "noindex";
+export const SHARE_PAGE_ROBOTS_TAG = "noindex, nofollow";
 
 export const PUBLIC_PAGE_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",

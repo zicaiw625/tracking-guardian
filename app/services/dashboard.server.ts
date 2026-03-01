@@ -303,7 +303,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     // 8. Rejection Stats
     (async () => {
       try {
-        return rejectionTracker.getRejectionStats(shopDomain, 1);
+        return rejectionTracker.getRejectionStats(shopDomain, 24);
       } catch (error) {
         logger.warn("Failed to get rejection stats", { shopId: shop.id, error });
         return [];

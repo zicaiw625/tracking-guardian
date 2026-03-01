@@ -2,6 +2,7 @@ import { jsonWithCors } from "../cors";
 import { enqueueIngestBatch } from "../ingest-queue.server";
 import { ipKeyExtractor } from "~/middleware/rate-limit.server";
 import { encrypt } from "~/utils/crypto.server";
+import { getBoolEnv } from "~/utils/config.server";
 import type { IngestContext, IngestMiddleware, MiddlewareResult } from "./types";
 
 function clampString(s: string | null | undefined, max: number): string | null {
@@ -35,7 +36,7 @@ export const enqueueMiddleware: IngestMiddleware = async (
 
   const firstPayload = context.validatedEvents[0]?.payload;
   const pageUrlRaw = typeof firstPayload?.data?.url === "string" ? firstPayload.data.url : null;
-  const shouldIncludeSensitiveContext = process.env.SERVER_SIDE_CONVERSIONS_ENABLED === "true";
+  const shouldIncludeSensitiveContext = getBoolEnv("SERVER_SIDE_CONVERSIONS_ENABLED", false);
   const rawIp = shouldIncludeSensitiveContext ? ipKeyExtractor(context.request) : null;
   const rawUserAgent = shouldIncludeSensitiveContext ? clampString(context.request.headers.get("user-agent"), 512) : null;
   const requestContext = {

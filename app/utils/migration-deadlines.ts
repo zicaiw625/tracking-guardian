@@ -39,3 +39,12 @@ export const SHOPIFY_HELP_LINKS = {
   UPGRADE_GUIDE: "https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status",
   CHECKOUT_EXTENSIBILITY: "https://help.shopify.com/en/manual/checkout-settings/checkout-extensibility",
 } as const;
+
+export const SHOPIFY_DEPRECATION_SOURCES = {
+  SCRIPT_TAG_CREATION_BLOCKED: "https://shopify.dev/changelog",
+  PLUS_SCRIPT_TAG_EXECUTION_OFF: "https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status",
+  NON_PLUS_SCRIPT_TAG_EXECUTION_OFF: "https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status",
+  PLUS_ADDITIONAL_SCRIPTS_READONLY: "https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status",
+  NON_PLUS_ADDITIONAL_SCRIPTS_READONLY: "https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status",
+  PLUS_AUTO_UPGRADE_START: "https://shopify.dev/changelog",
+} as const;

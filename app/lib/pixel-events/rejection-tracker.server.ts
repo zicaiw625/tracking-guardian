@@ -3,6 +3,7 @@ export type RejectionReason =
   | "invalid_timestamp"
   | "timestamp_missing"
   | "origin_not_allowlisted"
+  | "signature_missing"
   | "invalid_key"
   | "no_ingestion_key"
   | "invalid_payload"

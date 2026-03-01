@@ -14,7 +14,7 @@ import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets.serve
 import { validateEncryptionConfig } from "./utils/crypto.server";
 import { validateConfig, logConfigStatus, API_CONFIG } from "./utils/config.server";
 import { logger } from "./utils/logger.server";
-import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, getProductionSecurityHeaders, validateSecurityHeaders, buildAppPageCspWithNonce, buildPublicPageCspWithNonce } from "./utils/security-headers";
+import { EMBEDDED_APP_HEADERS, SHARE_PAGE_ROBOTS_TAG, addSecurityHeadersToHeaders, getProductionSecurityHeaders, validateSecurityHeaders, buildAppPageCspWithNonce, buildPublicPageCspWithNonce } from "./utils/security-headers";
 import { RedisClientFactory } from "./utils/redis-client.server";
 import prisma from "./db.server";
 import { getCorsHeadersPreBody } from "./lib/pixel-events/cors";
@@ -136,6 +136,7 @@ export default async function handleRequest(request: Request, responseStatusCode
 
     const isEmbeddedAppDocument = url.pathname === "/app" || url.pathname.startsWith("/app/");
     const isPublicDocument = PUBLIC_DOCUMENT_PATHS.has(url.pathname);
+    const isShareDocument = url.pathname === "/r" || url.pathname.startsWith("/r/");
     if (isEmbeddedAppDocument) {
       let frameAncestors = ["https://admin.shopify.com", "https://*.myshopify.com", "https://*.shopify.com"];
       if (shopDomain) {
@@ -153,6 +154,9 @@ export default async function handleRequest(request: Request, responseStatusCode
       addSecurityHeadersToHeaders(responseHeaders, documentSecurityHeaders);
     } else if (isPublicDocument) {
       responseHeaders.set("Content-Security-Policy", buildPublicPageCspWithNonce(nonce));
+    }
+    if (isShareDocument) {
+      responseHeaders.set("X-Robots-Tag", SHARE_PAGE_ROBOTS_TAG);
     }
     const userAgent = request.headers.get("user-agent");
     const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";

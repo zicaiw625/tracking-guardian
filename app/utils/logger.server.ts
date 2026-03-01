@@ -503,6 +503,7 @@ export const metrics = {
       | "invalid_origin"
       | "invalid_origin_protocol"
       | "origin_not_allowlisted"
+      | "signature_missing"
       | "invalid_key"
     | "invalid_timestamp"
     | "timestamp_missing"

@@ -2,6 +2,7 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { resolvePublicVerificationReportByToken } from "../services/report-share.server";
+import { SHARE_PAGE_ROBOTS_TAG } from "../utils/security-headers";
 
 export const loader = async ({ params }: LoaderFunctionArgs) => {
   const token = params.token?.trim();
@@ -19,6 +20,7 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
         Pragma: "no-cache",
         Expires: "0",
+        "X-Robots-Tag": SHARE_PAGE_ROBOTS_TAG,
       },
     }
   );

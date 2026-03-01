@@ -99,6 +99,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       pixelNotLoadedLikely: ingestStats.totalRequests === 0 ? 1 : 0,
       loadedButNotSentLikely: ingestStats.optionsRequests > 0 && ingestStats.postRequests === 0 ? ingestStats.optionsRequests : 0,
       sentButRejected: totalRejected,
+      rejectionTopReasons: rejectionStats.slice(0, 5),
     },
   };
 
@@ -143,7 +144,7 @@ export default function MonitoringPage() {
     last7Days: { orders: 0, value: "0", currency: "", successRate: 0, totalEvents: 0 },
     last24Hours: { totalEvents: 0, successRate: 0, failureRate: 0, lossRate: "0.0", received: 0 },
     ingest: { totalRequests: 0, optionsRequests: 0, postRequests: 0, optionsRatio: 0, error4xx: 0, error5xx: 0, avgLatencyMs: 0 },
-    diagnostics: { pixelNotLoadedLikely: 0, loadedButNotSentLikely: 0, sentButRejected: 0 },
+    diagnostics: { pixelNotLoadedLikely: 0, loadedButNotSentLikely: 0, sentButRejected: 0, rejectionTopReasons: [] as Array<{ reason: string; count: number; percentage: number }> },
   };
 
   const rowMarkup = alerts.map(
@@ -326,6 +327,32 @@ export default function MonitoringPage() {
                     tone={safeStats.diagnostics.sentButRejected > 0 ? "critical" : undefined}
                   />
                 </InlineStack>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+
+          <Layout.Section variant="oneHalf">
+            <Card>
+              <BlockStack gap="300">
+                <Text as="h2" variant="headingMd">
+                  {t("monitoring.diagnostics.rejectionTopTitle")}
+                </Text>
+                {safeStats.diagnostics.rejectionTopReasons.length === 0 ? (
+                  <Text as="p" tone="subdued">
+                    {t("monitoring.diagnostics.rejectionTopEmpty")}
+                  </Text>
+                ) : (
+                  safeStats.diagnostics.rejectionTopReasons.map((item) => (
+                    <InlineStack key={item.reason} align="space-between">
+                      <Text as="span" variant="bodySm">
+                        {item.reason}
+                      </Text>
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        {item.count} ({item.percentage.toFixed(1)}%)
+                      </Text>
+                    </InlineStack>
+                  ))
+                )}
               </BlockStack>
             </Card>
           </Layout.Section>

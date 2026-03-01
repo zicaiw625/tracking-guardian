@@ -201,7 +201,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
 
 ### 默认行为
 
-**重要**：v1 上架版不启用服务端投递；后端不创建、不执行 S2S 投递任务。该功能通过 `SERVER_SIDE_CONVERSIONS_ENABLED` 环境变量控制，默认值为 `false`。v1.0 核心能力为迁移、验收与监控。v1 仅支持 analytics 用途的客户端像素与验收；Meta/TikTok 凭证入口仅为后续 S2S 能力预留，当前版本不向营销平台发送数据。
+**重要**：当前代码已实现 S2S 投递能力，但 v1 上架默认不启用。该功能通过 `SERVER_SIDE_CONVERSIONS_ENABLED` 环境变量控制，默认值为 `false`。默认状态下后端不会创建或执行 S2S 投递任务。v1.0 核心能力为迁移、验收与监控。v1 仅支持 analytics 用途的客户端像素与验收；Meta/TikTok 凭证入口仅为后续 S2S 能力预留，默认不向营销平台发送数据。
 
 只有在设置页面中显式启用且 `SERVER_SIDE_CONVERSIONS_ENABLED=true` 时，才会开始发送服务端事件。
 
@@ -291,7 +291,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
   - 将 `ingestion_key` 作为用户身份认证或授权凭证
 - **降级与隔离策略**：
   - 事件在接收与处理链路中使用信任分级（`trusted/partial/untrusted`）并据此决定后续投递策略
-  - 对关键事件（如 `checkout_completed`）在服务端进行二次校验（Shopify Admin API 订单存在性与金额一致性），校验失败会降低信任并阻止高价值投递
+  - 对关键事件（如 `checkout_completed`）的服务端二次校验（Shopify Admin API 订单存在性与金额一致性）属于强证明路线能力：当前公开 v1 默认未启用，后续在 PCD 审批通过后启用
   - 密钥轮换支持短暂兼容窗口（grace window）以减少配置切换导致的事件丢失
 - **多层防护机制**：
   - Origin 允许列表/解析回退策略
@@ -300,7 +300,7 @@ Tracking Guardian 是一个 Shopify 应用，作为**数据处理者**（Data Pr
   - 时间窗与 nonce 重放保护
 - **监控与告警**：
   - HMAC 失败率、nonce 重放率、null/missing Origin 峰值、异常流量模式
-  - 关键事件二次校验失败率与投递失败率
+  - 启用强证明路线后，监控关键事件二次校验失败率与投递失败率
 
 ### ingestion_key 弱秘密处理与泄露处置
 

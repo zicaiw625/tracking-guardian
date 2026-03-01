@@ -92,12 +92,14 @@
 
 ## 服务端投递
 
-当前版本不提供服务端投递能力，功能范围以 Web Pixel → `/ingest` → 去重/落库/验收 为主。
+当前代码已具备服务端投递链路（事件入队、worker 处理、目标平台发送），但默认关闭。默认运行范围以 Web Pixel → `/ingest` → 去重/落库/验收 为主。
 
 v1 的隐私目的边界如下：
 - v1 仅面向 analytics purpose（验收/监控），不用于广告投递。
 - Meta/TikTok 在 v1 中仅用于映射与验收报告，不向第三方平台做服务端投递。
 - 若未来需要启用真实营销投递，请发布 marketing purpose 的新 pixel 版本，或拆分为独立像素后再上线。
+- 仅当设置页面显式启用并同时满足 `SERVER_SIDE_CONVERSIONS_ENABLED=true` 时，才会创建并执行服务端投递任务。
+- 强证明 purchase 的可信链路以 Shopify 订单 webhook / Admin API 对账为目标能力；当前公开 v1 以像素收据验收与监控为主，不宣称已启用订单级强校验。
 
 ## 未来版本规划（v1 暂不包含）
 
@@ -152,6 +154,12 @@ v1 的隐私目的边界如下：
 - **数据库**: PostgreSQL + Prisma ORM
 - **扩展**: Web Pixel Extension
 - **环境切换与回滚**：仅通过 `app/services/pixel-rollback.server.ts` 实现，勿使用其它遗留实现。
+
+### 框架演进路线（Roadmap）
+
+- 当前版本继续基于 Remix + Shopify App Remix 维护，优先保证迁移与验收链路稳定。
+- Shopify 生态正在向 React Router 新模板演进，后续会在不影响现有商家的前提下评估迁移窗口。
+- 迁移触发条件：Shopify 官方模板/文档对 Remix 维护策略变化、或现有关键依赖出现兼容性约束。
 
 ## 快速开始
 
@@ -559,7 +567,7 @@ Customer Account / Thank you block 与 Web Pixel 的配合、以及 PCD 的说�
 #### 后续加固与架构建议
 
 - **用户可配置 URL 且服务端 fetch**：仅 hostname 字符串/`isPublicUrl` 不足，需在服务端做 DNS 解析后对解析结果做私网/本地/metadata 段拦截，并对 30x 重定向的最终落点做同样校验。
-- **`/ingest` 处理模型**：当前为「快速返回 + 后台继续处理」；中长期可改为写入队列（Redis/DB job）→ 独立 worker 拉取，以降低高峰期 worker 占满风险。
+- **`/ingest` 处理模型**：当前已采用「快速返回 + 队列 + worker」模型（Redis 入队 + 后台处理）；后续优化重点为高峰隔离、调度策略和观测能力。
 
 #### 像素扩展 ingestion_key 威胁模型
 

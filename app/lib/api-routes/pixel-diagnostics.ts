@@ -9,6 +9,7 @@ import { readJsonWithSizeLimit } from "../../utils/body-size-guard";
 import { logger } from "../../utils/logger.server";
 import { SHOP_DOMAIN_PATTERN } from "../../schemas/pixel-event";
 import { getRedisClient } from "../../utils/redis-client.server";
+import { recordPixelDiagnosticSignal } from "../pixel-events/pixel-diagnostics-tracker.server";
 
 const MAX_DIAGNOSTIC_BODY_BYTES = 2048;
 const MAX_TIMESTAMP_SKEW_MS = 10 * 60 * 1000;
@@ -224,6 +225,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     ipKey,
     timestamp: body.timestamp,
   });
+
+  try {
+    await recordPixelDiagnosticSignal(body.shopDomain, body.reason);
+  } catch (error) {
+    logger.warn("Failed to persist pixel diagnostic signal", {
+      shopDomain: body.shopDomain,
+      reason: body.reason,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 
   return respond({ accepted: true }, 202);
 };

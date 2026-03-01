@@ -19,7 +19,6 @@ vi.mock("~/services/destinations/ga4", () => ({ sendEvent: vi.fn() }));
 vi.mock("~/services/destinations/meta", () => ({ sendEvent: vi.fn() }));
 vi.mock("~/services/destinations/tiktok", () => ({ sendEvent: vi.fn() }));
 vi.mock("~/services/credentials.server", () => ({ getValidCredentials: vi.fn() }));
-
 import { runDispatchWorker } from "../../../app/services/dispatch/run-worker.server";
 import { listPendingJobs, markFailed, markSent } from "../../../app/services/dispatch/queue";
 import prisma from "../../../app/db.server";

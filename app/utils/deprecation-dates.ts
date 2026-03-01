@@ -91,37 +91,37 @@ export const DEADLINE_METADATA: Record<string, DateDisplayInfo> = {
     scriptTagCreationBlocked: {
         date: DEPRECATION_DATES.scriptTagCreationBlocked,
         precision: "exact",
-        displayLabel: "2025-02-01",
+        displayLabel: getDateDisplayLabel(DEPRECATION_DATES.scriptTagCreationBlocked, "exact"),
         isEstimate: false,
     },
     plusAdditionalScriptsReadOnly: {
         date: DEPRECATION_DATES.plusAdditionalScriptsReadOnly,
         precision: "exact",
-        displayLabel: "2025-08-28",
+        displayLabel: getDateDisplayLabel(DEPRECATION_DATES.plusAdditionalScriptsReadOnly, "exact"),
         isEstimate: false,
     },
     nonPlusAdditionalScriptsReadOnly: {
         date: DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly,
         precision: "exact",
-        displayLabel: "2025-08-28",
+        displayLabel: getDateDisplayLabel(DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly, "exact"),
         isEstimate: false,
     },
     plusScriptTagExecutionOff: {
         date: DEPRECATION_DATES.plusScriptTagExecutionOff,
         precision: "exact",
-        displayLabel: "2025-08-28",
+        displayLabel: getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact"),
         isEstimate: false,
     },
     nonPlusScriptTagExecutionOff: {
         date: DEPRECATION_DATES.nonPlusScriptTagExecutionOff,
         precision: "exact",
-        displayLabel: "2026-08-26",
+        displayLabel: getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact"),
         isEstimate: false,
     },
     plusAutoUpgradeStart: {
         date: DEPRECATION_DATES.plusAutoUpgradeStart,
         precision: "month",
-        displayLabel: "2026-01",
+        displayLabel: getDateDisplayLabel(DEPRECATION_DATES.plusAutoUpgradeStart, "month"),
         isEstimate: true,
     },
 };
@@ -158,7 +158,7 @@ function getDaysRemaining(deadline: Date, now: Date = new Date()): number {
 export function getScriptTagCreationStatus(now: Date = new Date()): DeprecationStatus {
     const deadline = DEPRECATION_DATES.scriptTagCreationBlocked;
     const daysRemaining = getDaysRemaining(deadline, now);
-    const dateLabel = "2025-02-01";
+    const dateLabel = getDateDisplayLabel(deadline, "exact");
 
     if (daysRemaining <= 0) {
         return {
@@ -166,8 +166,8 @@ export function getScriptTagCreationStatus(now: Date = new Date()): DeprecationS
             isWarning: false,
             daysRemaining: 0,
             deadline,
-            message: "Since 2025-02-01, new ScriptTags can no longer be created on the Thank you / Order status pages. Existing ScriptTags still run, but they will stop at a later deadline.",
-            messageBrief: "Creation blocked (2025-02-01)",
+            message: `Since ${dateLabel}, new ScriptTags can no longer be created on the Thank you / Order status pages. Existing ScriptTags still run, but they will stop at a later deadline.`,
+            messageBrief: `Creation blocked (${dateLabel})`,
             tone: "warning",
             messageKey: "deprecation.scriptTagCreation.expired.message",
             messageBriefKey: "deprecation.scriptTagCreation.expired.brief",
@@ -180,7 +180,7 @@ export function getScriptTagCreationStatus(now: Date = new Date()): DeprecationS
             isWarning: true,
             daysRemaining,
             deadline,
-            message: `In ${daysRemaining} days (2025-02-01), new ScriptTags can no longer be created on TYP/OSP pages. Plan your migration early.`,
+            message: `In ${daysRemaining} days (${dateLabel}), new ScriptTags can no longer be created on TYP/OSP pages. Plan your migration early.`,
             messageBrief: `Creation blocked in ${daysRemaining} days`,
             tone: "warning",
             messageKey: "deprecation.scriptTagCreation.warning.message",
@@ -195,8 +195,8 @@ export function getScriptTagCreationStatus(now: Date = new Date()): DeprecationS
         isWarning: false,
         daysRemaining,
         deadline,
-        message: `Starting 2025-02-01, new ScriptTags cannot be created. Migrate to Web Pixel early.`,
-        messageBrief: `Creation blocked on 2025-02-01`,
+        message: `Starting ${dateLabel}, new ScriptTags cannot be created. Migrate to Web Pixel early.`,
+        messageBrief: `Creation blocked on ${dateLabel}`,
         tone: "info",
         messageKey: "deprecation.scriptTagCreation.info.message",
         messageParams: { date: dateLabel },
