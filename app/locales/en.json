@@ -2840,7 +2840,7 @@
         "description": "This app provides UI extensions (invoices, surveys, post-purchase links, etc.) on Thank you & Order status pages. Please add and enable this app's blocks in Shopify's Checkout and accounts editor.",
         "action": {
           "openSettings": "Open Checkout Settings",
-          "openAccounts": "Open Customer Accounts Editor",
+          "openAccounts": "Open Customer Accounts Settings",
           "verifyNow": "Verify Now"
         },
         "status": {
@@ -3418,13 +3418,13 @@
       },
       "modules": {
         "title": "3. Add Checkout & Order Status Blocks",
-        "description": "Add app blocks to Thank you and Order status pages in Shopify Editor",
+        "description": "Add app blocks to Thank you and Order status pages in Shopify checkout and customer accounts settings",
         "warning": "Order status block depends on Customer Accounts",
         "warningDesc": "Order status block requires new Customer Accounts or Checkout API support. Enable in Shopify Admin settings.",
         "openSettings": "Open Checkout Settings",
-        "accountsEditor": "Open Customer Accounts Editor",
+        "accountsEditor": "Open Customer Accounts Settings",
         "list": [
-          "Open Checkout or Customer Accounts Editor",
+          "Open Checkout or Customer Accounts Settings",
           "Add app blocks to Thank you page",
           "Add app blocks to Order status page",
           "Save and Publish"

@@ -78,6 +78,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         modules: { completed: false, inProgress: false, canAccess: false },
         verification: { completed: false, inProgress: false, canAccess: false },
       },
+      modulesConfirmed: false,
       customerAccountsStatus: { enabled: false },
     });
   }
@@ -98,16 +99,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
   const settings = (uiModules?.settings as Record<string, unknown>) || {};
   const uiModulesConfig = (settings.uiModules as Record<string, unknown>) || {};
-  const hasEnabledModules =
+  const modulesConfirmed =
+    (settings.uiModules as Record<string, unknown> | undefined)?.confirmed === true ||
     (settings.uiModules as Record<string, unknown> | undefined)?.done === true ||
     Object.values(uiModulesConfig).some(
       (module: unknown) => module && typeof module === "object" && "isEnabled" in module && (module as { isEnabled: boolean }).isEnabled
     );
-
   const latestVerification = await prisma.verificationRun.findFirst({
     where: { shopId: shop.id },
     orderBy: { createdAt: "desc" },
   });
+  const verificationCompleted = !!latestVerification && latestVerification.status === "completed";
 
   const steps: Record<MigrationStep, StepStatus> = {
     audit: {
@@ -121,7 +123,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       canAccess: isPlanAtLeast(planId, "starter"),
     },
     modules: {
-      completed: hasEnabledModules,
+      completed: modulesConfirmed && verificationCompleted,
       inProgress: false,
       canAccess: isPlanAtLeast(planId, "starter"),
     },
@@ -136,6 +138,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     shop: { id: shop.id, domain: shopDomain },
     planId,
     steps,
+    modulesConfirmed,
     customerAccountsStatus: { enabled: customerAccountsStatus.enabled },
   });
 };
@@ -212,9 +215,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       ...settings,
       uiModules: {
         ...(settings.uiModules as Record<string, unknown> | undefined),
-        thankYou: { isEnabled: true },
-        orderStatus: { isEnabled: true },
-        done: true,
+        confirmed: true,
         confirmedAt: new Date().toISOString(),
       },
     };
@@ -233,7 +234,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function MigratePage() {
   const { t } = useTranslation();
-  const { shop, planId, steps, customerAccountsStatus } = useLoaderData<typeof loader>();
+  const { shop, planId, steps, modulesConfirmed, customerAccountsStatus } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
 
   const getStepProgress = () => {
@@ -410,6 +411,7 @@ export default function MigratePage() {
               ? isPlanAtLeast(planId, stepConfig.requiresPlan) && stepStatus.canAccess
               : stepStatus.canAccess;
             const isModulesStep = "isModulesStep" in stepConfig && stepConfig.isModulesStep === true;
+            const isModulesAwaitingVerification = isModulesStep && modulesConfirmed && !stepStatus.completed;
 
             return (
               <Layout.Section key={stepConfig.id} variant="oneHalf">
@@ -429,6 +431,7 @@ export default function MigratePage() {
                             {stepConfig.title}
                           </Text>
                           {stepStatus.completed && <Badge tone="success">{t("migrate.buttons.completed")}</Badge>}
+                          {isModulesAwaitingVerification && <Badge tone="attention">{t("migrate.steps.modules.awaitingVerification")}</Badge>}
                           {!canAccess && stepConfig.requiresPlan && (
                             <Badge tone="warning">
                               {stepConfig.requiresPlan === "starter" ? t("migrate.buttons.requiresStarter") : t("migrate.buttons.requiresUpgrade")}
@@ -484,15 +487,33 @@ export default function MigratePage() {
                           alt="Checkout Editor"
                           className="tg-migrate-checkout-editor-image"
                         />
-                        <Form method="post">
-                          <input type="hidden" name="_action" value="markModulesStepDone" />
-                          <Button submit variant="primary">
-                            {t("migrate.steps.modules.markedDone")}
-                          </Button>
-                        </Form>
-                        <Button url="/app/verification/start" variant="secondary">
-                          {t("migrate.steps.modules.nextStep")}
-                        </Button>
+                        {modulesConfirmed ? (
+                          <BlockStack gap="200">
+                            <Banner tone="info">
+                              <p>{t("migrate.steps.modules.verificationNote")}</p>
+                            </Banner>
+                            <InlineStack gap="200">
+                              <Button url="/app/verification/start" variant="primary">
+                                {t("migrate.steps.modules.startVerification")}
+                              </Button>
+                              <Button url="/app/verification" variant="secondary">
+                                {t("migrate.steps.modules.openVerification")}
+                              </Button>
+                            </InlineStack>
+                          </BlockStack>
+                        ) : (
+                          <InlineStack gap="200">
+                            <Form method="post">
+                              <input type="hidden" name="_action" value="markModulesStepDone" />
+                              <Button submit variant="primary">
+                                {t("migrate.steps.modules.markedDone")}
+                              </Button>
+                            </Form>
+                            <Button url="/app/verification/start" variant="secondary">
+                              {t("migrate.steps.modules.nextStep")}
+                            </Button>
+                          </InlineStack>
+                        )}
                       </>
                     )}
                     {(!isModulesStep || stepStatus.completed || !canAccess) && (

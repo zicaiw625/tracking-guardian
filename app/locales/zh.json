@@ -2840,7 +2840,7 @@
         "description": "本应用在 Thank you 页与 Order status 页提供 UI 扩展（发票、问卷、售后链接等）。请在 Shopify 的 Checkout and accounts 编辑器中添加并启用本应用的区块。",
         "action": {
           "openSettings": "打开 Checkout 设置",
-          "openAccounts": "打开客户账户编辑器",
+          "openAccounts": "打开客户账户设置",
           "verifyNow": "立即验收"
         },
         "status": {
@@ -3418,13 +3418,13 @@
       },
       "modules": {
         "title": "3. 添加结账与订单状态区块",
-        "description": "在 Shopify 结账与客户账户编辑器中添加本应用的 Thank you 页和 Order status 页区块",
+        "description": "在 Shopify 结账与客户账户设置中添加本应用的 Thank you 页和 Order status 页区块",
         "warning": "Order status 区块依赖店铺启用 Customer Account",
         "warningDesc": "Order status 页区块需店铺已启用新版客户账户（Customer Account）或 Checkout API 支持，否则该区块可能不可见。请前往 Shopify 后台开启相关设置。",
         "openSettings": "打开结账设置",
-        "accountsEditor": "打开客户账户编辑器",
+        "accountsEditor": "打开客户账户设置",
         "list": [
-          "打开结账或客户账户编辑器",
+          "打开结账或客户账户设置",
           "在 Thank you 页添加本应用提供的区块",
           "在 Order status 页添加本应用提供的区块",
           "保存并发布"
