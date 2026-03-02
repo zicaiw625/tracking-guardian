@@ -18,6 +18,16 @@ export interface ReportShareLinkMeta {
   accessCount: number;
 }
 
+export interface ScanReportShareLinkMeta {
+  id: string;
+  scanReportId: string;
+  tokenPrefix: string;
+  expiresAt: Date;
+  revokedAt: Date | null;
+  createdAt: Date;
+  accessCount: number;
+}
+
 export interface CreatedReportShareLink {
   id: string;
   token: string;
@@ -50,6 +60,27 @@ export interface PublicVerificationReportData {
   reconciliation?: VerificationReportData["reconciliation"];
   completedAt?: Date;
   createdAt: Date;
+  share: {
+    tokenPrefix: string;
+    expiresAt: Date;
+  };
+}
+
+export interface PublicScanReportData {
+  reportId: string;
+  riskScore: number;
+  status: string;
+  identifiedPlatforms: string[];
+  riskItems: Array<{
+    id: string;
+    name: string;
+    severity: string;
+    platform?: string;
+    description?: string;
+    recommendation?: string;
+  }>;
+  createdAt: Date;
+  completedAt?: Date;
   share: {
     tokenPrefix: string;
     expiresAt: Date;
@@ -97,6 +128,52 @@ function toPublicReportData(
     reconciliation: reportData.reconciliation,
     completedAt: reportData.completedAt,
     createdAt: reportData.createdAt,
+    share: {
+      tokenPrefix: shareMeta.tokenPrefix,
+      expiresAt: shareMeta.expiresAt,
+    },
+  };
+}
+
+function toPublicScanReportData(
+  scanReport: {
+    id: string;
+    riskScore: number;
+    status: string;
+    identifiedPlatforms: unknown;
+    riskItems: unknown;
+    createdAt: Date;
+    completedAt: Date | null;
+  },
+  shareMeta: { tokenPrefix: string; expiresAt: Date }
+): PublicScanReportData {
+  const identifiedPlatforms = Array.isArray(scanReport.identifiedPlatforms)
+    ? scanReport.identifiedPlatforms.filter((platform): platform is string => typeof platform === "string")
+    : [];
+  const riskItems = Array.isArray(scanReport.riskItems)
+    ? scanReport.riskItems
+        .filter(
+          (item): item is Record<string, unknown> =>
+            typeof item === "object" && item !== null && !Array.isArray(item)
+        )
+        .slice(0, 100)
+        .map((item, index) => ({
+          id: typeof item.id === "string" ? item.id : `risk-${index + 1}`,
+          name: typeof item.name === "string" ? item.name : "Unknown",
+          severity: typeof item.severity === "string" ? item.severity : "medium",
+          platform: typeof item.platform === "string" ? item.platform : undefined,
+          description: typeof item.description === "string" ? item.description : undefined,
+          recommendation: typeof item.recommendation === "string" ? item.recommendation : undefined,
+        }))
+    : [];
+  return {
+    reportId: scanReport.id,
+    riskScore: scanReport.riskScore,
+    status: scanReport.status,
+    identifiedPlatforms,
+    riskItems,
+    createdAt: scanReport.createdAt,
+    completedAt: scanReport.completedAt || undefined,
     share: {
       tokenPrefix: shareMeta.tokenPrefix,
       expiresAt: shareMeta.expiresAt,
@@ -177,7 +254,7 @@ export async function getLatestVerificationReportShareMeta(
   shopId: string,
   runId: string
 ): Promise<ReportShareLinkMeta | null> {
-  return await prisma.reportShareLink.findFirst({
+  const record = await prisma.reportShareLink.findFirst({
     where: {
       shopId,
       runId,
@@ -196,6 +273,16 @@ export async function getLatestVerificationReportShareMeta(
       accessCount: true,
     },
   });
+  if (!record || !record.runId) return null;
+  return {
+    id: record.id,
+    runId: record.runId,
+    tokenPrefix: record.tokenPrefix,
+    expiresAt: record.expiresAt,
+    revokedAt: record.revokedAt,
+    createdAt: record.createdAt,
+    accessCount: record.accessCount,
+  };
 }
 
 export async function resolvePublicVerificationReportByToken(
@@ -218,6 +305,7 @@ export async function resolvePublicVerificationReportByToken(
   if (shareLink.scope !== "verification_report") return null;
   if (shareLink.revokedAt) return null;
   if (shareLink.expiresAt.getTime() <= Date.now()) return null;
+  if (!shareLink.runId) return null;
   const shop = await prisma.shop.findUnique({
     where: { id: shareLink.shopId },
     select: { plan: true },
@@ -235,6 +323,160 @@ export async function resolvePublicVerificationReportByToken(
   });
   const reportData = await generateVerificationReportData(shareLink.shopId, shareLink.runId);
   return toPublicReportData(reportData, {
+    tokenPrefix: shareLink.tokenPrefix,
+    expiresAt: shareLink.expiresAt,
+  });
+}
+
+export async function createScanReportShareLink(params: {
+  shopId: string;
+  reportId: string;
+  createdBy?: string | null;
+  expiresInDays?: number;
+}): Promise<CreatedReportShareLink> {
+  const { shopId, reportId, createdBy, expiresInDays } = params;
+  const report = await prisma.scanReport.findFirst({
+    where: { id: reportId, shopId },
+    select: { id: true },
+  });
+  if (!report) {
+    throw new Error("Scan report not found");
+  }
+  const expiryDays = clampExpiryDays(expiresInDays);
+  const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const token = generateShareToken();
+    const tokenHash = hashValueSync(token);
+    try {
+      const created = await prisma.reportShareLink.create({
+        data: {
+          id: randomUUID(),
+          shopId,
+          scanReportId: reportId,
+          tokenHash,
+          tokenPrefix: token.slice(0, 8),
+          scope: "scan_report",
+          expiresAt,
+          createdBy: createdBy || null,
+        },
+        select: {
+          id: true,
+          tokenPrefix: true,
+          expiresAt: true,
+          createdAt: true,
+        },
+      });
+      return {
+        id: created.id,
+        token,
+        tokenPrefix: created.tokenPrefix,
+        expiresAt: created.expiresAt,
+        createdAt: created.createdAt,
+      };
+    } catch (error: any) {
+      if (error?.code === "P2002" && attempt < 2) {
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error("Failed to generate share link");
+}
+
+export async function revokeScanReportShareLinks(shopId: string, reportId: string): Promise<number> {
+  const result = await prisma.reportShareLink.updateMany({
+    where: {
+      shopId,
+      scanReportId: reportId,
+      scope: "scan_report",
+      revokedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    data: { revokedAt: new Date() },
+  });
+  return result.count ?? 0;
+}
+
+export async function getLatestScanReportShareMeta(
+  shopId: string,
+  reportId: string
+): Promise<ScanReportShareLinkMeta | null> {
+  const record = await prisma.reportShareLink.findFirst({
+    where: {
+      shopId,
+      scanReportId: reportId,
+      scope: "scan_report",
+      revokedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      scanReportId: true,
+      tokenPrefix: true,
+      expiresAt: true,
+      revokedAt: true,
+      createdAt: true,
+      accessCount: true,
+    },
+  });
+  if (!record) return null;
+  return {
+    id: record.id,
+    scanReportId: record.scanReportId || reportId,
+    tokenPrefix: record.tokenPrefix,
+    expiresAt: record.expiresAt,
+    revokedAt: record.revokedAt,
+    createdAt: record.createdAt,
+    accessCount: record.accessCount,
+  };
+}
+
+export async function resolvePublicScanReportByToken(
+  token: string
+): Promise<PublicScanReportData | null> {
+  const tokenHash = hashValueSync(token);
+  const shareLink = await prisma.reportShareLink.findUnique({
+    where: { tokenHash },
+    select: {
+      id: true,
+      shopId: true,
+      scanReportId: true,
+      tokenPrefix: true,
+      expiresAt: true,
+      revokedAt: true,
+      scope: true,
+    },
+  });
+  if (!shareLink) return null;
+  if (shareLink.scope !== "scan_report") return null;
+  if (shareLink.revokedAt) return null;
+  if (shareLink.expiresAt.getTime() <= Date.now()) return null;
+  if (!shareLink.scanReportId) return null;
+  await prisma.reportShareLink.update({
+    where: { id: shareLink.id },
+    data: {
+      accessCount: { increment: 1 },
+      lastAccessedAt: new Date(),
+    },
+  });
+  const scanReport = await prisma.scanReport.findFirst({
+    where: {
+      id: shareLink.scanReportId,
+      shopId: shareLink.shopId,
+    },
+    select: {
+      id: true,
+      riskScore: true,
+      status: true,
+      identifiedPlatforms: true,
+      riskItems: true,
+      createdAt: true,
+      completedAt: true,
+    },
+  });
+  if (!scanReport) return null;
+  return toPublicScanReportData(scanReport, {
     tokenPrefix: shareLink.tokenPrefix,
     expiresAt: shareLink.expiresAt,
   });

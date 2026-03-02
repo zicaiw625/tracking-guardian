@@ -2065,6 +2065,46 @@
         "count": "Total ScriptTags"
       }
     },
+    "share": {
+      "title": "Public Share Link",
+      "description": "Create a read-only public link for the current scan report. The link can be copied, revoked, and expires automatically.",
+      "newLink": "New link created:",
+      "activeMeta": "Active link prefix: {{prefix}}, expires at: {{expiresAt}}",
+      "actions": {
+        "create": "Create Link",
+        "copy": "Copy Link",
+        "preview": "Preview Public Page",
+        "revoke": "Revoke Link"
+      },
+      "toast": {
+        "created": "Scan report share link created",
+        "revoked": "Scan report share link revoked",
+        "createFirst": "Create a share link first",
+        "copied": "Share link copied",
+        "copyNotSupported": "Clipboard is not supported in this browser",
+        "copyFailed": "Copy failed, please copy manually",
+        "noReport": "No scan report available to share"
+      }
+    },
+    "public": {
+      "title": "Tracking Guardian Scan Report Share",
+      "meta": "Link prefix: {{prefix}} · Expires at: {{expiresAt}}",
+      "summaryTitle": "Scan Summary",
+      "reportId": "Report ID:",
+      "status": "Status:",
+      "riskScore": "Risk score:",
+      "platforms": "Identified platforms:",
+      "createdAt": "Created at:",
+      "completedAt": "Completed at:",
+      "risksTitle": "Risk items (up to 100)",
+      "riskHeadings": {
+        "name": "Risk Item",
+        "severity": "Severity",
+        "platform": "Platform",
+        "description": "Description",
+        "recommendation": "Recommendation"
+      }
+    },
     "action": {
       "missingData": "Missing analysis data",
       "dataTooLarge": "Analysis data too large (max {{maxSizeKB}}KB)",

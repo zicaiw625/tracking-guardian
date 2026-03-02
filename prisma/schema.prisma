@@ -201,6 +201,7 @@ model ScanReport {
   createdAt           DateTime  @default(now())
   completedAt         DateTime?
   Shop                Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  ReportShareLink     ReportShareLink[]
 
   @@index([shopId])
   @@index([status])
@@ -302,7 +303,8 @@ model VerificationRun {
 model ReportShareLink {
   id            String          @id
   shopId         String
-  runId          String
+  runId          String?
+  scanReportId   String?
   tokenHash      String          @unique
   tokenPrefix    String
   scope          String          @default("verification_report")
@@ -314,10 +316,13 @@ model ReportShareLink {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   Shop           Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  VerificationRun VerificationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  VerificationRun VerificationRun? @relation(fields: [runId], references: [id], onDelete: Cascade)
+  ScanReport     ScanReport?     @relation(fields: [scanReportId], references: [id], onDelete: Cascade)
 
   @@index([shopId, runId])
+  @@index([shopId, scanReportId])
   @@index([runId, revokedAt, expiresAt])
+  @@index([scanReportId, revokedAt, expiresAt])
   @@index([expiresAt])
 }
 

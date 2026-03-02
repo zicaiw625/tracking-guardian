@@ -45,6 +45,12 @@ interface ScanAutoTabProps {
     isExporting: boolean;
     onCopyChecklist: () => void;
     onExportChecklist: () => void;
+    onCreateShareLink: () => void;
+    onRevokeShareLink: () => void;
+    onCopyShareUrl: () => void;
+    onOpenSharePreview: () => void;
+    latestShareUrl: string | null;
+    activeShareMeta: { tokenPrefix: string; expiresAt: string | Date } | null;
     onNavigate?: (url: string) => void;
 }
 
@@ -82,6 +88,12 @@ export function ScanAutoTab({
     isExporting,
     onCopyChecklist,
     onExportChecklist,
+    onCreateShareLink,
+    onRevokeShareLink,
+    onCopyShareUrl,
+    onOpenSharePreview,
+    latestShareUrl,
+    activeShareMeta,
     onNavigate,
 }: ScanAutoTabProps) {
     const { t } = useTranslation();
@@ -166,6 +178,50 @@ export function ScanAutoTab({
                         </InlineStack>
                     </InlineStack>
                 </Box>
+            )}
+            {showResults && (
+                <Card>
+                    <BlockStack gap="300">
+                        <InlineStack align="space-between" blockAlign="center">
+                            <Text as="h2" variant="headingMd">
+                                {t("scan.share.title")}
+                            </Text>
+                            <InlineStack gap="200">
+                                <Button onClick={onCreateShareLink} size="slim">
+                                    {t("scan.share.actions.create")}
+                                </Button>
+                                <Button onClick={onCopyShareUrl} size="slim" disabled={!latestShareUrl}>
+                                    {t("scan.share.actions.copy")}
+                                </Button>
+                                <Button onClick={onOpenSharePreview} size="slim" disabled={!latestShareUrl && !activeShareMeta}>
+                                    {t("scan.share.actions.preview")}
+                                </Button>
+                                <Button onClick={onRevokeShareLink} size="slim" tone="critical" disabled={!activeShareMeta}>
+                                    {t("scan.share.actions.revoke")}
+                                </Button>
+                            </InlineStack>
+                        </InlineStack>
+                        {latestShareUrl ? (
+                            <Banner tone="success">
+                                <Text as="p" variant="bodySm">
+                                    {t("scan.share.newLink")} {latestShareUrl}
+                                </Text>
+                            </Banner>
+                        ) : (
+                            <Text as="p" variant="bodySm" tone="subdued">
+                                {t("scan.share.description")}
+                            </Text>
+                        )}
+                        {activeShareMeta && (
+                            <Text as="p" variant="bodySm" tone="subdued">
+                                {t("scan.share.activeMeta", {
+                                    prefix: activeShareMeta.tokenPrefix,
+                                    expiresAt: new Date(activeShareMeta.expiresAt).toLocaleString(),
+                                })}
+                            </Text>
+                        )}
+                    </BlockStack>
+                </Card>
             )}
 
             {isScanning && (

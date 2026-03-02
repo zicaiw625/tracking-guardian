@@ -33,6 +33,7 @@ import { isValidShopTier } from "../../utils/scan-validation";
 import { logger } from "../../utils/logger.server";
 import type { ScriptTag } from "../../types";
 import type { MigrationAction, EnhancedScanResult } from "../../services/scanner/types";
+import { getLatestScanReportShareMeta } from "../../services/report-share.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { SCANNER_CONFIG, SCRIPT_ANALYSIS_CONFIG } = await import("../../utils/config.server");
@@ -57,6 +58,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             shop: null,
             latestScan: null,
             scanHistory: [],
+            shareLinkMeta: null,
             migrationActions: [] as MigrationAction[],
             deprecationStatus: null,
             upgradeStatus: null,
@@ -198,6 +200,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         }
     }
     const latestScan = latestScanRaw;
+    const shareLinkMeta = latestScan
+        ? await getLatestScanReportShareMeta(shop.id, latestScan.id)
+        : null;
     let scanHistory: Awaited<ReturnType<typeof getScanHistory>> = [];
     try {
         scanHistory = await getScanHistory(shop.id, 5);
@@ -330,6 +335,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return json({
         shop: { id: shop.id, domain: shopDomain },
         latestScan,
+        shareLinkMeta,
         scanHistory,
         migrationActions,
         deprecationStatus: {

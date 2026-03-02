@@ -53,7 +53,7 @@ export function ScanPage({
     const tabParam = searchParams.get("tab");
     const tabFromUrl = tabParam === "1" ? 1 : tabParam === "2" ? 2 : 0;
     const effectiveInitialTab = tabParam !== null && tabParam !== "" ? tabFromUrl : initialTab;
-    const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist, scriptAnalysisMaxContentLength, scriptAnalysisChunkSize, scannerMaxScriptTags, scannerMaxWebPixels, webPixelsCount } = useLoaderData<typeof loader>();
+    const { shop, latestScan, shareLinkMeta, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist, scriptAnalysisMaxContentLength, scriptAnalysisChunkSize, scannerMaxScriptTags, scannerMaxWebPixels, webPixelsCount } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
@@ -76,6 +76,8 @@ export function ScanPage({
     const [monthlyOrders, setMonthlyOrders] = useState(500);
     const [isCopying, setIsCopying] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
+    const [latestShareUrl, setLatestShareUrl] = useState<string | null>(null);
+    const [openShareAfterCreate, setOpenShareAfterCreate] = useState(false);
     const [pasteProcessed, setPasteProcessed] = useState(false);
     const isScanning = navigation.state === "submitting";
     const isReloadingRef = useRef(false);
@@ -135,6 +137,18 @@ export function ScanPage({
       actionData !== null &&
       "partialRefresh" in actionData &&
       (actionData as { partialRefresh?: boolean }).partialRefresh === true;
+    const activeShareMeta = useMemo(() => {
+        if (actionData && typeof actionData === "object" && "success" in actionData && "action" in actionData) {
+            const record = actionData as { success?: boolean; action?: string; expiresAt?: string };
+            if (record.success && record.action === "create_share_link" && record.expiresAt) {
+                return {
+                    tokenPrefix: "new",
+                    expiresAt: record.expiresAt,
+                };
+            }
+        }
+        return shareLinkMeta;
+    }, [actionData, shareLinkMeta]);
     const identifiedPlatforms = useMemo(() => {
         return validateStringArray(latestScan?.identifiedPlatforms);
     }, [latestScan?.identifiedPlatforms]);
@@ -377,6 +391,32 @@ export function ScanPage({
     }, [submit]);
     const isProcessingPaste = isSavingAnalysis;
     useEffect(() => {
+        if (!actionData || typeof actionData !== "object") return;
+        if (!("action" in actionData) || !("success" in actionData)) return;
+        const result = actionData as { action?: string; success?: boolean; shareUrl?: string; error?: string };
+        if (!result.success) {
+            setOpenShareAfterCreate(false);
+            if (result.error) showError(result.error);
+            return;
+        }
+        if (result.action === "create_share_link") {
+            if (result.shareUrl) {
+                setLatestShareUrl(result.shareUrl);
+                if (openShareAfterCreate) {
+                    window.open(result.shareUrl, "_blank", "noopener,noreferrer");
+                }
+            }
+            setOpenShareAfterCreate(false);
+            showSuccess(t("scan.share.toast.created"));
+            return;
+        }
+        if (result.action === "revoke_share_link") {
+            setLatestShareUrl(null);
+            setOpenShareAfterCreate(false);
+            showSuccess(t("scan.share.toast.revoked"));
+        }
+    }, [actionData, openShareAfterCreate, showError, showSuccess, t]);
+    useEffect(() => {
         const result = isFetcherResult(saveAnalysisFetcher.data) ? saveAnalysisFetcher.data : undefined;
         if (!result || saveAnalysisFetcher.state !== "idle" || !isMountedRef.current) return;
         if (result.success) {
@@ -541,6 +581,56 @@ export function ScanPage({
             setIsCopying(false);
         }
     }, [isCopying, handleGenerateChecklistText, showSuccess, showError, t]);
+    const handleCreateShareLink = useCallback(() => {
+        if (!latestScan?.id) {
+            showError(t("scan.share.toast.noReport"));
+            return;
+        }
+        const formData = new FormData();
+        formData.append("_action", "create_share_link");
+        formData.append("expiresInDays", "7");
+        submit(formData, { method: "post" });
+    }, [latestScan?.id, showError, submit, t]);
+    const handleRevokeShareLink = useCallback(() => {
+        if (!latestScan?.id) {
+            showError(t("scan.share.toast.noReport"));
+            return;
+        }
+        const formData = new FormData();
+        formData.append("_action", "revoke_share_link");
+        submit(formData, { method: "post" });
+    }, [latestScan?.id, showError, submit, t]);
+    const handleCopyShareUrl = useCallback(async () => {
+        if (!latestShareUrl) {
+            showError(t("scan.share.toast.createFirst"));
+            return;
+        }
+        if (!navigator.clipboard?.writeText) {
+            showError(t("scan.share.toast.copyNotSupported"));
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(latestShareUrl);
+            showSuccess(t("scan.share.toast.copied"));
+        } catch {
+            showError(t("scan.share.toast.copyFailed"));
+        }
+    }, [latestShareUrl, showError, showSuccess, t]);
+    const handleOpenSharePreview = useCallback(() => {
+        if (latestShareUrl) {
+            window.open(latestShareUrl, "_blank", "noopener,noreferrer");
+            return;
+        }
+        if (!activeShareMeta) {
+            showError(t("scan.share.toast.createFirst"));
+            return;
+        }
+        setOpenShareAfterCreate(true);
+        const formData = new FormData();
+        formData.append("_action", "create_share_link");
+        formData.append("expiresInDays", "7");
+        submit(formData, { method: "post" });
+    }, [activeShareMeta, latestShareUrl, showError, submit, t]);
     const handleExportChecklist = useCallback(() => {
         if (isExporting) return;
         setIsExporting(true);
@@ -672,6 +762,12 @@ export function ScanPage({
                 isExporting={isExporting}
                 onCopyChecklist={handleCopyChecklist}
                 onExportChecklist={handleExportChecklist}
+                onCreateShareLink={handleCreateShareLink}
+                onRevokeShareLink={handleRevokeShareLink}
+                onCopyShareUrl={handleCopyShareUrl}
+                onOpenSharePreview={handleOpenSharePreview}
+                latestShareUrl={latestShareUrl}
+                activeShareMeta={activeShareMeta}
                 onNavigate={navigate}
               />
             </Suspense>

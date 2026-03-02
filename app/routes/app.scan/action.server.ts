@@ -13,6 +13,11 @@ import { containsSensitiveInfo, sanitizeSensitiveInfo } from "../../utils/securi
 import { sanitizeFilename } from "../../utils/responses";
 import { logger } from "../../utils/logger.server";
 import type { RiskItem } from "../../types";
+import {
+    createScanReportShareLink,
+    revokeScanReportShareLinks,
+} from "../../services/report-share.server";
+import { getPublicAppDomain } from "../../utils/config.server";
 
 const AnalysisDataSchema = z.object({
     identifiedPlatforms: z.array(z.string().min(SAVE_ANALYSIS_LIMITS.MIN_PLATFORM_NAME_LENGTH).max(SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_NAME_LENGTH).regex(PLATFORM_NAME_REGEX))
@@ -46,6 +51,47 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const t = await i18nServer.getFixedT(request);
     const formData = await request.formData();
     const actionType = formData.get("_action");
+    if (actionType === "create_share_link") {
+        const latestScan = await prisma.scanReport.findFirst({
+            where: { shopId: shop.id },
+            orderBy: { createdAt: "desc" },
+            select: { id: true },
+        });
+        if (!latestScan) {
+            return json({ success: false, error: t("scan.share.toast.noReport") }, { status: 404 });
+        }
+        const expiresInDaysRaw = Number(formData.get("expiresInDays") || 7);
+        const created = await createScanReportShareLink({
+            shopId: shop.id,
+            reportId: latestScan.id,
+            createdBy: session.id,
+            expiresInDays: Number.isFinite(expiresInDaysRaw) ? expiresInDaysRaw : 7,
+        });
+        const baseUrl = getPublicAppDomain().replace(/\/+$/, "");
+        const shareUrl = `${baseUrl}/s/${created.token}`;
+        return json({
+            success: true,
+            action: "create_share_link",
+            shareUrl,
+            expiresAt: created.expiresAt.toISOString(),
+        });
+    }
+    if (actionType === "revoke_share_link") {
+        const latestScan = await prisma.scanReport.findFirst({
+            where: { shopId: shop.id },
+            orderBy: { createdAt: "desc" },
+            select: { id: true },
+        });
+        if (!latestScan) {
+            return json({ success: false, error: t("scan.share.toast.noReport") }, { status: 404 });
+        }
+        const revokedCount = await revokeScanReportShareLinks(shop.id, latestScan.id);
+        return json({
+            success: true,
+            action: "revoke_share_link",
+            revokedCount,
+        });
+    }
     if (actionType === "save_analysis") {
         try {
             const analysisDataStr = formData.get("analysisData") as string;
