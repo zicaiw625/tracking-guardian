@@ -414,8 +414,9 @@ export function ScanPage({
             setLatestShareUrl(null);
             setOpenShareAfterCreate(false);
             showSuccess(t("scan.share.toast.revoked"));
+            reloadData();
         }
-    }, [actionData, openShareAfterCreate, showError, showSuccess, t]);
+    }, [actionData, openShareAfterCreate, reloadData, showError, showSuccess, t]);
     useEffect(() => {
         const result = isFetcherResult(saveAnalysisFetcher.data) ? saveAnalysisFetcher.data : undefined;
         if (!result || saveAnalysisFetcher.state !== "idle" || !isMountedRef.current) return;
@@ -592,14 +593,14 @@ export function ScanPage({
         submit(formData, { method: "post" });
     }, [canCreateShareLink, latestCompletedScan?.id, showError, submit, t]);
     const handleRevokeShareLink = useCallback(() => {
-        if (!latestScan?.id) {
+        if (!canCreateShareLink || !latestCompletedScan?.id) {
             showError(t("scan.share.toast.noReport"));
             return;
         }
         const formData = new FormData();
         formData.append("_action", "revoke_share_link");
         submit(formData, { method: "post" });
-    }, [latestScan?.id, showError, submit, t]);
+    }, [canCreateShareLink, latestCompletedScan?.id, showError, submit, t]);
     const handleCopyShareUrl = useCallback(async () => {
         if (!latestShareUrl) {
             showError(t("scan.share.toast.createFirst"));
