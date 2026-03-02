@@ -136,7 +136,11 @@ export default async function handleRequest(request: Request, responseStatusCode
 
     const isEmbeddedAppDocument = url.pathname === "/app" || url.pathname.startsWith("/app/");
     const isPublicDocument = PUBLIC_DOCUMENT_PATHS.has(url.pathname);
-    const isShareDocument = url.pathname === "/r" || url.pathname.startsWith("/r/");
+    const isShareDocument =
+      url.pathname === "/r" ||
+      url.pathname.startsWith("/r/") ||
+      url.pathname === "/s" ||
+      url.pathname.startsWith("/s/");
     if (isEmbeddedAppDocument) {
       let frameAncestors = ["https://admin.shopify.com", "https://*.myshopify.com", "https://*.shopify.com"];
       if (shopDomain) {
@@ -152,11 +156,16 @@ export default async function handleRequest(request: Request, responseStatusCode
           ? getProductionSecurityHeaders(EMBEDDED_APP_HEADERS)
           : EMBEDDED_APP_HEADERS;
       addSecurityHeadersToHeaders(responseHeaders, documentSecurityHeaders);
-    } else if (isPublicDocument) {
+    } else if (isPublicDocument || isShareDocument) {
       responseHeaders.set("Content-Security-Policy", buildPublicPageCspWithNonce(nonce));
+      responseHeaders.set("X-Frame-Options", "DENY");
+      responseHeaders.set("Referrer-Policy", "no-referrer");
     }
     if (isShareDocument) {
       responseHeaders.set("X-Robots-Tag", SHARE_PAGE_ROBOTS_TAG);
+      responseHeaders.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      responseHeaders.set("Pragma", "no-cache");
+      responseHeaders.set("Expires", "0");
     }
     const userAgent = request.headers.get("user-agent");
     const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";

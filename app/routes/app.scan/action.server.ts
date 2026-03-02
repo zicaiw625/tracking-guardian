@@ -53,8 +53,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const actionType = formData.get("_action");
     if (actionType === "create_share_link") {
         const latestScan = await prisma.scanReport.findFirst({
-            where: { shopId: shop.id },
-            orderBy: { createdAt: "desc" },
+            where: {
+                shopId: shop.id,
+                completedAt: { not: null },
+            },
+            orderBy: [{ completedAt: "desc" }, { createdAt: "desc" }],
             select: { id: true },
         });
         if (!latestScan) {
@@ -78,8 +81,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     if (actionType === "revoke_share_link") {
         const latestScan = await prisma.scanReport.findFirst({
-            where: { shopId: shop.id },
-            orderBy: { createdAt: "desc" },
+            where: {
+                shopId: shop.id,
+                completedAt: { not: null },
+            },
+            orderBy: [{ completedAt: "desc" }, { createdAt: "desc" }],
             select: { id: true },
         });
         if (!latestScan) {

@@ -1,4 +1,4 @@
-import type { LoaderFunctionArgs } from "@remix-run/node";
+import type { HeadersFunction, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { resolvePublicVerificationReportByToken } from "../services/report-share.server";
@@ -24,6 +24,15 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
       },
     }
   );
+};
+
+export const headers: HeadersFunction = ({ loaderHeaders }) => {
+  return {
+    "Cache-Control": loaderHeaders.get("Cache-Control") ?? "no-store, no-cache, must-revalidate, proxy-revalidate",
+    Pragma: loaderHeaders.get("Pragma") ?? "no-cache",
+    Expires: loaderHeaders.get("Expires") ?? "0",
+    "X-Robots-Tag": loaderHeaders.get("X-Robots-Tag") ?? SHARE_PAGE_ROBOTS_TAG,
+  };
 };
 
 export default function PublicVerificationReportPage() {
