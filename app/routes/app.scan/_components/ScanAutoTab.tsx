@@ -51,6 +51,7 @@ interface ScanAutoTabProps {
     onOpenSharePreview: () => void;
     latestShareUrl: string | null;
     activeShareMeta: { tokenPrefix: string; expiresAt: string | Date } | null;
+    canCreateShareLink: boolean;
     onNavigate?: (url: string) => void;
 }
 
@@ -94,6 +95,7 @@ export function ScanAutoTab({
     onOpenSharePreview,
     latestShareUrl,
     activeShareMeta,
+    canCreateShareLink,
     onNavigate,
 }: ScanAutoTabProps) {
     const { t } = useTranslation();
@@ -187,7 +189,7 @@ export function ScanAutoTab({
                                 {t("scan.share.title")}
                             </Text>
                             <InlineStack gap="200">
-                                <Button onClick={onCreateShareLink} size="slim">
+                                <Button onClick={onCreateShareLink} size="slim" disabled={!canCreateShareLink}>
                                     {t("scan.share.actions.create")}
                                 </Button>
                                 <Button onClick={onCopyShareUrl} size="slim" disabled={!latestShareUrl}>

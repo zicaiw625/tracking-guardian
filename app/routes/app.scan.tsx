@@ -53,7 +53,7 @@ export function ScanPage({
     const tabParam = searchParams.get("tab");
     const tabFromUrl = tabParam === "1" ? 1 : tabParam === "2" ? 2 : 0;
     const effectiveInitialTab = tabParam !== null && tabParam !== "" ? tabFromUrl : initialTab;
-    const { shop, latestScan, shareLinkMeta, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist, scriptAnalysisMaxContentLength, scriptAnalysisChunkSize, scannerMaxScriptTags, scannerMaxWebPixels, webPixelsCount } = useLoaderData<typeof loader>();
+    const { shop, latestScan, latestCompletedScan, canCreateShareLink, shareLinkMeta, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist, scriptAnalysisMaxContentLength, scriptAnalysisChunkSize, scannerMaxScriptTags, scannerMaxWebPixels, webPixelsCount } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
@@ -582,7 +582,7 @@ export function ScanPage({
         }
     }, [isCopying, handleGenerateChecklistText, showSuccess, showError, t]);
     const handleCreateShareLink = useCallback(() => {
-        if (!latestScan?.id) {
+        if (!canCreateShareLink || !latestCompletedScan?.id) {
             showError(t("scan.share.toast.noReport"));
             return;
         }
@@ -590,7 +590,7 @@ export function ScanPage({
         formData.append("_action", "create_share_link");
         formData.append("expiresInDays", "7");
         submit(formData, { method: "post" });
-    }, [latestScan?.id, showError, submit, t]);
+    }, [canCreateShareLink, latestCompletedScan?.id, showError, submit, t]);
     const handleRevokeShareLink = useCallback(() => {
         if (!latestScan?.id) {
             showError(t("scan.share.toast.noReport"));
@@ -768,6 +768,7 @@ export function ScanPage({
                 onOpenSharePreview={handleOpenSharePreview}
                 latestShareUrl={latestShareUrl}
                 activeShareMeta={activeShareMeta}
+                canCreateShareLink={canCreateShareLink}
                 onNavigate={navigate}
               />
             </Suspense>

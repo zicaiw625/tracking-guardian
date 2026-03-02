@@ -107,4 +107,19 @@ describe("app.scan share action", () => {
       select: { id: true },
     });
   });
+
+  it("returns noReport when there is no completed scan report", async () => {
+    vi.mocked(mockPrisma.scanReport.findFirst).mockResolvedValue(null as never);
+
+    const formData = new FormData();
+    formData.append("_action", "create_share_link");
+    const request = new Request("https://example.com/app/scan", { method: "POST", body: formData });
+
+    const response = await action({ request } as any);
+    const data = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(data.success).toBe(false);
+    expect(data.error).toBe("scan.share.toast.noReport");
+  });
 });

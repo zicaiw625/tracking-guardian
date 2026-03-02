@@ -57,8 +57,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         return json({
             shop: null,
             latestScan: null,
+            latestCompletedScan: null,
             scanHistory: [],
             shareLinkMeta: null,
+            canCreateShareLink: false,
             migrationActions: [] as MigrationAction[],
             deprecationStatus: null,
             upgradeStatus: null,
@@ -90,6 +92,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             status: true,
             errorMessage: true,
             createdAt: true,
+            completedAt: true,
+        },
+    });
+    const latestCompletedScan = await prisma.scanReport.findFirst({
+        where: {
+            shopId: shop.id,
+            completedAt: { not: null },
+        },
+        orderBy: [{ completedAt: "desc" }, { createdAt: "desc" }],
+        select: {
+            id: true,
             completedAt: true,
         },
     });
@@ -200,8 +213,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         }
     }
     const latestScan = latestScanRaw;
-    const shareLinkMeta = latestScan
-        ? await getLatestScanReportShareMeta(shop.id, latestScan.id)
+    const shareLinkMeta = latestCompletedScan
+        ? await getLatestScanReportShareMeta(shop.id, latestCompletedScan.id)
         : null;
     let scanHistory: Awaited<ReturnType<typeof getScanHistory>> = [];
     try {
@@ -335,6 +348,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return json({
         shop: { id: shop.id, domain: shopDomain },
         latestScan,
+        latestCompletedScan,
+        canCreateShareLink: !!latestCompletedScan,
         shareLinkMeta,
         scanHistory,
         migrationActions,
