@@ -3431,14 +3431,12 @@
         ],
         "themeEditor": "Theme Editor",
         "markedDone": "I have completed block setup",
-        "validate": "Validate Setup and Continue",
+        "nextStep": "Next: Start Verification",
         "confirmedTitle": "Block setup confirmed",
         "confirmedDesc": "Thank you / Order status blocks are recorded. Continue to verification now.",
-        "validationPassed": "Block setup validation passed. Continue to verification.",
-        "validationFailed": "Incomplete block setup detected. Finish setup in Shopify editor and retry.",
+        "verificationNote": "Final validation happens in the verification flow (checklist + test order run).",
         "startVerification": "Start Verification",
-        "openVerification": "Open Verification",
-        "openSettingsCenter": "Open Settings Center"
+        "openVerification": "Open Verification"
       },
       "verification": {
         "title": "4. Verification & Monitoring",

@@ -39,13 +39,6 @@ type ModulesDoneActionData = {
   actionType: "markModulesStepDone";
 };
 
-type ModulesValidateActionData = {
-  success: true;
-  actionType: "validateModulesStep";
-  valid: boolean;
-  message: string;
-};
-
 function isModulesDoneActionData(data: unknown): data is ModulesDoneActionData {
   return !!data &&
     typeof data === "object" &&
@@ -53,17 +46,6 @@ function isModulesDoneActionData(data: unknown): data is ModulesDoneActionData {
     (data as { success?: unknown }).success === true &&
     "actionType" in data &&
     (data as { actionType?: unknown }).actionType === "markModulesStepDone";
-}
-
-function isModulesValidateActionData(data: unknown): data is ModulesValidateActionData {
-  return !!data &&
-    typeof data === "object" &&
-    "success" in data &&
-    (data as { success?: unknown }).success === true &&
-    "actionType" in data &&
-    (data as { actionType?: unknown }).actionType === "validateModulesStep" &&
-    "valid" in data &&
-    "message" in data;
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -246,31 +228,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       message: "migrate.steps.modules.confirmedDesc",
     });
   }
-  if (actionType === "validateModulesStep") {
-    const shopRow = await prisma.shop.findUnique({
-      where: { id: shop.id },
-      select: { settings: true },
-    });
-    const settings = (shopRow?.settings as Record<string, unknown>) || {};
-    const uiModules = (settings.uiModules as Record<string, unknown>) || {};
-    const thankYouEnabled =
-      typeof uiModules.thankYou === "object" &&
-      uiModules.thankYou !== null &&
-      "isEnabled" in (uiModules.thankYou as Record<string, unknown>) &&
-      Boolean((uiModules.thankYou as { isEnabled?: boolean }).isEnabled);
-    const orderStatusEnabled =
-      typeof uiModules.orderStatus === "object" &&
-      uiModules.orderStatus !== null &&
-      "isEnabled" in (uiModules.orderStatus as Record<string, unknown>) &&
-      Boolean((uiModules.orderStatus as { isEnabled?: boolean }).isEnabled);
-    const valid = thankYouEnabled && orderStatusEnabled;
-    return json({
-      success: true,
-      actionType: "validateModulesStep",
-      valid,
-      message: valid ? "migrate.steps.modules.validationPassed" : "migrate.steps.modules.validationFailed",
-    });
-  }
   return json({ success: false, error: "migrate.errors.unknownAction" }, { status: 400 });
 };
 
@@ -347,26 +304,22 @@ export default function MigratePage() {
         />
         {isModulesDoneActionData(actionData) && (
           <Banner tone="success" title={t("migrate.steps.modules.confirmedTitle")}>
-            <InlineStack gap="200">
-              <Button url="/app/verification/start" variant="primary">
-                {t("migrate.steps.modules.startVerification")}
-              </Button>
-              <Button url="/app/verification" variant="secondary">
-                {t("migrate.steps.modules.openVerification")}
-              </Button>
-            </InlineStack>
-          </Banner>
-        )}
-        {isModulesValidateActionData(actionData) && (
-          <Banner tone={actionData.valid ? "success" : "warning"} title={t(actionData.message)}>
-            <InlineStack gap="200">
-              <Button url="/app/verification/start" variant="primary">
-                {t("migrate.steps.modules.startVerification")}
-              </Button>
-              <Button url="/app/settings" variant="secondary">
-                {t("migrate.steps.modules.openSettingsCenter")}
-              </Button>
-            </InlineStack>
+            <BlockStack gap="200">
+              <Text as="p" variant="bodySm">
+                {t("migrate.steps.modules.confirmedDesc")}
+              </Text>
+              <Text as="p" variant="bodySm" tone="subdued">
+                {t("migrate.steps.modules.verificationNote")}
+              </Text>
+              <InlineStack gap="200">
+                <Button url="/app/verification/start" variant="primary">
+                  {t("migrate.steps.modules.startVerification")}
+                </Button>
+                <Button url="/app/verification" variant="secondary">
+                  {t("migrate.steps.modules.openVerification")}
+                </Button>
+              </InlineStack>
+            </BlockStack>
           </Banner>
         )}
         <Banner tone="critical">
@@ -537,12 +490,9 @@ export default function MigratePage() {
                             {t("migrate.steps.modules.markedDone")}
                           </Button>
                         </Form>
-                        <Form method="post">
-                          <input type="hidden" name="_action" value="validateModulesStep" />
-                          <Button submit variant="secondary">
-                            {t("migrate.steps.modules.validate")}
-                          </Button>
-                        </Form>
+                        <Button url="/app/verification/start" variant="secondary">
+                          {t("migrate.steps.modules.nextStep")}
+                        </Button>
                       </>
                     )}
                     {(!isModulesStep || stepStatus.completed || !canAccess) && (

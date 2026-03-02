@@ -3431,14 +3431,12 @@
         ],
         "themeEditor": "主题编辑器",
         "markedDone": "我已完成区块配置",
-        "validate": "校验配置并进入验收",
+        "nextStep": "下一步：开始验收",
         "confirmedTitle": "区块配置已确认",
         "confirmedDesc": "系统已记录 Thank you / Order status 区块配置，请立即运行验收测试。",
-        "validationPassed": "区块配置校验通过，可进入验收流程。",
-        "validationFailed": "未检测到完整区块配置，请先在 Shopify 编辑器完成配置后再校验。",
+        "verificationNote": "最终验证请在验收流程中完成（生成测试清单并运行测试订单）。",
         "startVerification": "开始验收",
-        "openVerification": "打开验收中心",
-        "openSettingsCenter": "打开设置中心"
+        "openVerification": "打开验收中心"
       },
       "verification": {
         "title": "4. 验收与监控",
