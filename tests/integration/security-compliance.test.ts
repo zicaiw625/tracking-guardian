@@ -54,6 +54,10 @@ vi.mock("../../app/middleware/rate-limit.server", () => ({
     remaining: 100,
     resetAt: Date.now() + 60000,
   }),
+  trackAnomaly: vi.fn().mockReturnValue({
+    shouldBlock: false,
+    reason: "ok",
+  }),
   ipKeyExtractor: vi.fn(() => "test-ip"),
   shopDomainIpKeyExtractor: vi.fn(() => "test-shop-ip"),
   shopScopedIpKeyExtractor: vi.fn((req, shopDomain) => `${shopDomain || "unknown"}:test-ip`),
@@ -79,13 +83,6 @@ vi.mock("../../app/lib/pixel-events/hmac-validation", () => ({
     reason: "Missing HMAC signature",
     errorCode: "missing_signature",
     trustLevel: "untrusted",
-  }),
-}));
-
-vi.mock("../../app/utils/rate-limiter", () => ({
-  trackAnomaly: vi.fn().mockReturnValue({
-    shouldBlock: false,
-    reason: "ok",
   }),
 }));
 

@@ -175,39 +175,28 @@ export async function getOrCreateMonthlyUsage(
   yearMonth?: string
 ): Promise<MonthlyUsageRecord> {
   const ym = yearMonth || getCurrentYearMonth();
-  const existing = await prisma.monthlyUsage.findUnique({
+  const record = await prisma.monthlyUsage.upsert({
     where: {
       shopId_yearMonth: {
         shopId,
         yearMonth: ym,
       },
     },
-  });
-  if (existing) {
-    return {
-      id: existing.id,
-      shopId: existing.shopId,
-      yearMonth: existing.yearMonth,
-      sentCount: existing.sentCount,
-      createdAt: existing.createdAt,
-      updatedAt: existing.updatedAt,
-    };
-  }
-  const created = await prisma.monthlyUsage.create({
-    data: {
+    create: {
       id: randomUUID(),
       shopId,
       yearMonth: ym,
       sentCount: 0,
     },
+    update: {},
   });
   return {
-    id: created.id,
-    shopId: created.shopId,
-    yearMonth: created.yearMonth,
-    sentCount: created.sentCount,
-    createdAt: created.createdAt,
-    updatedAt: created.updatedAt,
+    id: record.id,
+    shopId: record.shopId,
+    yearMonth: record.yearMonth,
+    sentCount: record.sentCount,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
   };
 }
 
@@ -356,24 +345,37 @@ export async function decrementMonthlyUsage(
   yearMonth?: string
 ): Promise<number> {
   const ym = yearMonth || getCurrentYearMonth();
-  await prisma.monthlyUsage.upsert({
-    where: {
-      shopId_yearMonth: {
+  await prisma.$transaction(async (tx) => {
+    await tx.monthlyUsage.upsert({
+      where: {
+        shopId_yearMonth: {
+          shopId,
+          yearMonth: ym,
+        },
+      },
+      create: {
+        id: randomUUID(),
         shopId,
         yearMonth: ym,
+        sentCount: 0,
       },
-    },
-    create: {
-      id: randomUUID(),
-      shopId,
-      yearMonth: ym,
-      sentCount: 0,
-    },
-    update: {
-      sentCount: {
-        decrement: 1,
+      update: {},
+    });
+
+    await tx.monthlyUsage.updateMany({
+      where: {
+        shopId,
+        yearMonth: ym,
+        sentCount: {
+          gt: 0,
+        },
       },
-    },
+      data: {
+        sentCount: {
+          decrement: 1,
+        },
+      },
+    });
   });
   billingCache.delete(`billing:${shopId}`);
   return await getMonthlyUsageCount(shopId, yearMonth);

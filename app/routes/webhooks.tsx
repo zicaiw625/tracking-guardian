@@ -7,7 +7,8 @@ import { RATE_LIMIT_CONFIG } from "../utils/config.server";
 import { checkRateLimitAsync, ipKeyExtractor } from "../middleware/rate-limit.server";
 import { hashValueSync } from "../utils/crypto.server";
 import { dispatchWebhook, type WebhookContext, type ShopWithPixelConfigs } from "../webhooks";
-import { tryAcquireWebhookLock } from "../webhooks/middleware/idempotency";
+import { tryAcquireWebhookLock, updateWebhookStatus } from "../webhooks/middleware/idempotency";
+import { WebhookStatus } from "../types";
 
 function getWebhookId(authResult: Awaited<ReturnType<typeof authenticate.webhook>>, request: Request): string | null {
   if (authResult && typeof authResult === "object" && "webhookId" in authResult && typeof authResult.webhookId === "string") {
@@ -236,6 +237,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     logger.error(`[Webhook] Failed to fetch shop record for ${context.shop}:`, error);
   }
   if (shopLookupFailed) {
+    if (context.webhookId) {
+      try {
+        await updateWebhookStatus(context.shop, context.webhookId, context.topic, WebhookStatus.FAILED);
+      } catch (statusError) {
+        logger.error("[Webhook] Failed to mark webhook as failed after shop lookup error", {
+          topic: context.topic,
+          shop: context.shop,
+          webhookId: context.webhookId,
+          error: statusError instanceof Error ? statusError.message : String(statusError),
+        });
+      }
+    }
     return new Response("Temporary error", { status: 503 });
   }
   return dispatchWebhook(context, shopRecord, true);

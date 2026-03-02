@@ -131,6 +131,8 @@ services:
         sync: false
       - key: CRON_TASK
         value: all
+      - key: REPLAY_PROTECTION
+        value: "true"
 
 databases:
   # PostgreSQL 数据库

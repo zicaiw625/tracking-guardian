@@ -15,11 +15,17 @@ vi.mock("../../app/utils/responses", () => ({
   unauthorizedResponse: vi.fn((msg) => new Response(msg, { status: 401 })),
   serviceUnavailableResponse: vi.fn((msg) => new Response(msg, { status: 503 })),
 }));
-const redisSetNXMock = vi.fn();
+const { redisSetNXMock, readTextWithLimitMock } = vi.hoisted(() => ({
+  redisSetNXMock: vi.fn(),
+  readTextWithLimitMock: vi.fn(),
+}));
 vi.mock("../../app/utils/redis-client.server", () => ({
   getRedisClient: vi.fn(async () => ({
     setNX: redisSetNXMock,
   })),
+}));
+vi.mock("../../app/utils/body-reader", () => ({
+  readTextWithLimit: readTextWithLimitMock,
 }));
 
 import {
@@ -41,6 +47,7 @@ describe("Cron Authentication", () => {
     process.env.NODE_ENV = "production";
     process.env.CRON_STRICT_REPLAY = "true";
     redisSetNXMock.mockResolvedValue(true);
+    readTextWithLimitMock.mockResolvedValue("");
   });
   afterEach(() => {
     process.env = originalEnv;
@@ -103,11 +110,20 @@ describe("Cron Authentication", () => {
       expect(result).toBeInstanceOf(Response);
       expect(result?.status).toBe(401);
     });
-    it("should allow unauthenticated access in development when CRON_SECRET not set and LOCAL_DEV=true", () => {
+    it("should reject unauthenticated access in development when request is non-localhost", () => {
       process.env.CRON_SECRET = "";
       process.env.NODE_ENV = "development";
       process.env.LOCAL_DEV = "true";
       const request = createMockRequest("https://example.com/cron");
+      const result = validateCronAuth(request);
+      expect(result).toBeInstanceOf(Response);
+      expect(result?.status).toBe(503);
+    });
+    it("should allow unauthenticated localhost access in development when LOCAL_DEV=true", () => {
+      process.env.CRON_SECRET = "";
+      process.env.NODE_ENV = "development";
+      process.env.LOCAL_DEV = "true";
+      const request = createMockRequest("http://localhost:3000/cron");
       const result = validateCronAuth(request);
       expect(result).toBeNull();
       expect(logger.warn).toHaveBeenCalled();
@@ -209,6 +225,50 @@ describe("Cron Authentication", () => {
       const result = await verifyReplayProtection(request, cronSecret);
       expect(result.valid).toBe(false);
       expect(result.error).toContain("Invalid timestamp format");
+    });
+    it("should reject request with mixed timestamp characters", async () => {
+      const request = createMockRequest("https://example.com/cron", {
+        headers: {
+          "X-Cron-Timestamp": "1710000000abc",
+          "X-Cron-Signature": "00",
+          "X-Cron-Nonce": "nonce-0004a",
+        },
+      });
+      const result = await verifyReplayProtection(request, cronSecret);
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("Invalid timestamp format");
+    });
+    it("should reject request with invalid nonce characters", async () => {
+      const timestamp = String(Math.floor(Date.now() / 1000));
+      const request = createMockRequest("https://example.com/cron", {
+        headers: {
+          "X-Cron-Timestamp": timestamp,
+          "X-Cron-Signature": "00",
+          "X-Cron-Nonce": "nonce bad space",
+        },
+      });
+      const result = await verifyReplayProtection(request, cronSecret);
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("Invalid nonce format");
+    });
+    it("should reject request when body cannot be read for signature verification", async () => {
+      readTextWithLimitMock.mockRejectedValueOnce(new Error("body_too_large"));
+      const timestamp = String(Math.floor(Date.now() / 1000));
+      const nonce = "nonce-0010";
+      const url = "https://example.com/cron";
+      const method = "POST";
+      const signature = await createReplaySignature(cronSecret, method, url, timestamp, nonce);
+      const request = createMockRequest(url, {
+        method,
+        headers: {
+          "X-Cron-Timestamp": timestamp,
+          "X-Cron-Signature": signature,
+          "X-Cron-Nonce": nonce,
+        },
+      });
+      const result = await verifyReplayProtection(request, cronSecret);
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("Invalid request body");
     });
     it("should allow missing timestamp in development", async () => {
       process.env.NODE_ENV = "development";

@@ -5,6 +5,32 @@ import { getRedisClient } from "../utils/redis-client.server";
 
 const REPLAY_WINDOW_SECONDS = 300;
 const MIN_SECRET_LENGTH = 32;
+const LOCALHOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+
+function isLocalHostname(hostname: string): boolean {
+  return LOCALHOSTS.has(hostname.toLowerCase());
+}
+
+function parseHostLikeValue(value: string): string | null {
+  if (!value) return null;
+  try {
+    const parsed = value.includes("://") ? new URL(value) : new URL(`http://${value}`);
+    return parsed.hostname;
+  } catch {
+    return null;
+  }
+}
+
+function parseStrictUnixTimestamp(raw: string): number | null {
+  if (!/^\d{1,13}$/.test(raw)) {
+    return null;
+  }
+  const parsed = Number(raw);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    return null;
+  }
+  return parsed;
+}
 
 export function validateCronAuth(request: Request): Response | null {
   const cronSecret = process.env.CRON_SECRET;
@@ -12,18 +38,23 @@ export function validateCronAuth(request: Request): Response | null {
 
   if (!cronSecret) {
     const isDevelopment = process.env.NODE_ENV === "development";
-    const isLocalhost = (() => {
-      const host = process.env.HOST || process.env.APP_URL || "";
-      if (!host) return true;
+    const requestHostname = (() => {
       try {
-        const url = new URL(host);
-        return url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "::1";
+        return new URL(request.url).hostname;
       } catch {
-        return true;
+        return "";
       }
     })();
-    
-    if (isDevelopment && isLocalhost && process.env.LOCAL_DEV === "true") {
+    const configuredHost = process.env.HOST || process.env.APP_URL || "";
+    const configuredHostname = parseHostLikeValue(configuredHost);
+    const requestIsLocal = requestHostname ? isLocalHostname(requestHostname) : false;
+    const configuredIsLocal = configuredHostname ? isLocalHostname(configuredHostname) : false;
+    const allowLocalBypass = isDevelopment
+      && process.env.LOCAL_DEV === "true"
+      && requestIsLocal
+      && (!configuredHost || configuredIsLocal);
+
+    if (allowLocalBypass) {
       logger.warn("CRON_SECRET not configured (development + localhost + LOCAL_DEV=true) - allowing unauthenticated access");
       return null;
     }
@@ -112,9 +143,12 @@ export async function verifyReplayProtection(
   if (nonceHeader.length < 8 || nonceHeader.length > 128) {
     return { valid: false, error: "Invalid nonce format" };
   }
+  if (!/^[a-zA-Z0-9_-]+$/.test(nonceHeader)) {
+    return { valid: false, error: "Invalid nonce format" };
+  }
 
-  const timestamp = parseInt(timestampHeader, 10);
-  if (isNaN(timestamp)) {
+  const timestamp = parseStrictUnixTimestamp(timestampHeader);
+  if (timestamp === null) {
     return { valid: false, error: "Invalid timestamp format" };
   }
 
@@ -138,8 +172,13 @@ export async function verifyReplayProtection(
     if (bodyText) {
       bodyHash = createHash("sha256").update(bodyText).digest("hex");
     }
-  } catch {
-    bodyHash = "";
+  } catch (error) {
+    logger.warn("Cron replay protection failed to read request body", {
+      error: error instanceof Error ? error.message : String(error),
+      method,
+      pathname,
+    });
+    return { valid: false, error: "Invalid request body for signature verification" };
   }
 
   const signatureContent = `${method}:${pathname}:${timestampHeader}:${nonceHeader}:${bodyHash}`;

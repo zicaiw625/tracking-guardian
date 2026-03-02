@@ -80,7 +80,9 @@ export function ScanPage({
     const [latestShareUrl, setLatestShareUrl] = useState<string | null>(null);
     const [openShareAfterCreate, setOpenShareAfterCreate] = useState(false);
     const [pasteProcessed, setPasteProcessed] = useState(false);
-    const isScanning = navigation.state === "submitting";
+    const isScanning =
+        navigation.state === "submitting" &&
+        navigation.formData?.get("_action") === "scan";
     const isReloadingRef = useRef(false);
     const isMountedRef = useRef(true);
     const paywallViewTrackedRef = useRef(false);

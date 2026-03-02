@@ -1,29 +1,90 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-describe("Webhook Idempotency - Bug Fixes", () => {
+const { createMock, findUniqueMock, updateManyMock } = vi.hoisted(() => ({
+  createMock: vi.fn(),
+  findUniqueMock: vi.fn(),
+  updateManyMock: vi.fn(),
+}));
+
+vi.mock("../../app/db.server", () => ({
+  default: {
+    webhookLog: {
+      create: createMock,
+      findUnique: findUniqueMock,
+      updateMany: updateManyMock,
+    },
+  },
+}));
+
+vi.mock("../../app/utils/helpers", () => ({
+  generateSimpleId: vi.fn(() => "webhook_test"),
+}));
+
+import { tryAcquireWebhookLock } from "../../app/webhooks/middleware/idempotency";
+
+function prismaConflictError(): Error & { code: string } {
+  const err = new Error("Unique constraint failed") as Error & { code: string };
+  err.code = "P2002";
+  return err;
+}
+
+describe("Webhook idempotency middleware", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-  describe("Bug Fix: Duplicate variable declaration", () => {
-    it("should use different variable names for update time and verification time", () => {
-      const updateNow = new Date("2024-01-15T10:00:00Z");
-      const verifyNow = new Date("2024-01-15T10:00:02Z"); 
-      const toleranceMs = 2000;
-      const timeDiff = verifyNow.getTime() - updateNow.getTime();
-      expect(timeDiff).toBeGreaterThan(0);
-      expect(timeDiff).toBeLessThanOrEqual(toleranceMs);
-      expect(updateNow).not.toBe(verifyNow);
+
+  it("allows processing when lock insert succeeds", async () => {
+    createMock.mockResolvedValueOnce({});
+
+    const result = await tryAcquireWebhookLock(
+      "test-shop.myshopify.com",
+      "wh_1",
+      "orders/create"
+    );
+
+    expect(result).toEqual({ acquired: true });
+  });
+
+  it("re-acquires lock when previous status is FAILED", async () => {
+    createMock.mockRejectedValueOnce(prismaConflictError());
+    findUniqueMock.mockResolvedValueOnce({
+      status: "failed",
+      receivedAt: new Date(),
     });
-    it("should use verifyNow for time validation checks", () => {
-      const updateNow = new Date("2024-01-15T10:00:00Z");
-      const verifyNow = new Date("2024-01-15T10:00:01Z");
-      const fiveMinutesAgo = new Date("2024-01-15T09:55:00Z");
-      const receivedAt = updateNow;
-      const isValidTime = 
-        receivedAt >= fiveMinutesAgo &&
-        receivedAt <= verifyNow && 
-        (verifyNow.getTime() - receivedAt.getTime()) <= 2000;
-      expect(isValidTime).toBe(true);
+    updateManyMock.mockResolvedValueOnce({ count: 1 });
+
+    const result = await tryAcquireWebhookLock(
+      "test-shop.myshopify.com",
+      "wh_2",
+      "orders/create"
+    );
+
+    expect(result).toEqual({ acquired: true });
+    expect(updateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: "failed",
+        }),
+        data: expect.objectContaining({
+          status: "processing",
+        }),
+      })
+    );
+  });
+
+  it("returns duplicate when existing lock is still processing", async () => {
+    createMock.mockRejectedValueOnce(prismaConflictError());
+    findUniqueMock.mockResolvedValueOnce({
+      status: "processing",
+      receivedAt: new Date(),
     });
+
+    const result = await tryAcquireWebhookLock(
+      "test-shop.myshopify.com",
+      "wh_3",
+      "orders/create"
+    );
+
+    expect(result).toEqual({ acquired: false, existing: true });
   });
 });

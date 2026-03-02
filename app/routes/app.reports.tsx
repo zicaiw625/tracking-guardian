@@ -65,7 +65,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const shopDomain = session.shop;
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
-    select: { id: true },
+    select: { id: true, plan: true },
   });
   if (!shop) {
     return json({ success: false, error: "shop_not_found" }, { status: 404 });
@@ -80,6 +80,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   });
   if (!latestCompletedScan) {
     return json({ success: false, error: "scan_report_not_found" }, { status: 404 });
+  }
+  const planId = normalizePlanId(shop.plan || "free") as PlanId;
+  const gateResult = checkFeatureAccess(planId, "report_export");
+  if (!gateResult.allowed) {
+    return json({ success: false, error: "upgrade_required" }, { status: 403 });
   }
   const formData = await request.formData();
   const actionType = formData.get("_action");
@@ -125,6 +130,7 @@ export default function ReportsPage() {
     currentPlan
   } = useLoaderData<typeof loader>();
   const [latestScanShareUrl, setLatestScanShareUrl] = useState<string | null>(null);
+  const shareSubmitting = shareFetcher.state !== "idle";
 
   const handleExportVerificationCsv = () => {
     if (!latestRun || !canExportReports) return;
@@ -147,14 +153,14 @@ export default function ReportsPage() {
     document.body.removeChild(link);
   };
   const handleCreateScanShareLink = () => {
-    if (!latestCompletedScan) return;
+    if (!latestCompletedScan || shareSubmitting) return;
     shareFetcher.submit(
       { _action: "create_scan_share_link", expiresInDays: "7" },
       { method: "post" }
     );
   };
   const handleRevokeScanShareLink = () => {
-    if (!latestCompletedScan) return;
+    if (!latestCompletedScan || shareSubmitting) return;
     shareFetcher.submit({ _action: "revoke_scan_share_link" }, { method: "post" });
   };
   const handleCopyScanShareUrl = async () => {
@@ -244,16 +250,16 @@ export default function ReportsPage() {
                           </Button>
                         </InlineStack>
                         <InlineStack gap="200">
-                          <Button onClick={handleCreateScanShareLink}>
+                          <Button onClick={handleCreateScanShareLink} loading={shareSubmitting} disabled={shareSubmitting}>
                             {t("reports.scan.share.create")}
                           </Button>
-                          <Button onClick={handleCopyScanShareUrl} disabled={!latestScanShareUrl}>
+                          <Button onClick={handleCopyScanShareUrl} disabled={!latestScanShareUrl || shareSubmitting}>
                             {t("reports.scan.share.copy")}
                           </Button>
-                          <Button onClick={handleOpenScanSharePreview} disabled={!latestScanShareUrl}>
+                          <Button onClick={handleOpenScanSharePreview} disabled={!latestScanShareUrl || shareSubmitting}>
                             {t("reports.scan.share.preview")}
                           </Button>
-                          <Button tone="critical" onClick={handleRevokeScanShareLink} disabled={!scanShareMeta && !latestScanShareUrl}>
+                          <Button tone="critical" onClick={handleRevokeScanShareLink} loading={shareSubmitting} disabled={shareSubmitting || (!scanShareMeta && !latestScanShareUrl)}>
                             {t("reports.scan.share.revoke")}
                           </Button>
                         </InlineStack>

@@ -106,14 +106,13 @@ describe("Usage Tracking Service", () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue(null);
-      vi.mocked(prisma.monthlyUsage.create).mockResolvedValue(mockUsage as any);
+      vi.mocked(prisma.monthlyUsage.upsert).mockResolvedValue(mockUsage as any);
       const result = await getOrCreateMonthlyUsage("shop-123");
       expect(result.id).toBe("usage-1");
       expect(result.sentCount).toBe(0);
-      expect(prisma.monthlyUsage.create).toHaveBeenCalledWith(
+      expect(prisma.monthlyUsage.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({
+          create: expect.objectContaining({
             shopId: "shop-123",
             yearMonth: "2025-06",
             sentCount: 0,
@@ -130,18 +129,17 @@ describe("Usage Tracking Service", () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue(mockUsage as any);
+      vi.mocked(prisma.monthlyUsage.upsert).mockResolvedValue(mockUsage as any);
       const result = await getOrCreateMonthlyUsage("shop-123", "2025-05");
       expect(result.sentCount).toBe(150);
-      expect(prisma.monthlyUsage.create).not.toHaveBeenCalled();
+      expect(prisma.monthlyUsage.upsert).toHaveBeenCalled();
     });
     it("should use provided year-month", async () => {
-      vi.mocked(prisma.monthlyUsage.findUnique).mockResolvedValue(null);
-      vi.mocked(prisma.monthlyUsage.create).mockResolvedValue({ id: "1", shopId: "shop-123", yearMonth: "2025-03", sentCount: 0, createdAt: new Date(), updatedAt: new Date() } as any);
+      vi.mocked(prisma.monthlyUsage.upsert).mockResolvedValue({ id: "1", shopId: "shop-123", yearMonth: "2025-03", sentCount: 0, createdAt: new Date(), updatedAt: new Date() } as any);
       await getOrCreateMonthlyUsage("shop-123", "2025-03");
-      expect(prisma.monthlyUsage.create).toHaveBeenCalledWith(
+      expect(prisma.monthlyUsage.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({
+          create: expect.objectContaining({
             shopId: "shop-123",
             yearMonth: "2025-03",
           }),

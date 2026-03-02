@@ -43,6 +43,33 @@ export async function tryAcquireWebhookLock(
         },
         select: { status: true, receivedAt: true },
       });
+      if (existing?.status === WebhookStatus.FAILED) {
+        try {
+          const recovered = await prisma.webhookLog.updateMany({
+            where: {
+              shopDomain,
+              webhookId,
+              topic,
+              status: WebhookStatus.FAILED,
+            },
+            data: {
+              status: WebhookStatus.PROCESSING,
+              receivedAt: new Date(),
+              processedAt: null,
+            },
+          });
+          if (recovered.count > 0) {
+            logger.warn(
+              `[Webhook Idempotency] Reprocessing previously failed webhook: ${topic} for ${shopDomain}, webhookId=${webhookId}`
+            );
+            return { acquired: true };
+          }
+        } catch (retryError) {
+          logger.warn(
+            `[Webhook Idempotency] Failed to reacquire failed webhook lock for ${topic}/${webhookId}: ${retryError}`
+          );
+        }
+      }
       if (existing?.status === WebhookStatus.PROCESSING) {
         const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
         if (existing.receivedAt < fiveMinutesAgo) {

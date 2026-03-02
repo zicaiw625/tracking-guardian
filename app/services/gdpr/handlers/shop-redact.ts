@@ -15,7 +15,12 @@ export async function processShopRedact(
     });
     deletedCounts.webhookLogs = webhookLogResult.count;
     const gdprJobResult = await tx.gDPRJob.deleteMany({
-      where: { shopDomain },
+      where: {
+        shopDomain,
+        status: {
+          not: "processing",
+        },
+      },
     });
     deletedCounts.gdprJobs = gdprJobResult.count;
     const sessionResult = await tx.session.deleteMany({
@@ -48,10 +53,10 @@ export async function processShopRedact(
       });
       deletedCounts.pixelConfigs = pixelConfigResult;
     }
-    await tx.shop.deleteMany({
+    const shopDeleteResult = await tx.shop.deleteMany({
       where: { shopDomain },
     });
-    deletedCounts.shop = 1;
+    deletedCounts.shop = shopDeleteResult.count;
   });
   const result: ShopRedactResult = {
     shopDomain,

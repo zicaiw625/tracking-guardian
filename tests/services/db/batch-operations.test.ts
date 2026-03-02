@@ -122,7 +122,7 @@ describe("Batch Operations", () => {
         return callback(tx);
       });
       const result = await batchUpdateShops(updates);
-      expect(result.success).toBe(true); 
+      expect(result.success).toBe(false);
       expect(result.processed).toBe(0);
       expect(result.failed).toBe(1);
       expect(result.errors).toHaveLength(1);

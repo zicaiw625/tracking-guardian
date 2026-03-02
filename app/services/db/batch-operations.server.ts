@@ -276,7 +276,7 @@ export async function batchUpdateShops(
     };
   }
   return {
-    success: true,
+    success: errors.length === 0,
     processed,
     failed: errors.length,
     errors,

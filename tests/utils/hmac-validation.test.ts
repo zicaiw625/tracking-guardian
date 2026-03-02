@@ -180,6 +180,20 @@ describe("HMAC Validation", () => {
       const extracted = extractTimestampHeader(request);
       expect(extracted).toBeNull();
     });
+
+    it("should return null for mixed timestamp characters", () => {
+      const { bodyText } = makeBodyAndTimestamp();
+      const request = new Request("https://example.com/ingest", {
+        method: "POST",
+        headers: {
+          "X-Tracking-Guardian-Signature": "abc123",
+          "X-Tracking-Guardian-Timestamp": "1710000000abc",
+        },
+        body: bodyText,
+      });
+      const extracted = extractTimestampHeader(request);
+      expect(extracted).toBeNull();
+    });
   });
 
   describe("validatePixelEventHMAC", () => {

@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useFetcher, useNavigate, useSearchParams } from "@remix-run/react";
+import { useLoaderData, useFetcher, useNavigate, useRevalidator, useSearchParams } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -247,6 +247,7 @@ export default function VerificationPage() {
     }>;
   }>();
   const navigate = useNavigate();
+  const revalidator = useRevalidator();
   const [searchParams, setSearchParams] = useSearchParams();
   const { showSuccess, showError } = useToastContext();
   
@@ -268,9 +269,11 @@ export default function VerificationPage() {
   const tabParam = searchParams.get("tab");
   const selectedTab = tabParam ? Math.max(0, parseInt(tabParam, 10) || 0) : 0;
   const [showGuide, setShowGuide] = useState(false);
+  const [runStartedLocally, setRunStartedLocally] = useState(false);
 
   const isRunning = fetcher.state !== "idle" && fetcher.formMethod === "post";
   const runInProgress = latestRun?.status === "running";
+  const effectiveRunInProgress = runInProgress || runStartedLocally || isRunning;
   const recentReceipts = useMemo(
     () => recentReceiptsFetcher.data?.rows ?? [],
     [recentReceiptsFetcher.data]
@@ -289,6 +292,9 @@ export default function VerificationPage() {
   useEffect(() => {
     if (fetcher.data) {
       if (fetcher.data.success) {
+        if (fetcher.data.runId) {
+          setRunStartedLocally(true);
+        }
         showSuccess(t("verification.page.actions.runStarted") || "Verification started");
       } else if (fetcher.data.error) {
         showError(fetcher.data.error);
@@ -297,7 +303,25 @@ export default function VerificationPage() {
   }, [fetcher.data, showSuccess, showError, t]);
 
   useEffect(() => {
-    if ((!runInProgress && selectedTab !== 1) || !shop) {
+    if (latestRun && latestRun.status !== "running" && runStartedLocally) {
+      setRunStartedLocally(false);
+    }
+  }, [latestRun, runStartedLocally]);
+
+  useEffect(() => {
+    if (!effectiveRunInProgress || !shop) {
+      return;
+    }
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        revalidator.revalidate();
+      }
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [effectiveRunInProgress, revalidator, shop]);
+
+  useEffect(() => {
+    if (!effectiveRunInProgress || selectedTab !== 1 || !shop) {
       return;
     }
     const load = () => {
@@ -310,7 +334,7 @@ export default function VerificationPage() {
       }
     }, 5000);
     return () => clearInterval(timer);
-  }, [runInProgress, recentReceiptsFetcher, selectedTab, shop]);
+  }, [effectiveRunInProgress, recentReceiptsFetcher, selectedTab, shop]);
 
   const tabs = [
     { id: "overview", content: t("verification.page.tabs.overview") },
@@ -321,6 +345,9 @@ export default function VerificationPage() {
   ];
 
   const handleRunVerification = () => {
+    if (effectiveRunInProgress) {
+      return;
+    }
     fetcher.submit({ _action: "runVerification" }, { method: "post" });
   };
 
@@ -361,9 +388,12 @@ export default function VerificationPage() {
       title={t("verification.page.title")}
       subtitle={t("verification.page.subtitle")}
       primaryAction={{
-        content: isRunning ? t("verification.page.actions.running") : t("verification.page.actions.run"),
+        content: effectiveRunInProgress
+          ? t("verification.page.actions.running")
+          : t("verification.page.actions.run"),
         onAction: handleRunVerification,
         loading: isRunning,
+        disabled: effectiveRunInProgress,
       }}
       secondaryActions={[
         {

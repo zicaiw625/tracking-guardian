@@ -21,6 +21,17 @@ const HMAC_ALGORITHM = "sha256";
 const HMAC_HEADER = "X-Tracking-Guardian-Signature";
 const TIMESTAMP_HEADER = "X-Tracking-Guardian-Timestamp";
 
+function parseStrictTimestamp(raw: string): number | null {
+  if (!/^\d{1,13}$/.test(raw)) {
+    return null;
+  }
+  const parsed = Number(raw);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    return null;
+  }
+  return parsed;
+}
+
 export interface HMACValidationResult {
   valid: boolean;
   reason?: string;
@@ -125,11 +136,7 @@ export function extractTimestampHeader(request: Request): number | null {
   if (!timestampHeader) {
     return null;
   }
-  const timestamp = parseInt(timestampHeader, 10);
-  if (isNaN(timestamp)) {
-    return null;
-  }
-  return timestamp;
+  return parseStrictTimestamp(timestampHeader);
 }
 
 function extractTimestampFromBody(bodyData: unknown): number | null {
@@ -141,8 +148,7 @@ function extractTimestampFromBody(bodyData: unknown): number | null {
     return candidate;
   }
   if (typeof candidate === "string" && candidate.trim().length > 0) {
-    const parsed = parseInt(candidate, 10);
-    return Number.isNaN(parsed) ? null : parsed;
+    return parseStrictTimestamp(candidate.trim());
   }
   return null;
 }

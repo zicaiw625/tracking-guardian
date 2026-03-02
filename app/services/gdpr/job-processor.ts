@@ -115,7 +115,7 @@ export async function processGDPRJobs(): Promise<ProcessGDPRJobsResult> {
         throw new Error(`Unknown job type: ${jobType}`);
       }
 
-      await prisma.gDPRJob.update({
+      const markedCompleted = await prisma.gDPRJob.updateMany({
         where: { id },
         data: {
           status: GDPRJobStatus.COMPLETED,
@@ -123,18 +123,42 @@ export async function processGDPRJobs(): Promise<ProcessGDPRJobsResult> {
           result: summarizeGdprResult(jobType, result) as any,
         },
       });
+      if (markedCompleted.count === 0) {
+        logger.warn(`GDPR job ${id} completed work but record no longer exists; skipping terminal status update`);
+      }
       succeeded++;
     } catch (error) {
       failed++;
-      logger.error(`Failed to process GDPR job ${id}`, { error: String(error) });
-      await prisma.gDPRJob.update({
-        where: { id },
-        data: {
-          status: GDPRJobStatus.FAILED,
-          errorMessage: error instanceof Error ? error.message : String(error),
-          completedAt: new Date(),
-        },
-      });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Failed to process GDPR job ${id}`, { error: errorMessage });
+      try {
+        await prisma.gDPRJob.update({
+          where: { id },
+          data: {
+            status: GDPRJobStatus.FAILED,
+            errorMessage,
+            completedAt: new Date(),
+          },
+        });
+      } catch (statusError) {
+        logger.error(`Failed to mark GDPR job ${id} as failed`, {
+          error: statusError instanceof Error ? statusError.message : String(statusError),
+        });
+        try {
+          await prisma.gDPRJob.updateMany({
+            where: { id, status: GDPRJobStatus.PROCESSING },
+            data: {
+              status: GDPRJobStatus.QUEUED,
+              errorMessage: `retryable_status_update_failure: ${errorMessage}`,
+              processedAt: null,
+            },
+          });
+        } catch (rollbackError) {
+          logger.error(`Failed to requeue GDPR job ${id} after status update failure`, {
+            error: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+          });
+        }
+      }
     }
   }
 
