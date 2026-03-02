@@ -30,6 +30,7 @@ import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 import { ingestRequestTracker } from "~/lib/pixel-events/ingest-request-tracker.server";
 import { rejectionTracker } from "~/lib/pixel-events/rejection-tracker.server";
 import { getOrderDataAvailability } from "~/services/orders/order-data-mode.server";
+import { TrackingLimitationsCard } from "~/components/migration/TrackingLimitationsCard";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -202,6 +203,7 @@ export default function MonitoringPage() {
             url: "/app/settings",
           }}
         />
+        <TrackingLimitationsCard />
 
         <Layout>
           {!safeStats.orderData.enabled && (

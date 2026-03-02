@@ -154,9 +154,17 @@ export default function SettingsPage() {
               {t("settings.card.modules.description")}
             </Text>
             {shop?.domain && (
-              <Button url={getShopifyAdminUrl(shop.domain, "/settings/checkout")} external variant="primary">
-                {t("settings.card.modules.action.openSettings")}
-              </Button>
+              <InlineStack gap="200">
+                <Button url={getShopifyAdminUrl(shop.domain, "/settings/checkout")} external variant="primary">
+                  {t("settings.card.modules.action.openSettings")}
+                </Button>
+                <Button url={getShopifyAdminUrl(shop.domain, "/settings/customer_accounts")} external variant="secondary">
+                  {t("settings.card.modules.action.openAccounts")}
+                </Button>
+                <Button url="/app/verification/start" variant="secondary">
+                  {t("settings.card.modules.action.verifyNow")}
+                </Button>
+              </InlineStack>
             )}
             {typOspStatus?.status === "unknown" && typOspStatus.unknownReason && (
               <Text as="p" variant="bodySm" tone="subdued">

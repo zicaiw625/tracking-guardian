@@ -47,6 +47,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             shopDomain: true,
             shopTier: true,
             plan: true,
+            webPixelId: true,
             typOspPagesEnabled: true,
             typOspUpdatedAt: true,
             typOspLastCheckedAt: true,
@@ -77,6 +78,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             scannerMaxScriptTags: SCANNER_CONFIG.MAX_SCRIPT_TAGS,
             scannerMaxWebPixels: SCANNER_CONFIG.MAX_WEB_PIXELS,
             webPixelsCount: 0,
+            officialUpgradeChecklist: null,
         });
     }
     const latestScanRaw = await prisma.scanReport.findFirst({
@@ -213,6 +215,32 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         }
     }
     const latestScan = latestScanRaw;
+    const activePixelConfigCount = await prisma.pixelConfig.count({
+        where: {
+            shopId: shop.id,
+            isActive: true,
+        },
+    });
+    const latestVerificationRun = await prisma.verificationRun.findFirst({
+        where: { shopId: shop.id },
+        orderBy: { createdAt: "desc" },
+        select: { status: true, createdAt: true },
+    });
+    const shopSettingsRow = await prisma.shop.findUnique({
+        where: { id: shop.id },
+        select: { settings: true },
+    });
+    const shopSettings = (shopSettingsRow?.settings as Record<string, unknown>) || {};
+    const uiModulesSettings = (shopSettings.uiModules as Record<string, unknown>) || {};
+    const modulesCompleted =
+        (uiModulesSettings.done === true) ||
+        Object.values(uiModulesSettings).some(
+            (module: unknown) =>
+                typeof module === "object" &&
+                module !== null &&
+                "isEnabled" in (module as Record<string, unknown>) &&
+                Boolean((module as { isEnabled?: boolean }).isEnabled)
+        );
     const shareLinkMeta = latestCompletedScan
         ? await getLatestScanReportShareMeta(shop.id, latestCompletedScan.id)
         : null;
@@ -383,6 +411,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         scannerMaxScriptTags: SCANNER_CONFIG.MAX_SCRIPT_TAGS,
         scannerMaxWebPixels: SCANNER_CONFIG.MAX_WEB_PIXELS,
         webPixelsCount,
+        officialUpgradeChecklist: {
+            audit: {
+                completed: !!latestScan,
+                detail: latestScan?.completedAt || latestScan?.createdAt || null,
+            },
+            pixel: {
+                completed: Boolean(shop.webPixelId) || activePixelConfigCount > 0,
+                detail: activePixelConfigCount,
+            },
+            modules: {
+                completed: modulesCompleted,
+                detail: modulesCompleted ? "confirmed" : "pending",
+            },
+            verification: {
+                completed: latestVerificationRun?.status === "completed",
+                detail: latestVerificationRun?.createdAt || null,
+            },
+        },
         auditDeadlineSummary: {
             shopTier,
             plusScriptTagExecutionOff: getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact"),

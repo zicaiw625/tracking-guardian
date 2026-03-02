@@ -2134,6 +2134,19 @@
     },
     "loader": {
       "additionalScriptsNote": "Additional Scripts 需要通过手动粘贴识别，Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts 内容"
+    },
+    "officialChecklist": {
+      "title": "官方升级步骤对照",
+      "desc": "将当前店铺状态映射到 Shopify 升级关键步骤，便于交付与复核。",
+      "reports": "前往报告中心",
+      "done": "已完成",
+      "pending": "待完成",
+      "items": {
+        "audit": "完成审计扫描并产出风险报告",
+        "pixel": "完成像素安装与基础配置",
+        "modules": "完成 Thank you / Order status 区块配置",
+        "verification": "完成验收测试并生成报告"
+      }
     }
   },
   "verification": {
@@ -2220,6 +2233,28 @@
         "results": "详细结果",
         "guide": "测试指南",
         "history": "历史记录"
+      },
+      "pixelLayer": {
+        "title": "像素证据层",
+        "metrics": {
+          "completeness": "参数完整率",
+          "accuracy": "金额准确率",
+          "receipts": "最近回执数"
+        },
+        "health": {
+          "title": "证据健康摘要",
+          "receipts": "回执 {{count}} 条",
+          "hmac": "HMAC 匹配 {{count}} 条",
+          "currencyMissing": "缺币种 {{count}} 条",
+          "valueMissing": "缺金额 {{count}} 条"
+        },
+        "receipts": {
+          "title": "最近回执流",
+          "caption": "最多显示最近 12 条",
+          "empty": "暂无回执，请先运行验收或触发测试订单。",
+          "hmacMatched": "签名通过",
+          "hmacMismatched": "签名异常"
+        }
       },
       "score": {
         "passRate": "通过率",
@@ -2736,6 +2771,16 @@
     "startScan": "开始扫描",
     "emptyResultsDesc": "没有找到匹配的结果。"
   },
+  "trackingLimits": {
+    "title": "平台能力边界说明",
+    "desc": "为避免误判，以下限制属于 Shopify 平台行为，不是应用故障：",
+    "items": [
+      "Web Pixel 运行在 strict sandbox，无法访问 DOM、localStorage、第三方 cookie，部分字段可能为空。",
+      "checkout_completed 在 upsell/快速离开页面等场景下，可能触发位置变化或出现缺失。",
+      "refund/order_cancelled/order_edited 等事件需通过订单 webhooks 补齐，不在像素层直接提供。"
+    ],
+    "note": "建议结合验收报告与监控告警一起判断问题归因。"
+  },
   "settings": {
     "page": {
       "title": "设置"
@@ -2794,7 +2839,9 @@
         "title": "页面模块（Thank you / Order status）",
         "description": "本应用在 Thank you 页与 Order status 页提供 UI 扩展（发票、问卷、售后链接等）。请在 Shopify 的 Checkout and accounts 编辑器中添加并启用本应用的区块。",
         "action": {
-          "openSettings": "打开 Checkout 设置"
+          "openSettings": "打开 Checkout 设置",
+          "openAccounts": "打开客户账户编辑器",
+          "verifyNow": "立即验收"
         },
         "status": {
           "enabled": "已启用",
@@ -3317,7 +3364,24 @@
     "scan": {
       "title": "扫描报告",
       "desc": "在「Audit」页完成自动或手动扫描后，可在该页导出扫描报告（CSV）。导出需 Growth 及以上套餐。",
-      "action": "前往扫描页"
+      "action": "前往扫描页",
+      "empty": "前往扫描页并完成一次扫描",
+      "lastRun": "最近一次扫描：{{reportId}}，状态 {{status}}，风险分 {{score}}，时间 {{time}}",
+      "export": "导出扫描报告 CSV",
+      "share": {
+        "create": "生成分享链接",
+        "copy": "复制链接",
+        "preview": "打开预览",
+        "revoke": "撤销链接",
+        "createFirst": "请先生成分享链接",
+        "copyNotSupported": "当前浏览器不支持复制",
+        "copied": "分享链接已复制",
+        "created": "已生成新的分享链接",
+        "revoked": "已撤销分享链接",
+        "failed": "分享链接操作失败",
+        "activeMeta": "当前分享链接前缀 {{prefix}}，过期时间 {{expiresAt}}",
+        "newLink": "最新分享链接：{{url}}"
+      }
     },
     "verification": {
       "title": "验收报告",
@@ -3358,6 +3422,7 @@
         "warning": "Order status 区块依赖店铺启用 Customer Account",
         "warningDesc": "Order status 页区块需店铺已启用新版客户账户（Customer Account）或 Checkout API 支持，否则该区块可能不可见。请前往 Shopify 后台开启相关设置。",
         "openSettings": "打开结账设置",
+        "accountsEditor": "打开客户账户编辑器",
         "list": [
           "打开结账或客户账户编辑器",
           "在 Thank you 页添加本应用提供的区块",
@@ -3365,7 +3430,15 @@
           "保存并发布"
         ],
         "themeEditor": "主题编辑器",
-        "markedDone": "我已添加区块"
+        "markedDone": "我已完成区块配置",
+        "validate": "校验配置并进入验收",
+        "confirmedTitle": "区块配置已确认",
+        "confirmedDesc": "系统已记录 Thank you / Order status 区块配置，请立即运行验收测试。",
+        "validationPassed": "区块配置校验通过，可进入验收流程。",
+        "validationFailed": "未检测到完整区块配置，请先在 Shopify 编辑器完成配置后再校验。",
+        "startVerification": "开始验收",
+        "openVerification": "打开验收中心",
+        "openSettingsCenter": "打开设置中心"
       },
       "verification": {
         "title": "4. 验收与监控",

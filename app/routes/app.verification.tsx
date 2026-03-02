@@ -28,6 +28,7 @@ import {
   VerificationHistoryPanel,
 } from "~/components/verification/VerificationHistoryPanel";
 import { TestOrderGuide } from "~/components/verification/TestOrderGuide";
+import { VerificationPixelEvidencePanel } from "~/components/verification/VerificationPixelEvidencePanel";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { useTranslation } from "react-i18next";
 import type { VerificationHistoryRun } from "~/components/verification/VerificationHistoryPanel";
@@ -43,6 +44,7 @@ import { checkPlanGate } from "~/middleware/plan-gate";
 import { normalizePlanId, type PlanId } from "~/services/billing/plans";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 import { getOrderDataAvailability } from "~/services/orders/order-data-mode.server";
+import { TrackingLimitationsCard } from "~/components/migration/TrackingLimitationsCard";
 
 interface VerificationRunSummary {
   passedTests: number;
@@ -295,7 +297,7 @@ export default function VerificationPage() {
   }, [fetcher.data, showSuccess, showError, t]);
 
   useEffect(() => {
-    if (!runInProgress || !shop) {
+    if ((!runInProgress && selectedTab !== 1) || !shop) {
       return;
     }
     const load = () => {
@@ -308,7 +310,7 @@ export default function VerificationPage() {
       }
     }, 5000);
     return () => clearInterval(timer);
-  }, [runInProgress, recentReceiptsFetcher, shop]);
+  }, [runInProgress, recentReceiptsFetcher, selectedTab, shop]);
 
   const tabs = [
     { id: "overview", content: t("verification.page.tabs.overview") },
@@ -410,6 +412,7 @@ export default function VerificationPage() {
         <Banner tone="info">
           <p>{t("verification.page.consentHint")}</p>
         </Banner>
+        <TrackingLimitationsCard />
         <PageIntroCard
           title={t("verification.page.intro.title")}
           description={t("verification.page.intro.desc")}
@@ -491,10 +494,9 @@ export default function VerificationPage() {
                       {selectedTab === 1 && (
                         <BlockStack gap="400">
                           <Text as="h3" variant="headingSm">
-                            {t("verification.page.checklist.title")}
+                            {t("verification.page.pixelLayer.title")}
                           </Text>
-                          {/* Reuse existing component or render list */}
-                          <VerificationResultsTable latestRun={latestRun} pixelStrictOrigin={false} />
+                          <VerificationPixelEvidencePanel latestRun={latestRun} recentReceipts={recentReceipts} />
                         </BlockStack>
                       )}
                       {selectedTab === 2 && (

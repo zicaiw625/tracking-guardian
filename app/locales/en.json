@@ -2134,6 +2134,19 @@
     },
     "loader": {
       "additionalScriptsNote": "Additional Scripts need to be identified via manual paste. Shopify API cannot automatically read Additional Scripts content from checkout.liquid."
+    },
+    "officialChecklist": {
+      "title": "Official Upgrade Checklist Mapping",
+      "desc": "Map current shop state to Shopify upgrade milestones for delivery and review.",
+      "reports": "Go to Report Center",
+      "done": "Completed",
+      "pending": "Pending",
+      "items": {
+        "audit": "Complete audit scan and risk report",
+        "pixel": "Complete pixel install and base configuration",
+        "modules": "Complete Thank you / Order status block setup",
+        "verification": "Complete verification run and report"
+      }
     }
   },
   "verification": {
@@ -2220,6 +2233,28 @@
         "results": "Results",
         "guide": "Test Guide",
         "history": "History"
+      },
+      "pixelLayer": {
+        "title": "Pixel Evidence Layer",
+        "metrics": {
+          "completeness": "Parameter Completeness",
+          "accuracy": "Value Accuracy",
+          "receipts": "Recent Receipt Count"
+        },
+        "health": {
+          "title": "Evidence Health Summary",
+          "receipts": "Receipts {{count}}",
+          "hmac": "HMAC Matched {{count}}",
+          "currencyMissing": "Missing Currency {{count}}",
+          "valueMissing": "Missing Value {{count}}"
+        },
+        "receipts": {
+          "title": "Recent Receipt Stream",
+          "caption": "Showing latest 12 rows",
+          "empty": "No receipts yet. Run verification or trigger a test order first.",
+          "hmacMatched": "HMAC Matched",
+          "hmacMismatched": "HMAC Mismatch"
+        }
       },
       "score": {
         "passRate": "Pass Rate",
@@ -2736,6 +2771,16 @@
     "startScan": "Start Scan",
     "emptyResultsDesc": "No matching results found."
   },
+  "trackingLimits": {
+    "title": "Platform Limitations",
+    "desc": "To avoid false alarms, these are Shopify platform behaviors rather than app defects:",
+    "items": [
+      "Web Pixel runs in strict sandbox and cannot access DOM, localStorage, or third-party cookies; some fields may be empty.",
+      "checkout_completed may shift trigger timing/location or appear missing in upsell and quick-exit flows.",
+      "refund/order_cancelled/order_edited events should be completed via order webhooks, not pixel layer directly."
+    ],
+    "note": "Use verification reports and monitoring alerts together when diagnosing root causes."
+  },
   "settings": {
     "page": {
       "title": "Settings"
@@ -2794,7 +2839,9 @@
         "title": "Page Modules (Thank you / Order status)",
         "description": "This app provides UI extensions (invoices, surveys, post-purchase links, etc.) on Thank you & Order status pages. Please add and enable this app's blocks in Shopify's Checkout and accounts editor.",
         "action": {
-          "openSettings": "Open Checkout Settings"
+          "openSettings": "Open Checkout Settings",
+          "openAccounts": "Open Customer Accounts Editor",
+          "verifyNow": "Verify Now"
         },
         "status": {
           "enabled": "Enabled",
@@ -3317,7 +3364,24 @@
     "scan": {
       "title": "Scan Report",
       "desc": "Export scan report (CSV) after scanning in 'Audit' page. Requires Growth Plan.",
-      "action": "Go to Scan Page"
+      "action": "Go to Scan Page",
+      "empty": "Run a scan from Audit first",
+      "lastRun": "Latest scan: {{reportId}}, status {{status}}, risk {{score}}, at {{time}}",
+      "export": "Export Scan CSV",
+      "share": {
+        "create": "Create Share Link",
+        "copy": "Copy Link",
+        "preview": "Open Preview",
+        "revoke": "Revoke Link",
+        "createFirst": "Create a share link first",
+        "copyNotSupported": "Clipboard is not supported in this browser",
+        "copied": "Share link copied",
+        "created": "New share link created",
+        "revoked": "Share link revoked",
+        "failed": "Failed to update share link",
+        "activeMeta": "Active link prefix {{prefix}}, expires at {{expiresAt}}",
+        "newLink": "Latest share link: {{url}}"
+      }
     },
     "verification": {
       "title": "Verification Report",
@@ -3358,6 +3422,7 @@
         "warning": "Order status block depends on Customer Accounts",
         "warningDesc": "Order status block requires new Customer Accounts or Checkout API support. Enable in Shopify Admin settings.",
         "openSettings": "Open Checkout Settings",
+        "accountsEditor": "Open Customer Accounts Editor",
         "list": [
           "Open Checkout or Customer Accounts Editor",
           "Add app blocks to Thank you page",
@@ -3365,7 +3430,15 @@
           "Save and Publish"
         ],
         "themeEditor": "Theme Editor",
-        "markedDone": "I have added blocks"
+        "markedDone": "I have completed block setup",
+        "validate": "Validate Setup and Continue",
+        "confirmedTitle": "Block setup confirmed",
+        "confirmedDesc": "Thank you / Order status blocks are recorded. Continue to verification now.",
+        "validationPassed": "Block setup validation passed. Continue to verification.",
+        "validationFailed": "Incomplete block setup detected. Finish setup in Shopify editor and retry.",
+        "startVerification": "Start Verification",
+        "openVerification": "Open Verification",
+        "openSettingsCenter": "Open Settings Center"
       },
       "verification": {
         "title": "4. Verification & Monitoring",

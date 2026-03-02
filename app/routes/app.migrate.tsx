@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, Form } from "@remix-run/react";
+import { useActionData, useLoaderData, Form } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -32,6 +32,38 @@ interface StepStatus {
   completed: boolean;
   inProgress: boolean;
   canAccess: boolean;
+}
+
+type ModulesDoneActionData = {
+  success: true;
+  actionType: "markModulesStepDone";
+};
+
+type ModulesValidateActionData = {
+  success: true;
+  actionType: "validateModulesStep";
+  valid: boolean;
+  message: string;
+};
+
+function isModulesDoneActionData(data: unknown): data is ModulesDoneActionData {
+  return !!data &&
+    typeof data === "object" &&
+    "success" in data &&
+    (data as { success?: unknown }).success === true &&
+    "actionType" in data &&
+    (data as { actionType?: unknown }).actionType === "markModulesStepDone";
+}
+
+function isModulesValidateActionData(data: unknown): data is ModulesValidateActionData {
+  return !!data &&
+    typeof data === "object" &&
+    "success" in data &&
+    (data as { success?: unknown }).success === true &&
+    "actionType" in data &&
+    (data as { actionType?: unknown }).actionType === "validateModulesStep" &&
+    "valid" in data &&
+    "message" in data;
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -196,13 +228,48 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const settings = (shopRow?.settings as Record<string, unknown>) || {};
     const updated = {
       ...settings,
-      uiModules: { thankYou: { isEnabled: true }, orderStatus: { isEnabled: true } },
+      uiModules: {
+        ...(settings.uiModules as Record<string, unknown> | undefined),
+        thankYou: { isEnabled: true },
+        orderStatus: { isEnabled: true },
+        done: true,
+        confirmedAt: new Date().toISOString(),
+      },
     };
     await prisma.shop.update({
       where: { id: shop.id },
       data: { settings: updated as object },
     });
-    return json({ success: true });
+    return json({
+      success: true,
+      actionType: "markModulesStepDone",
+      message: "migrate.steps.modules.confirmedDesc",
+    });
+  }
+  if (actionType === "validateModulesStep") {
+    const shopRow = await prisma.shop.findUnique({
+      where: { id: shop.id },
+      select: { settings: true },
+    });
+    const settings = (shopRow?.settings as Record<string, unknown>) || {};
+    const uiModules = (settings.uiModules as Record<string, unknown>) || {};
+    const thankYouEnabled =
+      typeof uiModules.thankYou === "object" &&
+      uiModules.thankYou !== null &&
+      "isEnabled" in (uiModules.thankYou as Record<string, unknown>) &&
+      Boolean((uiModules.thankYou as { isEnabled?: boolean }).isEnabled);
+    const orderStatusEnabled =
+      typeof uiModules.orderStatus === "object" &&
+      uiModules.orderStatus !== null &&
+      "isEnabled" in (uiModules.orderStatus as Record<string, unknown>) &&
+      Boolean((uiModules.orderStatus as { isEnabled?: boolean }).isEnabled);
+    const valid = thankYouEnabled && orderStatusEnabled;
+    return json({
+      success: true,
+      actionType: "validateModulesStep",
+      valid,
+      message: valid ? "migrate.steps.modules.validationPassed" : "migrate.steps.modules.validationFailed",
+    });
   }
   return json({ success: false, error: "migrate.errors.unknownAction" }, { status: 400 });
 };
@@ -210,6 +277,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export default function MigratePage() {
   const { t } = useTranslation();
   const { shop, planId, steps, customerAccountsStatus } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
 
   const getStepProgress = () => {
     const completedCount = Object.values(steps).filter((s) => s.completed).length;
@@ -277,6 +345,30 @@ export default function MigratePage() {
           ]}
           primaryAction={{ content: t("migrate.intro.action"), url: "/app/scan" }}
         />
+        {isModulesDoneActionData(actionData) && (
+          <Banner tone="success" title={t("migrate.steps.modules.confirmedTitle")}>
+            <InlineStack gap="200">
+              <Button url="/app/verification/start" variant="primary">
+                {t("migrate.steps.modules.startVerification")}
+              </Button>
+              <Button url="/app/verification" variant="secondary">
+                {t("migrate.steps.modules.openVerification")}
+              </Button>
+            </InlineStack>
+          </Banner>
+        )}
+        {isModulesValidateActionData(actionData) && (
+          <Banner tone={actionData.valid ? "success" : "warning"} title={t(actionData.message)}>
+            <InlineStack gap="200">
+              <Button url="/app/verification/start" variant="primary">
+                {t("migrate.steps.modules.startVerification")}
+              </Button>
+              <Button url="/app/settings" variant="secondary">
+                {t("migrate.steps.modules.openSettingsCenter")}
+              </Button>
+            </InlineStack>
+          </Banner>
+        )}
         <Banner tone="critical">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -428,10 +520,10 @@ export default function MigratePage() {
                             {t("migrate.steps.modules.openSettings")}
                           </Button>
                           <Button
-                            url={shop ? getShopifyAdminUrl(shop.domain, "/themes/current/editor") : "#"}
+                            url={shop ? getShopifyAdminUrl(shop.domain, "/settings/customer_accounts") : "#"}
                             external
                           >
-                            {t("migrate.steps.modules.themeEditor")}
+                            {t("migrate.steps.modules.accountsEditor")}
                           </Button>
                         </InlineStack>
                         <img
@@ -443,6 +535,12 @@ export default function MigratePage() {
                           <input type="hidden" name="_action" value="markModulesStepDone" />
                           <Button submit variant="primary">
                             {t("migrate.steps.modules.markedDone")}
+                          </Button>
+                        </Form>
+                        <Form method="post">
+                          <input type="hidden" name="_action" value="validateModulesStep" />
+                          <Button submit variant="secondary">
+                            {t("migrate.steps.modules.validate")}
                           </Button>
                         </Form>
                       </>

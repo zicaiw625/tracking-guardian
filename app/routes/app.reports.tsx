@@ -1,6 +1,6 @@
-import type { LoaderFunctionArgs } from "@remix-run/node";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { useFetcher, useLoaderData } from "@remix-run/react";
 import { Page, BlockStack, Card, Text, InlineStack, Button, Banner } from "@shopify/polaris";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "../shopify.server";
@@ -10,6 +10,10 @@ import { checkFeatureAccess } from "../services/billing/feature-gates.server";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 import { useTranslation } from "react-i18next";
+import { useEffect, useState } from "react";
+import { createScanReportShareLink, getLatestScanReportShareMeta, revokeScanReportShareLinks } from "~/services/report-share.server";
+import { getPublicAppDomain } from "~/utils/config.server";
+import { useToastContext } from "~/components/ui";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -23,6 +27,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       shop: null,
       canExportReports: false,
       latestRun: null,
+      latestCompletedScan: null,
+      scanShareMeta: null,
       gateResult: null,
       currentPlan: "free" as PlanId,
     });
@@ -32,18 +38,93 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const canExportReports = gateResult.allowed;
   const history = await getVerificationHistory(shop.id, 1);
   const latestRun = history?.[0] ?? null;
+  const latestCompletedScan = await prisma.scanReport.findFirst({
+    where: {
+      shopId: shop.id,
+      completedAt: { not: null },
+    },
+    orderBy: [{ completedAt: "desc" }, { createdAt: "desc" }],
+    select: { id: true, completedAt: true, createdAt: true, status: true, riskScore: true },
+  });
+  const scanShareMeta = latestCompletedScan
+    ? await getLatestScanReportShareMeta(shop.id, latestCompletedScan.id)
+    : null;
   return json({
     shop: { id: shop.id, domain: shopDomain },
     canExportReports,
     latestRun,
+    latestCompletedScan,
+    scanShareMeta,
     gateResult: gateResult.allowed ? null : gateResult,
     currentPlan: planId,
   });
 };
 
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  const shopDomain = session.shop;
+  const shop = await prisma.shop.findUnique({
+    where: { shopDomain },
+    select: { id: true },
+  });
+  if (!shop) {
+    return json({ success: false, error: "shop_not_found" }, { status: 404 });
+  }
+  const latestCompletedScan = await prisma.scanReport.findFirst({
+    where: {
+      shopId: shop.id,
+      completedAt: { not: null },
+    },
+    orderBy: [{ completedAt: "desc" }, { createdAt: "desc" }],
+    select: { id: true },
+  });
+  if (!latestCompletedScan) {
+    return json({ success: false, error: "scan_report_not_found" }, { status: 404 });
+  }
+  const formData = await request.formData();
+  const actionType = formData.get("_action");
+  if (actionType === "create_scan_share_link") {
+    const expiresInDaysRaw = Number(formData.get("expiresInDays") || 7);
+    const created = await createScanReportShareLink({
+      shopId: shop.id,
+      reportId: latestCompletedScan.id,
+      createdBy: session.id,
+      expiresInDays: Number.isFinite(expiresInDaysRaw) ? expiresInDaysRaw : 7,
+    });
+    const baseUrl = getPublicAppDomain().replace(/\/+$/, "");
+    const shareUrl = `${baseUrl}/s/${created.token}`;
+    return json({
+      success: true,
+      action: "create_scan_share_link",
+      shareUrl,
+      expiresAt: created.expiresAt.toISOString(),
+    });
+  }
+  if (actionType === "revoke_scan_share_link") {
+    const revokedCount = await revokeScanReportShareLinks(shop.id, latestCompletedScan.id);
+    return json({
+      success: true,
+      action: "revoke_scan_share_link",
+      revokedCount,
+    });
+  }
+  return json({ success: false, error: "unknown_action" }, { status: 400 });
+};
+
 export default function ReportsPage() {
   const { t } = useTranslation();
-  const { shop, canExportReports, latestRun, gateResult, currentPlan } = useLoaderData<typeof loader>();
+  const { showError, showSuccess } = useToastContext();
+  const shareFetcher = useFetcher<{ success: boolean; action?: string; error?: string; shareUrl?: string }>();
+  const {
+    shop,
+    canExportReports,
+    latestRun,
+    latestCompletedScan,
+    scanShareMeta,
+    gateResult,
+    currentPlan
+  } = useLoaderData<typeof loader>();
+  const [latestScanShareUrl, setLatestScanShareUrl] = useState<string | null>(null);
 
   const handleExportVerificationCsv = () => {
     if (!latestRun || !canExportReports) return;
@@ -55,6 +136,63 @@ export default function ReportsPage() {
     link.click();
     document.body.removeChild(link);
   };
+  const handleExportScanCsv = () => {
+    if (!latestCompletedScan || !canExportReports) return;
+    const url = `/api/reports?type=scan&reportId=${latestCompletedScan.id}&format=csv`;
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `scan-${latestCompletedScan.id}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  const handleCreateScanShareLink = () => {
+    if (!latestCompletedScan) return;
+    shareFetcher.submit(
+      { _action: "create_scan_share_link", expiresInDays: "7" },
+      { method: "post" }
+    );
+  };
+  const handleRevokeScanShareLink = () => {
+    if (!latestCompletedScan) return;
+    shareFetcher.submit({ _action: "revoke_scan_share_link" }, { method: "post" });
+  };
+  const handleCopyScanShareUrl = async () => {
+    if (!latestScanShareUrl) {
+      showError(t("reports.scan.share.createFirst"));
+      return;
+    }
+    if (!navigator.clipboard?.writeText) {
+      showError(t("reports.scan.share.copyNotSupported"));
+      return;
+    }
+    await navigator.clipboard.writeText(latestScanShareUrl);
+    showSuccess(t("reports.scan.share.copied"));
+  };
+  const handleOpenScanSharePreview = () => {
+    if (!latestScanShareUrl) {
+      showError(t("reports.scan.share.createFirst"));
+      return;
+    }
+    window.open(latestScanShareUrl, "_blank", "noopener,noreferrer");
+  };
+
+  useEffect(() => {
+    const result = shareFetcher.data;
+    if (!result) return;
+    if (!result.success) {
+      showError(t("reports.scan.share.failed"));
+      return;
+    }
+    if (result.action === "create_scan_share_link" && result.shareUrl) {
+      setLatestScanShareUrl(result.shareUrl);
+      showSuccess(t("reports.scan.share.created"));
+    }
+    if (result.action === "revoke_scan_share_link") {
+      setLatestScanShareUrl(null);
+      showSuccess(t("reports.scan.share.revoked"));
+    }
+  }, [shareFetcher.data, showError, showSuccess, t]);
 
   return (
     <Page
@@ -83,11 +221,71 @@ export default function ReportsPage() {
                 <Text as="p" variant="bodySm" tone="subdued">
                   {t("reports.scan.desc")}
                 </Text>
-                <InlineStack gap="200">
-                  <Button url="/app/scan" variant="primary">
-                    {t("reports.scan.action")}
-                  </Button>
-                </InlineStack>
+                {latestCompletedScan ? (
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm">
+                      {t("reports.scan.lastRun", {
+                        reportId: latestCompletedScan.id,
+                        status: latestCompletedScan.status,
+                        score: latestCompletedScan.riskScore,
+                        time: latestCompletedScan.completedAt
+                          ? new Date(latestCompletedScan.completedAt).toLocaleString()
+                          : new Date(latestCompletedScan.createdAt).toLocaleString(),
+                      })}
+                    </Text>
+                    {canExportReports ? (
+                      <>
+                        <InlineStack gap="200">
+                          <Button onClick={handleExportScanCsv} variant="primary">
+                            {t("reports.scan.export")}
+                          </Button>
+                          <Button url="/app/scan" variant="secondary">
+                            {t("reports.scan.action")}
+                          </Button>
+                        </InlineStack>
+                        <InlineStack gap="200">
+                          <Button onClick={handleCreateScanShareLink}>
+                            {t("reports.scan.share.create")}
+                          </Button>
+                          <Button onClick={handleCopyScanShareUrl} disabled={!latestScanShareUrl}>
+                            {t("reports.scan.share.copy")}
+                          </Button>
+                          <Button onClick={handleOpenScanSharePreview} disabled={!latestScanShareUrl}>
+                            {t("reports.scan.share.preview")}
+                          </Button>
+                          <Button tone="critical" onClick={handleRevokeScanShareLink} disabled={!scanShareMeta && !latestScanShareUrl}>
+                            {t("reports.scan.share.revoke")}
+                          </Button>
+                        </InlineStack>
+                        {scanShareMeta && (
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            {t("reports.scan.share.activeMeta", {
+                              prefix: scanShareMeta.tokenPrefix,
+                              expiresAt: new Date(scanShareMeta.expiresAt).toLocaleString(),
+                            })}
+                          </Text>
+                        )}
+                        {latestScanShareUrl && (
+                          <Text as="p" variant="bodySm" tone="success">
+                            {t("reports.scan.share.newLink", { url: latestScanShareUrl })}
+                          </Text>
+                        )}
+                      </>
+                    ) : (
+                      <UpgradePrompt
+                        feature="report_export"
+                        currentPlan={currentPlan}
+                        gateResult={gateResult ?? undefined}
+                      />
+                    )}
+                  </BlockStack>
+                ) : (
+                  <InlineStack gap="200">
+                    <Button url="/app/scan" variant="primary">
+                      {t("reports.scan.empty")}
+                    </Button>
+                  </InlineStack>
+                )}
               </BlockStack>
             </Card>
             <Card>

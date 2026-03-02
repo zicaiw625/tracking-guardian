@@ -12,6 +12,7 @@ import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { AuditPaywallCard } from "~/components/paywall/AuditPaywallCard";
 import { ScanPageBanners } from "./app.scan/_components/ScanPageBanners";
 import { ScanPageModals } from "./app.scan/_components/ScanPageModals";
+import { TrackingLimitationsCard } from "~/components/migration/TrackingLimitationsCard";
 
 const ScriptCodeEditor = lazy(() => import("~/components/scan/ScriptCodeEditor").then(module => ({ default: module.ScriptCodeEditor })));
 const MigrationChecklistTab = lazy(() => import("./app.scan/_components/MigrationChecklistTab").then(m => ({ default: m.MigrationChecklistTab })));
@@ -53,7 +54,7 @@ export function ScanPage({
     const tabParam = searchParams.get("tab");
     const tabFromUrl = tabParam === "1" ? 1 : tabParam === "2" ? 2 : 0;
     const effectiveInitialTab = tabParam !== null && tabParam !== "" ? tabFromUrl : initialTab;
-    const { shop, latestScan, latestCompletedScan, canCreateShareLink, shareLinkMeta, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist, scriptAnalysisMaxContentLength, scriptAnalysisChunkSize, scannerMaxScriptTags, scannerMaxWebPixels, webPixelsCount } = useLoaderData<typeof loader>();
+    const { shop, latestScan, latestCompletedScan, canCreateShareLink, shareLinkMeta, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist, scriptAnalysisMaxContentLength, scriptAnalysisChunkSize, scannerMaxScriptTags, scannerMaxWebPixels, webPixelsCount, officialUpgradeChecklist } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
@@ -724,6 +725,7 @@ export function ScanPage({
         primaryAction={introConfig.primaryAction}
         secondaryAction={introConfig.secondaryAction}
       />
+      <TrackingLimitationsCard tone="warning" />
         <Tabs tabs={visibleTabs} selected={selectedTab} onSelect={setSelectedTab}>
           {}
           {shouldShowMigrationButtons && (
@@ -820,6 +822,7 @@ export function ScanPage({
                 latestScan={latestScan}
                 migrationChecklist={migrationChecklist}
                 dependencyGraph={dependencyGraph}
+                officialUpgradeChecklist={officialUpgradeChecklist}
                 handleScan={handleScan}
                 submit={submit}
                 onNavigate={navigate}
