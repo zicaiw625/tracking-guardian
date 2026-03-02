@@ -10,6 +10,7 @@ import { calculateMigrationProgress } from "../utils/migration-progress.server";
 import { getTierDisplayInfo } from "./shop-tier.server";
 import { isValidShopTier } from "../domain/shop/shop.entity";
 import { rejectionTracker } from "../lib/pixel-events/rejection-tracker.server";
+import { DEPRECATION_DATES } from "../utils/deprecation-dates";
 
 export type {
   DashboardData,
@@ -340,7 +341,9 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   } else if (shop.typOspPagesEnabled) {
     urgency = "resolved";
   }
-  const autoUpgradeStartDate = shopTier === "plus" ? "2026-01" : undefined;
+  const autoUpgradeStartDate = shopTier === "plus"
+    ? DEPRECATION_DATES.plusAutoUpgradeStart.toISOString().slice(0, 7)
+    : undefined;
   const upgradeStatus: UpgradeStatus = {
     isUpgraded: shop.typOspPagesEnabled ?? false,
     shopTier,

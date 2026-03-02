@@ -1,6 +1,10 @@
 import prisma from "../../db.server";
 import { extractPlatformFromPayload } from "../../utils/common";
 import { extractEventData } from "../../utils/receipt-parser";
+import {
+  assertOrderDataAvailability,
+  getOrderDataAvailability,
+} from "../orders/order-data-mode.server";
 
 export interface ChannelReconciliationDetail {
   platform: string;
@@ -56,6 +60,8 @@ export async function performEnhancedChannelReconciliation(
   hours: number = 24,
   targetPlatforms?: string[]
 ): Promise<MultiPlatformReconciliationResult> {
+  const availability = await getOrderDataAvailability(shopId, 7);
+  assertOrderDataAvailability(availability);
   const since = new Date();
   since.setUTCHours(since.getUTCHours() - hours);
   const now = new Date();
@@ -406,6 +412,8 @@ export async function getOrderCrossPlatformComparison(
     message: string;
   }>;
 }> {
+  const availability = await getOrderDataAvailability(shopId, 7);
+  assertOrderDataAvailability(availability);
   // 1. Fetch Order (Source of Truth) AND Receipts
   const [order, receipts] = await Promise.all([
     prisma.orderSummary.findFirst({

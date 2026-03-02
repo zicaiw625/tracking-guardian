@@ -611,6 +611,12 @@ export default function PrivacyPage() {
                   >
                     {t("PrivacyPage.ExportDelete.Export.Events")}
                   </Button>
+                  <Button
+                    url="/api/exports?type=receipts&include=evidence&format=json"
+                    external
+                  >
+                    {t("PrivacyPage.ExportDelete.Export.Evidence")}
+                  </Button>
                 </InlineStack>
                 <Text variant="bodySm" as="p" tone="subdued">
                   {t("PrivacyPage.ExportDelete.Export.Note")}

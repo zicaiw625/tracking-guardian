@@ -29,6 +29,7 @@ import { normalizePlanId, type PlanId } from "~/services/billing/plans";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 import { ingestRequestTracker } from "~/lib/pixel-events/ingest-request-tracker.server";
 import { rejectionTracker } from "~/lib/pixel-events/rejection-tracker.server";
+import { getOrderDataAvailability } from "~/services/orders/order-data-mode.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -58,23 +59,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const last24HoursStart = new Date(now);
   last24HoursStart.setHours(now.getHours() - 24);
 
-  const [metrics7Days, metrics24Hours, currencyRecord] = await Promise.all([
+  const [metrics7Days, metrics24Hours, currencyRecord, orderDataAvailability] = await Promise.all([
     getAggregatedMetrics(shop.id, last7DaysStart, now),
     getAggregatedMetrics(shop.id, last24HoursStart, now),
     prisma.orderSummary.findFirst({
         where: { shopId: shop.id },
         select: { currency: true },
         orderBy: { createdAt: "desc" }
-    })
+    }),
+    getOrderDataAvailability(shop.id, 7),
   ]);
 
   const currency = currencyRecord?.currency || "USD";
 
-  const shopifyOrders = metrics24Hours.shopifyOrderCount || 0;
+  const shopifyOrders = metrics24Hours.shopifyOrderCount;
   const pixelOrders = metrics24Hours.totalOrders || 0;
-  const lossRateVal = shopifyOrders > 0 
-    ? Math.max(0, (shopifyOrders - pixelOrders) / shopifyOrders) 
-    : 0;
+  const lossRateVal = typeof shopifyOrders === "number" && shopifyOrders > 0
+    ? Math.max(0, (shopifyOrders - pixelOrders) / shopifyOrders)
+    : null;
   const ingestStats = ingestRequestTracker.getStats(shopDomain, 24);
   const rejectionStats = rejectionTracker.getRejectionStats(shopDomain, 24);
   const totalRejected = rejectionStats.reduce((sum, item) => sum + item.count, 0);
@@ -91,7 +93,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       totalEvents: metrics24Hours.totalEventVolume,
       successRate: (metrics24Hours.successRate * 100).toFixed(1),
       failureRate: ((1 - metrics24Hours.successRate) * 100).toFixed(1),
-      lossRate: (lossRateVal * 100).toFixed(1),
+      lossRate: lossRateVal === null ? null : (lossRateVal * 100).toFixed(1),
       received: metrics24Hours.totalEventVolume,
     },
     ingest: ingestStats,
@@ -101,6 +103,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       sentButRejected: totalRejected,
       rejectionTopReasons: rejectionStats.slice(0, 5),
     },
+    orderData: orderDataAvailability,
   };
 
   return json({ shop, stats, gate: null, currentPlan: shop.plan || "free" });
@@ -142,9 +145,10 @@ export default function MonitoringPage() {
 
   const safeStats = stats || {
     last7Days: { orders: 0, value: "0", currency: "", successRate: 0, totalEvents: 0 },
-    last24Hours: { totalEvents: 0, successRate: 0, failureRate: 0, lossRate: "0.0", received: 0 },
+    last24Hours: { totalEvents: 0, successRate: 0, failureRate: 0, lossRate: null as string | null, received: 0 },
     ingest: { totalRequests: 0, optionsRequests: 0, postRequests: 0, optionsRatio: 0, error4xx: 0, error5xx: 0, avgLatencyMs: 0 },
     diagnostics: { pixelNotLoadedLikely: 0, loadedButNotSentLikely: 0, sentButRejected: 0, rejectionTopReasons: [] as Array<{ reason: string; count: number; percentage: number }> },
+    orderData: { mode: "none", summaryCountLastNDays: 0, enabled: false },
   };
 
   const rowMarkup = alerts.map(
@@ -200,6 +204,22 @@ export default function MonitoringPage() {
         />
 
         <Layout>
+          {!safeStats.orderData.enabled && (
+            <Layout.Section>
+              <Banner
+                tone="warning"
+                title={t("monitoring.orderDataUnavailable.title")}
+                action={{ content: t("monitoring.orderDataUnavailable.action"), url: "/app/orders/import" }}
+              >
+                <p>
+                  {t("monitoring.orderDataUnavailable.desc", {
+                    mode: safeStats.orderData.mode,
+                    count: safeStats.orderData.summaryCountLastNDays,
+                  })}
+                </p>
+              </Banner>
+            </Layout.Section>
+          )}
           <Layout.Section>
             <Card>
               <BlockStack gap="400">
@@ -268,8 +288,12 @@ export default function MonitoringPage() {
                   />
                   <StatItem
                     label={t("monitoring.loss.rate")}
-                    value={`${safeStats.last24Hours.lossRate}%`}
-                    tone={Number(safeStats.last24Hours.lossRate) < 1 ? "success" : undefined}
+                    value={safeStats.last24Hours.lossRate === null ? t("monitoring.orderDataUnavailable.short") : `${safeStats.last24Hours.lossRate}%`}
+                    tone={
+                      safeStats.last24Hours.lossRate !== null && Number(safeStats.last24Hours.lossRate) < 1
+                        ? "success"
+                        : undefined
+                    }
                   />
                 </InlineStack>
               </BlockStack>
@@ -312,6 +336,9 @@ export default function MonitoringPage() {
                 <Text as="h2" variant="headingMd">
                   {t("monitoring.diagnostics.title")}
                 </Text>
+                <Banner tone="info">
+                  <p>{t("monitoring.diagnostics.consentHint")}</p>
+                </Banner>
                 <InlineStack gap="400" align="space-between">
                   <StatItem
                     label={t("monitoring.diagnostics.notLoaded")}

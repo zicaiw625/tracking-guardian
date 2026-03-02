@@ -16,11 +16,11 @@ import {
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { performPixelVsOrderReconciliation } from "../services/verification/order-reconciliation.server";
-import { PCD_CONFIG } from "../utils/config.server";
 import { checkPlanGate } from "~/middleware/plan-gate";
 import { normalizePlanId, type PlanId } from "~/services/billing/plans";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 import { useTranslation } from "react-i18next";
+import { isOrderDataUnavailableError } from "~/services/orders/order-data-mode.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -34,7 +34,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       shop: null,
       reconciliation: null,
       hours: 24,
-      pcdDisabled: false,
+      orderDataUnavailable: null as { code: string; message: string } | null,
       gate: null,
       currentPlan: "free" as PlanId,
     });
@@ -47,7 +47,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       shop: { id: shop.id, domain: shopDomain },
       reconciliation: null,
       hours: 24,
-      pcdDisabled: false,
+      orderDataUnavailable: null as { code: string; message: string } | null,
       gate,
       currentPlan,
     });
@@ -61,13 +61,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       hoursParam ? parseInt(hoursParam, 10) || 24 : 24
     )
   );
-  const pcdDisabled = !PCD_CONFIG.APPROVED;
-  const reconciliation = pcdDisabled ? null : await performPixelVsOrderReconciliation(shop.id, hours);
+  let reconciliation = null;
+  let orderDataUnavailable: { code: string; message: string } | null = null;
+  try {
+    reconciliation = await performPixelVsOrderReconciliation(shop.id, hours);
+  } catch (error) {
+    if (isOrderDataUnavailableError(error)) {
+      orderDataUnavailable = { code: error.code, message: error.message };
+    } else {
+      throw error;
+    }
+  }
   return json({
     shop: { id: shop.id, domain: shopDomain },
     reconciliation,
     hours,
-    pcdDisabled,
+    orderDataUnavailable,
     gate: null,
     currentPlan,
   });
@@ -75,7 +84,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function VerificationOrdersPage() {
   const { t } = useTranslation();
-  const { shop, reconciliation, hours, pcdDisabled, gate, currentPlan } = useLoaderData<typeof loader>();
+  const { shop, reconciliation, hours, orderDataUnavailable, gate, currentPlan } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const HOUR_OPTIONS = [
@@ -111,22 +120,25 @@ export default function VerificationOrdersPage() {
     );
   }
 
-  if (pcdDisabled) {
+  if (orderDataUnavailable) {
     return (
       <Page title={t("verification.orders.title")} backAction={{ content: t("verification.orders.backAction"), url: "/app/verification" }}>
         <BlockStack gap="400">
           <Banner tone="warning">
             <BlockStack gap="200">
               <Text as="p" variant="bodySm" fontWeight="semibold">
-                {t("verification.orders.pcdDisabled.title")}
+                {t("verification.orders.orderDataUnavailable.title")}
               </Text>
               <Text as="p" variant="bodySm">
-                {t("verification.orders.pcdDisabled.desc")}
+                {t("verification.orders.orderDataUnavailable.desc")}
+              </Text>
+              <Text as="p" variant="bodySm" tone="subdued">
+                {orderDataUnavailable.code}
               </Text>
             </BlockStack>
           </Banner>
-          <Button url="/app/verification" variant="primary">
-            {t("verification.orders.returnToVerification")}
+          <Button url="/app/orders/import" variant="primary">
+            {t("verification.orders.orderDataUnavailable.action")}
           </Button>
         </BlockStack>
       </Page>

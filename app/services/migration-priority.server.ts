@@ -102,7 +102,7 @@ export function calculatePriority(factors: PriorityFactors): PriorityResult {
     }
   } else if (factors.shopTier === "non_plus") {
     const now = new Date();
-    const nonPlusDeadline = DEPRECATION_DATES.scriptTagBlocked;
+    const nonPlusDeadline = DEPRECATION_DATES.nonPlusScriptTagExecutionOff;
     const daysUntilDeadline = Math.ceil(
       (nonPlusDeadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
     );

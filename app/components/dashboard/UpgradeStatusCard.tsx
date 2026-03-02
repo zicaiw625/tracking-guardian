@@ -43,7 +43,10 @@ export function UpgradeStatusCard({
     );
   }
   const isUpgraded = status.isUpgraded;
-  const deadlineDate = DEPRECATION_DATES.plusAdditionalScriptsReadOnly;
+  const isPlusTier = status.shopTier === "plus";
+  const deadlineDate = isPlusTier
+    ? DEPRECATION_DATES.plusScriptTagExecutionOff
+    : DEPRECATION_DATES.nonPlusScriptTagExecutionOff;
   const deadlineDateLabel = getDateDisplayLabel(deadlineDate, "exact");
   const autoUpgradeStartLabel = getDateDisplayLabel(DEPRECATION_DATES.plusAutoUpgradeStart, "month");
   const today = new Date();
@@ -126,16 +129,18 @@ export function UpgradeStatusCard({
                 </Text>
               </BlockStack>
             </Box>
-            <Box background="bg-surface-secondary" padding="300" borderRadius="200">
-              <BlockStack gap="200">
-                <Text as="h3" variant="headingSm" fontWeight="semibold">
-                  {t("dashboard.upgradeStatus.autoUpgradeStart")}: {autoUpgradeStartLabel}
-                </Text>
-                <Text as="p" variant="bodySm">
-                  {t("dashboard.upgradeStatus.autoUpgradeDesc", { date: autoUpgradeStartLabel })}
-                </Text>
-              </BlockStack>
-            </Box>
+            {isPlusTier && (
+              <Box background="bg-surface-secondary" padding="300" borderRadius="200">
+                <BlockStack gap="200">
+                  <Text as="h3" variant="headingSm" fontWeight="semibold">
+                    {t("dashboard.upgradeStatus.autoUpgradeStart")}: {autoUpgradeStartLabel}
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    {t("dashboard.upgradeStatus.autoUpgradeDesc", { date: autoUpgradeStartLabel })}
+                  </Text>
+                </BlockStack>
+              </Box>
+            )}
             <Button
               variant="primary"
               url="https://help.shopify.com/en/manual/checkout-settings/checkout-extensibility/checkout-upgrade"

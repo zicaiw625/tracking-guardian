@@ -17,6 +17,8 @@ import {
     getMigrationUrgencyStatus,
     getUpgradeStatusMessage,
     formatDeadlineForUI,
+    DEPRECATION_DATES,
+    getDateDisplayLabel,
     type ShopTier,
     type ShopUpgradeStatus,
 } from "../../utils/deprecation-dates";
@@ -360,5 +362,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         scannerMaxScriptTags: SCANNER_CONFIG.MAX_SCRIPT_TAGS,
         scannerMaxWebPixels: SCANNER_CONFIG.MAX_WEB_PIXELS,
         webPixelsCount,
+        auditDeadlineSummary: {
+            shopTier,
+            plusScriptTagExecutionOff: getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact"),
+            nonPlusScriptTagExecutionOff: getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact"),
+            plusAutoUpgradeStart: getDateDisplayLabel(DEPRECATION_DATES.plusAutoUpgradeStart, "month"),
+            topRiskAsset: auditAssets.length > 0 ? auditAssets[0] : null,
+        },
     });
 };

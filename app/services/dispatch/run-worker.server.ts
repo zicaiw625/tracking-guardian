@@ -9,6 +9,7 @@ import type { InternalEventPayload } from "~/services/destinations/types";
 import type { GoogleCredentials, MetaCredentials, TikTokCredentials } from "~/types";
 import { getRedisClient } from "~/utils/redis-client.server";
 import { getBoolEnv } from "~/utils/config.server";
+import { recordDispatchAudit } from "./audit.server";
 
 const DEFAULT_MAX_JOBS = 100;
 const RATE_LIMIT_WINDOW_SECONDS = 10;
@@ -200,6 +201,13 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
         }
       }
       await markFailed(job.id, `Unknown destination: ${job.destination}`, null, job.attempts + 1);
+      await recordDispatchAudit({
+        shopId: job.InternalEvent.shopId,
+        destination: job.destination as "GA4" | "META" | "TIKTOK",
+        action: "dispatch_failed",
+        eventId: job.InternalEvent.event_id,
+        error: `Unknown destination: ${job.destination}`,
+      });
       failed++;
       continue;
     }
@@ -214,6 +222,13 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
         }
       }
       await markFailed(job.id, "No S2S credentials for destination", null, job.attempts + 1);
+      await recordDispatchAudit({
+        shopId: job.InternalEvent.shopId,
+        destination: job.destination as "GA4" | "META" | "TIKTOK",
+        action: "dispatch_failed",
+        eventId: job.InternalEvent.event_id,
+        error: "No S2S credentials for destination",
+      });
       failed++;
       continue;
     }
@@ -230,6 +245,13 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
         }
       }
       await markFailed(job.id, credResult.error.message, null, job.attempts + 1);
+      await recordDispatchAudit({
+        shopId: job.InternalEvent.shopId,
+        destination: job.destination as "GA4" | "META" | "TIKTOK",
+        action: "dispatch_failed",
+        eventId: job.InternalEvent.event_id,
+        error: credResult.error.message,
+      });
       failed++;
       continue;
     }
@@ -251,6 +273,13 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
           }
         }
         await markFailed(job.id, `Unsupported destination: ${job.destination}`, null, job.attempts + 1);
+        await recordDispatchAudit({
+          shopId: job.InternalEvent.shopId,
+          destination: job.destination as "GA4" | "META" | "TIKTOK",
+          action: "dispatch_failed",
+          eventId: job.InternalEvent.event_id,
+          error: `Unsupported destination: ${job.destination}`,
+        });
         failed++;
         continue;
       }
@@ -265,12 +294,26 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
         }
       }
       await markFailed(job.id, message, null, job.attempts + 1);
+      await recordDispatchAudit({
+        shopId: job.InternalEvent.shopId,
+        destination: job.destination as "GA4" | "META" | "TIKTOK",
+        action: "dispatch_failed",
+        eventId: job.InternalEvent.event_id,
+        error: message,
+      });
       failed++;
       continue;
     }
     if (result.ok) {
       try {
         await markSent(job.id);
+        await recordDispatchAudit({
+          shopId: job.InternalEvent.shopId,
+          destination: job.destination as "GA4" | "META" | "TIKTOK",
+          action: "dispatch_sent",
+          eventId: job.InternalEvent.event_id,
+          statusCode: result.statusCode ?? null,
+        });
       } catch (e) {
         logger.error("Dispatch send succeeded but markSent failed", {
           jobId: job.id,
@@ -293,6 +336,13 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
             last_error: "markSent failed after successful delivery",
             updatedAt: new Date(),
           },
+        });
+        await recordDispatchAudit({
+          shopId: job.InternalEvent.shopId,
+          destination: job.destination as "GA4" | "META" | "TIKTOK",
+          action: "dispatch_failed",
+          eventId: job.InternalEvent.event_id,
+          error: "markSent failed after successful delivery",
         });
         failed++;
         continue;
@@ -319,6 +369,14 @@ export async function runDispatchWorker(options?: { maxJobs?: number }): Promise
         result.statusCode ?? null,
         job.attempts + 1
       );
+      await recordDispatchAudit({
+        shopId: job.InternalEvent.shopId,
+        destination: job.destination as "GA4" | "META" | "TIKTOK",
+        action: "dispatch_failed",
+        eventId: job.InternalEvent.event_id,
+        statusCode: result.statusCode ?? null,
+        error: result.error ?? "Unknown error",
+      });
       failed++;
     }
   }

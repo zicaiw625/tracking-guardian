@@ -6,13 +6,10 @@ import { performPixelVsOrderReconciliation } from "../../services/verification/o
 import { escapeCSV } from "../../utils/csv.server";
 import { sanitizeFilename } from "../../utils/responses";
 import { withSecurityHeaders } from "../../utils/security-headers";
-import { PCD_CONFIG } from "../../utils/config.server";
+import { isOrderDataUnavailableError } from "../../services/orders/order-data-mode.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
-    if (!PCD_CONFIG.APPROVED) {
-      return new Response("Order reconciliation is not enabled; PCD approval required.", { status: 403 });
-    }
     const url = new URL(request.url);
     const hoursParam = url.searchParams.get("hours");
     const hours = Math.min(
@@ -31,10 +28,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       return new Response("Shop not found", { status: 404 });
     }
 
-    const reconciliation = await performPixelVsOrderReconciliation(
-      shop.id,
-      hours
-    );
+    let reconciliation;
+    try {
+      reconciliation = await performPixelVsOrderReconciliation(shop.id, hours);
+    } catch (error) {
+      if (isOrderDataUnavailableError(error)) {
+        return new Response(error.message, { status: 409 });
+      }
+      throw error;
+    }
 
     const csvLines: string[] = [];
     csvLines.push("Order-level Verification Reconciliation Report");

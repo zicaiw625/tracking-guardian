@@ -4,12 +4,13 @@ import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import { sanitizeFilename } from "../../utils/responses";
 import { jsonApi, withSecurityHeaders } from "../../utils/security-headers";
+import { buildEvidenceRow } from "../../services/exports/receipt-redaction.server";
 
-type ExportType = "conversions" | "events";
+type ExportType = "conversions" | "events" | "receipts";
 type ExportFormat = "json" | "csv";
 
 function isExportType(value: string | null): value is ExportType {
-  return value === "conversions" || value === "events";
+  return value === "conversions" || value === "events" || value === "receipts";
 }
 
 function isExportFormat(value: string | null): value is ExportFormat {
@@ -33,6 +34,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const url = new URL(request.url);
     const typeParam = url.searchParams.get("type");
     const formatParam = url.searchParams.get("format");
+    const includeParam = url.searchParams.get("include");
 
     if (!isExportType(typeParam)) {
       return jsonApi({ error: "Invalid type" }, { status: 400 });
@@ -110,6 +112,86 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
       const csv = [header.join(","), ...csvRows].join("\n");
       const filename = `conversions_export_${new Date().toISOString().slice(0, 10)}.csv`;
+      return new Response("\uFEFF" + csv, {
+        status: 200,
+        headers: withSecurityHeaders({
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="${sanitizeFilename(filename)}"`,
+        }),
+      });
+    }
+
+    if (typeParam === "receipts") {
+      const includeEvidence = includeParam === "evidence";
+      const rows = await prisma.pixelEventReceipt.findMany({
+        where: {
+          shopId: shop.id,
+          eventType: { in: ["purchase", "checkout_completed"] },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 50000,
+        select: {
+          eventType: true,
+          platform: true,
+          pixelTimestamp: true,
+          orderKey: true,
+          totalValue: true,
+          currency: true,
+          hmacMatched: true,
+          trustLevel: true,
+          payloadJson: includeEvidence,
+        },
+      });
+      const evidenceRows = rows.map((row) =>
+        buildEvidenceRow({
+          eventType: row.eventType,
+          platform: row.platform,
+          pixelTimestamp: row.pixelTimestamp,
+          orderKey: row.orderKey,
+          totalValue: row.totalValue,
+          currency: row.currency,
+          hmacMatched: row.hmacMatched,
+          trustLevel: row.trustLevel,
+          payloadJson: row.payloadJson,
+        })
+      );
+
+      if (formatParam === "json") {
+        return jsonApi({ type: typeParam, include: includeParam, count: evidenceRows.length, rows: evidenceRows });
+      }
+
+      const header = [
+        "eventType",
+        "platform",
+        "pixelTimestamp",
+        "orderKeyHash",
+        "value",
+        "currency",
+        "itemsCount",
+        "hmacMatched",
+        "trustLevel",
+        "payloadJson",
+      ] as const;
+
+      const csvRows = evidenceRows.map((row) =>
+        [
+          row.eventType,
+          row.platform,
+          row.pixelTimestamp,
+          row.orderKeyHash,
+          row.value ?? "",
+          row.currency ?? "",
+          row.itemsCount,
+          row.hmacMatched,
+          row.trustLevel,
+          includeEvidence ? JSON.stringify(row.payloadJson) : "",
+        ]
+          .map((v) => toCsvCell(v))
+          .join(",")
+      );
+
+      const csv = [header.join(","), ...csvRows].join("\n");
+      const filename = `receipts_evidence_export_${new Date().toISOString().slice(0, 10)}.csv`;
       return new Response("\uFEFF" + csv, {
         status: 200,
         headers: withSecurityHeaders({

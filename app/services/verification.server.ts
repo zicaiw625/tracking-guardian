@@ -10,6 +10,7 @@ import { randomUUID } from "crypto";
 import { extractEventData } from "../utils/receipt-parser";
 import { performEnhancedChannelReconciliation } from "./verification/channel-reconciliation.server";
 import { z } from "zod";
+import { getOrderDataAvailability } from "./orders/order-data-mode.server";
 
 export interface VerificationTestItem {
   id: string;
@@ -346,15 +347,20 @@ export async function analyzeRecentEvents(
     const { orderId } = extractEventData(r.payloadJson);
     return orderId;
   }).filter(Boolean) as string[])];
-  const orderSummaries = orderKeysFromReceipts.length > 0
-    ? await prisma.orderSummary.findMany({
-        where: { shopId, orderId: { in: orderKeysFromReceipts } },
-        select: { orderId: true, totalPrice: true, currency: true },
-      })
-    : [];
+  const orderDataAvailability = await getOrderDataAvailability(shopId, 7);
+  const orderSummaries =
+    orderDataAvailability.enabled && orderKeysFromReceipts.length > 0
+      ? await prisma.orderSummary.findMany({
+          where: { shopId, orderId: { in: orderKeysFromReceipts } },
+          select: { orderId: true, totalPrice: true, currency: true },
+        })
+      : [];
   const orderSummaryMap = new Map(
     orderSummaries.map((o) => [o.orderId, { totalPrice: Number(o.totalPrice), currency: o.currency }])
   );
+  const orderDataSourceUnavailableMessage = orderDataAvailability.enabled
+    ? undefined
+    : "Order reconciliation unavailable: enable manual import or PCD webhook order data source.";
 
   // Pre-fetch potential duplicates for purchase events (Fix N+1)
   const purchaseOrderKeys = receipts
@@ -592,9 +598,9 @@ export async function analyzeRecentEvents(
             }
           }
         } else {
-          // Fix P1-5: Do not default to 100% accuracy if order summary is missing.
-          // We simply skip the value check and mark as "not verified" for value.
-          discrepancyNote = "Order details not yet synced (please wait 1-2 minutes and retry), skipping value reconciliation";
+          discrepancyNote =
+            orderDataSourceUnavailableMessage ||
+            "Order details not yet synced (please wait 1-2 minutes and retry), skipping value reconciliation";
         }
 
         if (isFailed) {

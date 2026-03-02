@@ -1,5 +1,9 @@
 import prisma from "../../db.server";
 import { extractEventData } from "../../utils/receipt-parser";
+import {
+  assertOrderDataAvailability,
+  getOrderDataAvailability,
+} from "../orders/order-data-mode.server";
 
 export interface PixelVsOrderReconciliationResult {
   totalOrders: number;
@@ -22,6 +26,8 @@ export async function performPixelVsOrderReconciliation(
   shopId: string,
   hours: number = 24
 ): Promise<PixelVsOrderReconciliationResult> {
+  const availability = await getOrderDataAvailability(shopId, 7);
+  assertOrderDataAvailability(availability);
   const periodEnd = new Date();
   const periodStart = new Date(periodEnd.getTime() - hours * 60 * 60 * 1000);
 

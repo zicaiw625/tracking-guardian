@@ -16,7 +16,7 @@ import {
   EmptyState,
   Modal,
 } from "@shopify/polaris";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { RefreshIcon, ExportIcon } from "~/components/icons";
@@ -42,6 +42,7 @@ import { i18nServer } from "~/i18n.server";
 import { checkPlanGate } from "~/middleware/plan-gate";
 import { normalizePlanId, type PlanId } from "~/services/billing/plans";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
+import { getOrderDataAvailability } from "~/services/orders/order-data-mode.server";
 
 interface VerificationRunSummary {
   passedTests: number;
@@ -76,6 +77,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       history: [],
       gate: null,
       currentPlan: "free" as PlanId,
+      orderDataAvailability: { mode: "none", summaryCountLastNDays: 0, enabled: false },
     });
   }
 
@@ -88,6 +90,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       history: [],
       gate,
       currentPlan,
+      orderDataAvailability: { mode: "none", summaryCountLastNDays: 0, enabled: false },
     });
   }
 
@@ -140,7 +143,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     };
   });
 
-  return json({ shop, latestRun, history, gate: null, currentPlan });
+  const orderDataAvailability = await getOrderDataAvailability(shop.id, 7);
+  return json({ shop, latestRun, history, gate: null, currentPlan, orderDataAvailability });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -225,8 +229,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function VerificationPage() {
   const { t } = useTranslation();
-  const { shop, latestRun, history, gate, currentPlan } = useLoaderData<typeof loader>();
+  const { shop, latestRun, history, gate, currentPlan, orderDataAvailability } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<any>();
+  const recentReceiptsFetcher = useFetcher<{
+    count: number;
+    rows: Array<{
+      id: string;
+      platform: string;
+      eventType: string;
+      pixelTimestamp: string;
+      totalValue: number | null;
+      currency: string | null;
+      hmacMatched: boolean;
+      trustLevel: string;
+    }>;
+  }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { showSuccess, showError } = useToastContext();
@@ -251,6 +268,11 @@ export default function VerificationPage() {
   const [showGuide, setShowGuide] = useState(false);
 
   const isRunning = fetcher.state !== "idle" && fetcher.formMethod === "post";
+  const runInProgress = latestRun?.status === "running";
+  const recentReceipts = useMemo(
+    () => recentReceiptsFetcher.data?.rows ?? [],
+    [recentReceiptsFetcher.data]
+  );
 
   const handleTabChange = useCallback(
     (selectedTabIndex: number) => {
@@ -271,6 +293,22 @@ export default function VerificationPage() {
       }
     }
   }, [fetcher.data, showSuccess, showError, t]);
+
+  useEffect(() => {
+    if (!runInProgress || !shop) {
+      return;
+    }
+    const load = () => {
+      recentReceiptsFetcher.load("/api/recent-receipts?limit=50");
+    };
+    load();
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        load();
+      }
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [runInProgress, recentReceiptsFetcher, shop]);
 
   const tabs = [
     { id: "overview", content: t("verification.page.tabs.overview") },
@@ -345,9 +383,33 @@ export default function VerificationPage() {
             document.body.removeChild(link);
           },
         },
+        {
+          content: t("verification.page.actions.exportEvidence"),
+          icon: ExportIcon,
+          onAction: () => {
+            const link = document.createElement("a");
+            link.href = "/api/exports?type=receipts&include=evidence&format=json";
+            link.download = "";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          },
+        },
       ]}
     >
       <BlockStack gap="500">
+        {!orderDataAvailability.enabled && (
+          <Banner
+            tone="warning"
+            title={t("verification.page.orderDataUnavailable.title")}
+            action={{ content: t("verification.page.orderDataUnavailable.action"), url: "/app/orders/import" }}
+          >
+            <p>{t("verification.page.orderDataUnavailable.desc")}</p>
+          </Banner>
+        )}
+        <Banner tone="info">
+          <p>{t("verification.page.consentHint")}</p>
+        </Banner>
         <PageIntroCard
           title={t("verification.page.intro.title")}
           description={t("verification.page.intro.desc")}
@@ -471,6 +533,31 @@ export default function VerificationPage() {
                       </InlineStack>
                     </BlockStack>
                   </Card>
+                  {runInProgress && (
+                    <Card>
+                      <BlockStack gap="200">
+                        <Text as="h2" variant="headingSm">
+                          {t("verification.page.recentReceipts.title")}
+                        </Text>
+                        {recentReceipts.length === 0 ? (
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            {t("verification.page.recentReceipts.empty")}
+                          </Text>
+                        ) : (
+                          recentReceipts.slice(0, 5).map((item) => (
+                            <InlineStack key={item.id} align="space-between">
+                              <Text as="span" variant="bodySm">
+                                {item.platform} / {item.eventType}
+                              </Text>
+                              <Text as="span" variant="bodySm" tone="subdued">
+                                {new Date(item.pixelTimestamp).toLocaleTimeString()}
+                              </Text>
+                            </InlineStack>
+                          ))
+                        )}
+                      </BlockStack>
+                    </Card>
+                  )}
                   <Card>
                     <BlockStack gap="200">
                       <Text as="h2" variant="headingSm">

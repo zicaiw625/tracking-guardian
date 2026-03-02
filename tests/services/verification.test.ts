@@ -30,6 +30,7 @@ vi.mock("../../app/db.server", () => ({
     },
     orderSummary: {
       findMany: vi.fn(),
+      count: vi.fn(),
     },
   },
 }));
@@ -58,6 +59,8 @@ import {
 describe("Verification Service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(prisma.orderSummary.count).mockResolvedValue(0 as any);
+    vi.mocked(prisma.shop.findUnique).mockResolvedValue({ settings: { orderDataMode: "none" } } as any);
   });
   describe("VERIFICATION_TEST_ITEMS", () => {
     it("should have test items defined", () => {

@@ -2152,7 +2152,18 @@
         "running": "Running...",
         "runStarted": "Verification started",
         "refresh": "Refresh",
-        "export": "Export Report"
+        "export": "Export Report",
+        "exportEvidence": "Export Evidence"
+      },
+      "orderDataUnavailable": {
+        "title": "Order data source not enabled",
+        "desc": "Order reconciliation metrics stay hidden until order summary data is available.",
+        "action": "Import Orders"
+      },
+      "consentHint": "Consent can legitimately cause missing events. Validate test orders in both consented and non-consented paths.",
+      "recentReceipts": {
+        "title": "Recent Receipts (Live)",
+        "empty": "No recent receipts yet."
       },
       "intro": {
         "title": "Verification Overview",
@@ -2458,9 +2469,10 @@
       "export": "Export CSV",
       "shopNotFound": "Shop information not found, please reinstall the app.",
       "returnToVerification": "Return to Verification",
-      "pcdDisabled": {
-        "title": "Order Reconciliation Not Enabled",
-        "desc": "Order verification depends on Shopify order data and requires PCD (Protected Customer Data) approval. Current version only provides Pixel Receipt verification. Please use Pixel verification and report export on the 'Verification' page."
+      "orderDataUnavailable": {
+        "title": "Order reconciliation not available",
+        "desc": "Order data source is not ready. Import order summary data first, then retry reconciliation.",
+        "action": "Import Orders"
       },
       "overview": {
         "title": "Reconciliation Overview",
@@ -2875,8 +2887,15 @@
       "notLoaded": "Pixel Not Loaded (Likely)",
       "loadedNotSent": "Loaded But Not Sent (Likely)",
       "sentRejected": "Sent But Rejected",
+      "consentHint": "If your storefront uses a consent banner, events may not fire before consent. Test both consented and non-consented checkout flows.",
       "rejectionTopTitle": "Top Rejection Reasons (24h)",
       "rejectionTopEmpty": "No rejected requests in the last 24 hours."
+    },
+    "orderDataUnavailable": {
+      "title": "Order reconciliation is not enabled",
+      "desc": "Order data source is not ready (mode: {{mode}}, 7d records: {{count}}). Import order summary CSV or enable PCD webhook mode before reviewing loss rate.",
+      "short": "Not enabled",
+      "action": "Import Orders"
     },
     "alerts": {
       "title": "Alert List",
@@ -3904,6 +3923,7 @@
         "JSON": "Export Conversions (JSON)",
         "CSV": "Export Conversions (CSV)",
         "Events": "Export Event Logs (JSON)",
+        "Evidence": "Export Receipts Evidence (JSON)",
         "Note": "Large datasets may take time."
       },
       "Delete": {

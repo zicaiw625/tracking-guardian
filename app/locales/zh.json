@@ -2152,7 +2152,18 @@
         "running": "运行中...",
         "runStarted": "验收已开始",
         "refresh": "刷新",
-        "export": "导出报告"
+        "export": "导出报告",
+        "exportEvidence": "导出证据包"
+      },
+      "orderDataUnavailable": {
+        "title": "订单数据源未启用",
+        "desc": "在订单摘要数据可用前，订单对账指标会保持隐藏。",
+        "action": "导入订单"
+      },
+      "consentHint": "同意机制会导致合理缺失。请在“已同意/未同意”两种路径下分别验证测试订单。",
+      "recentReceipts": {
+        "title": "最近回执（实时）",
+        "empty": "暂无最新回执。"
       },
       "intro": {
         "title": "验收概览",
@@ -2458,9 +2469,10 @@
       "export": "导出 CSV",
       "shopNotFound": "店铺信息未找到，请重新安装应用。",
       "returnToVerification": "返回验收页面",
-      "pcdDisabled": {
-        "title": "当前未启用订单对账",
-        "desc": "订单层验收依赖 Shopify 订单数据，需获得 PCD（Protected Customer Data）审批后启用。当前版本仅提供像素收据层验收，请在「验收」页使用像素层验收与报告导出。"
+      "orderDataUnavailable": {
+        "title": "订单对账暂不可用",
+        "desc": "订单数据源尚未就绪。请先导入订单摘要数据后再重试对账。",
+        "action": "导入订单"
       },
       "overview": {
         "title": "对账概览",
@@ -2875,8 +2887,15 @@
       "notLoaded": "像素未加载（推测）",
       "loadedNotSent": "已加载未发送（推测）",
       "sentRejected": "已发送被拒绝",
+      "consentHint": "如站点启用了同意横幅，用户同意前事件可能不会触发。请分别在同意/不同意两种场景下做测试订单验证。",
       "rejectionTopTitle": "拒绝原因 Top（24h）",
       "rejectionTopEmpty": "近 24 小时暂无被拒绝请求。"
+    },
+    "orderDataUnavailable": {
+      "title": "订单对账尚未启用",
+      "desc": "订单数据源尚未就绪（模式：{{mode}}，近 7 天记录：{{count}}）。请先导入订单摘要 CSV 或启用 PCD webhook 模式后再查看流失率。",
+      "short": "未启用",
+      "action": "导入订单"
     },
     "alerts": {
       "title": "告警列表",
@@ -3904,6 +3923,7 @@
         "JSON": "导出转化数据 (JSON)",
         "CSV": "导出转化数据 (CSV)",
         "Events": "导出事件日志 (JSON)",
+        "Evidence": "导出回执证据 (JSON)",
         "Note": "大型数据集可能需要几分钟。"
       },
       "Delete": {

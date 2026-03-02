@@ -1,12 +1,13 @@
 import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
+import { hasOrderData } from "./orders/order-data-mode.server";
 
 export interface DailyAggregatedMetrics {
   shopId: string;
   date: Date;
   totalOrders: number;
-  shopifyOrderCount: number;
+  shopifyOrderCount: number | null;
   totalValue: number;
   successRate: number;
   platformBreakdown: Record<string, { count: number; value: number }>;
@@ -25,6 +26,7 @@ export async function aggregateDailyMetrics(
   const endOfDay = new Date(date);
   endOfDay.setUTCHours(23, 59, 59, 999);
 
+  const orderDataReady = await hasOrderData(shopId, 7);
   const [
     totalEvents,
     groupedByPlatform,
@@ -76,12 +78,14 @@ export async function aggregateDailyMetrics(
     }),
 
     // 4. Shopify Orders Count
-    prisma.orderSummary.count({
-      where: {
-        shopId,
-        createdAt: { gte: startOfDay, lte: endOfDay },
-      },
-    }),
+    orderDataReady
+      ? prisma.orderSummary.count({
+          where: {
+            shopId,
+            createdAt: { gte: startOfDay, lte: endOfDay },
+          },
+        })
+      : Promise.resolve(null),
   ]);
 
   // 4. Calculate Missing Params (hmac matched but missing value/currency)
@@ -162,7 +166,7 @@ export async function getAggregatedMetrics(
   endDate: Date
 ): Promise<{
   totalOrders: number;
-  shopifyOrderCount: number;
+  shopifyOrderCount: number | null;
   totalValue: number;
   successRate: number;
   platformBreakdown: Record<string, { count: number; value: number }>;
@@ -175,6 +179,7 @@ export async function getAggregatedMetrics(
   eventVolumeByType: Record<string, number>;
   totalEventVolume: number;
 }> {
+  const orderDataReady = await hasOrderData(shopId, 7);
   const [
     eventVolumeGrouped,
     validOrdersGrouped,
@@ -259,12 +264,14 @@ export async function getAggregatedMetrics(
     }),
 
     // 6. Shopify Orders Count (for loss rate calc)
-    prisma.orderSummary.count({
-      where: {
-        shopId,
-        createdAt: { gte: startDate, lte: endDate },
-      },
-    }),
+    orderDataReady
+      ? prisma.orderSummary.count({
+          where: {
+            shopId,
+            createdAt: { gte: startDate, lte: endDate },
+          },
+        })
+      : Promise.resolve(null),
   ]);
 
   const eventVolumeByType: Record<string, number> = {};
