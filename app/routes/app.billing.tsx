@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useSearchParams, useActionData } from "@remix-run/react";
+import { Form, useLoaderData, useSubmit, useNavigation, useSearchParams, useActionData } from "@remix-run/react";
 import { useEffect, useState } from "react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Button, Badge, Box, Divider, Banner, ProgressBar, List, DataTable, Modal } from "@shopify/polaris";
 import { useTranslation } from "react-i18next";
@@ -363,13 +363,6 @@ export default function BillingPage() {
         ];
     });
 
-    const handleSubscribe = (planId: string) => {
-        const formData = new FormData();
-        formData.append("_action", "subscribe");
-        formData.append("planId", planId);
-        submit(formData, { method: "post" });
-    };
-
     const handleCancel = () => {
         if (!subscription.subscriptionId)
             return;
@@ -566,9 +559,15 @@ export default function BillingPage() {
                     <Box paddingBlockStart="200">
                       {isCurrentPlan ? (<Button disabled fullWidth>{t("billing.currentPlan")}</Button>) : plan.price === 0 ? (<Button variant="secondary" fullWidth onClick={handleCancel} loading={isSubmitting} disabled={subscription.plan === "free"}>
                           {t("billing.downgradeToFree")}
-                        </Button>) : (<Button variant={isUpgrade ? "primary" : "secondary"} fullWidth onClick={() => handleSubscribe(planId)} loading={isSubmitting}>
-                          {isUpgrade ? t("billing.upgrade") : isDowngrade ? t("billing.downgrade") : t("billing.select")}
-                        </Button>)}
+                        </Button>) : (
+                        <Form method="post">
+                          <input type="hidden" name="_action" value="subscribe" />
+                          <input type="hidden" name="planId" value={planId} />
+                          <Button variant={isUpgrade ? "primary" : "secondary"} fullWidth submit loading={isSubmitting}>
+                            {isUpgrade ? t("billing.upgrade") : isDowngrade ? t("billing.downgrade") : t("billing.select")}
+                          </Button>
+                        </Form>
+                        )}
                     </Box>
                   </BlockStack>
                 </Card>
