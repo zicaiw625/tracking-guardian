@@ -4,6 +4,7 @@ import { logger } from "~/utils/logger.server";
 import { BILLING_PLANS, type PlanId, getPlanOrDefault } from "./plans";
 import { getOrCreateMonthlyUsage , getCurrentYearMonth } from "./usage.server";
 import { ok, err, type AsyncResult, fromPromise } from "~/types/result";
+import { normalizeOrderId } from "~/utils/crypto.server";
 
 export type BillingErrorType =
   | "LIMIT_EXCEEDED"
@@ -240,6 +241,7 @@ export async function checkAndReserveBillingSlot(
   orderId: string
 ): AsyncResult<AtomicReservationResult, BillingError> {
   const yearMonth = getCurrentYearMonth();
+  const normalizedOrderId = normalizeOrderId(orderId);
   try {
     const planConfig = getPlanOrDefault(shopPlan);
     const limit = planConfig.monthlyOrderLimit;
@@ -264,6 +266,31 @@ export async function checkAndReserveBillingSlot(
             },
             update: {},
           });
+          const existingPurchaseEvent = await tx.internalEvent.findUnique({
+            where: {
+              shopId_event_id_event_name: {
+                shopId,
+                event_id: normalizedOrderId,
+                event_name: "purchase",
+              },
+            },
+            select: { id: true },
+          });
+          if (existingPurchaseEvent) {
+            const usageSnapshot = await tx.monthlyUsage.findUnique({
+              where: { shopId_yearMonth: { shopId, yearMonth } },
+              select: { sentCount: true },
+            });
+            const current = usageSnapshot?.sentCount || 0;
+            return {
+              success: true,
+              current,
+              limit,
+              remaining: Math.max(0, limit - current),
+              alreadyCounted: true,
+              yearMonth,
+            };
+          }
           const updated = await tx.$executeRaw`
             UPDATE "MonthlyUsage"
             SET "sentCount" = "sentCount" + 1, "updatedAt" = NOW()

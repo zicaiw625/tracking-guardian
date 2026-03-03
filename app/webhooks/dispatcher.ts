@@ -43,6 +43,7 @@ export async function dispatchWebhook(
   lockAcquired: boolean = false
 ): Promise<Response> {
   const { topic, shop, webhookId } = context;
+  const normalizedTopic = normalizeTopic(topic);
   if (webhookId && !lockAcquired) {
     const lock = await tryAcquireWebhookLock(shop, webhookId, topic);
     if (!lock.acquired) {
@@ -50,15 +51,22 @@ export async function dispatchWebhook(
       return new Response("OK (duplicate)", { status: 200 });
     }
   }
-  if (!context.admin && !GDPR_TOPICS.has(normalizeTopic(topic))) {
+  const isGdpr = GDPR_TOPICS.has(normalizedTopic);
+  const isUninstall = normalizedTopic === "APP_UNINSTALLED";
+  if (!context.admin && !isGdpr && !isUninstall) {
     logger.info(`Webhook ${topic} received for uninstalled shop ${shop}`);
+    if (webhookId) {
+      await updateWebhookStatus(shop, webhookId, topic, WebhookStatus.PROCESSED);
+    }
     return new Response("OK", { status: 200 });
   }
-  if (GDPR_TOPICS.has(normalizeTopic(topic)) && !shopRecord) {
+  if (isGdpr && !shopRecord) {
     logger.info(`GDPR webhook ${topic} received for non-existent shop ${shop} - acknowledging`);
+    if (webhookId) {
+      await updateWebhookStatus(shop, webhookId, topic, WebhookStatus.PROCESSED);
+    }
     return new Response("OK", { status: 200 });
   }
-  const normalizedTopic = normalizeTopic(topic);
   const handler = WEBHOOK_HANDLERS[normalizedTopic];
   if (!handler) {
     logger.warn(

@@ -108,6 +108,9 @@ describe("Billing Concurrency", () => {
         const tx = {
           conversionJob: { findUnique: vi.fn().mockResolvedValue(null) },
           conversionLog: { findFirst: vi.fn().mockResolvedValue(null) },
+          internalEvent: {
+            findUnique: vi.fn().mockResolvedValue(null),
+          },
           monthlyUsage: {
             upsert: vi.fn().mockResolvedValue(undefined),
             findUnique: vi.fn().mockResolvedValue({ sentCount: 6 }),
@@ -139,6 +142,9 @@ describe("Billing Concurrency", () => {
         const tx = {
           conversionJob: { findUnique: vi.fn().mockResolvedValue(null) },
           conversionLog: { findFirst: vi.fn().mockResolvedValue(null) },
+          internalEvent: {
+            findUnique: vi.fn().mockResolvedValue(null),
+          },
           monthlyUsage: {
             upsert: vi.fn().mockResolvedValue(undefined),
             findUnique: vi.fn().mockResolvedValue({ sentCount: 5 }),
@@ -159,6 +165,9 @@ describe("Billing Concurrency", () => {
         const tx = {
           conversionJob: { findUnique: vi.fn().mockResolvedValue(null) },
           conversionLog: { findFirst: vi.fn().mockResolvedValue(null) },
+          internalEvent: {
+            findUnique: vi.fn().mockResolvedValue(null),
+          },
           monthlyUsage: {
             upsert: vi.fn().mockResolvedValue(undefined),
             findUnique: vi.fn().mockResolvedValue({ sentCount: 1000 }),

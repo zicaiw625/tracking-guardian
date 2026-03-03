@@ -3,9 +3,13 @@ import { Prisma } from "@prisma/client";
 import prisma from "~/db.server";
 import { normalizeOrderId, encrypt, decrypt } from "~/utils/crypto.server";
 import { getBoolEnv } from "~/utils/config.server";
+import { logger } from "~/utils/logger.server";
 import type { ProcessedEvent } from "~/lib/pixel-events/ingest-pipeline.server";
 import type { IngestRequestContext } from "~/lib/pixel-events/ingest-queue.server";
 import type { DispatchDestination } from "./queue";
+import { checkAndReserveBillingSlot, releaseBillingSlot } from "~/services/billing/gate.server";
+import { getPlanOrDefault } from "~/services/billing/plans";
+import type { PlanId } from "~/services/billing/plans";
 
 const SHOPIFY_TO_INTERNAL_EVENT: Record<string, string> = {
   checkout_completed: "purchase",
@@ -62,6 +66,43 @@ export async function persistInternalEventsAndDispatchJobs(
     .filter(Boolean) as DispatchDestination[];
 
   if (s2sDestinations.length === 0) return;
+  const shopForBilling = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: { plan: true },
+  });
+  const billingPlan = getPlanOrDefault(shopForBilling?.plan);
+  const planId = billingPlan.id as PlanId;
+  const blockedPurchaseOrderIds = new Set<string>();
+  const reservedPurchaseOrderYearMonth = new Map<string, string>();
+  const purchaseOrderIds = Array.from(
+    new Set(
+      processedEvents
+        .filter((event) => event.payload.eventName === "checkout_completed")
+        .map((event) => event.payload.data?.orderId ?? event.orderId ?? null)
+        .filter((orderId): orderId is string => typeof orderId === "string" && orderId.length > 0)
+        .map((orderId) => normalizeOrderId(orderId))
+    )
+  );
+  for (const orderId of purchaseOrderIds) {
+    const reservation = await checkAndReserveBillingSlot(shopId, planId, orderId);
+    if (!reservation.ok) {
+      throw new Error(`Failed to reserve billing slot: ${reservation.error.message}`);
+    }
+    if (!reservation.value.success) {
+      blockedPurchaseOrderIds.add(orderId);
+      logger.warn("Billing gate blocked purchase event dispatch", {
+        shopId,
+        orderId,
+        planId,
+        current: reservation.value.current,
+        limit: reservation.value.limit,
+      });
+      continue;
+    }
+    if (!reservation.value.alreadyCounted) {
+      reservedPurchaseOrderYearMonth.set(orderId, reservation.value.yearMonth);
+    }
+  }
 
   let rawIp = requestContext?.ip ?? null;
   if (!rawIp && requestContext?.ip_encrypted) {
@@ -96,8 +137,9 @@ export async function persistInternalEventsAndDispatchJobs(
   const page_url = sanitizeStoredUrl(requestContext?.page_url);
   const referrer = sanitizeStoredUrl(requestContext?.referrer);
 
-  await prisma.$transaction(async (tx) => {
-    for (const event of processedEvents) {
+  try {
+    await prisma.$transaction(async (tx) => {
+      for (const event of processedEvents) {
       const eventName = event.payload.eventName === "checkout_completed" ? "purchase" : event.payload.eventName;
       const internalEventName = toInternalEventName(eventName);
       // Reuse the consent filtering logic from ingestion pipeline
@@ -132,6 +174,9 @@ export async function persistInternalEventsAndDispatchJobs(
       if (internalEventName === "purchase" && transactionId) {
         eventId = normalizeOrderId(transactionId);
       }
+      if (internalEventName === "purchase" && blockedPurchaseOrderIds.has(eventId)) {
+        continue;
+      }
 
       const consentPurposes = event.payload.consent
         ? { marketing: event.payload.consent.marketing, analytics: event.payload.consent.analytics }
@@ -140,18 +185,22 @@ export async function persistInternalEventsAndDispatchJobs(
       const occurredAtMs = event.payload.occurredAt ?? timestampMs;
       const occurredAt = new Date(occurredAtMs);
 
-      // Upsert to avoid duplicates if webhook/pixel race occurs
-      // We prioritize the existing entry if it exists (idempotency)
-      const internalEvent = await tx.internalEvent.upsert({
-        where: {
-          shopId_event_id_event_name: {
-            shopId,
-            event_id: eventId,
-            event_name: internalEventName,
-          }
+      const uniqueWhere = {
+        shopId_event_id_event_name: {
+          shopId,
+          event_id: eventId,
+          event_name: internalEventName,
         },
-        update: {}, // Do nothing if exists
-        create: {
+      } as const;
+      let internalEvent = await tx.internalEvent.findUnique({
+        where: uniqueWhere,
+        select: { id: true },
+      });
+      let didCreateInternalEvent = false;
+      if (!internalEvent) {
+        try {
+          internalEvent = await tx.internalEvent.create({
+            data: {
           id: randomUUID(),
           shopId,
           source: "web_pixel",
@@ -174,8 +223,36 @@ export async function persistInternalEventsAndDispatchJobs(
           user_data_hashed: Prisma.JsonNull,
           consent_purposes: consentPurposes ?? Prisma.JsonNull,
           environment,
-        },
-      });
+            },
+            select: { id: true },
+          });
+          didCreateInternalEvent = true;
+        } catch (error) {
+          // Concurrent worker may have inserted the same event_id already.
+          if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
+            throw error;
+          }
+          internalEvent = await tx.internalEvent.findUnique({
+            where: uniqueWhere,
+            select: { id: true },
+          });
+          if (!internalEvent) {
+            throw error;
+          }
+        }
+      }
+      if (internalEventName === "purchase" && reservedPurchaseOrderYearMonth.has(eventId)) {
+        const yearMonth = reservedPurchaseOrderYearMonth.get(eventId)!;
+        if (!didCreateInternalEvent) {
+          await tx.$executeRaw`
+            UPDATE "MonthlyUsage"
+            SET "sentCount" = GREATEST("sentCount" - 1, 0), "updatedAt" = NOW()
+            WHERE "shopId" = ${shopId}
+              AND "yearMonth" = ${yearMonth}
+          `;
+        }
+        reservedPurchaseOrderYearMonth.delete(eventId);
+      }
 
       // Only create dispatch jobs if we actually created a new event (or if we want to retry, but usually we don't want duplicate jobs)
       // However, upsert returns the object whether created or updated. 
@@ -201,6 +278,12 @@ export async function persistInternalEventsAndDispatchJobs(
           skipDuplicates: true,
         });
       }
+      }
+    });
+  } catch (error) {
+    for (const yearMonth of reservedPurchaseOrderYearMonth.values()) {
+      await releaseBillingSlot(shopId, yearMonth);
     }
-  });
+    throw error;
+  }
 }

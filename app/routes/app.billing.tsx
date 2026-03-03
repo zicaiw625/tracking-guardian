@@ -254,15 +254,23 @@ export default function BillingPage() {
     const errorMessage = searchParams.get("error");
     const upgradePlanId = searchParams.get("upgrade");
     const [showCancelModal, setShowCancelModal] = useState(false);
+    const [attemptedUpgradePlanId, setAttemptedUpgradePlanId] = useState<string | null>(null);
     
     useEffect(() => {
-        if (upgradePlanId && !isSubmitting && !showSuccessBanner && !showErrorBanner) {
+        if (
+            upgradePlanId &&
+            attemptedUpgradePlanId !== upgradePlanId &&
+            !isSubmitting &&
+            !showSuccessBanner &&
+            !showErrorBanner
+        ) {
             const formData = new FormData();
             formData.append("_action", "subscribe");
             formData.append("planId", upgradePlanId);
+            setAttemptedUpgradePlanId(upgradePlanId);
             submit(formData, { method: "post" });
         }
-    }, [upgradePlanId, isSubmitting, showSuccessBanner, showErrorBanner, submit]);
+    }, [upgradePlanId, attemptedUpgradePlanId, isSubmitting, showSuccessBanner, showErrorBanner, submit]);
 
     const currentPlan = plans[subscription.plan as PlanId];
     const usagePercent = Math.min((usage.current / usage.limit) * 100, 100);
