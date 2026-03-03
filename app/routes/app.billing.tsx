@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { Form, useLoaderData, useSubmit, useNavigation, useSearchParams, useActionData } from "@remix-run/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Button, Badge, Box, Divider, Banner, ProgressBar, List, DataTable, Modal } from "@shopify/polaris";
 import { useTranslation } from "react-i18next";
 import { useToastContext } from "~/components/ui";
@@ -255,6 +255,7 @@ export default function BillingPage() {
     const upgradePlanId = searchParams.get("upgrade");
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [attemptedUpgradePlanId, setAttemptedUpgradePlanId] = useState<string | null>(null);
+    const upgradeAutoFormRef = useRef<HTMLFormElement>(null);
     
     useEffect(() => {
         if (
@@ -264,13 +265,10 @@ export default function BillingPage() {
             !showSuccessBanner &&
             !showErrorBanner
         ) {
-            const formData = new FormData();
-            formData.append("_action", "subscribe");
-            formData.append("planId", upgradePlanId);
             setAttemptedUpgradePlanId(upgradePlanId);
-            submit(formData, { method: "post" });
+            upgradeAutoFormRef.current?.requestSubmit();
         }
-    }, [upgradePlanId, attemptedUpgradePlanId, isSubmitting, showSuccessBanner, showErrorBanner, submit]);
+    }, [upgradePlanId, attemptedUpgradePlanId, isSubmitting, showSuccessBanner, showErrorBanner]);
 
     const currentPlan = plans[subscription.plan as PlanId];
     const usagePercent = Math.min((usage.current / usage.limit) * 100, 100);
@@ -439,6 +437,11 @@ export default function BillingPage() {
           primaryAction={{ content: t("billing.viewPlan"), url: "/app/billing" }}
           secondaryAction={{ content: t("billing.billingCenter"), url: billingPortalUrl }}
         />
+
+        <Form method="post" ref={upgradeAutoFormRef}>
+          <input type="hidden" name="_action" value="subscribe" />
+          <input type="hidden" name="planId" value={upgradePlanId || ""} />
+        </Form>
 
         <Layout>
           <Layout.Section>
