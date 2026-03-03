@@ -7,7 +7,8 @@ import { PostInstallScanProgress } from "~/components/onboarding/PostInstallScan
 import { isPlanAtLeast } from "~/utils/plans";
 import type { DashboardData } from "~/types/dashboard";
 import { useTranslation, Trans } from "react-i18next";
-import { useNavigate } from "@remix-run/react";
+import { useLocation, useNavigate } from "@remix-run/react";
+import { withEmbeddedAppParams } from "~/utils/embed-navigation";
 
 import { ConnectionIssue } from "~/types/connection-issues";
 
@@ -34,6 +35,8 @@ export function DashboardOverview({
 }: DashboardOverviewProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
+  const billingUrl = withEmbeddedAppParams("/app/billing", location.search);
   const introConfig = {
     title: t("dashboard.title"),
     description: t("dashboard.intro.description"),
@@ -202,7 +205,7 @@ export function DashboardOverview({
                   <Icon source={LockIcon} />
                 </InlineStack>
                 <Button
-                  url={isPlanAtLeast(data.planId || "free", "starter") ? "/app/migrate" : "/app/billing"}
+                  url={isPlanAtLeast(data.planId || "free", "starter") ? "/app/migrate" : billingUrl}
                   variant={isPlanAtLeast(data.planId || "free", "starter") ? "primary" : "secondary"}
                   fullWidth
                 >
@@ -227,7 +230,7 @@ export function DashboardOverview({
                   <Icon source={LockIcon} />
                 </InlineStack>
                 <Button
-                  url={isPlanAtLeast(data.planId || "free", "starter") ? "/app/migrate" : "/app/billing"}
+                  url={isPlanAtLeast(data.planId || "free", "starter") ? "/app/migrate" : billingUrl}
                   variant={isPlanAtLeast(data.planId || "free", "starter") ? "primary" : "secondary"}
                   fullWidth
                 >
@@ -252,7 +255,7 @@ export function DashboardOverview({
                   <Icon source={LockIcon} />
                 </InlineStack>
                 <Button
-                  url={isPlanAtLeast(data.planId || "free", "growth") ? "/app/verification" : "/app/billing"}
+                  url={isPlanAtLeast(data.planId || "free", "growth") ? "/app/verification" : billingUrl}
                   variant={isPlanAtLeast(data.planId || "free", "growth") ? "primary" : "secondary"}
                   fullWidth
                 >

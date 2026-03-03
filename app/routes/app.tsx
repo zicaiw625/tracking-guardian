@@ -1,6 +1,6 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { Outlet, useLoaderData, useRouteError } from "@remix-run/react";
+import { Outlet, useLoaderData, useRouteError, useLocation } from "@remix-run/react";
 import { boundary } from "@shopify/shopify-app-remix/server";
 import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { AppProvider as PolarisAppProvider } from "@shopify/polaris";
@@ -15,6 +15,7 @@ import { getPolarisTranslations } from "../utils/polaris-i18n";
 import { TopBar } from "../components/layout/TopBar";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
 import { useTranslation } from "react-i18next";
+import { withEmbeddedAppParams } from "~/utils/embed-navigation";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -50,6 +51,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export default function App() {
     const { apiKey, shopDomain, planId, currentShopId } = useLoaderData<typeof loader>();
     const { t, i18n } = useTranslation();
+    const location = useLocation();
+    const billingUrl = withEmbeddedAppParams("/app/billing", location.search);
     
     const polarisTranslations = i18n.language?.startsWith("zh") ? polarisTranslationsZh : polarisTranslationsEn;
     const polarisI18n = getPolarisTranslations(polarisTranslations);
@@ -65,7 +68,7 @@ export default function App() {
         <a href="/app/support">{t("nav.support")}</a>
         <a href="/app/migrate">{t("nav.migrate")}</a>
         <a href="/app/settings">{t("nav.settings")}</a>
-        <a href="/app/billing">{t("nav.billing")}</a>
+        <a href={billingUrl}>{t("nav.billing")}</a>
       </NavMenu>
       <TopBar
         shopDomain={shopDomain}

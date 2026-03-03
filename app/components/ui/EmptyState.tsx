@@ -2,6 +2,8 @@ import { memo } from "react";
 import { Card, BlockStack, Text, Button, InlineStack, Box } from "@shopify/polaris";
 import { EmptyStateDisplay } from "./ErrorDisplay";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "@remix-run/react";
+import { withEmbeddedAppParams } from "~/utils/embed-navigation";
 
 export interface EnhancedEmptyStateProps {
   title?: string;
@@ -169,12 +171,13 @@ export function EmptyStateNoPermission({
   requiredFeature?: string;
 }) {
   const { t } = useTranslation();
+  const location = useLocation();
   const upgradeAction = onUpgrade ? {
     content: t("emptyState.noPermission.viewPlans"),
     onAction: onUpgrade,
   } : {
     content: t("emptyState.noPermission.viewPlans"),
-    url: "/app/billing",
+    url: withEmbeddedAppParams("/app/billing", location.search),
   };
   return (
     <EnhancedEmptyState

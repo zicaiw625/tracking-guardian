@@ -4,6 +4,7 @@ import { Page, BlockStack, Banner, Tabs, Button, InlineStack, Text, Card, Badge 
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { useToastContext } from "~/components/ui";
 import { getShopifyAdminUrl } from "~/utils/helpers";
+import { withEmbeddedAppParams } from "~/utils/embed-navigation";
 import { useTranslation } from "react-i18next";
 
 import type { SettingsActionResponse } from "./types";
@@ -33,6 +34,7 @@ export default function SettingsPage() {
     }
   }, [actionData, showSuccess, showError, t]);
   const [searchParams, setSearchParams] = useSearchParams();
+  const billingUrl = withEmbeddedAppParams("/app/billing", `?${searchParams.toString()}`);
   const tabParam = searchParams.get("tab");
   const getTabIndex = (tab: string | null): number => {
     if (tab === "alerts") return 2;
@@ -81,7 +83,7 @@ export default function SettingsPage() {
             t("settings.intro.items.1"),
             t("settings.intro.items.2"),
           ]}
-          primaryAction={{ content: t("settings.intro.action.billing"), url: "/app/billing" }}
+          primaryAction={{ content: t("settings.intro.action.billing"), url: billingUrl }}
           secondaryAction={{ content: t("settings.intro.action.privacy"), url: "/app/privacy" }}
         />
         <Banner tone="warning" title={t("settings.banner.quickAccess.title")}>
@@ -90,7 +92,7 @@ export default function SettingsPage() {
               {t("settings.banner.quickAccess.description")}
             </Text>
             <InlineStack gap="300" wrap>
-              <Button url="/app/billing" variant="primary" size="large">
+              <Button url={billingUrl} variant="primary" size="large">
                 {t("settings.intro.action.billing")}
               </Button>
               <Button url="/app/privacy" variant="secondary" size="large">
@@ -117,7 +119,7 @@ export default function SettingsPage() {
               {t("settings.banner.billing.description")}
             </Text>
             <InlineStack gap="200">
-              <Button url="/app/billing" variant="primary">
+              <Button url={billingUrl} variant="primary">
                 {t("settings.banner.billing.action.goToBilling")}
               </Button>
               <Button onClick={() => handleTabChange(1)} variant="secondary">

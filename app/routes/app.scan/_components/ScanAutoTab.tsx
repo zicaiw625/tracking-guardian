@@ -1,5 +1,6 @@
 import { BlockStack, Box, Card, Text, InlineStack, Badge, Button, Banner, Divider, List, ProgressBar, Icon } from "@shopify/polaris";
 import type { SubmitFunction } from "@remix-run/react";
+import { useLocation } from "@remix-run/react";
 import { SearchIcon, ExportIcon, AlertCircleIcon, ArrowRightIcon, InfoIcon, RefreshIcon, ClockIcon, ShareIcon, ClipboardIcon } from "~/components/icons";
 import { CardSkeleton, EnhancedEmptyState } from "~/components/ui";
 import { ScanSummaryCards, ScanHistoryTable, MigrationImpactAnalysis } from "./index";
@@ -11,6 +12,7 @@ import type { MigrationAction } from "~/services/scanner/types";
 import type { UpgradeStatusUI } from "~/utils/deprecation-dates";
 import type { RiskItem } from "~/types";
 import { useTranslation, Trans } from "react-i18next";
+import { withEmbeddedAppParams } from "~/utils/embed-navigation";
 
 interface ScanAutoTabProps {
     // Uses latestScan returned by loader; access safely where needed
@@ -99,6 +101,8 @@ export function ScanAutoTab({
     onNavigate,
 }: ScanAutoTabProps) {
     const { t } = useTranslation();
+    const location = useLocation();
+    const billingUrl = withEmbeddedAppParams("/app/billing", location.search);
 
     const hasScanData = !!latestScan;
     const showResults = hasScanData && !isScanning;
@@ -342,7 +346,7 @@ export function ScanAutoTab({
                                                 </Text>
                                                 <InlineStack gap="200">
                                                     <Button
-                                                        url="/app/billing"
+                                                        url={billingUrl}
                                                         variant="primary"
                                                         size="slim"
                                                     >

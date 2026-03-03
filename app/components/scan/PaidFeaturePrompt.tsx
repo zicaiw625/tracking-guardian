@@ -1,8 +1,9 @@
 import { Banner, Button, BlockStack, InlineStack, Text } from "@shopify/polaris";
-import { useNavigate } from "@remix-run/react";
+import { useLocation, useNavigate } from "@remix-run/react";
 import { LockIcon } from "~/components/icons";
 import type { PlanId } from "~/services/billing/plans";
 import { getPlanDefinition } from "~/utils/plans";
+import { withEmbeddedAppParams } from "~/utils/embed-navigation";
 import { useTranslation, Trans } from "react-i18next";
 
 interface PaidFeaturePromptProps {
@@ -18,6 +19,8 @@ export function PaidFeaturePrompt({
 }: PaidFeaturePromptProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
+  const billingUrl = withEmbeddedAppParams("/app/billing", location.search);
   const requiredPlanId = {
     pixel_migration: "starter",
     batch_audit: "agency",
@@ -36,7 +39,7 @@ export function PaidFeaturePrompt({
   const currentPlanDef = getPlanDefinition(currentPlan);
 
   const handleUpgrade = () => {
-    navigate("/app/billing");
+    navigate(billingUrl);
   };
 
   if (compact) {

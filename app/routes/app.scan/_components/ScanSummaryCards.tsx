@@ -5,6 +5,8 @@ import { safeFormatDate, validateRiskItemsArray } from "~/utils/scan-data-valida
 import { calculateEstimatedTime, getRiskLevelBackground, getRiskLevelBadgeTone } from "~/utils/scan-format";
 import { isPlanAtLeast } from "~/utils/plans";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "@remix-run/react";
+import { withEmbeddedAppParams } from "~/utils/embed-navigation";
 
 interface ScanSummaryCardsProps {
   latestScan: {
@@ -32,6 +34,8 @@ export function ScanSummaryCards({
   planIdSafe,
 }: ScanSummaryCardsProps) {
   const { t } = useTranslation();
+  const location = useLocation();
+  const billingUrl = withEmbeddedAppParams("/app/billing", location.search);
   const riskScore = latestScan.riskScore || 0;
   const riskItems = validateRiskItemsArray(latestScan.riskItems);
   const estimatedTime = calculateEstimatedTime(riskItems);
@@ -82,7 +86,7 @@ export function ScanSummaryCards({
             <Divider />
             <BlockStack gap="200">
               <Button
-                url={isPlanAtLeast(planIdSafe, "starter") ? "/app/migrate" : "/app/billing"}
+                url={isPlanAtLeast(planIdSafe, "starter") ? "/app/migrate" : billingUrl}
                 variant={isPlanAtLeast(planIdSafe, "starter") ? "primary" : "secondary"}
                 fullWidth
               >
@@ -92,7 +96,7 @@ export function ScanSummaryCards({
               </Button>
               {!isPlanAtLeast(planIdSafe, "growth") && (
                 <Button
-                  url="/app/billing"
+                  url={billingUrl}
                   variant="secondary"
                   fullWidth
                 >

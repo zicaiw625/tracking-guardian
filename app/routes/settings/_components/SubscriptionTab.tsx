@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useNavigate, Link } from "@remix-run/react";
+import { useNavigate, Link, useLocation } from "@remix-run/react";
 import {
   Layout,
   Card,
@@ -17,6 +17,7 @@ import { useTranslation, Trans } from "react-i18next";
 import { BILLING_PLANS, type PlanId, getUpgradeOptions } from "~/services/billing/plans";
 import { useToastContext } from "~/components/ui";
 import { DEPRECATION_DATES, formatDeadlineDate } from "~/utils/migration-deadlines";
+import { withEmbeddedAppParams } from "~/utils/embed-navigation";
 
 interface SubscriptionTabProps {
   currentPlan: PlanId;
@@ -33,11 +34,13 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
   useToastContext();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const [upgradingPlan, setUpgradingPlan] = useState<PlanId | null>(null);
   const handleUpgrade = useCallback((planId: PlanId) => {
     setUpgradingPlan(planId);
-    navigate(`/app/billing?upgrade=${planId}`);
-  }, [navigate]);
+    navigate(withEmbeddedAppParams(`/app/billing?upgrade=${planId}`, location.search));
+  }, [location.search, navigate]);
+  const billingUrl = withEmbeddedAppParams("/app/billing", location.search);
   const currentPlanConfig = BILLING_PLANS[currentPlan];
   const upgradeOptions = getUpgradeOptions(currentPlan);
 
@@ -175,7 +178,7 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
                   <Trans
                     i18nKey="settings.subscription.moreInfoContent"
                     components={{
-                      1: <Link to="/app/billing" />
+                      1: <Link to={billingUrl} />
                     }}
                   />
                 </Text>

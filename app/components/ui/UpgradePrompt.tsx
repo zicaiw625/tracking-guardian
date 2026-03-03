@@ -7,10 +7,11 @@ import {
   List,
   Card,
 } from "@shopify/polaris";
-import { useNavigate } from "@remix-run/react";
+import { useLocation, useNavigate } from "@remix-run/react";
 import { LockIcon } from "~/components/icons";
 import { type PlanId } from "~/services/billing/plans";
 import { isPlanAtLeast, getPlanDefinition } from "~/utils/plans";
+import { withEmbeddedAppParams } from "~/utils/embed-navigation";
 import type { FeatureGateResult } from "~/services/billing/feature-gates.server";
 import { useTranslation } from "react-i18next";
 
@@ -50,6 +51,8 @@ export function UpgradePrompt({
 }: UpgradePromptProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
+  const billingUrl = withEmbeddedAppParams("/app/billing", location.search);
   const featureInfo = FEATURE_KEYS[feature];
   const requiredPlan = getPlanDefinition(featureInfo.requiredPlan);
   const currentPlanDef = getPlanDefinition(currentPlan);
@@ -63,7 +66,7 @@ export function UpgradePrompt({
     if (onUpgrade) {
       onUpgrade();
     } else {
-      navigate("/app/billing");
+      navigate(billingUrl);
     }
   };
 

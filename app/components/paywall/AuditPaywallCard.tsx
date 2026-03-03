@@ -2,6 +2,8 @@ import { Banner, BlockStack, Button, Card, InlineStack, Text } from "@shopify/po
 import { getPlanOrDefault } from "~/services/billing/plans";
 import { isPlanAtLeast, normalizePlan } from "~/utils/plans";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "@remix-run/react";
+import { withEmbeddedAppParams } from "~/utils/embed-navigation";
 
 interface AuditPaywallCardProps {
   planId: string | null | undefined;
@@ -9,6 +11,7 @@ interface AuditPaywallCardProps {
 
 export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
   const { t } = useTranslation();
+  const location = useLocation();
   const planIdSafe = normalizePlan(planId);
   const isStarter = isPlanAtLeast(planIdSafe, "starter");
   const isGrowth = isPlanAtLeast(planIdSafe, "growth");
@@ -86,6 +89,7 @@ export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
         : null;
   const upgradePlan = upgradeTarget ? getPlanOrDefault(upgradeTarget) : null;
   const upgradePlanName = upgradePlan ? t(upgradePlan.name) : "";
+  const starterUpgradeUrl = withEmbeddedAppParams("/app/billing?upgrade=starter", location.search);
 
   return (
     <Card>
@@ -106,14 +110,14 @@ export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
         <InlineStack gap="200" wrap>
           <Button
             variant={isStarter ? "primary" : "secondary"}
-            url={isStarter ? "/app/migrate" : "/app/billing?upgrade=starter"}
+            url={isStarter ? "/app/migrate" : starterUpgradeUrl}
             size="large"
           >
             {migrationLabel}
           </Button>
           <Button
             variant={isStarter ? "primary" : "secondary"}
-            url={isStarter ? "/app/migrate" : "/app/billing?upgrade=starter"}
+            url={isStarter ? "/app/migrate" : starterUpgradeUrl}
             size="large"
           >
             {moduleLabel}
@@ -121,7 +125,7 @@ export function AuditPaywallCard({ planId }: AuditPaywallCardProps) {
           {upgradePlan && isStarter && (
             <Button
               variant="secondary"
-              url={`/app/billing?upgrade=${upgradePlan.id}`}
+              url={withEmbeddedAppParams(`/app/billing?upgrade=${upgradePlan.id}`, location.search)}
               size="large"
             >
               {t("auditPaywall.upgradeTo", { plan: upgradePlanName, price: priceLabel(upgradePlan.price) })}

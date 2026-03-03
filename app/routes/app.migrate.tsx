@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useActionData, useLoaderData, Form } from "@remix-run/react";
+import { useActionData, useLoaderData, Form, useLocation } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -25,6 +25,7 @@ import { normalizePlanId, type PlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
 import { validateTestEnvironment, saveWizardDraft, clearWizardDraft } from "../services/migration-wizard.server";
 import { useTranslation, Trans } from "react-i18next";
+import { withEmbeddedAppParams } from "~/utils/embed-navigation";
 
 type MigrationStep = "audit" | "pixels" | "modules" | "verification";
 
@@ -236,6 +237,8 @@ export default function MigratePage() {
   const { t } = useTranslation();
   const { shop, planId, steps, modulesConfirmed, customerAccountsStatus } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
+  const location = useLocation();
+  const billingUrl = withEmbeddedAppParams("/app/billing", location.search);
 
   const getStepProgress = () => {
     const completedCount = Object.values(steps).filter((s) => s.completed).length;
@@ -534,7 +537,7 @@ export default function MigratePage() {
                           ) : null
                         ) : (
                           <Button
-                            url="/app/billing"
+                            url={billingUrl}
                             variant="secondary"
                             icon={LockIcon}
                           >

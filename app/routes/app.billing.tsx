@@ -1,8 +1,10 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { Form, useLoaderData, useSubmit, useNavigation, useSearchParams, useActionData } from "@remix-run/react";
+import { Form, useLoaderData, useSubmit, useNavigation, useSearchParams, useActionData, useLocation } from "@remix-run/react";
 import { useEffect, useRef, useState } from "react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Button, Badge, Box, Divider, Banner, ProgressBar, List, DataTable, Modal } from "@shopify/polaris";
+import { useAppBridge } from "@shopify/app-bridge-react";
+import { Redirect } from "@shopify/app-bridge/actions";
 import { useTranslation } from "react-i18next";
 import { useToastContext } from "~/components/ui";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
@@ -16,6 +18,7 @@ import { assertSafeRedirect } from "../utils/redirect-validation.server";
 import { logger } from "../utils/logger.server";
 import { trackEvent } from "../services/analytics.server";
 import { safeFireAndForget } from "../utils/helpers.server";
+import { withEmbeddedAppParams } from "~/utils/embed-navigation";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { BILLING_PLANS, PLAN_IDS } = await import("../services/billing.server");
@@ -189,7 +192,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                         error: validation.error || "Invalid confirmation URL",
                     });
                 }
-                return shopifyRedirect(result.confirmationUrl, { target: "_parent" });
+                try {
+                    return shopifyRedirect(result.confirmationUrl, { target: "_top" });
+                } catch {
+                    return json({
+                        success: true,
+                        actionType: "subscribe",
+                        confirmationUrl: result.confirmationUrl,
+                    });
+                }
             }
 
             return json({
@@ -227,14 +238,27 @@ export default function BillingPage() {
     const loaderData = useLoaderData<typeof loader>();
     const { subscription, usage, plans, planIds, billingHistory, billingPortalUrl } = loaderData;
     const actionData = useActionData<typeof action>();
+    const location = useLocation();
     const submit = useSubmit();
     const navigation = useNavigation();
+    const app = useAppBridge();
     const { t, i18n } = useTranslation();
     const { showSuccess, showError } = useToastContext();
+    const billingUrl = withEmbeddedAppParams("/app/billing", location.search);
 
     useEffect(() => {
         if (actionData) {
             const data = actionData as { success?: boolean; error?: string; actionType?: string; confirmationUrl?: string };
+            if (data.confirmationUrl) {
+                try {
+                    const redirect = Redirect.create(app as any);
+                    redirect.dispatch(Redirect.Action.REMOTE, data.confirmationUrl);
+                    return;
+                } catch {
+                    window.open(data.confirmationUrl, "_top");
+                    return;
+                }
+            }
             if (data.success) {
                 if (data.actionType === "cancel") {
                     showSuccess(t("billing.subscriptionCancelled"));
@@ -245,7 +269,7 @@ export default function BillingPage() {
                 showError(t("billing.failPrefix") + data.error);
             }
         }
-    }, [actionData, showSuccess, showError, t]);
+    }, [actionData, app, showSuccess, showError, t]);
 
     const [searchParams] = useSearchParams();
     const isSubmitting = navigation.state === "submitting";
@@ -434,7 +458,7 @@ export default function BillingPage() {
           title={t("billing.introTitle")}
           description={t("billing.introDescription")}
           items={t("billing.introItems", { returnObjects: true }) as string[]}
-          primaryAction={{ content: t("billing.viewPlan"), url: "/app/billing" }}
+          primaryAction={{ content: t("billing.viewPlan"), url: billingUrl }}
           secondaryAction={{ content: t("billing.billingCenter"), url: billingPortalUrl }}
         />
 

@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, useActionData, useNavigation } from "@remix-run/react";
+import { useLoaderData, useSubmit, useActionData, useNavigation, useLocation } from "@remix-run/react";
 import { useEffect, useMemo, useState } from "react";
 import {
   Page,
@@ -44,6 +44,7 @@ import {
   revokeVerificationReportShareLinks,
 } from "../services/report-share.server";
 import { getPublicAppDomain } from "../utils/config.server";
+import { withEmbeddedAppParams } from "~/utils/embed-navigation";
 
 function toSafeNumber(value: unknown): number | null {
   const n = typeof value === "number" ? value : Number(value);
@@ -241,6 +242,8 @@ export default function VerificationReportPage() {
   const submit = useSubmit();
   const navigation = useNavigation();
   const actionData = useActionData<typeof action>();
+  const location = useLocation();
+  const growthUpgradeUrl = withEmbeddedAppParams("/app/billing?upgrade=growth", location.search);
   const { showSuccess, showError } = useToastContext();
   const { t, i18n } = useTranslation();
   const locale = i18n.resolvedLanguage || i18n.language || undefined;
@@ -800,7 +803,7 @@ export default function VerificationReportPage() {
               <Text as="p" variant="bodySm">
                 {t("verification.report.upgrade.desc")}
               </Text>
-              <Button url="/app/billing?upgrade=growth" variant="primary">
+              <Button url={growthUpgradeUrl} variant="primary">
                 {t("verification.report.upgrade.action")}
               </Button>
             </BlockStack>

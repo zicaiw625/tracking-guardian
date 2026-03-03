@@ -15,6 +15,8 @@ import type { AuditAssetRecord } from "~/services/audit-asset.server";
 import type { PlanId } from "~/services/billing/plans";
 import { useTranslation } from "react-i18next";
 import { useMemo } from "react";
+import { useLocation } from "@remix-run/react";
+import { withEmbeddedAppParams } from "~/utils/embed-navigation";
 
 interface AuditAssetsByRiskProps {
   assets: AuditAssetRecord[];
@@ -82,6 +84,8 @@ export function AuditAssetsByRisk({
   riskScore: providedRiskScore,
 }: AuditAssetsByRiskProps) {
   const { t } = useTranslation();
+  const location = useLocation();
+  const billingUrl = withEmbeddedAppParams("/app/billing", location.search);
 
   const getRiskCategoryInfo = (category: "will_fail" | "can_replace" | "no_migration_needed") => {
     const map = {
@@ -433,7 +437,7 @@ export function AuditAssetsByRisk({
                       </BlockStack>
                       <Button
                         variant="primary"
-                        url="/app/billing"
+                        url={billingUrl}
                         icon={ArrowRightIcon}
                       >
                         {t("scan.risk.upgradeUnlock")}
