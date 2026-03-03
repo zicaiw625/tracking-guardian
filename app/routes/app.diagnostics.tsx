@@ -1,7 +1,7 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { Page, Layout, Card, Text, BlockStack, List, Banner, Button } from "@shopify/polaris";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { authenticate } from "../shopify.server";
 import { useTranslation, Trans } from "react-i18next";
 
@@ -50,22 +50,30 @@ export default function DiagnosticsPage() {
   const { appUrl, backendUrl, isLocal, extensionConfigStatus } = useLoaderData<typeof loader>();
   const [corsStatus, setCorsStatus] = useState<"pending" | "success" | "error">("pending");
   const [corsMessage, setCorsMessage] = useState("");
+  const latestCorsCheckIdRef = useRef(0);
 
   const checkCors = useCallback(async () => {
+    const checkId = ++latestCorsCheckIdRef.current;
     if (!backendUrl) {
-      setCorsStatus("error");
-      setCorsMessage(t("diagnostics.cors.status.notConfigured", { defaultValue: "Backend URL is not configured. Please set SHOPIFY_APP_URL." }));
+      if (checkId === latestCorsCheckIdRef.current) {
+        setCorsStatus("error");
+        setCorsMessage(t("diagnostics.cors.status.notConfigured", { defaultValue: "Backend URL is not configured. Please set SHOPIFY_APP_URL." }));
+      }
       return;
     }
-    setCorsStatus("pending");
-    setCorsMessage(t("diagnostics.cors.status.pending"));
+    if (checkId === latestCorsCheckIdRef.current) {
+      setCorsStatus("pending");
+      setCorsMessage(t("diagnostics.cors.status.pending"));
+    }
     try {
       const start = Date.now();
       const res = await fetch(`${backendUrl}?check=true`, {
         method: "OPTIONS",
       });
       const end = Date.now();
-      
+      if (checkId !== latestCorsCheckIdRef.current) {
+        return;
+      }
       if (res.ok || res.status === 204 || res.status === 200) {
         setCorsStatus("success");
         setCorsMessage(t("diagnostics.cors.status.success", { ms: end - start }));
@@ -74,6 +82,9 @@ export default function DiagnosticsPage() {
         setCorsMessage(t("diagnostics.cors.status.fail", { status: res.status }));
       }
     } catch (e) {
+      if (checkId !== latestCorsCheckIdRef.current) {
+        return;
+      }
       setCorsStatus("error");
       setCorsMessage(t("diagnostics.cors.status.error", { error: e instanceof Error ? e.message : String(e) }));
     }

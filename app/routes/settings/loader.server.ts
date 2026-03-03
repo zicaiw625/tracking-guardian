@@ -202,6 +202,7 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       failureRate: number;
       volumeDrop: number;
     } | null = null;
+    let hmacSecurityStats: SettingsLoaderData["hmacSecurityStats"] = null;
     if (shop) {
       try {
         const [monitoringStats, volumeStats] = await Promise.all([
@@ -215,6 +216,59 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
         };
       } catch (error) {
         logger.error("Failed to fetch monitoring data for preview", { error });
+      }
+      try {
+        const [invalidSignatureCount, nullOriginRequestCount, lastInvalidSignature, lastSuspiciousActivity] =
+          await Promise.all([
+            prisma.pixelEventReceipt.count({
+              where: { shopId: shop.id, hmacMatched: false },
+            }),
+            prisma.pixelEventReceipt.count({
+              where: {
+                shopId: shop.id,
+                OR: [{ originHost: null }, { originHost: "" }],
+              },
+            }),
+            prisma.pixelEventReceipt.findFirst({
+              where: { shopId: shop.id, hmacMatched: false },
+              orderBy: { createdAt: "desc" },
+              select: { createdAt: true },
+            }),
+            prisma.pixelEventReceipt.findFirst({
+              where: {
+                shopId: shop.id,
+                OR: [{ hmacMatched: false }, { originHost: null }, { originHost: "" }],
+              },
+              orderBy: { createdAt: "desc" },
+              select: { createdAt: true },
+            }),
+          ]);
+
+        const suspiciousActivityCount = invalidSignatureCount + nullOriginRequestCount;
+        const hasPendingRotation =
+          !!shop.pendingIngestionSecret &&
+          !!shop.pendingSecretExpiry &&
+          now < shop.pendingSecretExpiry;
+        const lastRotationAt = shop.pendingSecretIssuedAt ?? null;
+        const rotationCount =
+          (shop.previousIngestionSecret ? 1 : 0) + (hasPendingRotation ? 1 : 0);
+
+        hmacSecurityStats = {
+          lastRotationAt,
+          rotationCount,
+          graceWindowActive: hasPendingRotation,
+          graceWindowExpiry: hasPendingRotation ? shop.pendingSecretExpiry ?? null : null,
+          suspiciousActivityCount,
+          lastSuspiciousActivity: lastSuspiciousActivity?.createdAt ?? null,
+          nullOriginRequestCount,
+          invalidSignatureCount,
+          lastInvalidSignature: lastInvalidSignature?.createdAt ?? null,
+        };
+      } catch (error) {
+        logger.error("Failed to calculate HMAC security stats", {
+          shopId: shop.id,
+          error,
+        });
       }
     }
     const pixelStrictOrigin = ["true", "1", "yes"].includes(
@@ -289,7 +343,7 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       pixelStrictOrigin,
       alertChannelsEnabled,
       currentMonitoringData,
-      hmacSecurityStats: null,
+      hmacSecurityStats,
       capabilityFlags: {
         pcdApproved: PCD_CONFIG.APPROVED,
         serverSideConversionsEnabled: SERVER_SIDE_CONVERSIONS_ENABLED,

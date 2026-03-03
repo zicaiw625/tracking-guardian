@@ -33,6 +33,7 @@ export function VerificationPixelEvidencePanel({
   const { t } = useTranslation();
   const hasRunMetrics = !!latestRun && (latestRun.totalTests ?? 0) > 0;
   const hmacMatchedCount = recentReceipts.filter((item) => item.hmacMatched).length;
+  const hmacMatchRate = recentReceipts.length > 0 ? hmacMatchedCount / recentReceipts.length : 0;
   const currencyMissingCount = recentReceipts.filter((item) => !item.currency).length;
   const valueMissingCount = recentReceipts.filter((item) => item.totalValue === null).length;
 
@@ -80,7 +81,7 @@ export function VerificationPixelEvidencePanel({
             <Badge tone={recentReceipts.length > 0 ? "success" : "warning"}>
               {t("verification.page.pixelLayer.health.receipts", { count: recentReceipts.length })}
             </Badge>
-            <Badge tone={hmacMatchedCount > 0 ? "success" : "warning"}>
+            <Badge tone={hmacMatchRate >= 0.9 ? "success" : hmacMatchRate >= 0.6 ? "warning" : "critical"}>
               {t("verification.page.pixelLayer.health.hmac", { count: hmacMatchedCount })}
             </Badge>
             <Badge tone={currencyMissingCount === 0 ? "success" : "warning"}>

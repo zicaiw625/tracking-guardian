@@ -89,12 +89,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const formData = await request.formData();
   const actionType = formData.get("_action");
   if (actionType === "create_scan_share_link") {
-    const expiresInDaysRaw = Number(formData.get("expiresInDays") || 7);
+    const expiresInDaysRaw = Number(formData.get("expiresInDays") || 3);
+    const maxAccessCountRaw = Number(formData.get("maxAccessCount") || 20);
     const created = await createScanReportShareLink({
       shopId: shop.id,
       reportId: latestCompletedScan.id,
       createdBy: session.id,
-      expiresInDays: Number.isFinite(expiresInDaysRaw) ? expiresInDaysRaw : 7,
+      expiresInDays: Number.isFinite(expiresInDaysRaw) ? expiresInDaysRaw : 3,
+      maxAccessCount: Number.isFinite(maxAccessCountRaw) ? maxAccessCountRaw : 20,
     });
     const baseUrl = getPublicAppDomain().replace(/\/+$/, "");
     const shareUrl = `${baseUrl}/s/${created.token}`;
@@ -103,6 +105,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       action: "create_scan_share_link",
       shareUrl,
       expiresAt: created.expiresAt.toISOString(),
+      maxAccessCount: created.maxAccessCount,
     });
   }
   if (actionType === "revoke_scan_share_link") {
@@ -155,7 +158,7 @@ export default function ReportsPage() {
   const handleCreateScanShareLink = () => {
     if (!latestCompletedScan || shareSubmitting) return;
     shareFetcher.submit(
-      { _action: "create_scan_share_link", expiresInDays: "7" },
+      { _action: "create_scan_share_link", expiresInDays: "3", maxAccessCount: "20" },
       { method: "post" }
     );
   };
@@ -268,7 +271,10 @@ export default function ReportsPage() {
                             {t("reports.scan.share.activeMeta", {
                               prefix: scanShareMeta.tokenPrefix,
                               expiresAt: new Date(scanShareMeta.expiresAt).toLocaleString(),
-                            })}
+                            })}{" "}
+                            {scanShareMeta.remainingAccessCount !== null
+                              ? `(remaining: ${scanShareMeta.remainingAccessCount})`
+                              : ""}
                           </Text>
                         )}
                         {latestScanShareUrl && (

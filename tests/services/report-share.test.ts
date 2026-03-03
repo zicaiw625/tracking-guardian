@@ -12,7 +12,6 @@ const mockPrisma = vi.hoisted(() => ({
     findFirst: vi.fn(),
     findUnique: vi.fn(),
     updateMany: vi.fn(),
-    update: vi.fn(),
   },
 }));
 
@@ -58,7 +57,7 @@ describe("report share permission consistency", () => {
 
     const result = await resolvePublicVerificationReportByToken("token-1");
     expect(result).toBeNull();
-    expect(prisma.reportShareLink.update).not.toHaveBeenCalled();
+    expect(prisma.reportShareLink.updateMany).not.toHaveBeenCalled();
   });
 
   it("returns report data when plan supports export", async () => {
@@ -70,11 +69,13 @@ describe("report share permission consistency", () => {
       expiresAt: new Date(Date.now() + 60_000),
       revokedAt: null,
       scope: "verification_report",
+      maxAccessCount: 20,
+      accessCount: 0,
     });
     vi.mocked(prisma.shop.findUnique).mockResolvedValue({
       plan: "growth",
     } as never);
-    vi.mocked(prisma.reportShareLink.update).mockResolvedValue({});
+    vi.mocked(prisma.reportShareLink.updateMany).mockResolvedValue({ count: 1 } as never);
     vi.mocked(generateVerificationReportData).mockResolvedValue({
       runId: "run-1",
       runName: "Test",
@@ -95,7 +96,7 @@ describe("report share permission consistency", () => {
 
     const result = await resolvePublicVerificationReportByToken("token-1");
     expect(result).not.toBeNull();
-    expect(prisma.reportShareLink.update).toHaveBeenCalled();
+    expect(prisma.reportShareLink.updateMany).toHaveBeenCalled();
   });
 
   it("creates a scan report share link", async () => {
@@ -118,6 +119,7 @@ describe("report share permission consistency", () => {
 
     expect(result.id).toBe("share-scan-1");
     expect(result.tokenPrefix).toBe("prefix01");
+    expect(result.maxAccessCount).toBe(20);
     expect(result.token.length).toBeGreaterThan(0);
     expect(prisma.reportShareLink.create).toHaveBeenCalled();
   });
@@ -141,8 +143,10 @@ describe("report share permission consistency", () => {
       expiresAt: new Date(Date.now() + 60_000),
       revokedAt: null,
       scope: "scan_report",
+      maxAccessCount: 20,
+      accessCount: 0,
     } as never);
-    vi.mocked(prisma.reportShareLink.update).mockResolvedValue({} as never);
+    vi.mocked(prisma.reportShareLink.updateMany).mockResolvedValue({ count: 1 } as never);
     vi.mocked(prisma.scanReport.findFirst).mockResolvedValue({
       id: "scan-1",
       riskScore: 42,
@@ -164,6 +168,42 @@ describe("report share permission consistency", () => {
     expect(result).not.toBeNull();
     expect(result?.reportId).toBe("scan-1");
     expect(result?.riskItems.length).toBe(1);
-    expect(prisma.reportShareLink.update).toHaveBeenCalled();
+    expect(prisma.reportShareLink.updateMany).toHaveBeenCalled();
+  });
+
+  it("blocks verification share when access limit is reached", async () => {
+    vi.mocked(prisma.reportShareLink.findUnique).mockResolvedValue({
+      id: "share-1",
+      shopId: "shop-1",
+      runId: "run-1",
+      tokenPrefix: "abc",
+      expiresAt: new Date(Date.now() + 60_000),
+      revokedAt: null,
+      scope: "verification_report",
+      maxAccessCount: 1,
+      accessCount: 1,
+    } as never);
+
+    const result = await resolvePublicVerificationReportByToken("token-limit");
+    expect(result).toBeNull();
+    expect(prisma.reportShareLink.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("blocks scan share when atomic increment is rejected", async () => {
+    vi.mocked(prisma.reportShareLink.findUnique).mockResolvedValue({
+      id: "share-scan-1",
+      shopId: "shop-1",
+      scanReportId: "scan-1",
+      tokenPrefix: "prefix01",
+      expiresAt: new Date(Date.now() + 60_000),
+      revokedAt: null,
+      scope: "scan_report",
+      maxAccessCount: 20,
+      accessCount: 0,
+    } as never);
+    vi.mocked(prisma.reportShareLink.updateMany).mockResolvedValue({ count: 0 } as never);
+
+    const result = await resolvePublicScanReportByToken("token-race");
+    expect(result).toBeNull();
   });
 });

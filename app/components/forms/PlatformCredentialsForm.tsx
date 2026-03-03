@@ -204,18 +204,19 @@ export function areCredentialsComplete(
   platform: PlatformType,
   credentials: PlatformCredentials
 ): boolean {
+  const hasText = (value: string | undefined) => typeof value === "string" && value.trim().length > 0;
   switch (platform) {
     case "meta": {
       const meta = credentials as MetaCredentials;
-      return Boolean(meta.pixelId && meta.accessToken);
+      return hasText(meta.pixelId) && hasText(meta.accessToken);
     }
     case "google": {
       const google = credentials as GoogleCredentials;
-      return Boolean(google.measurementId && google.apiSecret);
+      return hasText(google.measurementId) && hasText(google.apiSecret);
     }
     case "tiktok": {
       const tiktok = credentials as TikTokCredentials;
-      return Boolean(tiktok.pixelId && tiktok.accessToken);
+      return hasText(tiktok.pixelId) && hasText(tiktok.accessToken);
     }
   }
 }

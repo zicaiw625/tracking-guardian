@@ -4,6 +4,12 @@ import { useLoaderData } from "@remix-run/react";
 import { resolvePublicVerificationReportByToken } from "../services/report-share.server";
 import { SHARE_PAGE_ROBOTS_TAG } from "../utils/security-headers";
 
+function formatMoneyValue(value: unknown): string {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric)) return "-";
+  return numeric.toFixed(2);
+}
+
 export const loader = async ({ params }: LoaderFunctionArgs) => {
   const token = params.token?.trim();
   if (!token) {
@@ -87,7 +93,7 @@ export default function PublicVerificationReportPage() {
                   <td style={{ borderBottom: "1px solid #f3f4f6", padding: "8px 6px" }}>{event.orderId || "-"}</td>
                   <td style={{ borderBottom: "1px solid #f3f4f6", padding: "8px 6px" }}>{event.status}</td>
                   <td style={{ borderBottom: "1px solid #f3f4f6", padding: "8px 6px", textAlign: "right" }}>
-                    {event.params?.value?.toFixed(2) || "-"}
+                    {formatMoneyValue(event.params?.value)}
                   </td>
                   <td style={{ borderBottom: "1px solid #f3f4f6", padding: "8px 6px" }}>{event.params?.currency || "-"}</td>
                 </tr>

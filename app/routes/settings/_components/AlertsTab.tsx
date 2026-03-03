@@ -34,6 +34,7 @@ export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = f
   const [newBotToken, setNewBotToken] = useState("");
   const [newChatId, setNewChatId] = useState("");
   const [newThreshold, setNewThreshold] = useState(10);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleSave = useCallback(() => {
     const formData = new FormData();
@@ -49,23 +50,58 @@ export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = f
   const handleAdd = useCallback(() => {
     const id = `alert-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     let settings: Record<string, unknown> | null = null;
+    const email = newEmail.trim();
+    const webhookUrl = newWebhookUrl.trim();
+    const botToken = newBotToken.trim();
+    const chatId = newChatId.trim();
+    const safeThreshold = Math.max(1, Math.min(100, Number(newThreshold) || 10));
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const isUniqueConfig = (channel: string, payload: Record<string, unknown>) =>
+      !configs.some((existing) => {
+        if (existing.channel !== channel) return false;
+        return JSON.stringify(existing.settings || {}) === JSON.stringify(payload);
+      });
+
     if (newChannel === "email") {
-      if (!newEmail.trim()) return;
-      settings = { email: newEmail.trim() };
+      if (!email || !emailPattern.test(email)) {
+        setValidationError(t("settings.alerts.validation.invalidEmail", { defaultValue: "Please enter a valid email address." }));
+        return;
+      }
+      settings = { email };
+      if (!isUniqueConfig(newChannel, settings)) {
+        setValidationError(t("settings.alerts.validation.duplicate", { defaultValue: "This alert channel configuration already exists." }));
+        return;
+      }
     } else if (newChannel === "slack") {
-      if (!newWebhookUrl.trim()) return;
-      settings = { webhookUrl: newWebhookUrl.trim() };
+      const looksLikeHttps = /^https:\/\//i.test(webhookUrl);
+      if (!webhookUrl || !looksLikeHttps) {
+        setValidationError(t("settings.alerts.validation.invalidWebhook", { defaultValue: "Please enter a valid HTTPS webhook URL." }));
+        return;
+      }
+      settings = { webhookUrl };
+      if (!isUniqueConfig(newChannel, settings)) {
+        setValidationError(t("settings.alerts.validation.duplicate", { defaultValue: "This alert channel configuration already exists." }));
+        return;
+      }
     } else if (newChannel === "telegram") {
-      if (!newBotToken.trim() || !newChatId.trim()) return;
-      settings = { botToken: newBotToken.trim(), chatId: newChatId.trim() };
+      if (!botToken || !chatId) {
+        setValidationError(t("settings.alerts.validation.invalidTelegram", { defaultValue: "Please provide bot token and chat ID." }));
+        return;
+      }
+      settings = { botToken, chatId };
+      if (!isUniqueConfig(newChannel, settings)) {
+        setValidationError(t("settings.alerts.validation.duplicate", { defaultValue: "This alert channel configuration already exists." }));
+        return;
+      }
     }
+    setValidationError(null);
     setConfigs((prev) => [
       ...prev,
       {
         id,
         channel: newChannel,
         settings,
-        discrepancyThreshold: newThreshold,
+        discrepancyThreshold: safeThreshold,
         isEnabled: true,
       },
     ]);
@@ -74,7 +110,7 @@ export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = f
     setNewBotToken("");
     setNewChatId("");
     setNewThreshold(10);
-  }, [newChannel, newEmail, newWebhookUrl, newBotToken, newChatId, newThreshold]);
+  }, [configs, newBotToken, newChannel, newChatId, newEmail, newThreshold, newWebhookUrl, t]);
 
   const channelOptions = [
     { label: t("settings.alerts.channels.email"), value: "email" },
@@ -93,6 +129,11 @@ export function AlertsTab({ alertConfigs, isSubmitting, alertChannelsEnabled = f
       )}
       <Card>
         <BlockStack gap="400">
+          {validationError && (
+            <Banner tone="critical">
+              <Text as="p" variant="bodySm">{validationError}</Text>
+            </Banner>
+          )}
           <Text as="h2" variant="headingMd">{t("settings.alerts.title")}</Text>
           <Text as="p" tone="subdued">
             {t("settings.alerts.description")}

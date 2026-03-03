@@ -63,12 +63,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (!latestScan) {
             return json({ success: false, error: t("scan.share.toast.noReport") }, { status: 404 });
         }
-        const expiresInDaysRaw = Number(formData.get("expiresInDays") || 7);
+        const expiresInDaysRaw = Number(formData.get("expiresInDays") || 3);
+        const maxAccessCountRaw = Number(formData.get("maxAccessCount") || 20);
         const created = await createScanReportShareLink({
             shopId: shop.id,
             reportId: latestScan.id,
             createdBy: session.id,
-            expiresInDays: Number.isFinite(expiresInDaysRaw) ? expiresInDaysRaw : 7,
+            expiresInDays: Number.isFinite(expiresInDaysRaw) ? expiresInDaysRaw : 3,
+            maxAccessCount: Number.isFinite(maxAccessCountRaw) ? maxAccessCountRaw : 20,
         });
         const baseUrl = getPublicAppDomain().replace(/\/+$/, "");
         const shareUrl = `${baseUrl}/s/${created.token}`;
@@ -77,6 +79,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             action: "create_share_link",
             shareUrl,
             expiresAt: created.expiresAt.toISOString(),
+            maxAccessCount: created.maxAccessCount,
         });
     }
     if (actionType === "revoke_share_link") {

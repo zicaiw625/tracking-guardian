@@ -216,6 +216,11 @@ export async function generateVerificationReportData(
 }
 
 export function generateVerificationReportCSV(data: VerificationReportData): string {
+  const safeFixed = (value: unknown, digits = 2): string => {
+    const parsed = typeof value === "number" ? value : Number(value);
+    if (!Number.isFinite(parsed)) return "";
+    return parsed.toFixed(digits);
+  };
   const lines: string[] = [];
   lines.push("Run ID,Run Name,Shop Domain,Run Type,Status,Platforms,Total Tests,Passed Tests,Failed Tests,Missing Param Tests,Parameter Completeness,Value Accuracy");
   lines.push(
@@ -230,8 +235,8 @@ export function generateVerificationReportCSV(data: VerificationReportData): str
       String(data.summary.passedTests),
       String(data.summary.failedTests),
       String(data.summary.missingParamTests),
-      escapeCSV(`${data.summary.parameterCompleteness.toFixed(2)}%`),
-      escapeCSV(`${data.summary.valueAccuracy.toFixed(2)}%`),
+      escapeCSV(`${safeFixed(data.summary.parameterCompleteness, 2)}%`),
+      escapeCSV(`${safeFixed(data.summary.valueAccuracy, 2)}%`),
     ].join(",")
   );
   lines.push("");
@@ -255,7 +260,7 @@ export function generateVerificationReportCSV(data: VerificationReportData): str
         escapeCSV(event.platform),
         escapeCSV(event.orderId || ""),
         escapeCSV(event.status),
-        escapeCSV(event.params?.value?.toFixed(2) || ""),
+        escapeCSV(safeFixed(event.params?.value, 2)),
         escapeCSV(event.params?.currency || ""),
         escapeCSV(event.discrepancies?.join("; ") || ""),
         escapeCSV(event.errors?.join("; ") || ""),

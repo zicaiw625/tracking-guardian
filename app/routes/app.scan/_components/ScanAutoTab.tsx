@@ -50,7 +50,7 @@ interface ScanAutoTabProps {
     onCopyShareUrl: () => void;
     onOpenSharePreview: () => void;
     latestShareUrl: string | null;
-    activeShareMeta: { tokenPrefix: string; expiresAt: string | Date } | null;
+    activeShareMeta: { tokenPrefix: string; expiresAt: string | Date; remainingAccessCount?: number | null } | null;
     canCreateShareLink: boolean;
     onNavigate?: (url: string) => void;
 }
@@ -219,7 +219,10 @@ export function ScanAutoTab({
                                 {t("scan.share.activeMeta", {
                                     prefix: activeShareMeta.tokenPrefix,
                                     expiresAt: new Date(activeShareMeta.expiresAt).toLocaleString(),
-                                })}
+                                })}{" "}
+                                {typeof activeShareMeta.remainingAccessCount === "number"
+                                  ? `(remaining: ${activeShareMeta.remainingAccessCount})`
+                                  : ""}
                             </Text>
                         )}
                     </BlockStack>

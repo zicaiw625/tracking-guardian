@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, useActionData } from "@remix-run/react";
+import { useLoaderData, useSubmit, useActionData, useNavigation } from "@remix-run/react";
 import { useEffect, useMemo, useState } from "react";
 import {
   Page,
@@ -44,6 +44,16 @@ import {
   revokeVerificationReportShareLinks,
 } from "../services/report-share.server";
 import { getPublicAppDomain } from "../utils/config.server";
+
+function toSafeNumber(value: unknown): number | null {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatSafeFixed(value: unknown, digits = 1): string {
+  const parsed = toSafeNumber(value);
+  return parsed === null ? "-" : parsed.toFixed(digits);
+}
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -161,12 +171,14 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     if (!canExportReports) {
       return json({ success: false, error: "Growth or Agency plan is required to share reports" }, { status: 403 });
     }
-    const expiresInDaysRaw = Number(formData.get("expiresInDays") || 7);
+    const expiresInDaysRaw = Number(formData.get("expiresInDays") || 3);
+    const maxAccessCountRaw = Number(formData.get("maxAccessCount") || 20);
     const created = await createVerificationReportShareLink({
       shopId: shop.id,
       runId,
       createdBy: session.id,
-      expiresInDays: Number.isFinite(expiresInDaysRaw) ? expiresInDaysRaw : 7,
+      expiresInDays: Number.isFinite(expiresInDaysRaw) ? expiresInDaysRaw : 3,
+      maxAccessCount: Number.isFinite(maxAccessCountRaw) ? maxAccessCountRaw : 20,
     });
     const baseUrl = getPublicAppDomain().replace(/\/+$/, "");
     const shareUrl = `${baseUrl}/r/${created.token}`;
@@ -175,6 +187,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       action: "create_share_link",
       shareUrl,
       expiresAt: created.expiresAt.toISOString(),
+      maxAccessCount: created.maxAccessCount,
     });
   }
   if (actionType === "revoke_share_link") {
@@ -226,12 +239,15 @@ export function ErrorBoundary() {
 export default function VerificationReportPage() {
   const { shop, run, reportData, shareLinkMeta, canExportReports, gateResult, currentPlan, pixelStrictOrigin } = useLoaderData<typeof loader>();
   const submit = useSubmit();
+  const navigation = useNavigation();
   const actionData = useActionData<typeof action>();
   const { showSuccess, showError } = useToastContext();
   const { t, i18n } = useTranslation();
   const locale = i18n.resolvedLanguage || i18n.language || undefined;
-  const [isExporting, setIsExporting] = useState(false);
   const [latestShareUrl, setLatestShareUrl] = useState<string | null>(null);
+  const isExporting =
+    navigation.state === "submitting" &&
+    navigation.formData?.get("_action") === "export_csv";
   const activeShareMeta = useMemo(() => {
     if (actionData?.success && actionData.action === "create_share_link" && actionData.expiresAt) {
       return {
@@ -293,16 +309,15 @@ export default function VerificationReportPage() {
   }
 
   const handleExportCSV = () => {
-    setIsExporting(true);
     const formData = new FormData();
     formData.append("_action", "export_csv");
     submit(formData, { method: "post" });
-    setTimeout(() => setIsExporting(false), 2000);
   };
   const handleCreateShareLink = () => {
     const formData = new FormData();
     formData.append("_action", "create_share_link");
-    formData.append("expiresInDays", "7");
+    formData.append("expiresInDays", "3");
+    formData.append("maxAccessCount", "20");
     submit(formData, { method: "post" });
   };
   const handleRevokeShareLink = () => {
@@ -404,7 +419,10 @@ export default function VerificationReportPage() {
                 {t("verification.report.share.activeMeta", {
                   prefix: activeShareMeta.tokenPrefix,
                   expiresAt: new Date(activeShareMeta.expiresAt).toLocaleString(locale),
-                })}
+                })}{" "}
+                {"remainingAccessCount" in activeShareMeta && activeShareMeta.remainingAccessCount !== null
+                  ? `(remaining: ${activeShareMeta.remainingAccessCount})`
+                  : ""}
               </Text>
             )}
           </BlockStack>
@@ -531,7 +549,7 @@ export default function VerificationReportPage() {
                     {t("verification.report.summary.completeness")}
                   </Text>
                   <Text as="span" variant="headingMd" tone={reportData.summary.parameterCompleteness >= 90 ? "success" : reportData.summary.parameterCompleteness >= 70 ? "caution" : "critical"}>
-                    {reportData.summary.parameterCompleteness.toFixed(1)}%
+                    {formatSafeFixed(reportData.summary.parameterCompleteness, 1)}%
                   </Text>
                 </InlineStack>
                 <ProgressBar
@@ -545,7 +563,7 @@ export default function VerificationReportPage() {
                     {t("verification.report.summary.accuracy")}
                   </Text>
                   <Text as="span" variant="headingMd" tone={reportData.summary.valueAccuracy >= 95 ? "success" : reportData.summary.valueAccuracy >= 80 ? "caution" : "critical"}>
-                    {reportData.summary.valueAccuracy.toFixed(1)}%
+                    {formatSafeFixed(reportData.summary.valueAccuracy, 1)}%
                   </Text>
                 </InlineStack>
                 <ProgressBar
@@ -612,7 +630,7 @@ export default function VerificationReportPage() {
                   event.platform,
                   event.orderId || "",
                   event.status,
-                  event.params?.value?.toFixed(2) || "",
+                  formatSafeFixed(event.params?.value, 2) === "-" ? "" : formatSafeFixed(event.params?.value, 2),
                   event.params?.currency || "",
                   event.discrepancies?.join("; ") || event.errors?.join("; ") || "",
                   event.sandboxLimitations?.join("; ") || "",

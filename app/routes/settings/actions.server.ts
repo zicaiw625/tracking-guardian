@@ -13,6 +13,7 @@ import { generateEncryptedIngestionSecret } from "../../utils/token-encryption.s
 import { logger } from "../../utils/logger.server";
 import { invalidateAllShopCaches } from "../../services/shop-cache.server";
 import { invalidateAlertConfigsCache } from "../../services/db/cached-queries.server";
+import { z } from "zod";
 
 import {
   switchEnvironment,
@@ -127,6 +128,15 @@ export async function handleSaveAlertConfigs(
   shopId: string
 ) {
   const configsJson = formData.get("alertConfigs");
+  const AlertConfigSchema = z.object({
+    id: z.string().min(1).max(128),
+    channel: z.enum(["email", "slack", "telegram"]),
+    settings: z.record(z.string(), z.unknown()).nullable().optional(),
+    frequency: z.string().max(64).optional(),
+    discrepancyThreshold: z.number().int().min(1).max(100),
+    isEnabled: z.boolean(),
+  });
+  const AlertConfigsSchema = z.array(AlertConfigSchema).max(50);
   let alertConfigs: Array<{
     id: string;
     channel: string;
@@ -138,21 +148,26 @@ export async function handleSaveAlertConfigs(
   if (typeof configsJson === "string" && configsJson.trim()) {
     try {
       const parsed = JSON.parse(configsJson) as unknown;
-      if (Array.isArray(parsed)) {
-        alertConfigs = parsed.map((c: unknown, i: number) => {
-          const item = c && typeof c === "object" ? c as Record<string, unknown> : {};
-          return {
-            id: typeof item.id === "string" ? item.id : `alert-${i}-${Date.now()}`,
-            channel: typeof item.channel === "string" ? item.channel : "email",
-            settings: item.settings && typeof item.settings === "object" ? item.settings as Record<string, unknown> : null,
-            frequency: typeof item.frequency === "string" ? item.frequency : undefined,
-            discrepancyThreshold: typeof item.discrepancyThreshold === "number" ? item.discrepancyThreshold : 10,
-            isEnabled: typeof item.isEnabled === "boolean" ? item.isEnabled : true,
-          };
-        });
+      const normalized = Array.isArray(parsed)
+        ? parsed.map((c: unknown, i: number) => {
+            const item = c && typeof c === "object" ? (c as Record<string, unknown>) : {};
+            return {
+              id: typeof item.id === "string" ? item.id : `alert-${i}-${Date.now()}`,
+              channel: typeof item.channel === "string" ? item.channel : "email",
+              settings: item.settings && typeof item.settings === "object" ? (item.settings as Record<string, unknown>) : null,
+              frequency: typeof item.frequency === "string" ? item.frequency : undefined,
+              discrepancyThreshold: typeof item.discrepancyThreshold === "number" ? item.discrepancyThreshold : 10,
+              isEnabled: typeof item.isEnabled === "boolean" ? item.isEnabled : true,
+            };
+          })
+        : [];
+      const validated = AlertConfigsSchema.safeParse(normalized);
+      if (!validated.success) {
+        return json({ success: false, error: t("settings.action.invalidAlertConfigPayload") }, { status: 400 });
       }
+      alertConfigs = validated.data;
     } catch {
-      alertConfigs = [];
+      return json({ success: false, error: t("settings.action.invalidAlertConfigPayload") }, { status: 400 });
     }
   }
   const shop = await prisma.shop.findUnique({

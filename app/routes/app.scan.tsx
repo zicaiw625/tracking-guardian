@@ -142,11 +142,17 @@ export function ScanPage({
       (actionData as { partialRefresh?: boolean }).partialRefresh === true;
     const activeShareMeta = useMemo(() => {
         if (actionData && typeof actionData === "object" && "success" in actionData && "action" in actionData) {
-            const record = actionData as { success?: boolean; action?: string; expiresAt?: string };
+            const record = actionData as {
+                success?: boolean;
+                action?: string;
+                expiresAt?: string;
+                maxAccessCount?: number;
+            };
             if (record.success && record.action === "create_share_link" && record.expiresAt) {
                 return {
                     tokenPrefix: "new",
                     expiresAt: record.expiresAt,
+                    remainingAccessCount: typeof record.maxAccessCount === "number" ? record.maxAccessCount : null,
                 };
             }
         }
@@ -592,7 +598,8 @@ export function ScanPage({
         }
         const formData = new FormData();
         formData.append("_action", "create_share_link");
-        formData.append("expiresInDays", "7");
+        formData.append("expiresInDays", "3");
+        formData.append("maxAccessCount", "20");
         submit(formData, { method: "post" });
     }, [canCreateShareLink, latestCompletedScan?.id, showError, submit, t]);
     const handleRevokeShareLink = useCallback(() => {
@@ -632,7 +639,8 @@ export function ScanPage({
         setOpenShareAfterCreate(true);
         const formData = new FormData();
         formData.append("_action", "create_share_link");
-        formData.append("expiresInDays", "7");
+        formData.append("expiresInDays", "3");
+        formData.append("maxAccessCount", "20");
         submit(formData, { method: "post" });
     }, [activeShareMeta, latestShareUrl, showError, submit, t]);
     const handleExportChecklist = useCallback(() => {

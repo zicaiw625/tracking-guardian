@@ -171,8 +171,16 @@ export function ComparisonMetricCard({
   highlightDifference = false,
 }: ComparisonMetricCardProps) {
   const { t } = useTranslation();
-  const leftNum = typeof leftValue === "number" ? leftValue : parseFloat(String(leftValue)) || 0;
-  const rightNum = typeof rightValue === "number" ? rightValue : parseFloat(String(rightValue)) || 0;
+  const parseMetricValue = (value: number | string): number => {
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : 0;
+    }
+    const normalized = value.replace(/,/g, "").trim();
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+  const leftNum = parseMetricValue(leftValue);
+  const rightNum = parseMetricValue(rightValue);
   const difference = leftNum - rightNum;
   const differencePercent = rightNum !== 0 ? ((difference / rightNum) * 100).toFixed(1) : "0";
   return (

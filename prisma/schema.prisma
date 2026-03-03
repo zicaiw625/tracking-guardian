@@ -309,6 +309,7 @@ model ReportShareLink {
   tokenPrefix    String
   scope          String          @default("verification_report")
   expiresAt      DateTime
+  maxAccessCount Int?
   revokedAt      DateTime?
   createdBy      String?
   accessCount    Int             @default(0)
@@ -323,6 +324,7 @@ model ReportShareLink {
   @@index([shopId, scanReportId])
   @@index([runId, revokedAt, expiresAt])
   @@index([scanReportId, revokedAt, expiresAt])
+  @@index([tokenHash, revokedAt, expiresAt])
   @@index([expiresAt])
 }
 

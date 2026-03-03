@@ -76,6 +76,12 @@ describe("app.scan share action", () => {
     const data = await response.json();
 
     expect(data.success).toBe(true);
+    expect(mockCreateScanShare).toHaveBeenCalledWith(
+      expect.objectContaining({
+        maxAccessCount: 20,
+        expiresInDays: 3,
+      })
+    );
     expect(mockPrisma.scanReport.findFirst).toHaveBeenCalledWith({
       where: {
         shopId: "shop-1",

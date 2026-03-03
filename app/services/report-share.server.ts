@@ -4,8 +4,10 @@ import { hashValueSync } from "../utils/crypto.server";
 import { generateVerificationReportData, type VerificationReportData } from "./verification-report.server";
 import { normalizePlanId, planSupportsReportExport, type PlanId } from "./billing/plans";
 
-const DEFAULT_EXPIRY_DAYS = 7;
-const MAX_EXPIRY_DAYS = 90;
+const DEFAULT_EXPIRY_DAYS = 3;
+const MAX_EXPIRY_DAYS = 30;
+const DEFAULT_MAX_ACCESS_COUNT = 20;
+const MAX_ACCESS_COUNT = 200;
 const TOKEN_BYTES = 24;
 
 export interface ReportShareLinkMeta {
@@ -13,6 +15,8 @@ export interface ReportShareLinkMeta {
   runId: string;
   tokenPrefix: string;
   expiresAt: Date;
+  maxAccessCount: number | null;
+  remainingAccessCount: number | null;
   revokedAt: Date | null;
   createdAt: Date;
   accessCount: number;
@@ -23,6 +27,8 @@ export interface ScanReportShareLinkMeta {
   scanReportId: string;
   tokenPrefix: string;
   expiresAt: Date;
+  maxAccessCount: number | null;
+  remainingAccessCount: number | null;
   revokedAt: Date | null;
   createdAt: Date;
   accessCount: number;
@@ -34,6 +40,7 @@ export interface CreatedReportShareLink {
   tokenPrefix: string;
   expiresAt: Date;
   createdAt: Date;
+  maxAccessCount: number;
 }
 
 export interface PublicVerificationReportData {
@@ -94,6 +101,16 @@ function generateShareToken(): string {
 function clampExpiryDays(expiresInDays?: number): number {
   if (!expiresInDays || !Number.isFinite(expiresInDays)) return DEFAULT_EXPIRY_DAYS;
   return Math.min(MAX_EXPIRY_DAYS, Math.max(1, Math.floor(expiresInDays)));
+}
+
+function clampAccessCount(maxAccessCount?: number): number {
+  if (!maxAccessCount || !Number.isFinite(maxAccessCount)) return DEFAULT_MAX_ACCESS_COUNT;
+  return Math.min(MAX_ACCESS_COUNT, Math.max(1, Math.floor(maxAccessCount)));
+}
+
+function getRemainingAccessCount(accessCount: number, maxAccessCount: number | null): number | null {
+  if (maxAccessCount == null) return null;
+  return Math.max(0, maxAccessCount - accessCount);
 }
 
 function redactOrderId(orderId?: string): string | undefined {
@@ -186,8 +203,9 @@ export async function createVerificationReportShareLink(params: {
   runId: string;
   createdBy?: string | null;
   expiresInDays?: number;
+  maxAccessCount?: number;
 }): Promise<CreatedReportShareLink> {
-  const { shopId, runId, createdBy, expiresInDays } = params;
+  const { shopId, runId, createdBy, expiresInDays, maxAccessCount } = params;
   const run = await prisma.verificationRun.findFirst({
     where: { id: runId, shopId },
     select: { id: true },
@@ -196,6 +214,7 @@ export async function createVerificationReportShareLink(params: {
     throw new Error("Verification report not found");
   }
   const expiryDays = clampExpiryDays(expiresInDays);
+  const accessLimit = clampAccessCount(maxAccessCount);
   const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
   for (let attempt = 0; attempt < 3; attempt++) {
     const token = generateShareToken();
@@ -210,6 +229,7 @@ export async function createVerificationReportShareLink(params: {
           tokenPrefix: token.slice(0, 8),
           scope: "verification_report",
           expiresAt,
+          maxAccessCount: accessLimit,
           createdBy: createdBy || null,
         },
         select: {
@@ -225,6 +245,7 @@ export async function createVerificationReportShareLink(params: {
         tokenPrefix: created.tokenPrefix,
         expiresAt: created.expiresAt,
         createdAt: created.createdAt,
+        maxAccessCount: accessLimit,
       };
     } catch (error: any) {
       if (error?.code === "P2002" && attempt < 2) {
@@ -268,6 +289,7 @@ export async function getLatestVerificationReportShareMeta(
       runId: true,
       tokenPrefix: true,
       expiresAt: true,
+      maxAccessCount: true,
       revokedAt: true,
       createdAt: true,
       accessCount: true,
@@ -279,6 +301,8 @@ export async function getLatestVerificationReportShareMeta(
     runId: record.runId,
     tokenPrefix: record.tokenPrefix,
     expiresAt: record.expiresAt,
+    maxAccessCount: record.maxAccessCount,
+    remainingAccessCount: getRemainingAccessCount(record.accessCount, record.maxAccessCount),
     revokedAt: record.revokedAt,
     createdAt: record.createdAt,
     accessCount: record.accessCount,
@@ -297,6 +321,8 @@ export async function resolvePublicVerificationReportByToken(
       runId: true,
       tokenPrefix: true,
       expiresAt: true,
+      maxAccessCount: true,
+      accessCount: true,
       revokedAt: true,
       scope: true,
     },
@@ -304,7 +330,15 @@ export async function resolvePublicVerificationReportByToken(
   if (!shareLink) return null;
   if (shareLink.scope !== "verification_report") return null;
   if (shareLink.revokedAt) return null;
-  if (shareLink.expiresAt.getTime() <= Date.now()) return null;
+  const now = new Date();
+  if (shareLink.expiresAt.getTime() <= now.getTime()) return null;
+  if (
+    typeof shareLink.maxAccessCount === "number" &&
+    shareLink.maxAccessCount > 0 &&
+    shareLink.accessCount >= shareLink.maxAccessCount
+  ) {
+    return null;
+  }
   if (!shareLink.runId) return null;
   const shop = await prisma.shop.findUnique({
     where: { id: shareLink.shopId },
@@ -314,13 +348,21 @@ export async function resolvePublicVerificationReportByToken(
   if (!planSupportsReportExport(currentPlan)) {
     return null;
   }
-  await prisma.reportShareLink.update({
-    where: { id: shareLink.id },
+  const incremented = await prisma.reportShareLink.updateMany({
+    where: {
+      id: shareLink.id,
+      revokedAt: null,
+      expiresAt: { gt: now },
+      OR: [{ maxAccessCount: null }, { accessCount: { lt: shareLink.maxAccessCount ?? 0 } }],
+    },
     data: {
       accessCount: { increment: 1 },
-      lastAccessedAt: new Date(),
+      lastAccessedAt: now,
     },
   });
+  if ((incremented.count ?? 0) < 1) {
+    return null;
+  }
   const reportData = await generateVerificationReportData(shareLink.shopId, shareLink.runId);
   return toPublicReportData(reportData, {
     tokenPrefix: shareLink.tokenPrefix,
@@ -333,8 +375,9 @@ export async function createScanReportShareLink(params: {
   reportId: string;
   createdBy?: string | null;
   expiresInDays?: number;
+  maxAccessCount?: number;
 }): Promise<CreatedReportShareLink> {
-  const { shopId, reportId, createdBy, expiresInDays } = params;
+  const { shopId, reportId, createdBy, expiresInDays, maxAccessCount } = params;
   const report = await prisma.scanReport.findFirst({
     where: { id: reportId, shopId },
     select: { id: true },
@@ -343,6 +386,7 @@ export async function createScanReportShareLink(params: {
     throw new Error("Scan report not found");
   }
   const expiryDays = clampExpiryDays(expiresInDays);
+  const accessLimit = clampAccessCount(maxAccessCount);
   const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
   for (let attempt = 0; attempt < 3; attempt++) {
     const token = generateShareToken();
@@ -357,6 +401,7 @@ export async function createScanReportShareLink(params: {
           tokenPrefix: token.slice(0, 8),
           scope: "scan_report",
           expiresAt,
+          maxAccessCount: accessLimit,
           createdBy: createdBy || null,
         },
         select: {
@@ -372,6 +417,7 @@ export async function createScanReportShareLink(params: {
         tokenPrefix: created.tokenPrefix,
         expiresAt: created.expiresAt,
         createdAt: created.createdAt,
+        maxAccessCount: accessLimit,
       };
     } catch (error: any) {
       if (error?.code === "P2002" && attempt < 2) {
@@ -415,6 +461,7 @@ export async function getLatestScanReportShareMeta(
       scanReportId: true,
       tokenPrefix: true,
       expiresAt: true,
+      maxAccessCount: true,
       revokedAt: true,
       createdAt: true,
       accessCount: true,
@@ -426,6 +473,8 @@ export async function getLatestScanReportShareMeta(
     scanReportId: record.scanReportId || reportId,
     tokenPrefix: record.tokenPrefix,
     expiresAt: record.expiresAt,
+    maxAccessCount: record.maxAccessCount,
+    remainingAccessCount: getRemainingAccessCount(record.accessCount, record.maxAccessCount),
     revokedAt: record.revokedAt,
     createdAt: record.createdAt,
     accessCount: record.accessCount,
@@ -444,6 +493,8 @@ export async function resolvePublicScanReportByToken(
       scanReportId: true,
       tokenPrefix: true,
       expiresAt: true,
+      maxAccessCount: true,
+      accessCount: true,
       revokedAt: true,
       scope: true,
     },
@@ -451,15 +502,31 @@ export async function resolvePublicScanReportByToken(
   if (!shareLink) return null;
   if (shareLink.scope !== "scan_report") return null;
   if (shareLink.revokedAt) return null;
-  if (shareLink.expiresAt.getTime() <= Date.now()) return null;
+  const now = new Date();
+  if (shareLink.expiresAt.getTime() <= now.getTime()) return null;
+  if (
+    typeof shareLink.maxAccessCount === "number" &&
+    shareLink.maxAccessCount > 0 &&
+    shareLink.accessCount >= shareLink.maxAccessCount
+  ) {
+    return null;
+  }
   if (!shareLink.scanReportId) return null;
-  await prisma.reportShareLink.update({
-    where: { id: shareLink.id },
+  const incremented = await prisma.reportShareLink.updateMany({
+    where: {
+      id: shareLink.id,
+      revokedAt: null,
+      expiresAt: { gt: now },
+      OR: [{ maxAccessCount: null }, { accessCount: { lt: shareLink.maxAccessCount ?? 0 } }],
+    },
     data: {
       accessCount: { increment: 1 },
-      lastAccessedAt: new Date(),
+      lastAccessedAt: now,
     },
   });
+  if ((incremented.count ?? 0) < 1) {
+    return null;
+  }
   const scanReport = await prisma.scanReport.findFirst({
     where: {
       id: shareLink.scanReportId,

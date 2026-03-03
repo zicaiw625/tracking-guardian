@@ -315,25 +315,19 @@ export default function VerificationPage() {
     const timer = setInterval(() => {
       if (document.visibilityState === "visible") {
         revalidator.revalidate();
+        if (selectedTab === 1) {
+          recentReceiptsFetcher.load("/api/recent-receipts?limit=50");
+        }
       }
     }, 5000);
     return () => clearInterval(timer);
-  }, [effectiveRunInProgress, revalidator, shop]);
+  }, [effectiveRunInProgress, revalidator, recentReceiptsFetcher, selectedTab, shop]);
 
   useEffect(() => {
     if (!effectiveRunInProgress || selectedTab !== 1 || !shop) {
       return;
     }
-    const load = () => {
-      recentReceiptsFetcher.load("/api/recent-receipts?limit=50");
-    };
-    load();
-    const timer = setInterval(() => {
-      if (document.visibilityState === "visible") {
-        load();
-      }
-    }, 5000);
-    return () => clearInterval(timer);
+    recentReceiptsFetcher.load("/api/recent-receipts?limit=50");
   }, [effectiveRunInProgress, recentReceiptsFetcher, selectedTab, shop]);
 
   const tabs = [

@@ -30,12 +30,19 @@ export function useAutoSave<T>({
   const dataRef = useRef<T | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const statusResetTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveSeqRef = useRef(0);
+  const latestAppliedSeqRef = useRef(0);
   const performSave = useCallback(async (data: T) => {
     if (!enabled || !isDirty) return;
+    const currentSeq = ++saveSeqRef.current;
     setIsSaving(true);
     setSaveStatus("saving");
     try {
       await saveFn(data);
+      if (currentSeq < latestAppliedSeqRef.current) {
+        return;
+      }
+      latestAppliedSeqRef.current = currentSeq;
       setLastSavedAt(new Date());
       setSaveStatus("saved");
       onSaveSuccess?.();
@@ -47,10 +54,15 @@ export function useAutoSave<T>({
         statusResetTimeoutRef.current = null;
       }, 3000);
     } catch (error) {
+      if (currentSeq < latestAppliedSeqRef.current) {
+        return;
+      }
       setSaveStatus("error");
       onSaveError?.(error instanceof Error ? error : new Error(String(error)));
     } finally {
-      setIsSaving(false);
+      if (currentSeq >= latestAppliedSeqRef.current) {
+        setIsSaving(false);
+      }
     }
   }, [enabled, isDirty, saveFn, onSaveSuccess, onSaveError]);
   useEffect(() => {
