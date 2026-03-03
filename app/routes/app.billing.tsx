@@ -1,10 +1,8 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { Form, useLoaderData, useSubmit, useNavigation, useSearchParams, useActionData, useLocation } from "@remix-run/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Button, Badge, Box, Divider, Banner, ProgressBar, List, DataTable, Modal } from "@shopify/polaris";
-import { useAppBridge } from "@shopify/app-bridge-react";
-import { Redirect } from "@shopify/app-bridge/actions";
 import { useTranslation } from "react-i18next";
 import { useToastContext } from "~/components/ui";
 import { PageIntroCard } from "~/components/layout/PageIntroCard";
@@ -126,7 +124,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export const action = async ({ request }: ActionFunctionArgs) => {
     try {
-        const { session, admin, redirect: shopifyRedirect } = await authenticate.admin(request);
+        const { session, admin } = await authenticate.admin(request);
         const shopDomain = session.shop;
         const formData = await request.formData();
         const action = formData.get("_action");
@@ -192,15 +190,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                         error: validation.error || "Invalid confirmation URL",
                     });
                 }
-                try {
-                    return shopifyRedirect(result.confirmationUrl, { target: "_top" });
-                } catch {
-                    return json({
-                        success: true,
-                        actionType: "subscribe",
-                        confirmationUrl: result.confirmationUrl,
-                    });
-                }
+                return json({
+                    success: true,
+                    actionType: "subscribe",
+                    confirmationUrl: result.confirmationUrl,
+                });
             }
 
             return json({
@@ -241,35 +235,31 @@ export default function BillingPage() {
     const location = useLocation();
     const submit = useSubmit();
     const navigation = useNavigation();
-    const app = useAppBridge();
     const { t, i18n } = useTranslation();
     const { showSuccess, showError } = useToastContext();
     const billingUrl = withEmbeddedAppParams("/app/billing", location.search);
+    const [pendingConfirmationUrl, setPendingConfirmationUrl] = useState<string | null>(null);
 
     useEffect(() => {
         if (actionData) {
             const data = actionData as { success?: boolean; error?: string; actionType?: string; confirmationUrl?: string };
             if (data.confirmationUrl) {
-                try {
-                    const redirect = Redirect.create(app as any);
-                    redirect.dispatch(Redirect.Action.REMOTE, data.confirmationUrl);
-                    return;
-                } catch {
-                    window.open(data.confirmationUrl, "_top");
-                    return;
-                }
+                setPendingConfirmationUrl(data.confirmationUrl);
+                return;
             }
             if (data.success) {
+                setPendingConfirmationUrl(null);
                 if (data.actionType === "cancel") {
                     showSuccess(t("billing.subscriptionCancelled"));
                 } else {
                     showSuccess(t("common.operationSuccess"));
                 }
             } else if (data.error) {
+                setPendingConfirmationUrl(null);
                 showError(t("billing.failPrefix") + data.error);
             }
         }
-    }, [actionData, app, showSuccess, showError, t]);
+    }, [actionData, showSuccess, showError, t]);
 
     const [searchParams] = useSearchParams();
     const isSubmitting = navigation.state === "submitting";
@@ -278,21 +268,9 @@ export default function BillingPage() {
     const errorMessage = searchParams.get("error");
     const upgradePlanId = searchParams.get("upgrade");
     const [showCancelModal, setShowCancelModal] = useState(false);
-    const [attemptedUpgradePlanId, setAttemptedUpgradePlanId] = useState<string | null>(null);
-    const upgradeAutoFormRef = useRef<HTMLFormElement>(null);
-    
-    useEffect(() => {
-        if (
-            upgradePlanId &&
-            attemptedUpgradePlanId !== upgradePlanId &&
-            !isSubmitting &&
-            !showSuccessBanner &&
-            !showErrorBanner
-        ) {
-            setAttemptedUpgradePlanId(upgradePlanId);
-            upgradeAutoFormRef.current?.requestSubmit();
-        }
-    }, [upgradePlanId, attemptedUpgradePlanId, isSubmitting, showSuccessBanner, showErrorBanner]);
+    const preselectedPlanId = upgradePlanId && planIds.includes(upgradePlanId as PlanId)
+        ? (upgradePlanId as PlanId)
+        : null;
 
     const currentPlan = plans[subscription.plan as PlanId];
     const usagePercent = Math.min((usage.current / usage.limit) * 100, 100);
@@ -413,6 +391,12 @@ export default function BillingPage() {
 
     const actionDataTyped = actionData as { success?: boolean; error?: string; confirmationUrl?: string } | undefined;
     const hasError = actionDataTyped && !actionDataTyped.success && actionDataTyped.error;
+    const handleContinueToConfirmation = () => {
+        if (!pendingConfirmationUrl) {
+            return;
+        }
+        window.open(pendingConfirmationUrl, "_top");
+    };
 
     const renderFeature = (feature: string) => {
         if (feature === "subscriptionPlans.free.features.countdown") {
@@ -439,6 +423,15 @@ export default function BillingPage() {
             <p>{actionDataTyped.error}</p>
           </Banner>)}
 
+        {pendingConfirmationUrl && (<Banner title={t("billing.successTitle")} tone="success">
+            <p>{t("billing.successMessage")}</p>
+            <Box paddingBlockStart="200">
+              <Button variant="primary" onClick={handleContinueToConfirmation}>
+                {t("billing.goToShopifyBilling")}
+              </Button>
+            </Box>
+          </Banner>)}
+
         {subscription.isTrialing && (<Banner title={t("billing.trialBannerTitle")} tone="info">
             <p>
               {t("billing.trialBannerMessage", {
@@ -461,11 +454,6 @@ export default function BillingPage() {
           primaryAction={{ content: t("billing.viewPlan"), url: billingUrl }}
           secondaryAction={{ content: t("billing.billingCenter"), url: billingPortalUrl }}
         />
-
-        <Form method="post" ref={upgradeAutoFormRef}>
-          <input type="hidden" name="_action" value="subscribe" />
-          <input type="hidden" name="planId" value={upgradePlanId || ""} />
-        </Form>
 
         <Layout>
           <Layout.Section>
@@ -568,6 +556,10 @@ export default function BillingPage() {
             const isCurrentPlan = subscription.plan === planId;
             const isUpgrade = plan.price > (plans[subscription.plan as PlanId]?.price || 0);
             const isDowngrade = plan.price < (plans[subscription.plan as PlanId]?.price || 0);
+            const isPreselectedPlan = preselectedPlanId === planId;
+            const actionVariant = preselectedPlanId
+                ? (isPreselectedPlan ? "primary" : "secondary")
+                : (isUpgrade ? "primary" : "secondary");
 
             return (<Layout.Section key={planId} variant="oneThird">
                 <Card>
@@ -598,7 +590,7 @@ export default function BillingPage() {
                         <Form method="post">
                           <input type="hidden" name="_action" value="subscribe" />
                           <input type="hidden" name="planId" value={planId} />
-                          <Button variant={isUpgrade ? "primary" : "secondary"} fullWidth submit loading={isSubmitting}>
+                          <Button variant={actionVariant} fullWidth submit loading={isSubmitting}>
                             {isUpgrade ? t("billing.upgrade") : isDowngrade ? t("billing.downgrade") : t("billing.select")}
                           </Button>
                         </Form>
