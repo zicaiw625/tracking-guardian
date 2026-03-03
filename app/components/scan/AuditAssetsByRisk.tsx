@@ -75,7 +75,6 @@ const getPriority = (asset: AuditAssetRecord): number | undefined => {
 
 export function AuditAssetsByRisk({
   assets,
-  onAssetClick,
   onMigrateClick,
   onNavigate,
   currentPlan = "free",
@@ -373,11 +372,9 @@ export function AuditAssetsByRisk({
                           {migrationInfo.url && (
                             <Button
                               size="slim"
-                              url={migrationInfo.url}
                               icon={ArrowRightIcon}
                               onClick={() => {
                                 handleMigrateClick(asset);
-                                onAssetClick?.(asset.id);
                               }}
                             >
                               {t("scan.risk.oneClickMigrate")}
@@ -521,11 +518,9 @@ export function AuditAssetsByRisk({
                             {migrationInfo.url && (
                               <Button
                                 size="slim"
-                                url={migrationInfo.url}
                                 icon={ArrowRightIcon}
                                 onClick={() => {
                                   handleMigrateClick(asset);
-                                  onAssetClick?.(asset.id);
                                 }}
                               >
                                 {t("scan.risk.oneClickMigrate")}
@@ -640,11 +635,9 @@ export function AuditAssetsByRisk({
                             {migrationInfo.url && asset.suggestedMigration !== "none" && (
                               <Button
                                 size="slim"
-                                url={migrationInfo.url}
                                 icon={ArrowRightIcon}
                                 onClick={() => {
                                   handleMigrateClick(asset);
-                                  onAssetClick?.(asset.id);
                                 }}
                               >
                                 {t("scan.risk.viewDetails")}

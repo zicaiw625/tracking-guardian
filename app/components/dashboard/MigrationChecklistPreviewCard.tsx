@@ -178,7 +178,7 @@ export function MigrationChecklistPreviewCard({
                       {item.status === "pending" && (
                         <Button
                           size="slim"
-                          url={`/app/migrate?asset=${item.id.replace("checklist-", "")}`}
+                          url={`/app/migrate?assetId=${item.id.replace("checklist-", "")}`}
                         >
                           {t("dashboard.checklist.startMigration")}
                         </Button>

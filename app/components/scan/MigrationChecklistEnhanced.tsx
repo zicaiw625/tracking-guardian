@@ -527,7 +527,6 @@ export function MigrationChecklistEnhanced({
                         <Button
                           size="slim"
                           onClick={() => onItemClick(item.assetId)}
-                          url={`/app/migrate?assetId=${item.assetId}`}
                         >
                           {t("checklist.startMigration")}
                         </Button>

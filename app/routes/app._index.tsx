@@ -1,7 +1,7 @@
 import type { loader } from "./app._index/loader.server";
 export { loader } from "./app._index/loader.server";
 import { useLoaderData, useFetcher, useRevalidator } from "@remix-run/react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Page, BlockStack, Banner, Text } from "@shopify/polaris";
 import { DashboardOverview } from "~/components/dashboard/DashboardOverview";
 import { DashboardMetrics } from "~/components/dashboard/DashboardMetrics";
@@ -31,6 +31,7 @@ export default function Index() {
   const scanFetcher = useFetcher();
   const { showSuccess, showError } = useToastContext();
   const isUpgrading = upgradeFetcher.state === "submitting";
+  const processedUpgradeResultRef = useRef<unknown>(null);
 
   const handleFixPixel = useCallback(() => {
     if (isUpgrading) return;
@@ -44,6 +45,8 @@ export default function Index() {
   useEffect(() => {
     const upgradeResult = upgradeFetcher.data as any;
     if (!upgradeResult || upgradeFetcher.state !== "idle") return;
+    if (processedUpgradeResultRef.current === upgradeFetcher.data) return;
+    processedUpgradeResultRef.current = upgradeFetcher.data;
     
     if (upgradeResult.success) {
       showSuccess(upgradeResult.message || t("scan.success.upgraded"));

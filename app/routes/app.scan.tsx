@@ -28,6 +28,7 @@ import { generateChecklistText } from "../utils/scan-format";
 import { useScriptAnalysis } from "./app.scan/_components/useScriptAnalysis";
 import { TIMEOUTS } from "../utils/scan-constants";
 import { isFetcherResult } from "../utils/scan-validation";
+import { generateSimpleId } from "../utils/helpers";
 import type { ScriptAnalysisResult } from "../services/scanner.server";
 import { useTranslation } from "react-i18next";
 
@@ -86,6 +87,10 @@ export function ScanPage({
     const isReloadingRef = useRef(false);
     const isMountedRef = useRef(true);
     const paywallViewTrackedRef = useRef(false);
+    const processedActionDataRef = useRef<unknown>(null);
+    const processedSaveAnalysisDataRef = useRef<unknown>(null);
+    const processedDeleteDataRef = useRef<unknown>(null);
+    const processedUpgradeDataRef = useRef<unknown>(null);
     const reloadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const exportTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const exportBlobUrlRef = useRef<string | null>(null);
@@ -257,9 +262,16 @@ export function ScanPage({
     const addToReplacementChecklist = useCallback(() => {
         if (!analysisResult) return;
         const summary = scriptContent.slice(0, 80).replace(/\s+/g, " ").trim() || t("scan.manualInput.noSummary");
+        const id = (() => {
+            try {
+                return generateSimpleId();
+            } catch {
+                return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+            }
+        })();
         setReplacementChecklistItems((prev) => [
             ...prev,
-            { id: crypto.randomUUID(), contentSummary: summary, result: analysisResult },
+            { id, contentSummary: summary, result: analysisResult },
         ]);
         setScriptContent("");
         setAnalysisResult(null);
@@ -402,6 +414,8 @@ export function ScanPage({
     useEffect(() => {
         if (!actionData || typeof actionData !== "object") return;
         if (!("action" in actionData) || !("success" in actionData)) return;
+        if (processedActionDataRef.current === actionData) return;
+        processedActionDataRef.current = actionData;
         const result = actionData as { action?: string; success?: boolean; shareUrl?: string; error?: string };
         if (!result.success) {
             setOpenShareAfterCreate(false);
@@ -429,6 +443,8 @@ export function ScanPage({
     useEffect(() => {
         const result = isFetcherResult(saveAnalysisFetcher.data) ? saveAnalysisFetcher.data : undefined;
         if (!result || saveAnalysisFetcher.state !== "idle" || !isMountedRef.current) return;
+        if (processedSaveAnalysisDataRef.current === saveAnalysisFetcher.data) return;
+        processedSaveAnalysisDataRef.current = saveAnalysisFetcher.data;
         if (result.success) {
             if (!analysisSavedRef.current) {
                 analysisSavedRef.current = true;
@@ -452,6 +468,8 @@ export function ScanPage({
     useEffect(() => {
         const deleteResult = isFetcherResult(deleteFetcher.data) ? deleteFetcher.data : undefined;
         if (!deleteResult || deleteFetcher.state !== "idle" || !isMountedRef.current) return;
+        if (processedDeleteDataRef.current === deleteFetcher.data) return;
+        processedDeleteDataRef.current = deleteFetcher.data;
         if (deleteResult.success) {
             showSuccess(deleteResult.message || t("scan.success.deleted"));
             setDeleteModalOpen(false);
@@ -473,6 +491,8 @@ export function ScanPage({
     useEffect(() => {
         const upgradeResult = isFetcherResult(upgradeFetcher.data) ? upgradeFetcher.data : undefined;
         if (!upgradeResult || upgradeFetcher.state !== "idle" || !isMountedRef.current) return;
+        if (processedUpgradeDataRef.current === upgradeFetcher.data) return;
+        processedUpgradeDataRef.current = upgradeFetcher.data;
         if (upgradeResult.success) {
             showSuccess(upgradeResult.message || t("scan.success.upgraded"));
             reloadData();

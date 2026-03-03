@@ -6,18 +6,19 @@ import { containsSensitiveInfo } from "~/utils/security";
 import { TIMEOUTS } from "~/utils/scan-constants";
 
 type IdleCallbackHandle = ReturnType<typeof requestIdleCallback>;
+type ScheduledHandle = { kind: "idle" | "timeout"; id: number };
 
-function cancelIdleCallbackOrTimeout(handle: number | IdleCallbackHandle | null): void {
+function cancelIdleCallbackOrTimeout(handle: ScheduledHandle | null): void {
     if (handle === null) return;
-    if (typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
-        if (typeof handle === 'number') {
-            clearTimeout(handle);
-        } else {
-            cancelIdleCallback(handle);
-        }
-    } else {
-        clearTimeout(handle as number);
+    if (
+        handle.kind === "idle" &&
+        typeof window !== "undefined" &&
+        "cancelIdleCallback" in window
+    ) {
+        cancelIdleCallback(handle.id as IdleCallbackHandle);
+        return;
     }
+    clearTimeout(handle.id);
 }
 
 export function useScriptAnalysis(
@@ -30,8 +31,19 @@ export function useScriptAnalysis(
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisProgress, setAnalysisProgress] = useState<{ current: number; total: number } | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
-    const idleCallbackHandlesRef = useRef<Array<number | IdleCallbackHandle>>([]);
+    const idleCallbackHandlesRef = useRef<ScheduledHandle[]>([]);
     const isMountedRef = useRef(true);
+    const clearScheduledHandles = useCallback(() => {
+        idleCallbackHandlesRef.current.forEach((handle) => {
+            cancelIdleCallbackOrTimeout(handle);
+        });
+        idleCallbackHandlesRef.current = [];
+    }, []);
+    const removeScheduledHandle = useCallback((handle: ScheduledHandle) => {
+        idleCallbackHandlesRef.current = idleCallbackHandlesRef.current.filter(
+            (item) => item !== handle
+        );
+    }, []);
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -41,12 +53,9 @@ export function useScriptAnalysis(
                 abortControllerRef.current.abort();
                 abortControllerRef.current = null;
             }
-            idleCallbackHandlesRef.current.forEach(handle => {
-                cancelIdleCallbackOrTimeout(handle);
-            });
-            idleCallbackHandlesRef.current = [];
+            clearScheduledHandles();
         };
-    }, []);
+    }, [clearScheduledHandles]);
 
     const handleAnalysisError = useCallback((error: unknown, contentLength: number) => {
         if (error instanceof Error && error.message === "Analysis cancelled") {
@@ -105,6 +114,7 @@ export function useScriptAnalysis(
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
             }
+            clearScheduledHandles();
             abortControllerRef.current = new AbortController();
             const signal = abortControllerRef.current.signal;
             const CHUNK_SIZE = scriptAnalysisChunkSize;
@@ -185,12 +195,19 @@ export function useScriptAnalysis(
                                 resolve();
                             }
                         };
+                        let scheduledHandle: ScheduledHandle;
+                        const runChunk = () => {
+                            removeScheduledHandle(scheduledHandle);
+                            processChunk();
+                        };
                         if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-                            const handle = requestIdleCallback(processChunk, { timeout: TIMEOUTS.IDLE_CALLBACK });
-                            idleCallbackHandlesRef.current.push(handle);
+                            const id = requestIdleCallback(runChunk, { timeout: TIMEOUTS.IDLE_CALLBACK });
+                            scheduledHandle = { kind: "idle", id: id as number };
+                            idleCallbackHandlesRef.current.push(scheduledHandle);
                         } else {
-                            const handle = setTimeout(processChunk, TIMEOUTS.SET_TIMEOUT_FALLBACK) as unknown as number | IdleCallbackHandle;
-                            idleCallbackHandlesRef.current.push(handle);
+                            const id = setTimeout(runChunk, TIMEOUTS.SET_TIMEOUT_FALLBACK) as unknown as number;
+                            scheduledHandle = { kind: "timeout", id };
+                            idleCallbackHandlesRef.current.push(scheduledHandle);
                         }
                     });
                 }
@@ -229,12 +246,19 @@ export function useScriptAnalysis(
                             reject(error);
                         }
                     };
+                    let scheduledHandle: ScheduledHandle;
+                    const runContent = () => {
+                        removeScheduledHandle(scheduledHandle);
+                        processContent();
+                    };
                     if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-                        const handle = requestIdleCallback(processContent, { timeout: TIMEOUTS.IDLE_CALLBACK });
-                        idleCallbackHandlesRef.current.push(handle);
+                        const id = requestIdleCallback(runContent, { timeout: TIMEOUTS.IDLE_CALLBACK });
+                        scheduledHandle = { kind: "idle", id: id as number };
+                        idleCallbackHandlesRef.current.push(scheduledHandle);
                     } else {
-                        const handle = setTimeout(processContent, TIMEOUTS.SET_TIMEOUT_FALLBACK) as unknown as number | IdleCallbackHandle;
-                        idleCallbackHandlesRef.current.push(handle);
+                        const id = setTimeout(runContent, TIMEOUTS.SET_TIMEOUT_FALLBACK) as unknown as number;
+                        scheduledHandle = { kind: "timeout", id };
+                        idleCallbackHandlesRef.current.push(scheduledHandle);
                     }
                 });
             }
@@ -244,12 +268,21 @@ export function useScriptAnalysis(
         } catch (error) {
             handleAnalysisError(error, trimmedContent.length);
         } finally {
+            clearScheduledHandles();
             if (isMountedRef.current) {
                 setIsAnalyzing(false);
                 setAnalysisProgress(null);
             }
         }
-    }, [scriptContent, isAnalyzing, handleAnalysisError, scriptAnalysisMaxContentLength, scriptAnalysisChunkSize]);
+    }, [
+        scriptContent,
+        isAnalyzing,
+        handleAnalysisError,
+        scriptAnalysisMaxContentLength,
+        scriptAnalysisChunkSize,
+        clearScheduledHandles,
+        removeScheduledHandle,
+    ]);
 
     return {
         scriptContent,

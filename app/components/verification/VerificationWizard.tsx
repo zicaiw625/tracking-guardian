@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Card,
   BlockStack,
@@ -31,15 +31,16 @@ export function VerificationWizard({
   onComplete,
 }: VerificationWizardProps) {
   const { t } = useTranslation();
-  const [completedItems, setCompletedItems] = useState<Set<string>>(() => {
-    if (typeof window === "undefined") return new Set();
+  const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
     try {
       const saved = localStorage.getItem(`verification_wizard_${_shopId}`);
-      return saved ? new Set(JSON.parse(saved)) : new Set();
+      setCompletedItems(saved ? new Set(JSON.parse(saved)) : new Set());
     } catch {
-      return new Set();
+      setCompletedItems(new Set());
     }
-  });
+  }, [_shopId]);
 
   const handleItemComplete = useCallback((itemId: string) => {
     setCompletedItems((prev) => {

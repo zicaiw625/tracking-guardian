@@ -175,8 +175,12 @@ export default function ReportsPage() {
       showError(t("reports.scan.share.copyNotSupported"));
       return;
     }
-    await navigator.clipboard.writeText(latestScanShareUrl);
-    showSuccess(t("reports.scan.share.copied"));
+    try {
+      await navigator.clipboard.writeText(latestScanShareUrl);
+      showSuccess(t("reports.scan.share.copied"));
+    } catch {
+      showError(t("reports.scan.share.copyFailed"));
+    }
   };
   const handleOpenScanSharePreview = () => {
     if (!latestScanShareUrl) {

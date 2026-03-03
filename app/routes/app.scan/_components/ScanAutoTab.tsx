@@ -490,7 +490,7 @@ export function ScanAutoTab({
                     freeTierLimit={3}
                     riskScore={latestScan?.riskScore}
                     onAssetClick={(assetId) => {
-                        const url = `/app/migrate?asset=${assetId}`;
+                        const url = `/app/migrate?assetId=${assetId}`;
                         if (onNavigate) { onNavigate(url); } else { window.location.href = url; }
                     }}
                 />
@@ -596,7 +596,7 @@ export function ScanAutoTab({
                                                     <InlineStack gap="200">
                                                         <Button
                                                             size="slim"
-                                                            url={`/app/migrate?asset=${item.asset.id}`}
+                                                            url={`/app/migrate?assetId=${item.asset.id}`}
                                                             disabled={!item.canStart}
                                                         >
                                                             {t("checklist.startMigration")}

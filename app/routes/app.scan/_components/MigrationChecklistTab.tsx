@@ -105,7 +105,7 @@ export function MigrationChecklistTab({
             items={migrationChecklist.items}
             dependencyGraph={dependencyGraph}
             onItemClick={(assetId) => {
-              const url = `/app/migrate?asset=${assetId}`;
+              const url = `/app/migrate?assetId=${assetId}`;
               if (onNavigate) { onNavigate(url); } else { window.location.href = url; }
             }}
             onItemComplete={(assetId) => {
