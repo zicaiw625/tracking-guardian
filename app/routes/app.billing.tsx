@@ -1,7 +1,9 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { Form, useLoaderData, useSubmit, useNavigation, useSearchParams, useActionData, useLocation } from "@remix-run/react";
+import { useFetcher, useLoaderData, useSubmit, useNavigation, useSearchParams, useActionData, useLocation } from "@remix-run/react";
 import { useEffect, useState } from "react";
+import { useAppBridge } from "@shopify/app-bridge-react";
+import { Redirect } from "@shopify/app-bridge/actions";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Button, Badge, Box, Divider, Banner, ProgressBar, List, DataTable, Modal } from "@shopify/polaris";
 import { useTranslation } from "react-i18next";
 import { useToastContext } from "~/components/ui";
@@ -125,7 +127,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export const action = async ({ request }: ActionFunctionArgs) => {
     try {
-        const { session, admin, redirect } = await authenticate.admin(request);
+        const { session, admin } = await authenticate.admin(request);
         const shopDomain = session.shop;
         const formData = await request.formData();
         const action = formData.get("_action");
@@ -192,7 +194,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                         error: validation.error || "Invalid confirmation URL",
                     });
                 }
-                return redirect(result.confirmationUrl, { target: "_parent" });
+                return json({
+                    success: true,
+                    actionType: "subscribe",
+                    confirmationUrl: result.confirmationUrl,
+                });
             }
 
             return json({
@@ -233,9 +239,12 @@ export default function BillingPage() {
     const location = useLocation();
     const submit = useSubmit();
     const navigation = useNavigation();
+    const subscribeFetcher = useFetcher<{ success?: boolean; confirmationUrl?: string; error?: string }>();
+    const app = useAppBridge();
     const { t, i18n } = useTranslation();
     const { showSuccess, showError } = useToastContext();
     const billingUrl = withEmbeddedAppParams("/app/billing", location.search);
+    const billingAction = withEmbeddedAppParams("/app/billing", location.search);
 
     useEffect(() => {
         if (actionData) {
@@ -252,12 +261,42 @@ export default function BillingPage() {
         }
     }, [actionData, showSuccess, showError, t]);
 
+    useEffect(() => {
+        const url = subscribeFetcher.data?.confirmationUrl;
+        if (!url) {
+            return;
+        }
+        try {
+            const redirectAction = Redirect.create(app as unknown as Parameters<typeof Redirect.create>[0]);
+            redirectAction.dispatch(Redirect.Action.REMOTE, { url, newContext: false });
+        } catch {
+            if (window.top) {
+                window.top.location.href = url;
+            } else {
+                window.location.href = url;
+            }
+        }
+    }, [subscribeFetcher.data?.confirmationUrl, app]);
+
+    useEffect(() => {
+        if (
+            subscribeFetcher.state === "idle"
+            && subscribeFetcher.data
+            && !subscribeFetcher.data.confirmationUrl
+            && subscribeFetcher.data.error
+        ) {
+            showError(t("billing.failPrefix") + subscribeFetcher.data.error);
+        }
+    }, [subscribeFetcher.state, subscribeFetcher.data, showError, t]);
+
     const [searchParams] = useSearchParams();
     const isSubmitting = navigation.state === "submitting";
+    const isSubscribeSubmitting = subscribeFetcher.state !== "idle";
     const showSuccessBanner = searchParams.get("success") === "true";
     const showErrorBanner = searchParams.get("success") === "false";
     const errorMessage = searchParams.get("error");
     const [showCancelModal, setShowCancelModal] = useState(false);
+    const [upgradingPlan, setUpgradingPlan] = useState<PlanId | null>(null);
 
     const currentPlan = getPlanOrDefault(subscription.plan);
     const usagePercent = Math.min((usage.current / usage.limit) * 100, 100);
@@ -534,13 +573,20 @@ export default function BillingPage() {
                       {isCurrentPlan ? (<Button disabled fullWidth>{t("billing.currentPlan")}</Button>) : plan.price === 0 ? (<Button variant="secondary" fullWidth onClick={handleCancel} loading={isSubmitting} disabled={subscription.plan === "free"}>
                           {t("billing.downgradeToFree")}
                         </Button>) : (
-                        <Form method="post" reloadDocument>
-                          <input type="hidden" name="_action" value="subscribe" />
-                          <input type="hidden" name="planId" value={planId} />
-                          <Button variant={actionVariant} fullWidth submit loading={isSubmitting}>
+                          <Button
+                            variant={actionVariant}
+                            fullWidth
+                            loading={upgradingPlan === planId && isSubscribeSubmitting}
+                            onClick={() => {
+                                setUpgradingPlan(planId);
+                                subscribeFetcher.submit(
+                                    { _action: "subscribe", planId },
+                                    { method: "post", action: billingAction }
+                                );
+                            }}
+                          >
                             {isUpgrade ? t("billing.upgrade") : isDowngrade ? t("billing.downgrade") : t("billing.select")}
                           </Button>
-                        </Form>
                         )}
                     </Box>
                   </BlockStack>

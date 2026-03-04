@@ -1,5 +1,7 @@
-import { useState } from "react";
-import { Form, Link, useLocation } from "@remix-run/react";
+import { useEffect, useState } from "react";
+import { Link, useFetcher, useLocation } from "@remix-run/react";
+import { useAppBridge } from "@shopify/app-bridge-react";
+import { Redirect } from "@shopify/app-bridge/actions";
 import {
   Layout,
   Card,
@@ -35,10 +37,35 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
   const { t } = useTranslation();
   const location = useLocation();
   const [upgradingPlan, setUpgradingPlan] = useState<PlanId | null>(null);
+  const fetcher = useFetcher<{ success?: boolean; confirmationUrl?: string; error?: string }>();
+  const app = useAppBridge();
   const billingUrl = withEmbeddedAppParams("/app/billing", location.search);
   const billingAction = withEmbeddedAppParams("/app/billing", location.search);
   const currentPlanConfig = BILLING_PLANS[currentPlan];
   const upgradeOptions = getUpgradeOptions(currentPlan);
+
+  useEffect(() => {
+    const url = fetcher.data?.confirmationUrl;
+    if (!url) {
+      return;
+    }
+    try {
+      const redirect = Redirect.create(app as unknown as Parameters<typeof Redirect.create>[0]);
+      redirect.dispatch(Redirect.Action.REMOTE, { url, newContext: false });
+    } catch {
+      if (window.top) {
+        window.top.location.href = url;
+      } else {
+        window.location.href = url;
+      }
+    }
+  }, [fetcher.data?.confirmationUrl, app]);
+
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data && !fetcher.data.confirmationUrl) {
+      setUpgradingPlan(null);
+    }
+  }, [fetcher.state, fetcher.data]);
 
   const renderFeature = (feature: string) => {
     if (feature === "subscriptionPlans.free.features.countdown") {
@@ -150,18 +177,19 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
                               </List.Item>
                             ))}
                           </List>
-                          <Form method="post" action={billingAction} reloadDocument>
-                            <input type="hidden" name="_action" value="subscribe" />
-                            <input type="hidden" name="planId" value={planId} />
-                            <Button
-                              variant="primary"
-                              submit
-                              onClick={() => setUpgradingPlan(planId)}
-                              loading={upgradingPlan === planId}
-                            >
-                              {t("settings.subscription.upgradeTo", { plan: t(planConfig.name) })}
-                            </Button>
-                          </Form>
+                          <Button
+                            variant="primary"
+                            onClick={() => {
+                              setUpgradingPlan(planId);
+                              fetcher.submit(
+                                { _action: "subscribe", planId },
+                                { method: "post", action: billingAction },
+                              );
+                            }}
+                            loading={upgradingPlan === planId && fetcher.state !== "idle"}
+                          >
+                            {t("settings.subscription.upgradeTo", { plan: t(planConfig.name) })}
+                          </Button>
                         </BlockStack>
                       </Box>
                     );
