@@ -1,7 +1,9 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { Form, useLoaderData, useSubmit, useNavigation, useSearchParams, useActionData, useLocation } from "@remix-run/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useAppBridge } from "@shopify/app-bridge-react";
+import { Redirect } from "@shopify/app-bridge/actions";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Button, Badge, Box, Divider, Banner, ProgressBar, List, DataTable, Modal } from "@shopify/polaris";
 import { useTranslation } from "react-i18next";
 import { useToastContext } from "~/components/ui";
@@ -233,6 +235,7 @@ export default function BillingPage() {
     const loaderData = useLoaderData<typeof loader>();
     const { subscription, usage, plans, planIds, billingHistory, billingPortalUrl } = loaderData;
     const actionData = useActionData<typeof action>();
+    const app = useAppBridge();
     const location = useLocation();
     const submit = useSubmit();
     const navigation = useNavigation();
@@ -240,16 +243,35 @@ export default function BillingPage() {
     const { showSuccess, showError } = useToastContext();
     const billingUrl = withEmbeddedAppParams("/app/billing", location.search);
     const [pendingConfirmationUrl, setPendingConfirmationUrl] = useState<string | null>(null);
+    const hasRedirectedRef = useRef(false);
 
     useEffect(() => {
         if (actionData) {
             const data = actionData as { success?: boolean; error?: string; actionType?: string; confirmationUrl?: string };
             if (data.confirmationUrl) {
                 setPendingConfirmationUrl(data.confirmationUrl);
+                try {
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete("upgrade");
+                    window.history.replaceState(null, "", url.toString());
+                } catch {
+                    void 0;
+                }
+
+                if (!hasRedirectedRef.current) {
+                    hasRedirectedRef.current = true;
+                    try {
+                        const redirect = Redirect.create(app as unknown as Parameters<typeof Redirect.create>[0]);
+                        redirect.dispatch(Redirect.Action.REMOTE, data.confirmationUrl);
+                    } catch {
+                        hasRedirectedRef.current = false;
+                    }
+                }
                 return;
             }
             if (data.success) {
                 setPendingConfirmationUrl(null);
+                hasRedirectedRef.current = false;
                 if (data.actionType === "cancel") {
                     showSuccess(t("billing.subscriptionCancelled"));
                 } else {
@@ -257,10 +279,11 @@ export default function BillingPage() {
                 }
             } else if (data.error) {
                 setPendingConfirmationUrl(null);
+                hasRedirectedRef.current = false;
                 showError(t("billing.failPrefix") + data.error);
             }
         }
-    }, [actionData, showSuccess, showError, t]);
+    }, [actionData, app, showSuccess, showError, t]);
 
     const [searchParams] = useSearchParams();
     const isSubmitting = navigation.state === "submitting";
@@ -269,7 +292,7 @@ export default function BillingPage() {
     const errorMessage = searchParams.get("error");
     const upgradePlanId = searchParams.get("upgrade");
     const [showCancelModal, setShowCancelModal] = useState(false);
-    const [attemptedUpgradePlanId, setAttemptedUpgradePlanId] = useState<string | null>(null);
+    const attemptedUpgradeRef = useRef<string | null>(null);
     const preselectedPlanId = upgradePlanId && planIds.includes(upgradePlanId as PlanId)
         ? (upgradePlanId as PlanId)
         : null;
@@ -375,27 +398,31 @@ export default function BillingPage() {
         if (!pendingConfirmationUrl) {
             return;
         }
-        window.open(pendingConfirmationUrl, "_top");
+        const redirect = Redirect.create(app as unknown as Parameters<typeof Redirect.create>[0]);
+        redirect.dispatch(Redirect.Action.REMOTE, pendingConfirmationUrl);
     };
 
     useEffect(() => {
         if (!upgradePlanId || !planIds.includes(upgradePlanId as PlanId)) {
             return;
         }
-        if (attemptedUpgradePlanId !== upgradePlanId) {
-            const targetPlan = plans[upgradePlanId as PlanId];
-            const currentPlanPrice = currentPlan.price;
-            const isUpgradeTarget = Boolean(targetPlan && targetPlan.price > currentPlanPrice);
-            if (!isUpgradeTarget || navigation.state === "submitting") {
-                return;
-            }
-            const formData = new FormData();
-            formData.append("_action", "subscribe");
-            formData.append("planId", upgradePlanId);
-            setAttemptedUpgradePlanId(upgradePlanId);
-            submit(formData, { method: "post" });
+        if (attemptedUpgradeRef.current === upgradePlanId) {
+            return;
         }
-    }, [attemptedUpgradePlanId, upgradePlanId, planIds, plans, subscription.plan, navigation.state, submit]);
+
+        const targetPlan = plans[upgradePlanId as PlanId];
+        const currentPlanPrice = currentPlan.price;
+        const isUpgradeTarget = Boolean(targetPlan && targetPlan.price > currentPlanPrice);
+        if (!isUpgradeTarget || navigation.state === "submitting") {
+            return;
+        }
+
+        attemptedUpgradeRef.current = upgradePlanId;
+        const formData = new FormData();
+        formData.append("_action", "subscribe");
+        formData.append("planId", upgradePlanId);
+        submit(formData, { method: "post" });
+    }, [upgradePlanId, planIds, plans, currentPlan.price, navigation.state, submit]);
 
     const renderFeature = (feature: string) => {
         if (feature === "subscriptionPlans.free.features.countdown") {
