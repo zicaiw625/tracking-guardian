@@ -93,7 +93,7 @@ describe("Subscription Service", () => {
         json: vi.fn().mockResolvedValue({
           data: {
             shopBillingPreferences: {
-              currencyCode: "USD",
+              currency: "USD",
             },
           },
         }),
@@ -113,6 +113,15 @@ describe("Subscription Service", () => {
       expect(result.success).toBe(true);
       expect(result.confirmationUrl).toBeDefined();
       expect(result.subscriptionId).toBe("gid://shopify/AppSubscription/123456");
+      expect(mockAdmin.graphql).toHaveBeenNthCalledWith(
+        4,
+        expect.any(String),
+        expect.objectContaining({
+          variables: expect.objectContaining({
+            test: false,
+          }),
+        })
+      );
     });
     it("should return error for free plan", async () => {
       const result = await createSubscription(
@@ -167,7 +176,7 @@ describe("Subscription Service", () => {
         json: vi.fn().mockResolvedValue({
           data: {
             shopBillingPreferences: {
-              currencyCode: "USD",
+              currency: "USD",
             },
           },
         }),
@@ -273,7 +282,7 @@ describe("Subscription Service", () => {
         json: vi.fn().mockResolvedValue({
           data: {
             shopBillingPreferences: {
-              currencyCode: "EUR",
+              currency: "EUR",
             },
           },
         }),
@@ -304,6 +313,77 @@ describe("Subscription Service", () => {
                 }),
               }),
             ]),
+          }),
+        })
+      );
+    });
+    it("should force test charge for partner development store", async () => {
+      const mockGetSubscriptionStatus = {
+        json: vi.fn().mockResolvedValue({
+          data: {
+            appInstallation: {
+              allSubscriptions: {
+                edges: [],
+              },
+            },
+          },
+        }),
+      };
+      const mockGetShopPlan = {
+        json: vi.fn().mockResolvedValue({
+          data: {
+            shop: {
+              plan: {
+                displayName: "Test Plan",
+                partnerDevelopment: true,
+                shopifyPlus: false,
+              },
+            },
+          },
+        }),
+      };
+      const mockBillingPreferences = {
+        json: vi.fn().mockResolvedValue({
+          data: {
+            shopBillingPreferences: {
+              currency: "USD",
+            },
+          },
+        }),
+      };
+      const mockAppSubscriptionCreate = {
+        json: vi.fn().mockResolvedValue({
+          data: {
+            appSubscriptionCreate: {
+              appSubscription: {
+                id: "gid://shopify/AppSubscription/123456",
+                status: "PENDING",
+                trialDays: 0,
+              },
+              confirmationUrl: "https://example.com/confirm",
+              userErrors: [],
+            },
+          },
+        }),
+      };
+      (mockAdmin.graphql as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce(mockGetSubscriptionStatus)
+        .mockResolvedValueOnce(mockGetShopPlan)
+        .mockResolvedValueOnce(mockBillingPreferences)
+        .mockResolvedValueOnce(mockAppSubscriptionCreate);
+      vi.mocked(prisma.shop.findUnique).mockResolvedValue({ id: "shop-1" } as any);
+      await createSubscription(
+        mockAdmin,
+        "test-store.myshopify.com",
+        "starter",
+        "https://example.com/return"
+      );
+      expect(mockAdmin.graphql).toHaveBeenNthCalledWith(
+        4,
+        expect.any(String),
+        expect.objectContaining({
+          variables: expect.objectContaining({
+            test: true,
           }),
         })
       );

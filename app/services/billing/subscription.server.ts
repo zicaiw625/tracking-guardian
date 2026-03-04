@@ -334,7 +334,7 @@ const GET_ONE_TIME_PURCHASES_QUERY = `
 const GET_SHOP_BILLING_PREFERENCES_QUERY = `
   query GetShopBillingPreferences {
     shopBillingPreferences {
-      currencyCode
+      currency
     }
   }
 `;
@@ -349,10 +349,19 @@ async function getAllSubscriptions(admin: AdminGraphQL): Promise<SubscriptionNod
 async function getBillingCurrencyCode(admin: AdminGraphQL): Promise<string> {
   try {
     const response = await admin.graphql(GET_SHOP_BILLING_PREFERENCES_QUERY);
-    const data = await response.json();
-    const currencyCode = data.data?.shopBillingPreferences?.currencyCode;
-    if (typeof currencyCode === "string" && currencyCode.length > 0) {
-      return currencyCode;
+    const data = await response.json() as {
+      data?: { shopBillingPreferences?: { currency?: string } };
+      errors?: Array<{ message?: string }>;
+    };
+    if (Array.isArray(data.errors) && data.errors.length > 0) {
+      logger.warn("Failed to query billing currency, falling back to USD", {
+        errors: data.errors,
+      });
+      return "USD";
+    }
+    const currency = data.data?.shopBillingPreferences?.currency;
+    if (typeof currency === "string" && currency.length > 0) {
+      return currency;
     }
   } catch (error) {
     logger.warn("Failed to query billing currency, falling back to USD", {
@@ -494,7 +503,6 @@ export async function createSubscription(
     const planInfo = await getShopPlan(admin as AdminApiContext);
     const testMode =
       isTest ||
-      process.env.NODE_ENV !== "production" ||
       planInfo?.partnerDevelopment === true;
     const isUpgrade = isHigherTier(planId, currentPlan);
     const replacementBehavior = isUpgrade ? "APPLY_IMMEDIATELY" : "APPLY_ON_NEXT_BILLING_CYCLE";
@@ -521,6 +529,13 @@ export async function createSubscription(
     });
     const data = await response.json();
     const result = data.data?.appSubscriptionCreate;
+    logger.info("Subscription create response", {
+      shopDomain,
+      planId,
+      testMode,
+      confirmationUrl: result?.confirmationUrl ?? null,
+      userErrors: result?.userErrors ?? [],
+    });
     if (result?.userErrors?.length > 0) {
       const errorMessage = result.userErrors
         .map((e: { message: string }) => e.message)
@@ -852,7 +867,6 @@ export async function createOneTimePurchase(
     const planInfo = await getShopPlan(admin as AdminApiContext);
     const testMode =
       isTest ||
-      process.env.NODE_ENV !== "production" ||
       planInfo?.partnerDevelopment === true;
     const currencyCode = await getBillingCurrencyCode(admin);
     const response = await admin.graphql(CREATE_ONE_TIME_PURCHASE_MUTATION, {

@@ -159,7 +159,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 );
             }
 
-            const result = await createSubscription(admin, shopDomain, planId, returnUrl, process.env.NODE_ENV !== "production");
+            const result = await createSubscription(admin, shopDomain, planId, returnUrl);
 
             if (shop && !result.success) {
                 safeFireAndForget(
