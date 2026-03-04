@@ -11,6 +11,9 @@ describe("auth session-token loader", () => {
     expect(source).toContain("if (authResult instanceof Response)");
     expect(source).toContain("return authResult;");
     expect(source).toContain("const shopifyReload = currentUrl.searchParams.get(\"shopify-reload\");");
+    expect(source).toContain("process.env.SHOPIFY_APP_URL?.trim()");
+    expect(source).toContain("allowedOrigins.has(targetUrl.origin)");
+    expect(source).toContain("for (const key of [\"charge_id\", \"host\", \"shop\"])");
     expect(source).toContain("return redirect(`${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`);");
   });
 });
