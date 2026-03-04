@@ -3,8 +3,11 @@ export function suppressMonorailErrors() {
   if ((window as Window & { __tgMonorailPatched?: boolean }).__tgMonorailPatched) {
     return;
   }
+  const viteEnv = (import.meta as { env?: { DEV?: boolean; MODE?: string } }).env;
   const nodeEnv = (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV;
   const isDev = 
+    Boolean(viteEnv?.DEV) ||
+    viteEnv?.MODE === "development" ||
     nodeEnv === "development" ||
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1" ||
@@ -100,9 +103,9 @@ export function suppressMonorailErrors() {
       return isTelemetryMessage(url);
     }
   };
-  const originalFetch = window.fetch.bind(window);
+  const originalFetch = globalThis.fetch.bind(globalThis);
   const originalSendBeacon = navigator.sendBeacon?.bind(navigator);
-  window.fetch = async (...args) => {
+  globalThis.fetch = async (...args) => {
     const firstArg = args[0];
     const url =
       typeof firstArg === "string"
@@ -217,7 +220,7 @@ export function suppressMonorailErrors() {
   return () => {
     console.error = originalConsoleError;
     console.warn = originalConsoleWarn;
-    window.fetch = originalFetch;
+    globalThis.fetch = originalFetch;
     window.XMLHttpRequest = OriginalXHR;
     if (originalSendBeacon) {
       navigator.sendBeacon = originalSendBeacon;
