@@ -161,18 +161,26 @@ function injectBackendUrl() {
         }
         process.exit(1);
     }
-    const updatedCount = processConfigFiles(
-        [
-            { path: SHARED_CONFIG_FILE, label: "Shared config (extensions/shared/config.ts)", required: true },
-        ],
-        (content) => {
-            const result = replaceBuildTimeUrl(content, backendUrl);
-            return result.updated
-                ? { ...result, nextValue: backendUrl }
-                : result;
-        },
-    );
-    if (updatedCount === 0) {
+    const label = "Shared config (extensions/shared/config.ts)";
+    if (!fs.existsSync(SHARED_CONFIG_FILE)) {
+        console.error(`❌ ${label} not found: ${SHARED_CONFIG_FILE}`);
+        process.exit(1);
+    }
+
+    const content = readConfig(SHARED_CONFIG_FILE);
+    const result = replaceBuildTimeUrl(content, backendUrl, true);
+
+    if (result.updated) {
+        writeConfig(SHARED_CONFIG_FILE, result.nextContent);
+        console.log(`✅ ${label} updated (${result.previousValue ?? "unknown"} -> ${backendUrl})`);
+        console.log("✅ Successfully injected BACKEND_URL to 1 config file(s)");
+    } else if (result.reason === "already_set") {
+        console.log(`ℹ️  ${label} already uses target BACKEND_URL: ${backendUrl}`);
+        console.log("✅ Injection check passed (no change needed)");
+    } else if (result.reason === "pattern_not_found") {
+        console.error(`❌ ${label}: BUILD_TIME_URL assignment not found`);
+        process.exit(1);
+    } else {
         console.warn("⚠️  No placeholders were replaced. Please check that config files contain the placeholder.");
         if (isCI) {
             console.error("❌ In CI/CD environment, URL injection is required!");
@@ -180,13 +188,12 @@ function injectBackendUrl() {
             console.error("   Please ensure the build process runs 'pnpm ext:inject' or equivalent.");
             process.exit(1);
         }
-    } else {
-        console.log(`✅ Successfully injected BACKEND_URL to ${updatedCount} config file(s)`);
-        console.log(`   Backend URL: ${backendUrl}`);
-        console.log(`   Runtime flag: set EXTENSION_BACKEND_URL_INJECTED=true in deployment environment`);
-        console.log(`   ⚠️  IMPORTANT: Ensure this URL is added to Web Pixel Extension allowlist in Partner Dashboard`);
-        console.log(`   ⚠️  IMPORTANT: If placeholder is not replaced, pixel events will fail silently`);
     }
+
+    console.log(`   Backend URL: ${backendUrl}`);
+    console.log(`   Runtime flag: set EXTENSION_BACKEND_URL_INJECTED=true in deployment environment`);
+    console.log(`   ⚠️  IMPORTANT: Ensure this URL is added to Web Pixel Extension allowlist in Partner Dashboard`);
+    console.log(`   ⚠️  IMPORTANT: If placeholder is not replaced, pixel events will fail silently`);
 }
 function restorePlaceholder() {
     const restoredCount = processConfigFiles(
