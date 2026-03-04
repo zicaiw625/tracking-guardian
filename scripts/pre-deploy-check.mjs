@@ -213,10 +213,11 @@ function checkDuplicateImports() {
 
 function checkBackendUrlInjection() {
     const configFiles = [
-        { path: "extensions/shared/config.ts", requirePlaceholder: true },
+        { path: "extensions/shared/config.ts", requireBuildTimeUrl: true },
     ];
     const missingFiles = [];
-    const missingPlaceholder = [];
+    const invalidConfig = [];
+    const buildTimeUrlPattern = /const\s+BUILD_TIME_URL\s*=\s*(["'])([^"']+)\1;/;
     for (const configFile of configFiles) {
         const filePath = path.join(__dirname, "..", configFile.path);
         if (!fs.existsSync(filePath)) {
@@ -224,9 +225,10 @@ function checkBackendUrlInjection() {
             continue;
         }
         const content = fs.readFileSync(filePath, "utf-8");
-        if (configFile.requirePlaceholder) {
-            if (!content.includes("__BACKEND_URL_PLACEHOLDER__")) {
-                missingPlaceholder.push(configFile.path);
+        if (configFile.requireBuildTimeUrl) {
+            const match = content.match(buildTimeUrlPattern);
+            if (!match) {
+                invalidConfig.push(`${configFile.path} (未找到 BUILD_TIME_URL 定义)`);
             }
         }
     }
@@ -236,8 +238,8 @@ function checkBackendUrlInjection() {
     if (missingFiles.length > 0) {
         issues.push(`缺少配置文件: ${missingFiles.join(", ")}`);
     }
-    if (missingPlaceholder.length > 0) {
-        issues.push(`配置文件问题: ${missingPlaceholder.join(", ")}`);
+    if (invalidConfig.length > 0) {
+        issues.push(`配置文件问题: ${invalidConfig.join(", ")}`);
     }
     if (!buildScriptContent.includes("SHARED_CONFIG_FILE")) {
         issues.push("build-extensions.mjs 未处理 shared 配置文件");
