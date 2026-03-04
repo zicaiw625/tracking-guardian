@@ -6,12 +6,20 @@ export function suppressMonorailErrors() {
     window.location.hostname === "127.0.0.1" ||
     window.location.hostname.includes(".local");
   if (!isDev) return;
+  const telemetryPaths = [
+    "/v1/produce",
+    "/v1/produce_batch",
+    "/unstable/produce",
+    "/unstable/produce_batch",
+  ];
   const isTelemetryMessage = (value: string): boolean => {
     const normalized = value.toLowerCase();
     return (
       normalized.includes("monorail-edge.shopifysvc.com") ||
       normalized.includes("shopifysvc.com/v1/produce") ||
-      normalized.includes("shopifysvc.com/v1/produce_batch")
+      normalized.includes("shopifysvc.com/v1/produce_batch") ||
+      normalized.includes("shopifysvc.com/unstable/produce") ||
+      normalized.includes("shopifysvc.com/unstable/produce_batch")
     );
   };
   const originalConsoleError = console.error;
@@ -80,7 +88,7 @@ export function suppressMonorailErrors() {
         return true;
       }
       if (host.endsWith(".shopifysvc.com")) {
-        return pathname.includes("/v1/produce") || pathname.includes("/v1/produce_batch");
+        return telemetryPaths.some((path) => pathname.includes(path));
       }
       return false;
     } catch {
@@ -88,6 +96,7 @@ export function suppressMonorailErrors() {
     }
   };
   const originalFetch = window.fetch;
+  const originalSendBeacon = navigator.sendBeacon?.bind(navigator);
   window.fetch = async (...args) => {
     const url = typeof args[0] === "string" ? args[0] : args[0] instanceof URL ? args[0].href : (args[0] && typeof args[0] === "object" && "url" in args[0] ? (args[0] as Request).url : "");
     if (isTelemetryUrl(url)) {
@@ -181,11 +190,23 @@ export function suppressMonorailErrors() {
       return super.send(body ?? null);
     }
   } as typeof XMLHttpRequest;
+  if (originalSendBeacon) {
+    navigator.sendBeacon = (url: string | URL, data?: BodyInit | null): boolean => {
+      const resolvedUrl = typeof url === "string" ? url : url.toString();
+      if (isTelemetryUrl(resolvedUrl)) {
+        return true;
+      }
+      return originalSendBeacon(url, data);
+    };
+  }
   return () => {
     console.error = originalConsoleError;
     console.warn = originalConsoleWarn;
     window.fetch = originalFetch;
     window.XMLHttpRequest = OriginalXHR;
+    if (originalSendBeacon) {
+      navigator.sendBeacon = originalSendBeacon;
+    }
     window.removeEventListener("error", errorHandler, true);
     window.removeEventListener("unhandledrejection", rejectionHandler);
   };

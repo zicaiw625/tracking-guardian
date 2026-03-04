@@ -8,6 +8,10 @@ import { useChangeLanguage } from "remix-i18next/react";
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { i18nServer } from "./i18n.server";
 
+if (typeof window !== "undefined") {
+  suppressMonorailErrors();
+}
+
 export const links = () => [
   { rel: "stylesheet", href: polarisStyles },
   { rel: "stylesheet", href: noncedAppStyles },
