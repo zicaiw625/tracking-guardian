@@ -43,7 +43,7 @@ export function buildAppPageCspWithNonce(
     : APP_PAGE_CSP_DIRECTIVES["style-src"];
   const styleSrcElem = isDev
     ? [...APP_PAGE_CSP_DIRECTIVES["style-src-elem"], "'unsafe-inline'"]
-    : APP_PAGE_CSP_DIRECTIVES["style-src-elem"];
+    : [...APP_PAGE_CSP_DIRECTIVES["style-src-elem"], "'unsafe-inline'"];
   return buildCspHeader({
     ...APP_PAGE_CSP_DIRECTIVES,
     "script-src": ["'self'", `'nonce-${nonce}'`, "https://cdn.shopify.com"],

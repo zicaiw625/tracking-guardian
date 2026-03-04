@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { useNavigate, Link, useLocation } from "@remix-run/react";
+import { useState } from "react";
+import { Form, Link, useLocation } from "@remix-run/react";
 import {
   Layout,
   Card,
@@ -33,14 +33,10 @@ interface SubscriptionTabProps {
 export function SubscriptionTab({ currentPlan, subscriptionStatus }: SubscriptionTabProps) {
   useToastContext();
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const location = useLocation();
   const [upgradingPlan, setUpgradingPlan] = useState<PlanId | null>(null);
-  const handleUpgrade = useCallback((planId: PlanId) => {
-    setUpgradingPlan(planId);
-    navigate(withEmbeddedAppParams(`/app/billing?upgrade=${planId}`, location.search));
-  }, [location.search, navigate]);
   const billingUrl = withEmbeddedAppParams("/app/billing", location.search);
+  const billingAction = withEmbeddedAppParams("/app/billing", location.search);
   const currentPlanConfig = BILLING_PLANS[currentPlan];
   const upgradeOptions = getUpgradeOptions(currentPlan);
 
@@ -154,13 +150,18 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
                               </List.Item>
                             ))}
                           </List>
-                          <Button
-                            variant="primary"
-                            onClick={() => handleUpgrade(planId)}
-                            loading={upgradingPlan === planId}
-                          >
-                            {t("settings.subscription.upgradeTo", { plan: t(planConfig.name) })}
-                          </Button>
+                          <Form method="post" action={billingAction} reloadDocument>
+                            <input type="hidden" name="_action" value="subscribe" />
+                            <input type="hidden" name="planId" value={planId} />
+                            <Button
+                              variant="primary"
+                              submit
+                              onClick={() => setUpgradingPlan(planId)}
+                              loading={upgradingPlan === planId}
+                            >
+                              {t("settings.subscription.upgradeTo", { plan: t(planConfig.name) })}
+                            </Button>
+                          </Form>
                         </BlockStack>
                       </Box>
                     );

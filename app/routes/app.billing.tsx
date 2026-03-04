@@ -1,9 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { Form, useLoaderData, useSubmit, useNavigation, useSearchParams, useActionData, useLocation } from "@remix-run/react";
-import { useEffect, useRef, useState } from "react";
-import { useAppBridge } from "@shopify/app-bridge-react";
-import { Redirect } from "@shopify/app-bridge/actions";
+import { useEffect, useState } from "react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Button, Badge, Box, Divider, Banner, ProgressBar, List, DataTable, Modal } from "@shopify/polaris";
 import { useTranslation } from "react-i18next";
 import { useToastContext } from "~/components/ui";
@@ -127,7 +125,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export const action = async ({ request }: ActionFunctionArgs) => {
     try {
-        const { session, admin } = await authenticate.admin(request);
+        const { session, admin, redirect } = await authenticate.admin(request);
         const shopDomain = session.shop;
         const formData = await request.formData();
         const action = formData.get("_action");
@@ -147,6 +145,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             const returnUrlObj = new URL("/app/billing", appUrl);
             if (host) returnUrlObj.searchParams.set("host", host);
             returnUrlObj.searchParams.set("shop", shopDomain);
+            returnUrlObj.searchParams.set("embedded", "1");
 
             const returnUrl = returnUrlObj.toString();
 
@@ -193,11 +192,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                         error: validation.error || "Invalid confirmation URL",
                     });
                 }
-                return json({
-                    success: true,
-                    actionType: "subscribe",
-                    confirmationUrl: result.confirmationUrl,
-                });
+                return redirect(result.confirmationUrl, { target: "_parent" });
             }
 
             return json({
@@ -235,67 +230,34 @@ export default function BillingPage() {
     const loaderData = useLoaderData<typeof loader>();
     const { subscription, usage, plans, planIds, billingHistory, billingPortalUrl } = loaderData;
     const actionData = useActionData<typeof action>();
-    const app = useAppBridge();
     const location = useLocation();
     const submit = useSubmit();
     const navigation = useNavigation();
     const { t, i18n } = useTranslation();
     const { showSuccess, showError } = useToastContext();
     const billingUrl = withEmbeddedAppParams("/app/billing", location.search);
-    const [pendingConfirmationUrl, setPendingConfirmationUrl] = useState<string | null>(null);
-    const hasRedirectedRef = useRef(false);
 
     useEffect(() => {
         if (actionData) {
-            const data = actionData as { success?: boolean; error?: string; actionType?: string; confirmationUrl?: string };
-            if (data.confirmationUrl) {
-                setPendingConfirmationUrl(data.confirmationUrl);
-                try {
-                    const url = new URL(window.location.href);
-                    url.searchParams.delete("upgrade");
-                    window.history.replaceState(null, "", url.toString());
-                } catch {
-                    void 0;
-                }
-
-                if (!hasRedirectedRef.current) {
-                    hasRedirectedRef.current = true;
-                    try {
-                        const redirect = Redirect.create(app as unknown as Parameters<typeof Redirect.create>[0]);
-                        redirect.dispatch(Redirect.Action.REMOTE, data.confirmationUrl);
-                    } catch {
-                        hasRedirectedRef.current = false;
-                    }
-                }
-                return;
-            }
+            const data = actionData as { success?: boolean; error?: string; actionType?: string };
             if (data.success) {
-                setPendingConfirmationUrl(null);
-                hasRedirectedRef.current = false;
                 if (data.actionType === "cancel") {
                     showSuccess(t("billing.subscriptionCancelled"));
                 } else {
                     showSuccess(t("common.operationSuccess"));
                 }
             } else if (data.error) {
-                setPendingConfirmationUrl(null);
-                hasRedirectedRef.current = false;
                 showError(t("billing.failPrefix") + data.error);
             }
         }
-    }, [actionData, app, showSuccess, showError, t]);
+    }, [actionData, showSuccess, showError, t]);
 
     const [searchParams] = useSearchParams();
     const isSubmitting = navigation.state === "submitting";
     const showSuccessBanner = searchParams.get("success") === "true";
     const showErrorBanner = searchParams.get("success") === "false";
     const errorMessage = searchParams.get("error");
-    const upgradePlanId = searchParams.get("upgrade");
     const [showCancelModal, setShowCancelModal] = useState(false);
-    const attemptedUpgradeRef = useRef<string | null>(null);
-    const preselectedPlanId = upgradePlanId && planIds.includes(upgradePlanId as PlanId)
-        ? (upgradePlanId as PlanId)
-        : null;
 
     const currentPlan = getPlanOrDefault(subscription.plan);
     const usagePercent = Math.min((usage.current / usage.limit) * 100, 100);
@@ -394,35 +356,6 @@ export default function BillingPage() {
 
     const actionDataTyped = actionData as { success?: boolean; error?: string; confirmationUrl?: string } | undefined;
     const hasError = actionDataTyped && !actionDataTyped.success && actionDataTyped.error;
-    const handleContinueToConfirmation = () => {
-        if (!pendingConfirmationUrl) {
-            return;
-        }
-        const redirect = Redirect.create(app as unknown as Parameters<typeof Redirect.create>[0]);
-        redirect.dispatch(Redirect.Action.REMOTE, pendingConfirmationUrl);
-    };
-
-    useEffect(() => {
-        if (!upgradePlanId || !planIds.includes(upgradePlanId as PlanId)) {
-            return;
-        }
-        if (attemptedUpgradeRef.current === upgradePlanId) {
-            return;
-        }
-
-        const targetPlan = plans[upgradePlanId as PlanId];
-        const currentPlanPrice = currentPlan.price;
-        const isUpgradeTarget = Boolean(targetPlan && targetPlan.price > currentPlanPrice);
-        if (!isUpgradeTarget || navigation.state === "submitting") {
-            return;
-        }
-
-        attemptedUpgradeRef.current = upgradePlanId;
-        const formData = new FormData();
-        formData.append("_action", "subscribe");
-        formData.append("planId", upgradePlanId);
-        submit(formData, { method: "post" });
-    }, [upgradePlanId, planIds, plans, currentPlan.price, navigation.state, submit]);
 
     const renderFeature = (feature: string) => {
         if (feature === "subscriptionPlans.free.features.countdown") {
@@ -447,15 +380,6 @@ export default function BillingPage() {
 
         {hasError && (<Banner title={t("billing.failTitle")} tone="critical" onDismiss={() => { }}>
             <p>{actionDataTyped.error}</p>
-          </Banner>)}
-
-        {pendingConfirmationUrl && (<Banner title={t("billing.successTitle")} tone="success">
-            <p>{t("billing.successMessage")}</p>
-            <Box paddingBlockStart="200">
-              <Button variant="primary" onClick={handleContinueToConfirmation}>
-                {t("billing.goToShopifyBilling")}
-              </Button>
-            </Box>
           </Banner>)}
 
         {subscription.isTrialing && (<Banner title={t("billing.trialBannerTitle")} tone="info">
@@ -582,10 +506,7 @@ export default function BillingPage() {
             const isCurrentPlan = subscription.plan === planId;
             const isUpgrade = plan.price > currentPlan.price;
             const isDowngrade = plan.price < currentPlan.price;
-            const isPreselectedPlan = preselectedPlanId === planId;
-            const actionVariant = preselectedPlanId
-                ? (isPreselectedPlan ? "primary" : "secondary")
-                : (isUpgrade ? "primary" : "secondary");
+            const actionVariant = isUpgrade ? "primary" : "secondary";
 
             return (<Layout.Section key={planId} variant="oneThird">
                 <Card>
@@ -613,7 +534,7 @@ export default function BillingPage() {
                       {isCurrentPlan ? (<Button disabled fullWidth>{t("billing.currentPlan")}</Button>) : plan.price === 0 ? (<Button variant="secondary" fullWidth onClick={handleCancel} loading={isSubmitting} disabled={subscription.plan === "free"}>
                           {t("billing.downgradeToFree")}
                         </Button>) : (
-                        <Form method="post">
+                        <Form method="post" reloadDocument>
                           <input type="hidden" name="_action" value="subscribe" />
                           <input type="hidden" name="planId" value={planId} />
                           <Button variant={actionVariant} fullWidth submit loading={isSubmitting}>
