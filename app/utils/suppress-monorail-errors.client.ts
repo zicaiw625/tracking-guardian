@@ -1,11 +1,16 @@
 export function suppressMonorailErrors() {
   if (typeof window === "undefined") return;
+  if ((window as Window & { __tgMonorailPatched?: boolean }).__tgMonorailPatched) {
+    return;
+  }
+  const nodeEnv = (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV;
   const isDev = 
-    process.env.NODE_ENV === "development" || 
+    nodeEnv === "development" ||
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1" ||
     window.location.hostname.includes(".local");
   if (!isDev) return;
+  (window as Window & { __tgMonorailPatched?: boolean }).__tgMonorailPatched = true;
   const telemetryPaths = [
     "/v1/produce",
     "/v1/produce_batch",
@@ -95,10 +100,20 @@ export function suppressMonorailErrors() {
       return isTelemetryMessage(url);
     }
   };
-  const originalFetch = window.fetch;
+  const originalFetch = window.fetch.bind(window);
   const originalSendBeacon = navigator.sendBeacon?.bind(navigator);
   window.fetch = async (...args) => {
-    const url = typeof args[0] === "string" ? args[0] : args[0] instanceof URL ? args[0].href : (args[0] && typeof args[0] === "object" && "url" in args[0] ? (args[0] as Request).url : "");
+    const firstArg = args[0];
+    const url =
+      typeof firstArg === "string"
+        ? firstArg
+        : firstArg instanceof URL
+          ? firstArg.href
+          : firstArg instanceof Request
+            ? firstArg.url
+            : (firstArg && typeof firstArg === "object" && "url" in firstArg
+              ? String((firstArg as { url?: unknown }).url ?? "")
+              : "");
     if (isTelemetryUrl(url)) {
       return Promise.resolve(new Response(null, { 
         status: 200, 
@@ -207,6 +222,7 @@ export function suppressMonorailErrors() {
     if (originalSendBeacon) {
       navigator.sendBeacon = originalSendBeacon;
     }
+    (window as Window & { __tgMonorailPatched?: boolean }).__tgMonorailPatched = false;
     window.removeEventListener("error", errorHandler, true);
     window.removeEventListener("unhandledrejection", rejectionHandler);
   };
