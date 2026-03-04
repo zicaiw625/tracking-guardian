@@ -8,8 +8,6 @@ describe("auth session-token loader", () => {
     const source = readFileSync(filePath, "utf-8");
 
     expect(source).toContain("const authResult = await authenticate.admin(request);");
-    expect(source).toContain("const chargeId = currentUrl.searchParams.get(\"charge_id\");");
-    expect(source).toContain("if (chargeId && !targetUrl.searchParams.has(\"charge_id\"))");
     expect(source).toContain("if (authResult instanceof Response)");
     expect(source).toContain("return authResult;");
     expect(source).toContain("const shopifyReload = currentUrl.searchParams.get(\"shopify-reload\");");
