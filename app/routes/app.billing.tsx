@@ -268,6 +268,7 @@ export default function BillingPage() {
     const errorMessage = searchParams.get("error");
     const upgradePlanId = searchParams.get("upgrade");
     const [showCancelModal, setShowCancelModal] = useState(false);
+    const [attemptedUpgradePlanId, setAttemptedUpgradePlanId] = useState<string | null>(null);
     const preselectedPlanId = upgradePlanId && planIds.includes(upgradePlanId as PlanId)
         ? (upgradePlanId as PlanId)
         : null;
@@ -397,6 +398,25 @@ export default function BillingPage() {
         }
         window.open(pendingConfirmationUrl, "_top");
     };
+
+    useEffect(() => {
+        if (!upgradePlanId || !planIds.includes(upgradePlanId as PlanId)) {
+            return;
+        }
+        if (attemptedUpgradePlanId !== upgradePlanId) {
+            const targetPlan = plans[upgradePlanId as PlanId];
+            const currentPlanPrice = plans[subscription.plan as PlanId]?.price || 0;
+            const isUpgradeTarget = Boolean(targetPlan && targetPlan.price > currentPlanPrice);
+            if (!isUpgradeTarget || navigation.state === "submitting") {
+                return;
+            }
+            const formData = new FormData();
+            formData.append("_action", "subscribe");
+            formData.append("planId", upgradePlanId);
+            setAttemptedUpgradePlanId(upgradePlanId);
+            submit(formData, { method: "post" });
+        }
+    }, [attemptedUpgradePlanId, upgradePlanId, planIds, plans, subscription.plan, navigation.state, submit]);
 
     const renderFeature = (feature: string) => {
         if (feature === "subscriptionPlans.free.features.countdown") {

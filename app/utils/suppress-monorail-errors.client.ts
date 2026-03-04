@@ -6,6 +6,14 @@ export function suppressMonorailErrors() {
     window.location.hostname === "127.0.0.1" ||
     window.location.hostname.includes(".local");
   if (!isDev) return;
+  const isTelemetryMessage = (value: string): boolean => {
+    const normalized = value.toLowerCase();
+    return (
+      normalized.includes("monorail-edge.shopifysvc.com") ||
+      normalized.includes("shopifysvc.com/v1/produce") ||
+      normalized.includes("shopifysvc.com/v1/produce_batch")
+    );
+  };
   const originalConsoleError = console.error;
   const originalConsoleWarn = console.warn;
   const isTelemetryError = (args: unknown[]): boolean => {
@@ -15,14 +23,9 @@ export function suppressMonorailErrors() {
       String(arg)
     ).join(" ");
     return (
-      errorMessage.includes("monorail-edge.shopifysvc.com") ||
-      errorMessage.includes("monorail") ||
-      errorMessage.includes("produce") ||
-      errorMessage.includes("produce_batch") ||
-      errorMessage.includes("ERR_CONNECTION_REFUSED") ||
-      errorMessage.includes("Failed to load resource") ||
-      errorMessage.includes("opentelemetry") ||
-      errorMessage.includes("otlp")
+      isTelemetryMessage(errorMessage) ||
+      (errorMessage.includes("ERR_CONNECTION_REFUSED") && errorMessage.includes("shopifysvc.com")) ||
+      (errorMessage.includes("Failed to load resource") && errorMessage.includes("shopifysvc.com"))
     );
   };
   console.error = (...args: unknown[]) => {
@@ -41,13 +44,9 @@ export function suppressMonorailErrors() {
     const errorMessage = event.message || "";
     const filename = event.filename || "";
     if (
-      errorMessage.includes("monorail") ||
-      filename.includes("monorail") ||
-      errorMessage.includes("produce") ||
-      errorMessage.includes("produce_batch") ||
-      errorMessage.includes("ERR_CONNECTION_REFUSED") ||
-      errorMessage.includes("opentelemetry") ||
-      errorMessage.includes("otlp")
+      isTelemetryMessage(errorMessage) ||
+      isTelemetryMessage(filename) ||
+      (errorMessage.includes("ERR_CONNECTION_REFUSED") && filename.includes("shopifysvc.com"))
     ) {
       event.preventDefault();
       event.stopPropagation();
@@ -62,13 +61,9 @@ export function suppressMonorailErrors() {
       reason?.toString() || 
       String(reason || "");
     if (
-      errorMessage.includes("monorail") ||
-      errorMessage.includes("produce") ||
-      errorMessage.includes("produce_batch") ||
-      errorMessage.includes("ERR_CONNECTION_REFUSED") ||
-      errorMessage.includes("Failed to fetch") ||
-      errorMessage.includes("opentelemetry") ||
-      errorMessage.includes("otlp")
+      isTelemetryMessage(errorMessage) ||
+      (errorMessage.includes("ERR_CONNECTION_REFUSED") && errorMessage.includes("shopifysvc.com")) ||
+      (errorMessage.includes("Failed to fetch") && errorMessage.includes("shopifysvc.com"))
     ) {
       event.preventDefault();
       return false;
@@ -77,14 +72,20 @@ export function suppressMonorailErrors() {
   window.addEventListener("unhandledrejection", rejectionHandler);
   const isTelemetryUrl = (url: string): boolean => {
     if (!url) return false;
-    return (
-      url.includes("produce") ||
-      url.includes("produce_batch") ||
-      url.includes("monorail") ||
-      url.includes("opentelemetry") ||
-      url.includes("otlp") ||
-      url.includes("/events") && url.includes("monorail")
-    );
+    try {
+      const parsed = new URL(url, window.location.origin);
+      const host = parsed.hostname.toLowerCase();
+      const pathname = parsed.pathname.toLowerCase();
+      if (host === "monorail-edge.shopifysvc.com") {
+        return true;
+      }
+      if (host.endsWith(".shopifysvc.com")) {
+        return pathname.includes("/v1/produce") || pathname.includes("/v1/produce_batch");
+      }
+      return false;
+    } catch {
+      return isTelemetryMessage(url);
+    }
   };
   const originalFetch = window.fetch;
   window.fetch = async (...args) => {

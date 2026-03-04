@@ -1,4 +1,4 @@
-import { Links, Meta, Outlet, Scripts, ScrollRestoration, useRouteError, isRouteErrorResponse, useLoaderData } from "@remix-run/react";
+import { Links, Meta, Outlet, Scripts, ScrollRestoration, useRouteError, isRouteErrorResponse, useLoaderData, useRouteLoaderData } from "@remix-run/react";
 import { useEffect } from "react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import noncedAppStyles from "./styles/nonced-app.css?url";
@@ -28,7 +28,7 @@ function PerformanceMonitor() {
 }
 
 export default function App() {
-  const { locale } = useLoaderData<typeof loader>();
+  const { locale, nonce } = useLoaderData<typeof loader>() as { locale: string; nonce?: string };
   useChangeLanguage(locale);
   return (
     <html lang={locale}>
@@ -41,14 +41,16 @@ export default function App() {
       <body>
         <PerformanceMonitor />
         <Outlet />
-        <ScrollRestoration />
-        <Scripts />
+        <ScrollRestoration nonce={nonce} />
+        <Scripts nonce={nonce} />
       </body>
     </html>);
 }
 
 export function ErrorBoundary() {
   const error = useRouteError();
+  const rootData = useRouteLoaderData("root") as { nonce?: string } | undefined;
+  const nonce = rootData?.nonce;
   const { t, i18n } = useTranslation();
   let title = t("errorPage.unknownTitle");
   let message = t("errorPage.unknownMessage");
@@ -124,8 +126,8 @@ export function ErrorBoundary() {
             </button>
           </div>
         </div>
-        <ScrollRestoration />
-        <Scripts />
+        <ScrollRestoration nonce={nonce} />
+        <Scripts nonce={nonce} />
       </body>
     </html>
   );

@@ -37,9 +37,18 @@ export function buildAppPageCspWithNonce(
   nonce: string,
   frameAncestors: string[]
 ): string {
+  const isDev = process.env.NODE_ENV !== "production";
+  const styleSrc = isDev
+    ? [...APP_PAGE_CSP_DIRECTIVES["style-src"], "'unsafe-inline'"]
+    : APP_PAGE_CSP_DIRECTIVES["style-src"];
+  const styleSrcElem = isDev
+    ? [...APP_PAGE_CSP_DIRECTIVES["style-src-elem"], "'unsafe-inline'"]
+    : APP_PAGE_CSP_DIRECTIVES["style-src-elem"];
   return buildCspHeader({
     ...APP_PAGE_CSP_DIRECTIVES,
     "script-src": ["'self'", `'nonce-${nonce}'`, "https://cdn.shopify.com"],
+    "style-src": styleSrc,
+    "style-src-elem": styleSrcElem,
     "frame-ancestors": frameAncestors,
   });
 }
@@ -60,9 +69,18 @@ export const PUBLIC_PAGE_CSP_DIRECTIVES: Record<string, string[]> = {
 };
 
 export function buildPublicPageCspWithNonce(nonce: string): string {
+  const isDev = process.env.NODE_ENV !== "production";
+  const styleSrc = isDev
+    ? [...PUBLIC_PAGE_CSP_DIRECTIVES["style-src"], "'unsafe-inline'"]
+    : PUBLIC_PAGE_CSP_DIRECTIVES["style-src"];
+  const styleSrcElem = isDev
+    ? [...PUBLIC_PAGE_CSP_DIRECTIVES["style-src-elem"], "'unsafe-inline'"]
+    : PUBLIC_PAGE_CSP_DIRECTIVES["style-src-elem"];
   return buildCspHeader({
     ...PUBLIC_PAGE_CSP_DIRECTIVES,
     "script-src": ["'self'", `'nonce-${nonce}'`],
+    "style-src": styleSrc,
+    "style-src-elem": styleSrcElem,
   });
 }
 

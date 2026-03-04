@@ -103,6 +103,15 @@ export default async function handleRequest(request: Request, responseStatusCode
     await startupGate;
     const url = new URL(request.url);
     const nonce = randomBytes(16).toString("base64");
+    const staticHandlerContext = (
+      remixContext as EntryContext & {
+        staticHandlerContext?: { loaderData?: Record<string, unknown> };
+      }
+    ).staticHandlerContext;
+    const rootLoaderData = staticHandlerContext?.loaderData?.root;
+    if (rootLoaderData && typeof rootLoaderData === "object") {
+      (rootLoaderData as Record<string, unknown>).nonce = nonce;
+    }
     if (url.pathname === "/ingest" && request.method === "POST") {
         const contentLength = request.headers.get("Content-Length");
         if (contentLength) {
