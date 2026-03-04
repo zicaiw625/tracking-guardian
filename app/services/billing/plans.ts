@@ -189,6 +189,29 @@ export function normalizePlanId(planId: string): PlanId {
   }
 }
 
+export function detectPlanIdFromDisplayName(name: string): PlanId | null {
+  const normalizedName = name.toLowerCase();
+  if (normalizedName.includes("agency") || normalizedName.includes("agency版") || normalizedName.includes("enterprise")) {
+    return "agency";
+  }
+  if (normalizedName.includes("growth") || normalizedName.includes("成长版") || normalizedName.includes("pro")) {
+    return "growth";
+  }
+  if (
+    normalizedName.includes("starter") ||
+    normalizedName.includes("入门版") ||
+    normalizedName.includes("monitor") ||
+    normalizedName.includes("监控版") ||
+    normalizedName.includes("migration")
+  ) {
+    return "starter";
+  }
+  if (normalizedName.includes("free") || normalizedName.includes("免费版")) {
+    return "free";
+  }
+  return null;
+}
+
 export function getPlanLimit(planId: PlanId): number {
   return BILLING_PLANS[planId].monthlyOrderLimit;
 }

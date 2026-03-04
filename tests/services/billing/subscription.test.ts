@@ -89,9 +89,19 @@ describe("Subscription Service", () => {
           },
         }),
       };
+      const mockBillingPreferences = {
+        json: vi.fn().mockResolvedValue({
+          data: {
+            shopBillingPreferences: {
+              currencyCode: "USD",
+            },
+          },
+        }),
+      };
       (mockAdmin.graphql as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce(mockGetSubscriptionStatus)
         .mockResolvedValueOnce(mockGetShopPlan)
+        .mockResolvedValueOnce(mockBillingPreferences)
         .mockResolvedValueOnce(mockAppSubscriptionCreate);
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({ id: "shop-1" } as any);
       const result = await createSubscription(
@@ -153,9 +163,19 @@ describe("Subscription Service", () => {
           },
         }),
       };
+      const mockBillingPreferences = {
+        json: vi.fn().mockResolvedValue({
+          data: {
+            shopBillingPreferences: {
+              currencyCode: "USD",
+            },
+          },
+        }),
+      };
       (mockAdmin.graphql as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce(mockGetSubscriptionStatus)
         .mockResolvedValueOnce(mockGetShopPlan)
+        .mockResolvedValueOnce(mockBillingPreferences)
         .mockResolvedValueOnce(mockAppSubscriptionCreate);
       const result = await createSubscription(
         mockAdmin,
@@ -249,9 +269,19 @@ describe("Subscription Service", () => {
           },
         }),
       };
+      const mockBillingPreferences = {
+        json: vi.fn().mockResolvedValue({
+          data: {
+            shopBillingPreferences: {
+              currencyCode: "EUR",
+            },
+          },
+        }),
+      };
       (mockAdmin.graphql as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce(mockGetSubscriptionStatus)
         .mockResolvedValueOnce(mockGetShopPlan)
+        .mockResolvedValueOnce(mockBillingPreferences)
         .mockResolvedValueOnce(mockAppSubscriptionCreate);
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({ id: "shop-1" } as any);
       await createSubscription(
@@ -269,7 +299,7 @@ describe("Subscription Service", () => {
               expect.objectContaining({
                 plan: expect.objectContaining({
                   appRecurringPricingDetails: expect.objectContaining({
-                    price: { amount: BILLING_PLANS.growth.price, currencyCode: "USD" },
+                    price: { amount: BILLING_PLANS.growth.price, currencyCode: "EUR" },
                   }),
                 }),
               }),
@@ -396,7 +426,36 @@ describe("Subscription Service", () => {
   });
   describe("cancelSubscription", () => {
     it("should cancel subscription successfully", async () => {
-      const mockResponse = {
+      const mockGetSubscriptionStatus = {
+        json: vi.fn().mockResolvedValue({
+          data: {
+            appInstallation: {
+              allSubscriptions: {
+                edges: [
+                  {
+                    node: {
+                      id: "gid://shopify/AppSubscription/123456",
+                      name: "Tracking Guardian - Starter",
+                      status: "ACTIVE",
+                      currentPeriodEnd: "2025-02-27T00:00:00Z",
+                      lineItems: [
+                        {
+                          plan: {
+                            pricingDetails: {
+                              price: { amount: "29.00", currencyCode: "USD" },
+                            },
+                          },
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        }),
+      };
+      const mockCancelResponse = {
         json: vi.fn().mockResolvedValue({
           data: {
             appSubscriptionCancel: {
@@ -409,7 +468,39 @@ describe("Subscription Service", () => {
           },
         }),
       };
-      (mockAdmin.graphql as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse);
+      const mockSyncSubscriptions = {
+        json: vi.fn().mockResolvedValue({
+          data: {
+            appInstallation: {
+              allSubscriptions: {
+                edges: [
+                  {
+                    node: {
+                      id: "gid://shopify/AppSubscription/123456",
+                      name: "Tracking Guardian - Starter",
+                      status: "CANCELLED",
+                      currentPeriodEnd: "2025-02-27T00:00:00Z",
+                      lineItems: [
+                        {
+                          plan: {
+                            pricingDetails: {
+                              price: { amount: "29.00", currencyCode: "USD" },
+                            },
+                          },
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        }),
+      };
+      (mockAdmin.graphql as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce(mockGetSubscriptionStatus)
+        .mockResolvedValueOnce(mockCancelResponse)
+        .mockResolvedValueOnce(mockSyncSubscriptions);
       vi.mocked(prisma.shop.update).mockResolvedValue({} as any);
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({ id: "shop-1" } as any);
       const result = await cancelSubscription(
@@ -422,12 +513,64 @@ describe("Subscription Service", () => {
         expect.objectContaining({
           where: { shopDomain: "test-store.myshopify.com" },
           data: expect.objectContaining({
-            plan: "free",
+            entitledUntil: expect.any(Date),
           }),
         })
       );
     });
+    it("should reject cancel for non-active subscription", async () => {
+      const mockGetSubscriptionStatus = {
+        json: vi.fn().mockResolvedValue({
+          data: {
+            appInstallation: {
+              allSubscriptions: {
+                edges: [
+                  {
+                    node: {
+                      id: "gid://shopify/AppSubscription/123456",
+                      name: "Tracking Guardian - Starter",
+                      status: "CANCELLED",
+                      currentPeriodEnd: "2025-02-27T00:00:00Z",
+                      lineItems: [],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        }),
+      };
+      (mockAdmin.graphql as ReturnType<typeof vi.fn>).mockResolvedValueOnce(mockGetSubscriptionStatus);
+      const result = await cancelSubscription(
+        mockAdmin,
+        "test-store.myshopify.com",
+        "gid://shopify/AppSubscription/123456"
+      );
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Only active subscriptions can be cancelled");
+    });
     it("should handle cancellation errors", async () => {
+      const mockGetSubscriptionStatus = {
+        json: vi.fn().mockResolvedValue({
+          data: {
+            appInstallation: {
+              allSubscriptions: {
+                edges: [
+                  {
+                    node: {
+                      id: "invalid-id",
+                      name: "Tracking Guardian - Starter",
+                      status: "ACTIVE",
+                      currentPeriodEnd: "2025-02-27T00:00:00Z",
+                      lineItems: [],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        }),
+      };
       const mockResponse = {
         json: vi.fn().mockResolvedValue({
           data: {
@@ -440,7 +583,9 @@ describe("Subscription Service", () => {
           },
         }),
       };
-      (mockAdmin.graphql as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse);
+      (mockAdmin.graphql as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce(mockGetSubscriptionStatus)
+        .mockResolvedValueOnce(mockResponse);
       const result = await cancelSubscription(
         mockAdmin,
         "test-store.myshopify.com",

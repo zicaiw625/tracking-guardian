@@ -3,6 +3,7 @@ import prisma from "../db.server";
 import { hashValueSync } from "../utils/crypto.server";
 import { generateVerificationReportData, type VerificationReportData } from "./verification-report.server";
 import { normalizePlanId, planSupportsReportExport, type PlanId } from "./billing/plans";
+import { resolveEffectivePlan } from "./billing/effective-plan.server";
 
 const DEFAULT_EXPIRY_DAYS = 3;
 const MAX_EXPIRY_DAYS = 30;
@@ -342,9 +343,11 @@ export async function resolvePublicVerificationReportByToken(
   if (!shareLink.runId) return null;
   const shop = await prisma.shop.findUnique({
     where: { id: shareLink.shopId },
-    select: { plan: true },
+    select: { plan: true, entitledUntil: true },
   });
-  const currentPlan = normalizePlanId((shop?.plan || "free") as string) as PlanId;
+  const currentPlan = normalizePlanId(
+    resolveEffectivePlan(shop?.plan, shop?.entitledUntil)
+  ) as PlanId;
   if (!planSupportsReportExport(currentPlan)) {
     return null;
   }

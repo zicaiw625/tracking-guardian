@@ -4,6 +4,7 @@ import { cleanupExpiredDrafts } from "../../services/migration-draft.server";
 import { WebhookStatus, GDPRJobStatus } from "../../types/enums";
 import { processShopRedact } from "../../services/gdpr/handlers/shop-redact";
 import { cleanupOldJobs, failStuckJobs } from "../../services/batch-audit.server";
+import { BILLING_PLANS } from "../../services/billing/plans";
 
 const GDPR_JOB_RETENTION_DAYS = 30;
 const MIN_AUDIT_LOG_RETENTION_DAYS = 180;
@@ -22,6 +23,7 @@ export interface CleanupResult {
   auditAssetsDeleted: number;
   internalEventsDeleted: number;
   batchAuditJobsDeleted: number;
+  expiredEntitlementsDowngraded: number;
 }
 
 async function deleteInBatches(
@@ -58,7 +60,14 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     auditAssetsDeleted: 0,
     internalEventsDeleted: 0,
     batchAuditJobsDeleted: 0,
+    expiredEntitlementsDowngraded: 0,
   };
+  try {
+    result.expiredEntitlementsDowngraded = await downgradeExpiredEntitlements();
+  } catch (error) {
+    logger.error("Failed to downgrade expired entitlements", { error });
+  }
+
 
   try {
     const deletedJobs = await cleanupOldJobs();
@@ -403,4 +412,19 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
   }
 
   return result;
+}
+
+export async function downgradeExpiredEntitlements(now: Date = new Date()): Promise<number> {
+  const updateResult = await prisma.shop.updateMany({
+    where: {
+      plan: { not: "free" },
+      entitledUntil: { not: null, lte: now },
+    },
+    data: {
+      plan: "free",
+      monthlyOrderLimit: BILLING_PLANS.free.monthlyOrderLimit,
+      entitledUntil: null,
+    },
+  });
+  return updateResult.count ?? 0;
 }

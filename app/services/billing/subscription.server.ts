@@ -2,28 +2,12 @@ import prisma from "../../db.server";
 import { createAuditLog } from "../audit.server";
 import { logger } from "../../utils/logger.server";
 import { assertSafeRedirect } from "../../utils/redirect-validation.server";
-import { BILLING_PLANS, type PlanId, detectPlanFromPrice, isHigherTier, getPlanDisplayName } from "./plans";
+import { BILLING_PLANS, type PlanId, detectPlanFromPrice, isHigherTier, getPlanDisplayName, detectPlanIdFromDisplayName } from "./plans";
 import { getShopPlan } from "../shop-tier.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 
 function detectPlanFromName(name: string): PlanId | null {
-  const nameLower = name.toLowerCase();
-  if (nameLower.includes("monitor") || nameLower.includes("监控版")) {
-    return "starter";
-  }
-  if (nameLower.includes("agency") || nameLower.includes("agency版")) {
-    return "agency";
-  }
-  if (nameLower.includes("growth") || nameLower.includes("成长版")) {
-    return "growth";
-  }
-  if (nameLower.includes("starter") || nameLower.includes("入门版")) {
-    return "starter";
-  }
-  if (nameLower.includes("free") || nameLower.includes("免费版")) {
-    return "free";
-  }
-  return null;
+  return detectPlanIdFromDisplayName(name);
 }
 
 interface SubscriptionNode {
@@ -347,6 +331,37 @@ const GET_ONE_TIME_PURCHASES_QUERY = `
   }
 `;
 
+const GET_SHOP_BILLING_PREFERENCES_QUERY = `
+  query GetShopBillingPreferences {
+    shopBillingPreferences {
+      currencyCode
+    }
+  }
+`;
+
+async function getAllSubscriptions(admin: AdminGraphQL): Promise<SubscriptionNode[]> {
+  const response = await admin.graphql(GET_SUBSCRIPTION_QUERY);
+  const data = await response.json();
+  const subscriptionsConnection = data.data?.appInstallation?.allSubscriptions;
+  return subscriptionsConnection?.edges?.map((edge: { node: unknown }) => edge.node as SubscriptionNode) || [];
+}
+
+async function getBillingCurrencyCode(admin: AdminGraphQL): Promise<string> {
+  try {
+    const response = await admin.graphql(GET_SHOP_BILLING_PREFERENCES_QUERY);
+    const data = await response.json();
+    const currencyCode = data.data?.shopBillingPreferences?.currencyCode;
+    if (typeof currencyCode === "string" && currencyCode.length > 0) {
+      return currencyCode;
+    }
+  } catch (error) {
+    logger.warn("Failed to query billing currency, falling back to USD", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+  return "USD";
+}
+
 export async function getBillingHistory(
   admin: AdminGraphQL
 ): Promise<BillingHistoryItem[]> {
@@ -375,15 +390,21 @@ export async function getBillingHistory(
           };
         }>;
       }) => {
-        const priceDetails = subscription.lineItems?.[0]?.plan?.pricingDetails?.price;
+        const pricingEntries = (subscription.lineItems ?? [])
+          .map((lineItem) => lineItem.plan?.pricingDetails?.price)
+          .filter((price): price is { amount?: string; currencyCode?: string } => Boolean(price));
+        const amount = pricingEntries.reduce((sum, price) => {
+          const parsed = parseFloat(price.amount || "0");
+          return Number.isFinite(parsed) ? sum + parsed : sum;
+        }, 0);
         return [
           {
             id: subscription.id,
             type: "subscription",
             name: subscription.name,
             status: subscription.status,
-            amount: priceDetails ? parseFloat(priceDetails.amount || "0") : undefined,
-            currency: priceDetails?.currencyCode,
+            amount: pricingEntries.length > 0 ? amount : undefined,
+            currency: pricingEntries.find((entry) => entry.currencyCode)?.currencyCode,
             periodEnd: subscription.currentPeriodEnd,
           },
         ];
@@ -478,7 +499,7 @@ export async function createSubscription(
     const isUpgrade = isHigherTier(planId, currentPlan);
     const replacementBehavior = isUpgrade ? "APPLY_IMMEDIATELY" : "APPLY_ON_NEXT_BILLING_CYCLE";
     
-    const currencyCode = "USD";
+    const currencyCode = await getBillingCurrencyCode(admin);
     const response = await admin.graphql(CREATE_SUBSCRIPTION_MUTATION, {
       variables: {
         name: `Tracking Guardian - ${getPlanDisplayName(planId)}`,
@@ -568,10 +589,7 @@ export async function getSubscriptionStatus(
   shopDomain: string
 ): Promise<SubscriptionStatus> {
   try {
-    const response = await admin.graphql(GET_SUBSCRIPTION_QUERY);
-    const data = await response.json();
-    const subscriptionsConnection = data.data?.appInstallation?.allSubscriptions;
-    const subscriptions = subscriptionsConnection?.edges?.map((edge: { node: unknown }) => edge.node) || [];
+    const subscriptions = await getAllSubscriptions(admin);
     
     const now = new Date();
     const derived = deriveEffectivePlan(subscriptions as SubscriptionNode[], now);
@@ -630,18 +648,30 @@ export async function cancelSubscription(
   subscriptionId: string
 ): Promise<CancelResult> {
   try {
-    const status = await getSubscriptionStatus(admin, shopDomain);
-    const currentPeriodEnd = status.currentPeriodEnd;
-    
-    if (status.subscriptionId === subscriptionId && status.status && status.status !== "ACTIVE") {
+    const subscriptions = await getAllSubscriptions(admin);
+    const candidateIds = subscriptionId.startsWith("gid://")
+      ? [subscriptionId]
+      : [subscriptionId, `gid://shopify/AppSubscription/${subscriptionId}`];
+    const targetSubscription = subscriptions.find((sub) =>
+      candidateIds.includes(sub.id) || (!subscriptionId.startsWith("gid://") && sub.id.endsWith(`/${subscriptionId}`))
+    );
+
+    if (!targetSubscription) {
       return {
         success: false,
-        error: `Cannot cancel subscription: current status is ${status.status}. Only active subscriptions can be cancelled.`,
+        error: "Subscription not found",
       };
     }
-    
+
+    if (targetSubscription.status !== "ACTIVE") {
+      return {
+        success: false,
+        error: `Cannot cancel subscription: current status is ${targetSubscription.status}. Only active subscriptions can be cancelled.`,
+      };
+    }
+
     const response = await admin.graphql(CANCEL_SUBSCRIPTION_MUTATION, {
-      variables: { id: subscriptionId },
+      variables: { id: targetSubscription.id },
     });
     const data = await response.json();
     const result = data.data?.appSubscriptionCancel;
@@ -651,14 +681,14 @@ export async function cancelSubscription(
         .join(", ");
       return { success: false, error: errorMessage };
     }
-    
+
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
       select: { id: true, plan: true },
     });
-    
-    if (shop && currentPeriodEnd) {
-      const entitledUntil = new Date(currentPeriodEnd);
+
+    if (shop && targetSubscription.currentPeriodEnd) {
+      const entitledUntil = new Date(targetSubscription.currentPeriodEnd);
       await prisma.shop.update({
         where: { shopDomain },
         data: {
@@ -671,8 +701,8 @@ export async function cancelSubscription(
         actorId: shopDomain,
         action: "subscription_cancelled",
         resourceType: "billing",
-        resourceId: subscriptionId,
-        metadata: { entitledUntil: currentPeriodEnd },
+          resourceId: targetSubscription.id,
+          metadata: { entitledUntil: targetSubscription.currentPeriodEnd },
       });
     } else if (shop) {
       await prisma.shop.update({
@@ -688,10 +718,11 @@ export async function cancelSubscription(
         actorId: shopDomain,
         action: "subscription_cancelled",
         resourceType: "billing",
-        resourceId: subscriptionId,
+          resourceId: targetSubscription.id,
         metadata: {},
       });
     }
+    await syncSubscriptionStatus(admin, shopDomain);
     return { success: true };
   } catch (error) {
     logger.error("Cancel subscription error", error);
@@ -707,10 +738,7 @@ export async function syncSubscriptionStatus(
   shopDomain: string
 ): Promise<void> {
   try {
-    const response = await admin.graphql(GET_SUBSCRIPTION_QUERY);
-    const data = await response.json();
-    const subscriptionsConnection = data.data?.appInstallation?.allSubscriptions;
-    const subscriptions = subscriptionsConnection?.edges?.map((edge: { node: unknown }) => edge.node) || [];
+    const subscriptions = await getAllSubscriptions(admin);
     
     const now = new Date();
     const derived = deriveEffectivePlan(subscriptions as SubscriptionNode[], now);
@@ -826,7 +854,7 @@ export async function createOneTimePurchase(
       isTest ||
       process.env.NODE_ENV !== "production" ||
       planInfo?.partnerDevelopment === true;
-    const currencyCode = "USD";
+    const currencyCode = await getBillingCurrencyCode(admin);
     const response = await admin.graphql(CREATE_ONE_TIME_PURCHASE_MUTATION, {
       variables: {
         name: `Tracking Guardian - ${getPlanDisplayName(planId)} (One-time)`,

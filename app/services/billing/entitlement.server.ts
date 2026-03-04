@@ -5,6 +5,7 @@ import {
   getPlanDisplayName,
   planSupportsFeature,
 } from "./plans";
+import { resolveEffectivePlan } from "./effective-plan.server";
 import {
   checkPixelDestinationsLimit,
   checkUiModulesLimit,
@@ -38,14 +39,7 @@ async function getShopPlan(shopId: string): Promise<PlanId> {
   if (!shop) {
     throw new Error(`Shop not found: ${shopId}`);
   }
-  const now = new Date();
-  if (shop.entitledUntil && shop.entitledUntil > now) {
-    return (shop.plan || "free") as PlanId;
-  }
-  if (shop.entitledUntil && shop.entitledUntil <= now) {
-    return "free";
-  }
-  return (shop.plan || "free") as PlanId;
+  return resolveEffectivePlan(shop.plan, shop.entitledUntil);
 }
 
 export async function checkEntitlement(

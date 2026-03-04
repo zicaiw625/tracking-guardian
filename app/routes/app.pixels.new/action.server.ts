@@ -8,6 +8,7 @@ import { generateSimpleId } from "../../utils/helpers";
 import { safeFireAndForget } from "../../utils/helpers.server";
 import { isPlanAtLeast } from "../../utils/plans";
 import { normalizePlanId } from "../../services/billing/plans";
+import { resolveEffectivePlan } from "../../services/billing/effective-plan.server";
 import { createWebPixel, getExistingWebPixels, isOurWebPixel, syncWebPixelMode } from "../../services/migration.server";
 import { decryptIngestionSecret, encryptIngestionSecret, isTokenEncrypted } from "../../utils/token-encryption.server";
 import { randomBytes } from "crypto";
@@ -40,18 +41,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       ingestionSecret: true,
       webPixelId: true,
       plan: true,
+      entitledUntil: true,
     },
   });
   if (!shop) {
     return json({ error: "Shop not found" }, { status: 404 });
   }
+  const effectivePlanId = normalizePlanId(resolveEffectivePlan(shop.plan, shop.entitledUntil));
   const t = await i18nServer.getFixedT(request);
   if (actionType === "savePixelConfigs") {
     const configsJson = formData.get("configs") as string;
     if (!configsJson) {
       return json({ error: t("pixels.action.missingConfigData") }, { status: 400 });
     }
-    if (!isPlanAtLeast(shop.plan, "starter")) {
+    if (!isPlanAtLeast(effectivePlanId, "starter")) {
       return json({
         success: false,
         error: t("pixels.action.planUpgradeRequired"),
@@ -282,8 +285,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
       }
       if (createdPlatforms.length > 0) {
-        const planId = normalizePlanId(shop.plan ?? "free");
-        const isAgency = isPlanAtLeast(planId, "agency");
+        const isAgency = isPlanAtLeast(effectivePlanId, "agency");
         const firstPlatform = createdPlatforms[0];
         let riskScore: number | undefined;
         let assetCount: number | undefined;
@@ -311,7 +313,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             metadata: {
               count: createdPlatforms.length,
               platforms: createdPlatforms,
-              plan: shop.plan ?? "free",
+              plan: effectivePlanId,
               role: isAgency ? "agency" : "merchant",
               destination_type: firstPlatform,
               environment: globalEnvironment,

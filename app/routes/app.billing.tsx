@@ -17,6 +17,7 @@ import { logger } from "../utils/logger.server";
 import { trackEvent } from "../services/analytics.server";
 import { safeFireAndForget } from "../utils/helpers.server";
 import { withEmbeddedAppParams } from "~/utils/embed-navigation";
+import { detectPlanIdFromDisplayName, getPlanOrDefault } from "../services/billing/plans";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { BILLING_PLANS, PLAN_IDS } = await import("../services/billing.server");
@@ -273,7 +274,7 @@ export default function BillingPage() {
         ? (upgradePlanId as PlanId)
         : null;
 
-    const currentPlan = plans[subscription.plan as PlanId];
+    const currentPlan = getPlanOrDefault(subscription.plan);
     const usagePercent = Math.min((usage.current / usage.limit) * 100, 100);
 
     const locale = i18n.resolvedLanguage || i18n.language || undefined;
@@ -284,31 +285,9 @@ export default function BillingPage() {
 
     const formatBillingItemName = (item: BillingHistoryItem): string => {
         const rawName = item.name || "";
-        const nameLower = rawName.toLowerCase();
-        if (
-            nameLower.includes("agency") ||
-            nameLower.includes("agency版")
-        ) {
-            return t(plans.agency.name);
-        }
-        if (
-            nameLower.includes("growth") ||
-            nameLower.includes("成长版") ||
-            nameLower.includes("pro")
-        ) {
-            return t(plans.growth.name);
-        }
-        if (
-            nameLower.includes("starter") ||
-            nameLower.includes("入门版") ||
-            nameLower.includes("migration") ||
-            nameLower.includes("monitor") ||
-            nameLower.includes("监控版")
-        ) {
-            return t(plans.starter.name);
-        }
-        if (nameLower.includes("free") || nameLower.includes("免费版")) {
-            return t(plans.free.name);
+        const planId = detectPlanIdFromDisplayName(rawName);
+        if (planId) {
+            return t(plans[planId].name);
         }
         return rawName || t("common.unknown");
     };
@@ -405,7 +384,7 @@ export default function BillingPage() {
         }
         if (attemptedUpgradePlanId !== upgradePlanId) {
             const targetPlan = plans[upgradePlanId as PlanId];
-            const currentPlanPrice = plans[subscription.plan as PlanId]?.price || 0;
+            const currentPlanPrice = currentPlan.price;
             const isUpgradeTarget = Boolean(targetPlan && targetPlan.price > currentPlanPrice);
             if (!isUpgradeTarget || navigation.state === "submitting") {
                 return;
@@ -574,8 +553,8 @@ export default function BillingPage() {
             const plan = plans[planId];
             if (!plan) return null;
             const isCurrentPlan = subscription.plan === planId;
-            const isUpgrade = plan.price > (plans[subscription.plan as PlanId]?.price || 0);
-            const isDowngrade = plan.price < (plans[subscription.plan as PlanId]?.price || 0);
+            const isUpgrade = plan.price > currentPlan.price;
+            const isDowngrade = plan.price < currentPlan.price;
             const isPreselectedPlan = preselectedPlanId === planId;
             const actionVariant = preselectedPlanId
                 ? (isPreselectedPlan ? "primary" : "secondary")

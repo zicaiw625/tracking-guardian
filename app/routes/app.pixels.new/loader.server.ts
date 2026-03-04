@@ -6,6 +6,7 @@ import { i18nServer } from "../../i18n.server";
 import prisma from "../../db.server";
 import { isPlanAtLeast } from "../../utils/plans";
 import { getPixelEventIngestionUrl } from "../../utils/config.server";
+import { resolveEffectivePlan } from "../../services/billing/effective-plan.server";
 
 function getPresetTemplates(t: TFunction) {
   return [
@@ -67,6 +68,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       id: true,
       shopDomain: true,
       plan: true,
+      entitledUntil: true,
       ingestionSecret: true,
       webPixelId: true,
       updatedAt: true,
@@ -83,7 +85,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       backendUrlInfo: getPixelEventIngestionUrl(),
     });
   }
-  const isStarterOrAbove = isPlanAtLeast(shop.plan, "starter");
+  const effectivePlan = resolveEffectivePlan(shop.plan, shop.entitledUntil);
+  const isStarterOrAbove = isPlanAtLeast(effectivePlan, "starter");
   const backendUrlInfo = getPixelEventIngestionUrl();
   return json({
     shop: {

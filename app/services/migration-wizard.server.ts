@@ -8,6 +8,7 @@ import { saveConfigSnapshot } from "./pixel-rollback.server";
 import type { Platform } from "./migration.server";
 import type { PlanId } from "./billing/plans";
 import { canCreatePixelConfig } from "./billing/feature-gates.server";
+import { resolveEffectivePlan } from "./billing/effective-plan.server";
 import { getValidCredentials } from "./credentials.server";
 import { PLATFORM_ENDPOINTS } from "../utils/config.shared";
 
@@ -75,10 +76,13 @@ export async function saveWizardConfigs(
   let savedCount = 0;
   const shop = await prisma.shop.findUnique({
     where: { id: shopId },
-    select: { plan: true },
+    select: { plan: true, entitledUntil: true },
   });
   if (shop) {
-    const gateCheck = await canCreatePixelConfig(shopId, (shop.plan || "free") as PlanId);
+    const gateCheck = await canCreatePixelConfig(
+      shopId,
+      resolveEffectivePlan(shop.plan, shop.entitledUntil) as PlanId
+    );
     if (!gateCheck.allowed) {
       return {
         success: false,

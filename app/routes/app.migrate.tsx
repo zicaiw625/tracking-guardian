@@ -24,6 +24,7 @@ import prisma from "../db.server";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
 import { validateTestEnvironment, saveWizardDraft, clearWizardDraft } from "../services/migration-wizard.server";
+import { resolveEffectivePlan } from "../services/billing/effective-plan.server";
 import { useTranslation, Trans } from "react-i18next";
 import { withEmbeddedAppParams } from "~/utils/embed-navigation";
 
@@ -60,6 +61,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       id: true,
       shopDomain: true,
       plan: true,
+      entitledUntil: true,
       webPixelId: true,
       pixelConfigs: {
         where: { isActive: true },
@@ -84,7 +86,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
-  const planId = normalizePlanId(shop.plan || "free") as PlanId;
+  const planId = normalizePlanId(resolveEffectivePlan(shop.plan, shop.entitledUntil)) as PlanId;
   const latestScan = await prisma.scanReport.findFirst({
     where: { shopId: shop.id },
     orderBy: { createdAt: "desc" },

@@ -13,6 +13,7 @@ vi.mock("../../app/db.server", () => ({
     },
     shop: {
       findMany: vi.fn(),
+      updateMany: vi.fn(),
     },
     auditLog: {
       findMany: vi.fn(),
@@ -64,6 +65,7 @@ describe("Cleanup Task", () => {
     (prisma.migrationDraft.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 0 });
     (prisma.gDPRJob.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 0 });
     (prisma.shop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (prisma.shop.updateMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 0 });
   });
   afterEach(() => {
     vi.restoreAllMocks();
@@ -85,6 +87,25 @@ describe("Cleanup Task", () => {
       const result = await cleanupExpiredData();
       expect(result.shopsProcessed).toBe(0);
       expect(result.auditLogsDeleted).toBe(0);
+      expect(result.expiredEntitlementsDowngraded).toBe(0);
+    });
+    it("should downgrade expired entitlements to free", async () => {
+      (prisma.shop.updateMany as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce({ count: 4 })
+        .mockResolvedValue({ count: 0 });
+      const result = await cleanupExpiredData();
+      expect(result.expiredEntitlementsDowngraded).toBe(4);
+      expect(prisma.shop.updateMany).toHaveBeenCalledWith({
+        where: {
+          plan: { not: "free" },
+          entitledUntil: { not: null, lte: expect.any(Date) },
+        },
+        data: {
+          plan: "free",
+          monthlyOrderLimit: 100,
+          entitledUntil: null,
+        },
+      });
     });
     it("should process shops with data retention configured", async () => {
       const mockShops = [

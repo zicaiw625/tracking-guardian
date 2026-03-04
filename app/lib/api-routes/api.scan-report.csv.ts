@@ -5,6 +5,7 @@ import { authenticate } from "../../shopify.server";
 import { validateRiskItemsArray, validateStringArray } from "../../utils/scan-data-validation";
 import { checkFeatureAccess } from "../../services/billing/feature-gates.server";
 import { normalizePlanId, type PlanId } from "../../services/billing/plans";
+import { resolveEffectivePlan } from "../../services/billing/effective-plan.server";
 import { escapeCSV } from "../../utils/csv.server";
 import { sanitizeFilename } from "../../utils/responses";
 import { withSecurityHeaders } from "../../utils/security-headers";
@@ -22,14 +23,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const shopDomain = session.shop;
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
-      select: { id: true, shopDomain: true, plan: true },
+      select: { id: true, shopDomain: true, plan: true, entitledUntil: true },
     });
 
     if (!shop) {
       return new Response("Shop not found", { status: 404 });
     }
 
-    const planId = normalizePlanId(shop.plan || "free") as PlanId;
+    const planId = normalizePlanId(resolveEffectivePlan(shop.plan, shop.entitledUntil)) as PlanId;
     const gateResult = checkFeatureAccess(planId, "report_export");
     if (!gateResult.allowed) {
       return new Response(gateResult.reason || "Report export requires Growth plan or above", { status: 402 });

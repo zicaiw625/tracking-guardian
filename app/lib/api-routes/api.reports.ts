@@ -7,6 +7,7 @@ import { sanitizeFilename } from "../../utils/responses";
 import { jsonApi, withSecurityHeaders } from "../../utils/security-headers";
 import { validateRiskItemsArray, validateStringArray } from "../../utils/scan-data-validation";
 import { escapeCSV } from "../../utils/csv.server";
+import { resolveEffectivePlan } from "../../services/billing/effective-plan.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
@@ -24,7 +25,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
-      select: { id: true, plan: true },
+      select: { id: true, plan: true, entitledUntil: true },
     });
 
     if (!shop) {
@@ -33,7 +34,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     const { checkFeatureAccess } = await import("../../services/billing/feature-gates.server");
     const { normalizePlanId } = await import("../../services/billing/plans");
-    const planId = normalizePlanId(shop.plan || "free");
+    const planId = normalizePlanId(resolveEffectivePlan(shop.plan, shop.entitledUntil));
     const gateResult = checkFeatureAccess(planId, "report_export");
     if (!gateResult.allowed) {
       return jsonApi({ error: gateResult.reason || "Report export requires Growth plan or above" }, { status: 402 });

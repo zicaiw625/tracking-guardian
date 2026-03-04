@@ -1,6 +1,7 @@
 import type { Middleware, MiddlewareContext, MiddlewareResult } from "./types";
 import { checkFeatureAccess } from "../services/billing/feature-gates.server";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
+import { resolveEffectivePlan } from "../services/billing/effective-plan.server";
 import prisma from "../db.server";
 import { json, redirect } from "@remix-run/node";
 import { isSafeRedirectPath } from "../utils/redirect-validation.server";
@@ -26,12 +27,7 @@ export function withPlanGate(config: PlanGateConfig): Middleware {
       if (!shop) {
         return { continue: false, response: json({ error: "Shop not found" }, { status: 404 }) };
       }
-      const now = new Date();
-      let effectivePlan = shop.plan || "free";
-      if (shop.entitledUntil && shop.entitledUntil <= now) {
-        effectivePlan = "free";
-      }
-      const planId = normalizePlanId(effectivePlan) as PlanId;
+      const planId = normalizePlanId(resolveEffectivePlan(shop.plan, shop.entitledUntil)) as PlanId;
       const gateResult = checkFeatureAccess(planId, config.feature);
       if (!gateResult.allowed) {
         if (config.redirectTo) {
@@ -88,12 +84,7 @@ export async function checkPlanGate(
   if (!shop) {
     return { allowed: false, reason: "Shop not found" };
   }
-  const now = new Date();
-  let effectivePlan = shop.plan || "free";
-  if (shop.entitledUntil && shop.entitledUntil <= now) {
-    effectivePlan = "free";
-  }
-  const planId = normalizePlanId(effectivePlan) as PlanId;
+  const planId = normalizePlanId(resolveEffectivePlan(shop.plan, shop.entitledUntil)) as PlanId;
   const gateResult = checkFeatureAccess(planId, feature);
   return {
     allowed: gateResult.allowed,

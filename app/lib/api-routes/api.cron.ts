@@ -4,7 +4,7 @@ import { validateCronAuth, verifyReplayProtection } from "../../cron/auth";
 import { withCronLock } from "../../utils/cron-lock";
 import { cronSuccessResponse, cronSkippedResponse, cronErrorResponse } from "../../utils/responses";
 import { logger } from "../../utils/logger.server";
-import { cleanupExpiredData } from "../../cron/tasks/cleanup";
+import { cleanupExpiredData, downgradeExpiredEntitlements } from "../../cron/tasks/cleanup";
 import { validateInput , CronRequestSchema } from "../../schemas/api-schemas";
 import { readTextWithLimit } from "../../utils/body-reader";
 import prisma from "../../db.server";
@@ -31,6 +31,12 @@ async function runCronTasks(task: string, requestId: string): Promise<Record<str
     logger.info("[Cron] Running cleanup tasks", { requestId });
     const cleanupResult = await cleanupExpiredData();
     results.cleanup = cleanupResult;
+  }
+
+  if (task === "all" || task === "expire_entitlements") {
+    logger.info("[Cron] Running expire_entitlements", { requestId });
+    const downgraded = await downgradeExpiredEntitlements();
+    results.expire_entitlements = { downgraded };
   }
 
   if (task === "all" || task === "ingest_worker") {

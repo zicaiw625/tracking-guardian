@@ -22,6 +22,7 @@ import { authenticate } from "~/shopify.server";
 import prisma from "~/db.server";
 import { validateTestEnvironment } from "~/services/migration-wizard.server";
 import { normalizePlanId, planSupportsFeature, type PlanId } from "~/services/billing/plans";
+import { resolveEffectivePlan } from "~/services/billing/effective-plan.server";
 import { getPixelEventIngestionUrl } from "~/utils/config.server";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 import { useTranslation, Trans } from "react-i18next";
@@ -43,7 +44,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   }
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
-    select: { id: true, shopDomain: true, plan: true },
+    select: { id: true, shopDomain: true, plan: true, entitledUntil: true },
   });
   if (!shop) {
     return json({ shop: null, pixelConfig: null, hasVerificationAccess: false, backendUrlInfo: { url: "", usage: "none" } });
@@ -61,7 +62,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   if (!pixelConfig) {
     throw new Response("Pixel config not found", { status: 404 });
   }
-  const planId = normalizePlanId(shop.plan ?? "free");
+  const planId = normalizePlanId(resolveEffectivePlan(shop.plan, shop.entitledUntil));
   const hasVerificationAccess = planSupportsFeature(planId, "verification");
     if (!hasVerificationAccess) {
     const { trackEvent } = await import("~/services/analytics.server");
@@ -73,7 +74,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
         event: "app_paywall_viewed",
         metadata: {
           triggerPage: "pixels_test",
-          plan: shop.plan ?? "free",
+          plan: planId,
           pixelConfigId: pixelConfigId,
           environment: pixelConfig?.environment || "test",
         },
@@ -101,12 +102,12 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const actionType = formData.get("_action");
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
-    select: { id: true, plan: true },
+    select: { id: true, plan: true, entitledUntil: true },
   });
   if (!shop) {
     return json({ success: false, error: "Shop not found" }, { status: 404 });
   }
-  const actionPlanId = normalizePlanId(shop.plan ?? "free");
+  const actionPlanId = normalizePlanId(resolveEffectivePlan(shop.plan, shop.entitledUntil));
   if (!planSupportsFeature(actionPlanId, "verification")) {
     return json({ success: false, error: "Plan upgrade required" }, { status: 403 });
   }

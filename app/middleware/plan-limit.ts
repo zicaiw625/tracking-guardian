@@ -1,6 +1,7 @@
 import type { Middleware, MiddlewareContext, MiddlewareResult } from "./types";
 import { checkPixelDestinationsLimit, checkUiModulesLimit, checkMultiShopLimit } from "../services/billing/limits.server";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
+import { resolveEffectivePlan } from "../services/billing/effective-plan.server";
 import prisma from "../db.server";
 import { json, redirect } from "@remix-run/node";
 import { isSafeRedirectPath } from "../utils/redirect-validation.server";
@@ -21,12 +22,12 @@ export function withPlanLimit(config: PlanLimitConfig): Middleware {
       const shopDomain = session.shop;
       const shop = await prisma.shop.findUnique({
         where: { shopDomain },
-        select: { id: true, plan: true },
+        select: { id: true, plan: true, entitledUntil: true },
       });
       if (!shop) {
         return { continue: false, response: json({ error: "Shop not found" }, { status: 404 }) };
       }
-      const planId = normalizePlanId(shop.plan || "free") as PlanId;
+      const planId = normalizePlanId(resolveEffectivePlan(shop.plan, shop.entitledUntil)) as PlanId;
       let limitResult;
       switch (config.limitType) {
         case "pixel_destinations":

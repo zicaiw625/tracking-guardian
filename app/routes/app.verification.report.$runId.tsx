@@ -33,6 +33,7 @@ import {
   type FeatureGateResult,
 } from "../services/billing/feature-gates.server";
 import { normalizePlanId, type PlanId, planSupportsReportExport } from "../services/billing/plans";
+import { resolveEffectivePlan } from "../services/billing/effective-plan.server";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 import { trackEvent } from "../services/analytics.server";
 import { safeFireAndForget } from "../utils/helpers.server";
@@ -68,6 +69,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     select: {
       id: true,
       plan: true,
+      entitledUntil: true,
     },
   });
   if (!shop) {
@@ -85,7 +87,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       pixelStrictOrigin,
     });
   }
-  const planId = normalizePlanId(shop.plan || "free") as PlanId;
+  const planId = normalizePlanId(resolveEffectivePlan(shop.plan, shop.entitledUntil)) as PlanId;
   const gateResult = checkFeatureAccess(planId, "verification");
   if (!gateResult.allowed) {
     const pixelStrictOrigin = ["true", "1", "yes"].includes(
@@ -161,12 +163,12 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   }
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
-    select: { id: true, plan: true },
+    select: { id: true, plan: true, entitledUntil: true },
   });
   if (!shop) {
     return json({ success: false, error: "Shop not found" }, { status: 404 });
   }
-  const planId = normalizePlanId(shop.plan || "free") as PlanId;
+  const planId = normalizePlanId(resolveEffectivePlan(shop.plan, shop.entitledUntil)) as PlanId;
   const canExportReports = planSupportsReportExport(planId);
   if (actionType === "create_share_link") {
     if (!canExportReports) {

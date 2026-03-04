@@ -8,6 +8,7 @@ import prisma from "../db.server";
 import { getVerificationHistory } from "../services/verification.server";
 import { checkFeatureAccess } from "../services/billing/feature-gates.server";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
+import { resolveEffectivePlan } from "../services/billing/effective-plan.server";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
@@ -20,7 +21,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shopDomain = session.shop;
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
-    select: { id: true, plan: true },
+    select: { id: true, plan: true, entitledUntil: true },
   });
   if (!shop) {
     return json({
@@ -33,7 +34,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       currentPlan: "free" as PlanId,
     });
   }
-  const planId = normalizePlanId(shop.plan || "free") as PlanId;
+  const planId = normalizePlanId(resolveEffectivePlan(shop.plan, shop.entitledUntil)) as PlanId;
   const gateResult = checkFeatureAccess(planId, "report_export");
   const canExportReports = gateResult.allowed;
   const history = await getVerificationHistory(shop.id, 1);
@@ -65,7 +66,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const shopDomain = session.shop;
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
-    select: { id: true, plan: true },
+    select: { id: true, plan: true, entitledUntil: true },
   });
   if (!shop) {
     return json({ success: false, error: "shop_not_found" }, { status: 404 });
@@ -81,7 +82,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (!latestCompletedScan) {
     return json({ success: false, error: "scan_report_not_found" }, { status: 404 });
   }
-  const planId = normalizePlanId(shop.plan || "free") as PlanId;
+  const planId = normalizePlanId(resolveEffectivePlan(shop.plan, shop.entitledUntil)) as PlanId;
   const gateResult = checkFeatureAccess(planId, "report_export");
   if (!gateResult.allowed) {
     return json({ success: false, error: "upgrade_required" }, { status: 403 });
