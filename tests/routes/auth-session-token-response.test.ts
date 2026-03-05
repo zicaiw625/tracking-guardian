@@ -9,7 +9,10 @@ describe("auth session-token loader", () => {
 
     expect(source).toContain("const authResult = await authenticate.admin(request);");
     expect(source).toContain("if (authResult instanceof Response)");
-    expect(source).toContain("return authResult;");
+    expect(source).toContain("const headers = new Headers(authResult.headers);");
+    expect(source).toContain("addDocumentResponseHeaders(request, headers);");
+    expect(source).toContain("headers.delete(\"X-Frame-Options\");");
+    expect(source).toContain("return new Response(authResult.body, {");
     expect(source).toContain("const shopifyReload = currentUrl.searchParams.get(\"shopify-reload\");");
     expect(source).toContain("process.env.SHOPIFY_APP_URL?.trim()");
     expect(source).toContain("allowedOrigins.has(targetUrl.origin)");

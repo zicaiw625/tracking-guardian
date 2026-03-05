@@ -1,5 +1,5 @@
 import { redirect, type LoaderFunctionArgs } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { addDocumentResponseHeaders, authenticate } from "../shopify.server";
 
 function getAllowedReloadOrigins(currentUrl: URL): Set<string> {
     const allowedOrigins = new Set<string>([currentUrl.origin]);
@@ -42,7 +42,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // In new embedded auth flows, /auth/session-token may return a Response
     // (for example a redirect back to `shopify-reload`). Preserve it.
     if (authResult instanceof Response) {
-        return authResult;
+        const headers = new Headers(authResult.headers);
+        addDocumentResponseHeaders(request, headers);
+        headers.delete("X-Frame-Options");
+        return new Response(authResult.body, {
+            status: authResult.status,
+            statusText: authResult.statusText,
+            headers,
+        });
     }
 
     const currentUrl = new URL(request.url);

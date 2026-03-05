@@ -143,7 +143,10 @@ export default async function handleRequest(request: Request, responseStatusCode
         ? shopCandidate
         : null;
 
-    const isEmbeddedAppDocument = url.pathname === "/app" || url.pathname.startsWith("/app/");
+    const isEmbeddedAppDocument =
+      url.pathname === "/app" ||
+      url.pathname.startsWith("/app/") ||
+      url.pathname === "/auth/session-token";
     const isPublicDocument = PUBLIC_DOCUMENT_PATHS.has(url.pathname);
     const isShareDocument =
       url.pathname === "/r" ||
