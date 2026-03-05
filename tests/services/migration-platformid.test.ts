@@ -25,11 +25,16 @@ const mockPrisma = vi.hoisted(() => {
 
 const mocks = vi.hoisted(() => ({
   saveConfigSnapshot: vi.fn(),
+  requirePixelDestinationPlatformOrThrow: vi.fn(async () => undefined),
 }));
 
 vi.mock("../../app/db.server", () => ({ default: mockPrisma }));
 vi.mock("../../app/services/pixel-rollback.server", () => ({
   saveConfigSnapshot: mocks.saveConfigSnapshot,
+}));
+vi.mock("../../app/services/billing/entitlement.server", () => ({
+  requirePixelDestinationPlatformOrThrow: mocks.requirePixelDestinationPlatformOrThrow,
+  requireEntitlementOrThrow: vi.fn(async () => undefined),
 }));
 
 import prisma from "../../app/db.server";

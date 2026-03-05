@@ -9,6 +9,9 @@ import prisma from "~/db.server";
 import { API_CONFIG } from "~/utils/config.server";
 import { getRedisClient } from "~/utils/redis-client.server";
 import { normalizeToCanonical, type CanonicalEvent } from "~/services/event-normalizer.server";
+import { resolveEffectivePlan } from "~/services/billing/effective-plan.server";
+import { checkAndReserveReceiptBillingSlot, releaseBillingSlot } from "~/services/billing/gate.server";
+import type { PlanId } from "~/services/billing/plans";
 
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
 
@@ -393,6 +396,11 @@ export async function distributeEvents(
   environment?: "test" | "live"
 ): Promise<ProcessedEvent[]> {
   const processed: ProcessedEvent[] = [];
+  const shopForBilling = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: { plan: true, entitledUntil: true },
+  });
+  const billingPlan = resolveEffectivePlan(shopForBilling?.plan, shopForBilling?.entitledUntil) as PlanId;
   
   for (const event of deduplicatedEvents) {
     const consentResult = checkInitialConsent(event.payload.consent);
@@ -427,6 +435,26 @@ export async function distributeEvents(
     const isPurchaseEvent = (event.payload.eventName as string) === "checkout_completed" || (event.payload.eventName as string) === "purchase";
 
     if (isPurchaseEvent && event.orderId) {
+      const reservation = await checkAndReserveReceiptBillingSlot(
+        shopId,
+        billingPlan,
+        event.orderId,
+        event.altOrderKey
+      );
+      if (!reservation.ok) {
+        throw new Error(`Failed to reserve billing slot: ${reservation.error.message}`);
+      }
+      if (!reservation.value.success) {
+        logger.warn("Billing gate blocked purchase event ingestion", {
+          shopId,
+          orderId: event.orderId,
+          planId: billingPlan,
+          current: reservation.value.current,
+          limit: reservation.value.limit,
+        });
+        continue;
+      }
+      const reservedYearMonth = reservation.value.alreadyCounted ? null : reservation.value.yearMonth;
       if (activeVerificationRunId === undefined) {
         const run = await prisma.verificationRun.findFirst({
           where: { shopId, status: "running" },
@@ -471,6 +499,9 @@ export async function distributeEvents(
           );
         }
       } catch (error) {
+        if (reservedYearMonth) {
+          await releaseBillingSlot(shopId, reservedYearMonth);
+        }
         const orderIdHash = event.orderId ? hashValueSync(event.orderId).slice(0, 12) : null;
         logger.warn(`Failed to write receipt for purchase event`, {
           shopId,

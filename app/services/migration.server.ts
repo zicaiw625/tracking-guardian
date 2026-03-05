@@ -97,15 +97,15 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
                 OR: [{ platformId: null }, { platformId: "" }],
             },
         });
+    if (!existingConfig) {
+        const { requirePixelDestinationPlatformOrThrow } = await import("./billing/entitlement.server");
+        await requirePixelDestinationPlatformOrThrow(shopId, platform);
+    }
     if (serverSideEnabled) {
         const { checkV1FeatureBoundary } = await import("../utils/version-gate");
         const gateResult = checkV1FeatureBoundary("server_side");
         if (!gateResult.allowed) {
             throw new Error(gateResult.reason || "This feature is not available in the current version");
-        }
-        if (!existingConfig) {
-            const { requireEntitlementOrThrow } = await import("./billing/entitlement.server");
-            await requireEntitlementOrThrow(shopId, "pixel_destinations");
         }
     }
     if (clientConfig && typeof clientConfig === 'object' && 'mode' in clientConfig) {

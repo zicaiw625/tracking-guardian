@@ -10,6 +10,7 @@ import type { DispatchDestination } from "./queue";
 import { checkAndReserveBillingSlot, releaseBillingSlot } from "~/services/billing/gate.server";
 import { getPlanOrDefault } from "~/services/billing/plans";
 import type { PlanId } from "~/services/billing/plans";
+import { resolveEffectivePlan } from "~/services/billing/effective-plan.server";
 
 const SHOPIFY_TO_INTERNAL_EVENT: Record<string, string> = {
   checkout_completed: "purchase",
@@ -68,9 +69,10 @@ export async function persistInternalEventsAndDispatchJobs(
   if (s2sDestinations.length === 0) return;
   const shopForBilling = await prisma.shop.findUnique({
     where: { id: shopId },
-    select: { plan: true },
+    select: { plan: true, entitledUntil: true },
   });
-  const billingPlan = getPlanOrDefault(shopForBilling?.plan);
+  const effectivePlan = resolveEffectivePlan(shopForBilling?.plan, shopForBilling?.entitledUntil);
+  const billingPlan = getPlanOrDefault(effectivePlan);
   const planId = billingPlan.id as PlanId;
   const blockedPurchaseOrderIds = new Set<string>();
   const reservedPurchaseOrderYearMonth = new Map<string, string>();

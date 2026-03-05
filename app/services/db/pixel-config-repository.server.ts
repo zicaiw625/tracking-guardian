@@ -149,13 +149,15 @@ async function validateFeatureGates(
   input: PixelConfigInput
 ): Promise<void> {
   const { checkV1FeatureBoundary } = await import("../../utils/version-gate");
-  const { requireEntitlementOrThrow } = await import("../billing/entitlement.server");
+  const { requireEntitlementOrThrow, requirePixelDestinationPlatformOrThrow } = await import("../billing/entitlement.server");
+  if (input.isActive !== false) {
+    await requirePixelDestinationPlatformOrThrow(shopId, input.platform);
+  }
   if (input.serverSideEnabled) {
     const gateResult = checkV1FeatureBoundary("server_side");
     if (!gateResult.allowed) {
       throw new Error(gateResult.reason || "This feature is not available in the current version");
     }
-    await requireEntitlementOrThrow(shopId, "pixel_destinations");
   }
   if (input.clientConfig && typeof input.clientConfig === 'object' && 'mode' in input.clientConfig) {
     const mode = (input.clientConfig as { mode?: string }).mode;

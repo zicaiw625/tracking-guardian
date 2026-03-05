@@ -15,7 +15,7 @@ import { trackEvent } from "../../services/analytics.server";
 import { encryptJson } from "../../utils/crypto.server";
 import { z } from "zod";
 import { FUNNEL_EVENTS, inferPixelModeFromMappings } from "../../lib/pixel-events/constants";
-import { requireEntitlementOrThrow } from "../../services/billing/entitlement.server";
+import { requireEntitlementOrThrow, requirePixelDestinationPlatformOrThrow } from "../../services/billing/entitlement.server";
 import { upsertPixelConfig } from "../../services/db/pixel-config-repository.server";
 import {
   GoogleCredentialsInputSchema,
@@ -167,6 +167,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           },
           select: { id: true },
         });
+        if (!existingConfig) {
+          await requirePixelDestinationPlatformOrThrow(shop.id, platform);
+        }
         const mode = inferPixelModeFromMappings(config.eventMappings as Record<string, unknown> | null | undefined);
         if (mode === "full_funnel") {
           await requireEntitlementOrThrow(shop.id, "full_funnel");

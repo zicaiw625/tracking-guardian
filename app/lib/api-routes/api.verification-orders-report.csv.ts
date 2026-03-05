@@ -7,6 +7,9 @@ import { escapeCSV } from "../../utils/csv.server";
 import { sanitizeFilename } from "../../utils/responses";
 import { withSecurityHeaders } from "../../utils/security-headers";
 import { isOrderDataUnavailableError } from "../../services/orders/order-data-mode.server";
+import { checkFeatureAccess } from "../../services/billing/feature-gates.server";
+import { normalizePlanId } from "../../services/billing/plans";
+import { resolveEffectivePlan } from "../../services/billing/effective-plan.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
@@ -21,11 +24,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const shopDomain = session.shop;
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
-      select: { id: true, shopDomain: true },
+      select: { id: true, shopDomain: true, plan: true, entitledUntil: true },
     });
 
     if (!shop) {
       return new Response("Shop not found", { status: 404 });
+    }
+    const planId = normalizePlanId(resolveEffectivePlan(shop.plan, shop.entitledUntil));
+    const gateResult = checkFeatureAccess(planId, "reconciliation");
+    if (!gateResult.allowed) {
+      return new Response(
+        gateResult.reason || "Verification reconciliation export requires Growth plan or above",
+        { status: 402 }
+      );
     }
 
     let reconciliation;

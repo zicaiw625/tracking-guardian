@@ -12,23 +12,34 @@ export interface FeatureGateResult {
 
 export async function checkPixelDestinationsLimit(
   shopId: string,
-  shopPlan: PlanId
+  shopPlan: PlanId,
+  platform?: string
 ): Promise<FeatureGateResult> {
   const limit = getPixelDestinationsLimit(shopPlan);
-  if (limit === -1) {
-    return { allowed: true };
-  }
-  const currentCount = await prisma.pixelConfig.count({
+  const activePlatforms = await prisma.pixelConfig.findMany({
     where: {
       shopId,
       isActive: true,
-      serverSideEnabled: true,
     },
+    select: {
+      platform: true,
+    },
+    distinct: ["platform"],
   });
-  if (currentCount >= limit) {
+  const activePlatformSet = new Set(activePlatforms.map((item) => item.platform));
+  const currentCount = activePlatformSet.size;
+  if (limit === -1) {
+    return {
+      allowed: true,
+      current: currentCount,
+      limit,
+    };
+  }
+  const isExistingPlatform = platform ? activePlatformSet.has(platform) : false;
+  if (currentCount >= limit && !isExistingPlatform) {
     return {
       allowed: false,
-      reason: `Current plan supports up to ${limit} pixel destinations, you have configured ${currentCount}. Please upgrade or deactivate some configurations.`,
+      reason: `Current plan supports up to ${limit} active platforms, you have configured ${currentCount}. Please upgrade or deactivate some configurations.`,
       reasonKey: "featureGate.pixelDestinationsLimit",
       reasonParams: { limit, current: currentCount },
       current: currentCount,

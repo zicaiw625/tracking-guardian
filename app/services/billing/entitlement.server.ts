@@ -146,6 +146,41 @@ export async function requireEntitlementOrThrow(
   }
 }
 
+export async function requirePixelDestinationPlatformOrThrow(
+  shopId: string,
+  platform: string
+): Promise<void> {
+  const shopPlan = await getShopPlan(shopId);
+  const result = await checkPixelDestinationsLimit(shopId, shopPlan, platform);
+  if (!result.allowed) {
+    const planDisplayName = getPlanDisplayName(shopPlan);
+    logger.warn("Pixel destination entitlement check failed", {
+      shopId,
+      platform,
+      currentPlan: planDisplayName,
+      reason: result.reason,
+    });
+    throw new Response(
+      JSON.stringify({
+        error: "Feature not available",
+        message: result.reason || "This feature requires a higher plan",
+        reasonKey: "featureGate.pixelDestinationsLimit",
+        reasonParams: {
+          limit: result.limit,
+          current: result.current,
+        },
+        currentPlan: planDisplayName,
+        requiredPlan: "Starter",
+        entitlement: "pixel_destinations",
+      }),
+      {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  }
+}
+
 export async function checkMultipleEntitlements(
   shopId: string,
   entitlements: Entitlement[]

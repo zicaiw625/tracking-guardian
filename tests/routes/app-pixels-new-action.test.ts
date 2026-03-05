@@ -10,6 +10,7 @@ const mockPrisma = vi.hoisted(() => ({
 }));
 
 const mockRequireEntitlementOrThrow = vi.hoisted(() => vi.fn());
+const mockRequirePixelDestinationPlatformOrThrow = vi.hoisted(() => vi.fn());
 
 vi.mock("../../app/shopify.server", () => ({
   authenticate: {
@@ -51,6 +52,7 @@ vi.mock("../../app/services/migration.server", () => ({
 
 vi.mock("../../app/services/billing/entitlement.server", () => ({
   requireEntitlementOrThrow: mockRequireEntitlementOrThrow,
+  requirePixelDestinationPlatformOrThrow: mockRequirePixelDestinationPlatformOrThrow,
 }));
 
 vi.mock("../../app/services/db/pixel-config-repository.server", () => ({
@@ -62,6 +64,7 @@ import { action } from "../../app/routes/app.pixels.new/action.server";
 describe("app.pixels.new action full_funnel entitlement", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(mockRequirePixelDestinationPlatformOrThrow).mockResolvedValue(undefined);
     vi.mocked(mockPrisma.pixelConfig.findFirst).mockResolvedValue(null);
     vi.mocked(mockPrisma.shop.findUnique).mockResolvedValue({
       id: "shop-1",
@@ -105,6 +108,7 @@ describe("app.pixels.new action full_funnel entitlement", () => {
     } as any);
 
     expect(response.status).toBe(403);
+    expect(mockRequirePixelDestinationPlatformOrThrow).toHaveBeenCalledWith("shop-1", "google");
     expect(mockRequireEntitlementOrThrow).toHaveBeenCalledWith("shop-1", "full_funnel");
   });
 });

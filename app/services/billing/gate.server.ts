@@ -376,6 +376,137 @@ export async function checkAndReserveBillingSlot(
   }
 }
 
+export async function checkAndReserveReceiptBillingSlot(
+  shopId: string,
+  shopPlan: PlanId,
+  orderId: string,
+  altOrderKey?: string | null
+): AsyncResult<AtomicReservationResult, BillingError> {
+  const yearMonth = getCurrentYearMonth();
+  const normalizedOrderId = normalizeOrderId(orderId);
+  const normalizedAltOrderKey = altOrderKey ? normalizeOrderId(altOrderKey) : null;
+  try {
+    const planConfig = getPlanOrDefault(shopPlan);
+    const limit = planConfig.monthlyOrderLimit;
+    const maxRetries = 3;
+    let lastError: unknown;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const result = await prisma.$transaction(async (tx) => {
+          await tx.monthlyUsage.upsert({
+            where: {
+              shopId_yearMonth: {
+                shopId,
+                yearMonth,
+              },
+            },
+            create: {
+              id: randomUUID(),
+              shopId,
+              yearMonth,
+              sentCount: 0,
+              updatedAt: new Date(),
+            },
+            update: {},
+          });
+          const keys = [normalizedOrderId];
+          if (normalizedAltOrderKey && normalizedAltOrderKey !== normalizedOrderId) {
+            keys.push(normalizedAltOrderKey);
+          }
+          const existingReceipt = await tx.pixelEventReceipt.findFirst({
+            where: {
+              shopId,
+              eventType: "purchase",
+              OR: [
+                { orderKey: { in: keys } },
+                { altOrderKey: { in: keys } },
+              ],
+            },
+            select: { id: true },
+          });
+          if (existingReceipt) {
+            const usageSnapshot = await tx.monthlyUsage.findUnique({
+              where: { shopId_yearMonth: { shopId, yearMonth } },
+              select: { sentCount: true },
+            });
+            const current = usageSnapshot?.sentCount || 0;
+            return {
+              success: true,
+              current,
+              limit,
+              remaining: Math.max(0, limit - current),
+              alreadyCounted: true,
+              yearMonth,
+            };
+          }
+          const updated = await tx.$executeRaw`
+            UPDATE "MonthlyUsage"
+            SET "sentCount" = "sentCount" + 1, "updatedAt" = NOW()
+            WHERE "shopId" = ${shopId}
+              AND "yearMonth" = ${yearMonth}
+              AND "sentCount" < ${limit}
+          `;
+          if (updated === 0) {
+            const currentUsage = await tx.monthlyUsage.findUnique({
+              where: { shopId_yearMonth: { shopId, yearMonth } },
+              select: { sentCount: true },
+            });
+            const current = currentUsage?.sentCount || 0;
+            return {
+              success: false,
+              current,
+              limit,
+              remaining: 0,
+              alreadyCounted: false,
+              yearMonth,
+            };
+          }
+          const finalUsage = await tx.monthlyUsage.findUnique({
+            where: { shopId_yearMonth: { shopId, yearMonth } },
+            select: { sentCount: true },
+          });
+          const current = finalUsage?.sentCount || 0;
+          return {
+            success: true,
+            current,
+            limit,
+            remaining: Math.max(0, limit - current),
+            alreadyCounted: false,
+            yearMonth,
+          };
+        }, {
+          isolationLevel: "Serializable",
+          maxWait: 5000,
+        });
+        billingCache.delete(`billing:${shopId}`);
+        return ok(result);
+      } catch (error) {
+        lastError = error;
+        const isPrismaError_ = error && typeof error === "object" && "code" in error;
+        const errorCode = isPrismaError_ ? (error as { code?: string }).code : null;
+        const isSerializationError = errorCode === "P40001" || (errorCode?.startsWith("P40") ?? false);
+        if (isSerializationError && attempt < maxRetries - 1) {
+          const backoffMs = 50 * Math.pow(2, attempt);
+          await new Promise(resolve => setTimeout(resolve, backoffMs));
+          continue;
+        }
+        throw error;
+      }
+    }
+    return err({
+      type: "DATABASE_ERROR",
+      message: lastError instanceof Error ? lastError.message : "Unknown database error after retries",
+      shopId,
+    });
+  } catch (error) {
+    return err({
+      type: "DATABASE_ERROR",
+      message: error instanceof Error ? error.message : "Unknown database error",
+      shopId,
+    });
+  }
+}
+
 export async function releaseBillingSlot(
   shopId: string,
   yearMonth?: string

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 /* eslint-disable-next-line import/no-unresolved -- ts resolution in test env */
 import { tryReserveUsageSlot } from "../../../app/services/billing/usage.server";
 /* eslint-disable-next-line import/no-unresolved -- ts resolution in test env */
-import { checkAndReserveBillingSlot } from "../../../app/services/billing/gate.server";
+import { checkAndReserveBillingSlot, checkAndReserveReceiptBillingSlot } from "../../../app/services/billing/gate.server";
 
 vi.mock("../../../app/db.server", () => ({
   default: {
@@ -182,6 +182,64 @@ describe("Billing Concurrency", () => {
         expect(result.value.success).toBe(false);
         expect(result.value.current).toBeGreaterThanOrEqual(result.value.limit);
       }
+    });
+  });
+
+  describe("checkAndReserveReceiptBillingSlot", () => {
+    it("should reserve slot for new purchase receipt", async () => {
+      const shopId = "shop1";
+      const orderId = "order1";
+      const shopPlan = "starter" as const;
+      prisma.$transaction.mockImplementation(async (callback) => {
+        const tx = {
+          pixelEventReceipt: {
+            findFirst: vi.fn().mockResolvedValue(null),
+          },
+          monthlyUsage: {
+            upsert: vi.fn().mockResolvedValue(undefined),
+            findUnique: vi.fn().mockResolvedValue({ sentCount: 6 }),
+          },
+          $executeRaw: vi.fn().mockResolvedValue(1),
+        };
+        return callback(tx);
+      });
+
+      const result = await checkAndReserveReceiptBillingSlot(shopId, shopPlan, orderId, null);
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value.success).toBe(true);
+        expect(result.value.alreadyCounted).toBe(false);
+      }
+    });
+
+    it("should treat existing receipt as already counted", async () => {
+      const shopId = "shop1";
+      const orderId = "order1";
+      const shopPlan = "starter" as const;
+      const findFirst = vi.fn().mockResolvedValue({ id: "receipt-1" });
+      const executeRaw = vi.fn();
+      prisma.$transaction.mockImplementation(async (callback) => {
+        const tx = {
+          pixelEventReceipt: {
+            findFirst,
+          },
+          monthlyUsage: {
+            upsert: vi.fn().mockResolvedValue(undefined),
+            findUnique: vi.fn().mockResolvedValue({ sentCount: 5 }),
+          },
+          $executeRaw: executeRaw,
+        };
+        return callback(tx);
+      });
+
+      const result = await checkAndReserveReceiptBillingSlot(shopId, shopPlan, orderId, "checkout-token-1");
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value.success).toBe(true);
+        expect(result.value.alreadyCounted).toBe(true);
+      }
+      expect(findFirst).toHaveBeenCalledTimes(1);
+      expect(executeRaw).not.toHaveBeenCalled();
     });
   });
 });

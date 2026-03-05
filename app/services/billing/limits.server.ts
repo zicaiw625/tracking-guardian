@@ -15,20 +15,24 @@ export async function checkPixelDestinationsLimit(
   shopPlan: PlanId
 ): Promise<PlanLimitResult> {
   const limit = getPixelDestinationsLimit(shopPlan);
-  if (limit === -1) {
-    return { allowed: true, unlimited: true };
-  }
-  const currentCount = await prisma.pixelConfig.count({
+  const activePlatforms = await prisma.pixelConfig.findMany({
     where: {
       shopId,
       isActive: true,
-      serverSideEnabled: true,
     },
+    select: {
+      platform: true,
+    },
+    distinct: ["platform"],
   });
+  const currentCount = activePlatforms.length;
+  if (limit === -1) {
+    return { allowed: true, unlimited: true, current: currentCount, limit };
+  }
   if (currentCount >= limit) {
     return {
       allowed: false,
-      reason: `Pixel destinations limit reached: ${currentCount}/${limit}`,
+      reason: `Active platform limit reached: ${currentCount}/${limit}`,
       current: currentCount,
       limit,
       unlimited: false,
@@ -46,12 +50,21 @@ export async function checkUiModulesLimit(
   _shopId: string,
   _shopPlan: PlanId
 ): Promise<PlanLimitResult> {
+  if (_shopPlan === "free") {
+    return {
+      allowed: false,
+      reason: "UI modules require Starter plan or above",
+      current: 0,
+      limit: 0,
+      unlimited: false,
+    };
+  }
   return {
-    allowed: false,
-    reason: "UI modules feature removed",
+    allowed: true,
+    reason: undefined,
     current: 0,
-    limit: 0,
-    unlimited: false,
+    limit: -1,
+    unlimited: true,
   };
 }
 
