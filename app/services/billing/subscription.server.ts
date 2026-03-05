@@ -27,6 +27,86 @@ interface SubscriptionNode {
   }>;
 }
 
+interface BillingHistorySubscriptionNode {
+  id: string;
+  name: string;
+  status: string;
+  currentPeriodEnd?: string;
+  lineItems?: Array<{
+    plan?: {
+      pricingDetails?: {
+        price?: { amount?: string; currencyCode?: string };
+      };
+    };
+  }>;
+}
+
+interface OneTimePurchaseNode {
+  id: string;
+  name: string;
+  status: string;
+  price?: { amount?: string; currencyCode?: string };
+  createdAt?: string;
+}
+
+interface GraphQLErrorNode {
+  message?: string;
+}
+
+interface GraphQLEnvelope<T> {
+  data?: T;
+  errors?: GraphQLErrorNode[];
+}
+
+function parseDateMs(value?: string): number | null {
+  if (!value) {
+    return null;
+  }
+  const parsed = new Date(value).getTime();
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+  return parsed;
+}
+
+function parseDate(value?: string): Date | null {
+  const parsedMs = parseDateMs(value);
+  if (parsedMs === null) {
+    return null;
+  }
+  return new Date(parsedMs);
+}
+
+async function adminGraphqlOrThrow<T>(
+  admin: AdminGraphQL,
+  query: string,
+  options?: { variables?: Record<string, unknown> },
+  operationName?: string
+): Promise<T> {
+  const response = await admin.graphql(query, options);
+  const status = typeof (response as { status?: number }).status === "number"
+    ? (response as { status?: number }).status as number
+    : 0;
+  const ok = typeof (response as { ok?: boolean }).ok === "boolean"
+    ? Boolean((response as { ok?: boolean }).ok)
+    : (status >= 200 && status < 300);
+  if (!ok) {
+    throw new Error(`Shopify GraphQL request failed (${operationName || "unknown"}): HTTP ${status}`);
+  }
+  const payload = await response.json() as GraphQLEnvelope<T>;
+  const topLevelErrors = Array.isArray(payload?.errors) ? payload.errors : [];
+  if (topLevelErrors.length > 0) {
+    const message = topLevelErrors
+      .map((error) => error?.message || "Unknown GraphQL error")
+      .join(", ");
+    throw new Error(`Shopify GraphQL response errors (${operationName || "unknown"}): ${message}`);
+  }
+  if (!payload || payload.data === undefined || payload.data === null) {
+    throw new Error(`Shopify GraphQL response missing data (${operationName || "unknown"})`);
+  }
+  return payload.data;
+}
+
 interface DerivedPlanResult {
   effectiveSubscription: SubscriptionNode | null;
   plan: PlanId;
@@ -39,13 +119,14 @@ function deriveEffectivePlan(
   subscriptions: SubscriptionNode[],
   now: Date
 ): DerivedPlanResult {
+  const nowMs = now.getTime();
   const validSubscriptions = subscriptions.filter((sub) => {
     if (sub.status === "ACTIVE") {
       return true;
     }
     if (sub.status === "CANCELLED" && sub.currentPeriodEnd) {
-      const periodEnd = new Date(sub.currentPeriodEnd);
-      return periodEnd > now;
+      const periodEndMs = parseDateMs(sub.currentPeriodEnd);
+      return periodEndMs !== null && periodEndMs > nowMs;
     }
     return false;
   });
@@ -70,24 +151,40 @@ function deriveEffectivePlan(
   let effectiveSubscription: SubscriptionNode | null = null;
   if (activeSubscriptions.length > 0) {
     const rankedActive = activeSubscriptions
-      .map((sub) => ({
+      .map((sub, index) => ({
         sub,
+        index,
         plan: detectPlanFromSubscription(sub),
-        periodEnd: sub.currentPeriodEnd
-          ? new Date(sub.currentPeriodEnd).getTime()
-          : Number.POSITIVE_INFINITY,
+        periodEndMs: parseDateMs(sub.currentPeriodEnd),
+        createdAtMs: parseDateMs(sub.createdAt),
       }))
       .sort((a, b) => {
-        if (a.plan === b.plan) {
-          return b.periodEnd - a.periodEnd;
+        if (a.plan !== b.plan) {
+          return isHigherTier(a.plan, b.plan) ? -1 : 1;
         }
-        return isHigherTier(a.plan, b.plan) ? -1 : 1;
+        const aHasPeriodEnd = a.periodEndMs !== null;
+        const bHasPeriodEnd = b.periodEndMs !== null;
+        if (aHasPeriodEnd !== bHasPeriodEnd) {
+          return aHasPeriodEnd ? -1 : 1;
+        }
+        if (a.periodEndMs !== null && b.periodEndMs !== null && a.periodEndMs !== b.periodEndMs) {
+          return b.periodEndMs - a.periodEndMs;
+        }
+        const aHasCreatedAt = a.createdAtMs !== null;
+        const bHasCreatedAt = b.createdAtMs !== null;
+        if (aHasCreatedAt !== bHasCreatedAt) {
+          return aHasCreatedAt ? -1 : 1;
+        }
+        if (a.createdAtMs !== null && b.createdAtMs !== null && a.createdAtMs !== b.createdAtMs) {
+          return b.createdAtMs - a.createdAtMs;
+        }
+        return a.index - b.index;
       });
     effectiveSubscription = rankedActive[0]?.sub ?? null;
   } else if (cancelledSubscriptions.length > 0) {
     cancelledSubscriptions.sort((a, b) => {
-      const aEnd = a.currentPeriodEnd ? new Date(a.currentPeriodEnd).getTime() : 0;
-      const bEnd = b.currentPeriodEnd ? new Date(b.currentPeriodEnd).getTime() : 0;
+      const aEnd = parseDateMs(a.currentPeriodEnd) ?? 0;
+      const bEnd = parseDateMs(b.currentPeriodEnd) ?? 0;
       return bEnd - aEnd;
     });
     effectiveSubscription = cancelledSubscriptions[0];
@@ -112,7 +209,7 @@ function deriveEffectivePlan(
     effectiveSubscription.status === "CANCELLED" &&
     effectiveSubscription.currentPeriodEnd
   ) {
-    entitledUntil = new Date(effectiveSubscription.currentPeriodEnd);
+    entitledUntil = parseDate(effectiveSubscription.currentPeriodEnd);
   }
 
   return {
@@ -124,8 +221,7 @@ function deriveEffectivePlan(
       effectiveSubscription.status === "ACTIVE" ||
       (
         effectiveSubscription.status === "CANCELLED" &&
-        Boolean(effectiveSubscription.currentPeriodEnd) &&
-        new Date(effectiveSubscription.currentPeriodEnd as string) > now
+        (parseDateMs(effectiveSubscription.currentPeriodEnd) ?? 0) > nowMs
       ),
   };
 }
@@ -187,7 +283,9 @@ export interface CancelResult {
 
 export interface ConfirmationResult {
   success: boolean;
+  pending?: boolean;
   plan?: PlanId;
+  status?: string;
   error?: string;
 }
 
@@ -345,9 +443,14 @@ const GET_ONE_TIME_PURCHASES_QUERY = `
 `;
 
 async function getAllSubscriptions(admin: AdminGraphQL): Promise<SubscriptionNode[]> {
-  const response = await admin.graphql(GET_SUBSCRIPTION_QUERY);
-  const data = await response.json();
-  const subscriptionsConnection = data.data?.appInstallation?.allSubscriptions;
+  const data = await adminGraphqlOrThrow<{
+    appInstallation?: {
+      allSubscriptions?: {
+        edges?: Array<{ node: unknown }>;
+      };
+    };
+  }>(admin, GET_SUBSCRIPTION_QUERY, undefined, "GET_SUBSCRIPTION_QUERY");
+  const subscriptionsConnection = data.appInstallation?.allSubscriptions;
   return subscriptionsConnection?.edges?.map((edge: { node: unknown }) => edge.node as SubscriptionNode) || [];
 }
 
@@ -355,30 +458,28 @@ export async function getBillingHistory(
   admin: AdminGraphQL
 ): Promise<BillingHistoryItem[]> {
   try {
-    const [subscriptionResponse, purchaseResponse] = await Promise.all([
-      admin.graphql(GET_SUBSCRIPTION_QUERY),
-      admin.graphql(GET_ONE_TIME_PURCHASES_QUERY),
-    ]);
-    const subscriptionData = await subscriptionResponse.json();
-    const purchaseData = await purchaseResponse.json();
-    const subscriptionsConnection = subscriptionData.data?.appInstallation?.allSubscriptions;
-    const subscriptions = subscriptionsConnection?.edges?.map((edge: { node: unknown }) => edge.node) || [];
-    const purchasesConnection = purchaseData.data?.appInstallation?.oneTimePurchases;
-    const purchases = purchasesConnection?.edges?.map((edge: { node: unknown }) => edge.node) || [];
-    const subscriptionItems = subscriptions.flatMap(
-      (subscription: {
-        id: string;
-        name: string;
-        status: string;
-        currentPeriodEnd?: string;
-        lineItems?: Array<{
-          plan?: {
-            pricingDetails?: {
-              price?: { amount?: string; currencyCode?: string };
-            };
+    const [subscriptionData, purchaseData] = await Promise.all([
+      adminGraphqlOrThrow<{
+        appInstallation?: {
+          allSubscriptions?: {
+            edges?: Array<{ node: unknown }>;
           };
-        }>;
-      }) => {
+        };
+      }>(admin, GET_SUBSCRIPTION_QUERY, undefined, "GET_SUBSCRIPTION_QUERY"),
+      adminGraphqlOrThrow<{
+        appInstallation?: {
+          oneTimePurchases?: {
+            edges?: Array<{ node: unknown }>;
+          };
+        };
+      }>(admin, GET_ONE_TIME_PURCHASES_QUERY, undefined, "GET_ONE_TIME_PURCHASES_QUERY"),
+    ]);
+    const subscriptionsConnection = subscriptionData.appInstallation?.allSubscriptions;
+    const subscriptions = (subscriptionsConnection?.edges?.map((edge: { node: unknown }) => edge.node as BillingHistorySubscriptionNode) || []);
+    const purchasesConnection = purchaseData.appInstallation?.oneTimePurchases;
+    const purchases = (purchasesConnection?.edges?.map((edge: { node: unknown }) => edge.node as OneTimePurchaseNode) || []);
+    const subscriptionItems: BillingHistoryItem[] = subscriptions.flatMap(
+      (subscription: BillingHistorySubscriptionNode) => {
         const pricingEntries = (subscription.lineItems ?? [])
           .map((lineItem) => lineItem.plan?.pricingDetails?.price)
           .filter((price): price is { amount?: string; currencyCode?: string } => Boolean(price));
@@ -399,13 +500,7 @@ export async function getBillingHistory(
         ];
       }
     );
-    const purchaseItems = purchases.map((purchase: {
-      id: string;
-      name: string;
-      status: string;
-      price?: { amount?: string; currencyCode?: string };
-      createdAt?: string;
-    }) => ({
+    const purchaseItems: BillingHistoryItem[] = purchases.map((purchase: OneTimePurchaseNode) => ({
       id: purchase.id,
       type: "one_time",
       name: purchase.name,
@@ -464,7 +559,7 @@ export async function createSubscription(
         (
           currentStatus.status === "CANCELLED" &&
           !!currentStatus.currentPeriodEnd &&
-          new Date(currentStatus.currentPeriodEnd).getTime() > Date.now()
+          (parseDateMs(currentStatus.currentPeriodEnd) ?? 0) > Date.now()
         )
       );
     if (hasCurrentPlanEntitlement) {
@@ -478,27 +573,40 @@ export async function createSubscription(
     const isUpgrade = isHigherTier(planId, currentPlan);
     const replacementBehavior = isUpgrade ? "APPLY_IMMEDIATELY" : "APPLY_ON_NEXT_BILLING_CYCLE";
 
-    const response = await admin.graphql(CREATE_SUBSCRIPTION_MUTATION, {
-      variables: {
-        name: `Tracking Guardian - ${getPlanDisplayName(planId)}`,
-        lineItems: [
-          {
-            plan: {
-              appRecurringPricingDetails: {
-                price: { amount: plan.price.toFixed(2), currencyCode: "USD" },
-                interval: "EVERY_30_DAYS",
+    const data = await adminGraphqlOrThrow<{
+      appSubscriptionCreate?: {
+        appSubscription?: { id?: string };
+        confirmationUrl?: string;
+        userErrors?: Array<{ message: string }>;
+      };
+    }>(
+      admin,
+      CREATE_SUBSCRIPTION_MUTATION,
+      {
+        variables: {
+          name: `Tracking Guardian - ${getPlanDisplayName(planId)}`,
+          lineItems: [
+            {
+              plan: {
+                appRecurringPricingDetails: {
+                  price: { amount: plan.price.toFixed(2), currencyCode: "USD" },
+                  interval: "EVERY_30_DAYS",
+                },
               },
             },
-          },
-        ],
-        returnUrl,
-        trialDays: ("trialDays" in plan ? plan.trialDays : 0) || 0,
-        test: testMode,
-        replacementBehavior,
+          ],
+          returnUrl,
+          trialDays: ("trialDays" in plan ? plan.trialDays : 0) || 0,
+          test: testMode,
+          replacementBehavior,
+        },
       },
-    });
-    const data = await response.json();
-    const result = data.data?.appSubscriptionCreate;
+      "CREATE_SUBSCRIPTION_MUTATION"
+    );
+    const result = data.appSubscriptionCreate;
+    if (!result) {
+      return { success: false, error: "Invalid subscription create response" };
+    }
     logger.info("Subscription create response", {
       shopDomain,
       planId,
@@ -506,8 +614,8 @@ export async function createSubscription(
       confirmationUrl: result?.confirmationUrl ?? null,
       userErrors: result?.userErrors ?? [],
     });
-    if (result?.userErrors?.length > 0) {
-      const errorMessage = result.userErrors
+    if ((result.userErrors ?? []).length > 0) {
+      const errorMessage = (result.userErrors ?? [])
         .map((e: { message: string }) => e.message)
         .join(", ");
       logger.error(`Billing API error: ${errorMessage}`);
@@ -521,7 +629,7 @@ export async function createSubscription(
       }
       return { success: false, error: friendlyError };
     }
-    if (result?.confirmationUrl) {
+    if (result.confirmationUrl) {
       const allowedDomains = [
         "admin.shopify.com",
         "myshopify.com",
@@ -610,15 +718,27 @@ export async function getSubscriptionStatus(
     
     const subscription = derived.effectiveSubscription;
     let isTrialing = false;
-    let trialDaysRemaining = 0;
-    
-    if (subscription.status === "ACTIVE" && subscription.trialDays && subscription.trialDays > 0 && subscription.createdAt) {
-      const createdAt = new Date(subscription.createdAt);
-      const trialEnd = new Date(createdAt.getTime() + subscription.trialDays * 24 * 60 * 60 * 1000);
-      
-      isTrialing = now < trialEnd;
-      if (isTrialing) {
-        trialDaysRemaining = Math.ceil((trialEnd.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+    let trialDaysRemaining: number | undefined;
+
+    if (subscription.status === "ACTIVE" && subscription.trialDays && subscription.trialDays > 0) {
+      const confirmedAttempt = await prisma.billingAttempt.findFirst({
+        where: {
+          shopDomain,
+          status: "CONFIRMED",
+          OR: [
+            { subscriptionId: subscription.id },
+            { planId: derived.plan },
+          ],
+        },
+        orderBy: { updatedAt: "desc" },
+        select: { confirmedAt: true },
+      });
+      if (confirmedAttempt?.confirmedAt) {
+        const trialEndMs = confirmedAttempt.confirmedAt.getTime() + subscription.trialDays * 24 * 60 * 60 * 1000;
+        isTrialing = now.getTime() < trialEndMs;
+        if (isTrialing) {
+          trialDaysRemaining = Math.ceil((trialEndMs - now.getTime()) / (24 * 60 * 60 * 1000));
+        }
       }
     }
     
@@ -682,13 +802,22 @@ export async function cancelSubscription(
       };
     }
 
-    const response = await admin.graphql(CANCEL_SUBSCRIPTION_MUTATION, {
-      variables: { id: targetSubscription.id },
-    });
-    const data = await response.json();
-    const result = data.data?.appSubscriptionCancel;
-    if (result?.userErrors?.length > 0) {
-      const errorMessage = result.userErrors
+    const data = await adminGraphqlOrThrow<{
+      appSubscriptionCancel?: {
+        userErrors?: Array<{ message: string }>;
+      };
+    }>(
+      admin,
+      CANCEL_SUBSCRIPTION_MUTATION,
+      { variables: { id: targetSubscription.id } },
+      "CANCEL_SUBSCRIPTION_MUTATION"
+    );
+    const result = data.appSubscriptionCancel;
+    if (!result) {
+      return { success: false, error: "Invalid subscription cancel response" };
+    }
+    if ((result.userErrors ?? []).length > 0) {
+      const errorMessage = (result.userErrors ?? [])
         .map((e: { message: string }) => e.message)
         .join(", ");
       return { success: false, error: errorMessage };
@@ -700,7 +829,8 @@ export async function cancelSubscription(
     });
 
     if (shop && targetSubscription.currentPeriodEnd) {
-      const entitledUntil = new Date(targetSubscription.currentPeriodEnd);
+      const entitledUntil = parseDate(targetSubscription.currentPeriodEnd);
+      if (entitledUntil) {
       await prisma.shop.update({
         where: { shopDomain },
         data: {
@@ -716,6 +846,13 @@ export async function cancelSubscription(
           resourceId: targetSubscription.id,
           metadata: { entitledUntil: targetSubscription.currentPeriodEnd },
       });
+      } else {
+        logger.warn("Invalid currentPeriodEnd while cancelling subscription", {
+          shopDomain,
+          subscriptionId: targetSubscription.id,
+          currentPeriodEnd: targetSubscription.currentPeriodEnd,
+        });
+      }
     } else if (shop) {
       await prisma.shop.update({
         where: { shopDomain },
@@ -761,6 +898,10 @@ export async function syncSubscriptionStatus(
         select: { plan: true, entitledUntil: true },
       });
       if (shop?.entitledUntil && shop.entitledUntil > now) {
+        await prisma.shop.update({
+          where: { shopDomain },
+          data: { billingLastSyncedAt: now },
+        });
         return;
       }
       const planConfig = BILLING_PLANS.free;
@@ -770,6 +911,7 @@ export async function syncSubscriptionStatus(
           plan: "free",
           monthlyOrderLimit: planConfig.monthlyOrderLimit,
           entitledUntil: null,
+          billingLastSyncedAt: now,
         },
       });
       return;
@@ -784,6 +926,7 @@ export async function syncSubscriptionStatus(
         plan,
         monthlyOrderLimit: planConfig.monthlyOrderLimit,
         entitledUntil: derived.entitledUntil,
+        billingLastSyncedAt: now,
       },
     });
   } catch (error) {
@@ -797,16 +940,21 @@ export async function handleSubscriptionConfirmation(
   chargeId: string
 ): Promise<ConfirmationResult> {
   try {
-    const response = await admin.graphql(GET_SUBSCRIPTION_QUERY);
-    const data = await response.json();
-    const subscriptionsConnection = data.data?.appInstallation?.allSubscriptions;
-    const subscriptions = subscriptionsConnection?.edges?.map((edge: { node: unknown }) => edge.node) || [];
+    const data = await adminGraphqlOrThrow<{
+      appInstallation?: {
+        allSubscriptions?: {
+          edges?: Array<{ node: unknown }>;
+        };
+      };
+    }>(admin, GET_SUBSCRIPTION_QUERY, undefined, "GET_SUBSCRIPTION_QUERY");
+    const subscriptionsConnection = data.appInstallation?.allSubscriptions;
+    const subscriptions = subscriptionsConnection?.edges?.map((edge: { node: unknown }) => edge.node as SubscriptionNode) || [];
     
     const candidates = chargeId.startsWith("gid://")
       ? [chargeId]
       : [chargeId, `gid://shopify/AppSubscription/${chargeId}`];
 
-    const matchingSubscription = subscriptions.find((sub: { id: string }) =>
+    const matchingSubscription = subscriptions.find((sub) =>
       candidates.includes(sub.id) || (!chargeId.startsWith("gid://") && sub.id.endsWith(`/${chargeId}`))
     );
     
@@ -815,13 +963,22 @@ export async function handleSubscriptionConfirmation(
     }
     
     if (matchingSubscription.status !== "ACTIVE") {
+      const status = matchingSubscription.status;
+      if (status === "PENDING" || status === "ACCEPTED") {
+        return {
+          success: false,
+          pending: true,
+          status,
+        };
+      }
       return {
         success: false,
-        error: `Subscription status is ${matchingSubscription.status}. Please return to the Shopify billing page to confirm completion, or refresh the page later.`,
+        status,
+        error: `Subscription status is ${status}. Please return to the Shopify billing page to confirm completion, or refresh the page later.`,
       };
     }
 
-    const matchedPlanId = detectPlanFromSubscription(matchingSubscription as SubscriptionNode);
+    const matchedPlanId = detectPlanFromSubscription(matchingSubscription);
     await prisma.billingAttempt.updateMany({
       where: {
         status: "PENDING",
@@ -830,7 +987,7 @@ export async function handleSubscriptionConfirmation(
           { shopDomain, planId: matchedPlanId },
         ],
       },
-      data: { status: "CONFIRMED" },
+      data: { status: "CONFIRMED", confirmedAt: new Date() },
     });
     
     await syncSubscriptionStatus(admin, shopDomain);
@@ -877,21 +1034,34 @@ export async function createOneTimePurchase(
     const testMode =
       isTest ||
       planInfo?.partnerDevelopment === true;
-    const response = await admin.graphql(CREATE_ONE_TIME_PURCHASE_MUTATION, {
-      variables: {
-        name: `Tracking Guardian - ${getPlanDisplayName(planId)} (One-time)`,
-        price: {
-          amount: plan.price.toFixed(2),
-          currencyCode: "USD",
+    const data = await adminGraphqlOrThrow<{
+      appPurchaseOneTimeCreate?: {
+        appPurchaseOneTime?: { id?: string };
+        confirmationUrl?: string;
+        userErrors?: Array<{ message: string }>;
+      };
+    }>(
+      admin,
+      CREATE_ONE_TIME_PURCHASE_MUTATION,
+      {
+        variables: {
+          name: `Tracking Guardian - ${getPlanDisplayName(planId)} (One-time)`,
+          price: {
+            amount: plan.price.toFixed(2),
+            currencyCode: "USD",
+          },
+          returnUrl,
+          test: testMode,
         },
-        returnUrl,
-        test: testMode,
       },
-    });
-    const data = await response.json();
-    const result = data.data?.appPurchaseOneTimeCreate;
-    if (result?.userErrors?.length > 0) {
-      const errorMessage = result.userErrors
+      "CREATE_ONE_TIME_PURCHASE_MUTATION"
+    );
+    const result = data.appPurchaseOneTimeCreate;
+    if (!result) {
+      return { success: false, error: "Invalid one-time purchase response" };
+    }
+    if ((result.userErrors ?? []).length > 0) {
+      const errorMessage = (result.userErrors ?? [])
         .map((e: { message: string }) => e.message)
         .join(", ");
       logger.error(`One-time purchase API error: ${errorMessage}`);
@@ -905,7 +1075,7 @@ export async function createOneTimePurchase(
       }
       return { success: false, error: friendlyError };
     }
-    if (result?.confirmationUrl) {
+    if (result.confirmationUrl) {
       const allowedDomains = [
         "admin.shopify.com",
         "myshopify.com",
@@ -958,13 +1128,16 @@ export async function getOneTimePurchaseStatus(
   _shopDomain: string
 ): Promise<OneTimePurchaseStatus> {
   try {
-    const response = await admin.graphql(GET_ONE_TIME_PURCHASES_QUERY);
-    const data = await response.json();
-    const purchasesConnection = data.data?.appInstallation?.oneTimePurchases;
-    const purchases = purchasesConnection?.edges?.map((edge: { node: unknown }) => edge.node) || [];
-    const activePurchase = purchases.find(
-      (p: { status: string }) => p.status === "ACTIVE"
-    );
+    const data = await adminGraphqlOrThrow<{
+      appInstallation?: {
+        oneTimePurchases?: {
+          edges?: Array<{ node: unknown }>;
+        };
+      };
+    }>(admin, GET_ONE_TIME_PURCHASES_QUERY, undefined, "GET_ONE_TIME_PURCHASES_QUERY");
+    const purchasesConnection = data.appInstallation?.oneTimePurchases;
+    const purchases = purchasesConnection?.edges?.map((edge: { node: unknown }) => edge.node as OneTimePurchaseNode) || [];
+    const activePurchase = purchases.find((p) => p.status === "ACTIVE");
     if (!activePurchase) {
       return { hasActivePurchase: false };
     }

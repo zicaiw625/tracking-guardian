@@ -64,6 +64,7 @@ model Shop {
   typOspLastCheckedAt     DateTime?
   typOspDetectedAt        DateTime?
   typOspStatusReason      String?
+  billingLastSyncedAt     DateTime?
   settings                Json?
   AuditAsset              AuditAsset[]
   pixelConfigs            PixelConfig[]
@@ -92,6 +93,7 @@ model BillingAttempt {
   subscriptionId  String?
   confirmationUrl String
   status          String
+  confirmedAt     DateTime?
   expiresAt       DateTime
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

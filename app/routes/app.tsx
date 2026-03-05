@@ -14,23 +14,58 @@ import { ToastProvider } from "../components/ui/ToastProvider";
 import { getPolarisTranslations } from "../utils/polaris-i18n";
 import { TopBar } from "../components/layout/TopBar";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
+import { syncSubscriptionStatus } from "../services/billing/subscription.server";
+import { logger } from "../utils/logger.server";
 import { useTranslation } from "react-i18next";
 import { withEmbeddedAppParams } from "~/utils/embed-navigation";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
+
+const BILLING_SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     try {
-        const { session } = await authenticate.admin(request);
+        const { session, admin } = await authenticate.admin(request);
         const shopDomain = session.shop;
-        const shop = await prisma.shop.findUnique({
+        let shop = await prisma.shop.findUnique({
             where: { shopDomain },
             select: {
                 id: true,
                 plan: true,
                 shopTier: true,
                 shopTierLastCheckedAt: true,
+                billingLastSyncedAt: true,
             },
         });
+
+        const now = Date.now();
+        const shouldSyncBilling = Boolean(
+            shop &&
+            (
+                !shop.billingLastSyncedAt ||
+                now - shop.billingLastSyncedAt.getTime() > BILLING_SYNC_INTERVAL_MS
+            )
+        );
+        if (shouldSyncBilling) {
+            try {
+                await syncSubscriptionStatus(admin, shopDomain);
+                shop = await prisma.shop.findUnique({
+                    where: { shopDomain },
+                    select: {
+                        id: true,
+                        plan: true,
+                        shopTier: true,
+                        shopTierLastCheckedAt: true,
+                        billingLastSyncedAt: true,
+                    },
+                });
+            } catch (error) {
+                logger.warn("Billing sync failed in app loader", {
+                    shopDomain,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+        }
         
         const planIdNormalized = normalizePlanId(shop?.plan || "free") as PlanId;
         

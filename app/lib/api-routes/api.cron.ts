@@ -13,6 +13,7 @@ import { runDispatchWorker } from "../../services/dispatch/run-worker.server";
 import { processGDPRJobs } from "../../services/gdpr/job-processor";
 import { batchAggregateMetrics } from "../../services/dashboard-aggregation.server";
 import { runAlertDetectionForAllShops } from "../../services/alert-detection.server";
+import { syncSubscriptionStatus } from "../../services/billing/subscription.server";
 
 async function runCronTasks(task: string, requestId: string): Promise<Record<string, unknown>> {
   const results: Record<string, unknown> = {
@@ -74,6 +75,42 @@ async function runCronTasks(task: string, requestId: string): Promise<Record<str
     logger.info("[Cron] Running alerts", { requestId });
     const alertResult = await runAlertDetectionForAllShops();
     results.alerts = alertResult;
+  }
+
+  if (task === "all" || task === "billing_reconcile") {
+    logger.info("[Cron] Running billing_reconcile", { requestId });
+    const { createAdminClientForShop } = await import("../../shopify.server");
+    const shops = await prisma.shop.findMany({
+      where: { isActive: true },
+      select: { shopDomain: true },
+    });
+    let synced = 0;
+    let skippedNoAdmin = 0;
+    let failed = 0;
+    for (const shop of shops) {
+      const admin = await createAdminClientForShop(shop.shopDomain);
+      if (!admin) {
+        skippedNoAdmin++;
+        continue;
+      }
+      try {
+        await syncSubscriptionStatus(admin, shop.shopDomain);
+        synced++;
+      } catch (error) {
+        failed++;
+        logger.error("[Cron] Billing reconcile failed for shop", {
+          requestId,
+          shopDomain: shop.shopDomain,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+    results.billing_reconcile = {
+      shops: shops.length,
+      synced,
+      skippedNoAdmin,
+      failed,
+    };
   }
 
   return results;

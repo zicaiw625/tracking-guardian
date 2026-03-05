@@ -25,6 +25,7 @@ const ANALYTICS_EVENT_NAMES = [
   "app_upgrade_clicked",
   "subscription_started",
   "app_subscription_created",
+  "app_subscription_pending",
   "app_subscription_failed",
   "subscription_upgraded",
 ] as const;

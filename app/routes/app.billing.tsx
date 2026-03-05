@@ -27,6 +27,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const shopDomain = session.shop;
     const url = new URL(request.url);
     const chargeId = url.searchParams.get("charge_id");
+    const pollAttempt = Number(url.searchParams.get("poll_attempt") || "0");
 
     if (chargeId) {
         const confirmation = await handleSubscriptionConfirmation(admin, shopDomain, chargeId);
@@ -40,21 +41,40 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 trackEvent({
                     shopId: shop.id,
                     shopDomain: shop.shopDomain,
-                    event: confirmation.success ? "app_subscription_created" : "app_subscription_failed",
+                    event: confirmation.success
+                        ? "app_subscription_created"
+                        : confirmation.pending
+                            ? "app_subscription_pending"
+                            : "app_subscription_failed",
                     eventId: confirmation.success
                         ? `app_subscription_created_${chargeId}`
+                        : confirmation.pending
+                            ? `app_subscription_pending_${chargeId}`
                         : `app_subscription_failed_${chargeId}`,
                     metadata: confirmation.success
                         ? { plan: confirmation.plan }
-                        : { error: confirmation.error },
+                        : confirmation.pending
+                            ? { status: confirmation.status }
+                            : { error: confirmation.error, status: confirmation.status },
                 })
             );
         }
 
         url.searchParams.delete("charge_id");
-        url.searchParams.set("success", confirmation.success ? "true" : "false");
-        if (!confirmation.success && confirmation.error) {
-            url.searchParams.set("error", confirmation.error);
+        if (confirmation.pending) {
+            url.searchParams.set("pending", "true");
+            url.searchParams.set("pending_charge_id", chargeId);
+            url.searchParams.set("poll_attempt", String(pollAttempt + 1));
+            url.searchParams.delete("success");
+            url.searchParams.delete("error");
+        } else {
+            url.searchParams.delete("pending");
+            url.searchParams.delete("pending_charge_id");
+            url.searchParams.delete("poll_attempt");
+            url.searchParams.set("success", confirmation.success ? "true" : "false");
+            if (!confirmation.success && confirmation.error) {
+                url.searchParams.set("error", confirmation.error);
+            }
         }
         return redirect(`${url.pathname}?${url.searchParams.toString()}`);
     }
@@ -296,6 +316,9 @@ export default function BillingPage() {
     const isSubscribeSubmitting = subscribeFetcher.state !== "idle";
     const showSuccessBanner = searchParams.get("success") === "true";
     const showErrorBanner = searchParams.get("success") === "false";
+    const isPendingConfirmation = searchParams.get("pending") === "true";
+    const pendingChargeId = searchParams.get("pending_charge_id");
+    const pendingPollAttempt = Number(searchParams.get("poll_attempt") || "0");
     const errorMessage = searchParams.get("error");
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [upgradingPlan, setUpgradingPlan] = useState<PlanId | null>(null);
@@ -315,6 +338,26 @@ export default function BillingPage() {
         dateStyle: "medium",
         timeStyle: "short",
     });
+    const formatDateOnly = (value?: string): string => {
+        if (!value) {
+            return "—";
+        }
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+            return "—";
+        }
+        return parsed.toLocaleDateString(locale);
+    };
+    const formatDateTime = (value?: string): string => {
+        if (!value) {
+            return "—";
+        }
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+            return "—";
+        }
+        return dateFormatter.format(parsed);
+    };
 
     const formatBillingItemName = (item: BillingHistoryItem): string => {
         const rawName = item.name || "";
@@ -370,9 +413,9 @@ export default function BillingPage() {
     const billingRows = (billingHistory || []).map((item: BillingHistoryItem) => {
         const amount = item.amount !== undefined ? `${item.amount.toFixed(2)} ${item.currency || ""}` : "—";
         const timeframe = item.periodEnd
-            ? t("billing.invoiceTable.periodTo", { date: dateFormatter.format(new Date(item.periodEnd)) })
+            ? t("billing.invoiceTable.periodTo", { date: formatDateTime(item.periodEnd) })
             : item.createdAt
-                ? dateFormatter.format(new Date(item.createdAt))
+                ? formatDateTime(item.createdAt)
                 : "—";
 
         return [
@@ -405,6 +448,26 @@ export default function BillingPage() {
     const actionDataTyped = actionData as { success?: boolean; error?: string; confirmationUrl?: string } | undefined;
     const hasError = actionDataTyped && !actionDataTyped.success && actionDataTyped.error;
 
+    useEffect(() => {
+        if (!isPendingConfirmation || !pendingChargeId) {
+            return;
+        }
+        if (pendingPollAttempt >= 20) {
+            return;
+        }
+        const timer = window.setTimeout(() => {
+            const params = new URLSearchParams(location.search);
+            params.delete("pending");
+            params.delete("pending_charge_id");
+            params.delete("success");
+            params.delete("error");
+            params.set("charge_id", pendingChargeId);
+            params.set("poll_attempt", String(pendingPollAttempt));
+            window.location.assign(`${location.pathname}?${params.toString()}`);
+        }, 2500);
+        return () => window.clearTimeout(timer);
+    }, [isPendingConfirmation, pendingChargeId, pendingPollAttempt, location.pathname, location.search]);
+
     const renderFeature = (feature: string) => {
         if (feature === "subscriptionPlans.free.features.countdown") {
             return t(feature, {
@@ -424,6 +487,10 @@ export default function BillingPage() {
 
         {(showErrorBanner && errorMessage) && (<Banner title={t("billing.failTitle")} tone="critical" onDismiss={() => { }}>
             <p>{errorMessage}</p>
+          </Banner>)}
+
+        {isPendingConfirmation && (<Banner title={t("billing.subscriptionStatus")} tone="info" onDismiss={() => { }}>
+            <p>{pendingPollAttempt >= 20 ? "Subscription confirmation timed out. Please refresh the page." : "Subscription confirmation is being processed. Please wait..."}</p>
           </Banner>)}
 
         {hasError && (<Banner title={t("billing.failTitle")} tone="critical" onDismiss={() => { }}>
@@ -496,7 +563,7 @@ export default function BillingPage() {
                       {subscription.currentPeriodEnd && (<InlineStack align="space-between">
                           <Text as="span" tone="subdued">{t("billing.nextBillingDate")}</Text>
                           <Text as="span">
-                            {new Date(subscription.currentPeriodEnd).toLocaleDateString(locale)}
+                            {formatDateOnly(subscription.currentPeriodEnd)}
                           </Text>
                         </InlineStack>)}
                     </BlockStack>
@@ -507,7 +574,7 @@ export default function BillingPage() {
                     )}
                     {subscriptionStatusValue === "CANCELLED" && subscription.currentPeriodEnd && (
                       <Banner tone="info" title={t("billing.subscriptionCancelled")}>
-                        <p>{t("billing.cancelledMessage", { date: new Date(subscription.currentPeriodEnd).toLocaleDateString(locale) })}</p>
+                        <p>{t("billing.cancelledMessage", { date: formatDateOnly(subscription.currentPeriodEnd) })}</p>
                       </Banner>
                     )}
                   </>)}

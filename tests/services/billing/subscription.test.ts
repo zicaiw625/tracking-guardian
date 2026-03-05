@@ -42,12 +42,25 @@ import {
   createSubscription,
   getSubscriptionStatus,
   handleSubscriptionConfirmation,
+  syncSubscriptionStatus,
   type AdminGraphQL,
 } from "../../../app/services/billing/subscription.server";
 
 function graphResponse(data: unknown) {
   return {
+    ok: true,
+    status: 200,
     json: vi.fn().mockResolvedValue({ data }),
+  };
+}
+
+function graphErrorResponse(message: string) {
+  return {
+    ok: true,
+    status: 200,
+    json: vi.fn().mockResolvedValue({
+      errors: [{ message }],
+    }),
   };
 }
 
@@ -229,8 +242,110 @@ describe("Subscription Service", () => {
         where: expect.objectContaining({
           status: "PENDING",
         }),
-        data: { status: "CONFIRMED" },
+        data: expect.objectContaining({ status: "CONFIRMED" }),
       })
     );
+  });
+
+  it("确认订阅在 PENDING 状态时返回 pending", async () => {
+    vi.mocked(mockAdmin.graphql as ReturnType<typeof vi.fn>).mockResolvedValue(
+      graphResponse({
+        appInstallation: {
+          allSubscriptions: {
+            edges: [
+              {
+                node: {
+                  id: "gid://shopify/AppSubscription/123",
+                  name: "Tracking Guardian - Starter",
+                  status: "PENDING",
+                },
+              },
+            ],
+          },
+        },
+      }) as never
+    );
+
+    const result = await handleSubscriptionConfirmation(
+      mockAdmin,
+      "test-store.myshopify.com",
+      "gid://shopify/AppSubscription/123"
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.pending).toBe(true);
+    expect(prisma.billingAttempt.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("syncSubscriptionStatus 在 GraphQL errors 时不降级写库", async () => {
+    vi.mocked(mockAdmin.graphql as ReturnType<typeof vi.fn>).mockResolvedValue(
+      graphErrorResponse("query failed") as never
+    );
+
+    await syncSubscriptionStatus(mockAdmin, "test-store.myshopify.com");
+
+    expect(prisma.shop.update).not.toHaveBeenCalled();
+  });
+
+  it("trialDaysRemaining 使用 confirmedAt 计算", async () => {
+    vi.mocked(mockAdmin.graphql as ReturnType<typeof vi.fn>).mockResolvedValue(
+      graphResponse({
+        appInstallation: {
+          allSubscriptions: {
+            edges: [
+              {
+                node: {
+                  id: "gid://shopify/AppSubscription/111",
+                  name: "Tracking Guardian - Starter",
+                  status: "ACTIVE",
+                  trialDays: 10,
+                },
+              },
+            ],
+          },
+        },
+      }) as never
+    );
+    const confirmedAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    vi.mocked(prisma.billingAttempt.findFirst).mockResolvedValue({
+      confirmedAt,
+    } as never);
+
+    const status = await getSubscriptionStatus(mockAdmin, "test-store.myshopify.com");
+    expect(status.isTrialing).toBe(true);
+    expect(status.trialDaysRemaining).toBeGreaterThanOrEqual(7);
+    expect(status.trialDaysRemaining).toBeLessThanOrEqual(8);
+  });
+
+  it("ACTIVE 同计划优先选择有有效 currentPeriodEnd 的订阅", async () => {
+    const future = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+    vi.mocked(mockAdmin.graphql as ReturnType<typeof vi.fn>).mockResolvedValue(
+      graphResponse({
+        appInstallation: {
+          allSubscriptions: {
+            edges: [
+              {
+                node: {
+                  id: "gid://shopify/AppSubscription/no-end",
+                  name: "Tracking Guardian - Growth",
+                  status: "ACTIVE",
+                },
+              },
+              {
+                node: {
+                  id: "gid://shopify/AppSubscription/with-end",
+                  name: "Tracking Guardian - Growth",
+                  status: "ACTIVE",
+                  currentPeriodEnd: future,
+                },
+              },
+            ],
+          },
+        },
+      }) as never
+    );
+
+    const status = await getSubscriptionStatus(mockAdmin, "test-store.myshopify.com");
+    expect(status.subscriptionId).toBe("gid://shopify/AppSubscription/with-end");
   });
 });

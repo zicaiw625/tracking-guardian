@@ -218,6 +218,7 @@ export const CronTaskSchema = z.enum([
   "aggregate_daily",
   "alerts",
   "expire_entitlements",
+  "billing_reconcile",
   "all",
 ]);
 
