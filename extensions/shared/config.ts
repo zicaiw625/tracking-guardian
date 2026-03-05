@@ -1,4 +1,4 @@
-const BUILD_TIME_URL = "https://tracking-guardian.onrender.com";
+const BUILD_TIME_URL = "__BACKEND_URL_PLACEHOLDER__";
 export const RAW_BACKEND_URL: string = BUILD_TIME_URL;
 export const BACKEND_URL_PLACEHOLDER_DETECTED = BUILD_TIME_URL.includes("PLACEHOLDER");
 
