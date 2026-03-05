@@ -3,6 +3,7 @@ import { createAuditLog } from "../audit.server";
 import { logger } from "../../utils/logger.server";
 import { assertSafeRedirect } from "../../utils/redirect-validation.server";
 import { BILLING_PLANS, type PlanId, detectPlanFromPrice, isHigherTier, getPlanDisplayName, detectPlanIdFromDisplayName } from "./plans";
+import { resolveEffectivePlan } from "./effective-plan.server";
 import { getShopPlan } from "../shop-tier.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 
@@ -31,6 +32,7 @@ interface DerivedPlanResult {
   plan: PlanId;
   entitledUntil: Date | null;
   hasActiveSubscription: boolean;
+  hasEntitlement: boolean;
 }
 
 function deriveEffectivePlan(
@@ -54,6 +56,7 @@ function deriveEffectivePlan(
       plan: "free",
       entitledUntil: null,
       hasActiveSubscription: false,
+      hasEntitlement: false,
     };
   }
 
@@ -96,6 +99,7 @@ function deriveEffectivePlan(
       plan: "free",
       entitledUntil: null,
       hasActiveSubscription: false,
+      hasEntitlement: false,
     };
   }
 
@@ -115,7 +119,14 @@ function deriveEffectivePlan(
     effectiveSubscription,
     plan: detectedPlan,
     entitledUntil,
-    hasActiveSubscription: true,
+    hasActiveSubscription: effectiveSubscription.status === "ACTIVE",
+    hasEntitlement:
+      effectiveSubscription.status === "ACTIVE" ||
+      (
+        effectiveSubscription.status === "CANCELLED" &&
+        Boolean(effectiveSubscription.currentPeriodEnd) &&
+        new Date(effectiveSubscription.currentPeriodEnd as string) > now
+      ),
   };
 }
 
@@ -158,6 +169,7 @@ export interface SubscriptionResult {
 
 export interface SubscriptionStatus {
   hasActiveSubscription: boolean;
+  hasEntitlement: boolean;
   plan: PlanId;
   subscriptionId?: string;
   status?: string;
@@ -165,6 +177,7 @@ export interface SubscriptionStatus {
   trialDaysRemaining?: number;
   currentPeriodEnd?: string;
   isTrialing?: boolean;
+  entitledUntil?: string;
 }
 
 export interface CancelResult {
@@ -238,7 +251,7 @@ const CREATE_SUBSCRIPTION_MUTATION = `
 const GET_SUBSCRIPTION_QUERY = `
   query GetSubscription {
     appInstallation {
-      allSubscriptions(first: 250) {
+      allSubscriptions(first: 50, sortKey: CREATED_AT, reverse: true) {
         edges {
           node {
             id
@@ -313,7 +326,7 @@ const CREATE_ONE_TIME_PURCHASE_MUTATION = `
 const GET_ONE_TIME_PURCHASES_QUERY = `
   query GetOneTimePurchases {
     appInstallation {
-      oneTimePurchases(first: 250) {
+      oneTimePurchases(first: 50, sortKey: CREATED_AT, reverse: true) {
         edges {
           node {
             id
@@ -331,44 +344,11 @@ const GET_ONE_TIME_PURCHASES_QUERY = `
   }
 `;
 
-const GET_SHOP_BILLING_PREFERENCES_QUERY = `
-  query GetShopBillingPreferences {
-    shopBillingPreferences {
-      currency
-    }
-  }
-`;
-
 async function getAllSubscriptions(admin: AdminGraphQL): Promise<SubscriptionNode[]> {
   const response = await admin.graphql(GET_SUBSCRIPTION_QUERY);
   const data = await response.json();
   const subscriptionsConnection = data.data?.appInstallation?.allSubscriptions;
   return subscriptionsConnection?.edges?.map((edge: { node: unknown }) => edge.node as SubscriptionNode) || [];
-}
-
-async function getBillingCurrencyCode(admin: AdminGraphQL): Promise<string> {
-  try {
-    const response = await admin.graphql(GET_SHOP_BILLING_PREFERENCES_QUERY);
-    const data = await response.json() as {
-      data?: { shopBillingPreferences?: { currency?: string } };
-      errors?: Array<{ message?: string }>;
-    };
-    if (Array.isArray(data.errors) && data.errors.length > 0) {
-      logger.warn("Failed to query billing currency, falling back to USD", {
-        errors: data.errors,
-      });
-      return "USD";
-    }
-    const currency = data.data?.shopBillingPreferences?.currency;
-    if (typeof currency === "string" && currency.length > 0) {
-      return currency;
-    }
-  } catch (error) {
-    logger.warn("Failed to query billing currency, falling back to USD", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-  return "USD";
 }
 
 export async function getBillingHistory(
@@ -453,6 +433,28 @@ export async function createSubscription(
     return { success: false, error: "Invalid plan selected" };
   }
   try {
+    const now = new Date();
+    const pendingAttempt = await prisma.billingAttempt.findFirst({
+      where: {
+        shopDomain,
+        planId,
+        status: "PENDING",
+        expiresAt: { gt: now },
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        confirmationUrl: true,
+        subscriptionId: true,
+      },
+    });
+    if (pendingAttempt) {
+      return {
+        success: true,
+        confirmationUrl: pendingAttempt.confirmationUrl,
+        subscriptionId: pendingAttempt.subscriptionId ?? undefined,
+      };
+    }
+
     const currentStatus = await getSubscriptionStatus(admin, shopDomain);
     const currentPlan = currentStatus.plan;
     const hasCurrentPlanEntitlement =
@@ -469,45 +471,13 @@ export async function createSubscription(
       return { success: false, error: "You are already on this plan. No need to subscribe again." };
     }
 
-    // Check for pending subscription for the same plan (prevent reviewer loop)
-    // NOTE: validationUrl is no longer available in AppSubscription query in newer API versions
-    // so we cannot reuse pending subscriptions easily.
-    /*
-    try {
-      const subResponse = await admin.graphql(GET_SUBSCRIPTION_QUERY);
-      const subData = await subResponse.json();
-      const allSubs = subData.data?.appInstallation?.allSubscriptions?.edges?.map((e: any) => e.node) || [];
-      
-      // Find a pending subscription for the requested plan created in the last 15 minutes
-      const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
-      const pendingSub = allSubs.find((sub: any) => {
-          if (sub.status !== "PENDING") return false;
-          const subPlan = detectPlanFromSubscription(sub);
-          const createdAt = new Date(sub.createdAt);
-          return subPlan === planId && createdAt > fifteenMinutesAgo;
-      });
-
-      if (pendingSub && pendingSub.confirmationUrl) {
-          logger.info(`Found pending subscription ${pendingSub.id} for plan ${planId}, reusing confirmationUrl`);
-          return {
-              success: true,
-              confirmationUrl: pendingSub.confirmationUrl,
-              subscriptionId: pendingSub.id,
-          };
-      }
-    } catch (e) {
-      logger.warn("Failed to check pending subscriptions", { error: e instanceof Error ? e.message : String(e) });
-    }
-    */
-
     const planInfo = await getShopPlan(admin as AdminApiContext);
     const testMode =
       isTest ||
       planInfo?.partnerDevelopment === true;
     const isUpgrade = isHigherTier(planId, currentPlan);
     const replacementBehavior = isUpgrade ? "APPLY_IMMEDIATELY" : "APPLY_ON_NEXT_BILLING_CYCLE";
-    
-    const currencyCode = await getBillingCurrencyCode(admin);
+
     const response = await admin.graphql(CREATE_SUBSCRIPTION_MUTATION, {
       variables: {
         name: `Tracking Guardian - ${getPlanDisplayName(planId)}`,
@@ -515,7 +485,7 @@ export async function createSubscription(
           {
             plan: {
               appRecurringPricingDetails: {
-                price: { amount: plan.price, currencyCode },
+                price: { amount: plan.price.toFixed(2), currencyCode: "USD" },
                 interval: "EVERY_30_DAYS",
               },
             },
@@ -572,6 +542,18 @@ export async function createSubscription(
         where: { shopDomain },
         select: { id: true },
       });
+      const attemptExpiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+      await prisma.billingAttempt.create({
+        data: {
+          shopId: shop?.id ?? null,
+          shopDomain,
+          planId,
+          subscriptionId: result.appSubscription?.id ?? null,
+          confirmationUrl: result.confirmationUrl,
+          status: "PENDING",
+          expiresAt: attemptExpiresAt,
+        },
+      });
       if (shop) {
         await createAuditLog({
           shopId: shop.id,
@@ -614,13 +596,15 @@ export async function getSubscriptionStatus(
         where: { shopDomain },
         select: { plan: true, entitledUntil: true },
       });
-      const effectivePlan: PlanId =
-        shop?.entitledUntil && shop.entitledUntil > now
-          ? ((shop.plan as PlanId) || "free")
-          : "free";
+      const effectivePlan = resolveEffectivePlan(shop?.plan, shop?.entitledUntil, now);
+      const hasEntitlement =
+        effectivePlan !== "free" &&
+        (!shop?.entitledUntil || shop.entitledUntil > now);
       return {
         hasActiveSubscription: false,
         plan: effectivePlan,
+        hasEntitlement,
+        entitledUntil: shop?.entitledUntil ? shop.entitledUntil.toISOString() : undefined,
       };
     }
     
@@ -640,6 +624,7 @@ export async function getSubscriptionStatus(
     
     return {
       hasActiveSubscription: derived.hasActiveSubscription && subscription.status === "ACTIVE",
+      hasEntitlement: derived.hasEntitlement,
       plan: derived.plan,
       subscriptionId: subscription.id,
       status: subscription.status,
@@ -647,12 +632,24 @@ export async function getSubscriptionStatus(
       trialDaysRemaining,
       currentPeriodEnd: subscription.currentPeriodEnd,
       isTrialing,
+      entitledUntil: derived.entitledUntil ? derived.entitledUntil.toISOString() : undefined,
     };
   } catch (error) {
     logger.error("Get subscription status error", error);
+    const now = new Date();
+    const shop = await prisma.shop.findUnique({
+      where: { shopDomain },
+      select: { plan: true, entitledUntil: true },
+    });
+    const effectivePlan = resolveEffectivePlan(shop?.plan, shop?.entitledUntil, now);
+    const hasEntitlement =
+      effectivePlan !== "free" &&
+      (!shop?.entitledUntil || shop.entitledUntil > now);
     return {
       hasActiveSubscription: false,
-      plan: "free",
+      hasEntitlement,
+      plan: effectivePlan,
+      entitledUntil: shop?.entitledUntil ? shop.entitledUntil.toISOString() : undefined,
     };
   }
 }
@@ -823,6 +820,18 @@ export async function handleSubscriptionConfirmation(
         error: `Subscription status is ${matchingSubscription.status}. Please return to the Shopify billing page to confirm completion, or refresh the page later.`,
       };
     }
+
+    const matchedPlanId = detectPlanFromSubscription(matchingSubscription as SubscriptionNode);
+    await prisma.billingAttempt.updateMany({
+      where: {
+        status: "PENDING",
+        OR: [
+          { subscriptionId: matchingSubscription.id },
+          { shopDomain, planId: matchedPlanId },
+        ],
+      },
+      data: { status: "CONFIRMED" },
+    });
     
     await syncSubscriptionStatus(admin, shopDomain);
     
@@ -868,13 +877,12 @@ export async function createOneTimePurchase(
     const testMode =
       isTest ||
       planInfo?.partnerDevelopment === true;
-    const currencyCode = await getBillingCurrencyCode(admin);
     const response = await admin.graphql(CREATE_ONE_TIME_PURCHASE_MUTATION, {
       variables: {
         name: `Tracking Guardian - ${getPlanDisplayName(planId)} (One-time)`,
         price: {
-          amount: plan.price,
-          currencyCode,
+          amount: plan.price.toFixed(2),
+          currencyCode: "USD",
         },
         returnUrl,
         test: testMode,

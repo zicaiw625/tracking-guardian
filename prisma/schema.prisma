@@ -81,6 +81,25 @@ model Shop {
   BatchAuditJob            BatchAuditJob[]
   ExtensionError           ExtensionError[]
   ReportShareLink          ReportShareLink[]
+  BillingAttempt           BillingAttempt[]
+}
+
+model BillingAttempt {
+  id              String   @id @default(cuid())
+  shopId          String?
+  shopDomain      String
+  planId          String
+  subscriptionId  String?
+  confirmationUrl String
+  status          String
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  Shop            Shop?    @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopDomain, planId, status, expiresAt])
+  @@index([subscriptionId])
+  @@index([shopId])
 }
 
 model ExtensionError {

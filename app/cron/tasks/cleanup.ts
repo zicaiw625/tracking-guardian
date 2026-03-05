@@ -24,6 +24,8 @@ export interface CleanupResult {
   internalEventsDeleted: number;
   batchAuditJobsDeleted: number;
   expiredEntitlementsDowngraded: number;
+  billingAttemptsAbandoned: number;
+  billingAttemptsDeleted: number;
 }
 
 async function deleteInBatches(
@@ -61,6 +63,8 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     internalEventsDeleted: 0,
     batchAuditJobsDeleted: 0,
     expiredEntitlementsDowngraded: 0,
+    billingAttemptsAbandoned: 0,
+    billingAttemptsDeleted: 0,
   };
   try {
     result.expiredEntitlementsDowngraded = await downgradeExpiredEntitlements();
@@ -104,6 +108,30 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     }
   } catch (error) {
     logger.error("Failed to cleanup old GDPR jobs", { error });
+  }
+
+  try {
+    const now = new Date();
+    const abandonedResult = await prisma.billingAttempt.updateMany({
+      where: {
+        status: "PENDING",
+        expiresAt: { lte: now },
+      },
+      data: {
+        status: "ABANDONED",
+      },
+    });
+    result.billingAttemptsAbandoned = abandonedResult.count;
+    const oldAbandonedCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const deleteResult = await prisma.billingAttempt.deleteMany({
+      where: {
+        status: "ABANDONED",
+        createdAt: { lt: oldAbandonedCutoff },
+      },
+    });
+    result.billingAttemptsDeleted = deleteResult.count;
+  } catch (error) {
+    logger.error("Failed to cleanup billing attempts", { error });
   }
 
   try {

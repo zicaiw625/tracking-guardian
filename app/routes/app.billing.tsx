@@ -69,6 +69,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             shopDomain,
             subscription: {
                 hasActiveSubscription: false,
+                hasEntitlement: false,
                 plan: "free" as PlanId,
                 subscriptionId: undefined as string | undefined,
                 status: undefined as string | undefined,
@@ -76,6 +77,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 trialDaysRemaining: undefined as number | undefined,
                 isTrialing: false,
                 currentPeriodEnd: undefined as string | undefined,
+                entitledUntil: undefined as string | undefined,
             },
             usage: { exceeded: false, current: 0, limit: 100 },
             plans: BILLING_PLANS,
@@ -300,6 +302,13 @@ export default function BillingPage() {
 
     const currentPlan = getPlanOrDefault(subscription.plan);
     const usagePercent = Math.min((usage.current / usage.limit) * 100, 100);
+    const subscriptionStatusValue = (subscription as typeof subscription & { status?: string }).status;
+    const currentPlanBadgeTone =
+      subscriptionStatusValue === "CANCELLED" && subscription.hasEntitlement
+        ? "warning"
+        : subscription.hasEntitlement
+          ? "success"
+          : "info";
 
     const locale = i18n.resolvedLanguage || i18n.language || undefined;
     const dateFormatter = new Intl.DateTimeFormat(locale, {
@@ -450,7 +459,7 @@ export default function BillingPage() {
               <BlockStack gap="400">
                 <InlineStack align="space-between">
                   <Text as="h2" variant="headingMd">{t("billing.currentPlan")}</Text>
-                  <Badge tone={subscription.hasActiveSubscription ? "success" : "info"}>
+                  <Badge tone={currentPlanBadgeTone}>
                     {t(currentPlan.name)}
                   </Badge>
                 </InlineStack>
@@ -471,12 +480,18 @@ export default function BillingPage() {
                   </List>
                 </BlockStack>
 
-                {subscription.hasActiveSubscription && subscription.plan !== "free" && (<>
+                {subscription.hasEntitlement && subscription.plan !== "free" && (<>
                     <Divider />
                     <BlockStack gap="200">
                       <InlineStack align="space-between">
                         <Text as="span" tone="subdued">{t("billing.subscriptionStatus")}</Text>
-                        <Badge tone="success">{subscription.isTrialing ? t("billing.trialing") : t("billing.active")}</Badge>
+                        <Badge tone={subscriptionStatusValue === "CANCELLED" ? "warning" : "success"}>
+                          {subscriptionStatusValue === "CANCELLED"
+                            ? t("billing.invoiceTable.statusMap.cancelled")
+                            : subscription.isTrialing
+                              ? t("billing.trialing")
+                              : t("billing.active")}
+                        </Badge>
                       </InlineStack>
                       {subscription.currentPeriodEnd && (<InlineStack align="space-between">
                           <Text as="span" tone="subdued">{t("billing.nextBillingDate")}</Text>
@@ -490,7 +505,7 @@ export default function BillingPage() {
                         {t("billing.cancelSubscription")}
                       </Button>
                     )}
-                    {(subscription as typeof subscription & { status?: string }).status === "CANCELLED" && subscription.currentPeriodEnd && (
+                    {subscriptionStatusValue === "CANCELLED" && subscription.currentPeriodEnd && (
                       <Banner tone="info" title={t("billing.subscriptionCancelled")}>
                         <p>{t("billing.cancelledMessage", { date: new Date(subscription.currentPeriodEnd).toLocaleDateString(locale) })}</p>
                       </Banner>
