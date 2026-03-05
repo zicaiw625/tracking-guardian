@@ -5378,6 +5378,9 @@
     "shopifyEvent": {
       "checkoutCompleted": "Customer completed checkout",
       "checkoutStarted": "Customer started checkout",
+      "checkoutContactInfoSubmitted": "Customer submitted contact information",
+      "checkoutShippingInfoSubmitted": "Customer submitted shipping information",
+      "paymentInfoSubmitted": "Customer submitted payment information",
       "productAddedToCart": "Product added to cart",
       "productViewed": "Product detail viewed",
       "pageViewed": "Page view"
@@ -5386,20 +5389,27 @@
       "google": {
         "purchase": "Purchase completed",
         "beginCheckout": "Begin checkout",
+        "addShippingInfo": "Add shipping information",
+        "addPaymentInfo": "Add payment information",
         "addToCart": "Add to cart",
-        "viewItem": "View item"
+        "viewItem": "View item",
+        "pageView": "Page view"
       },
       "meta": {
         "purchase": "Purchase completed",
         "initiateCheckout": "Initiate checkout",
+        "addPaymentInfo": "Add payment information",
         "addToCart": "Add to cart",
-        "viewContent": "View content"
+        "viewContent": "View content",
+        "pageView": "Page view"
       },
       "tiktok": {
         "completePayment": "Payment completed",
         "initiateCheckout": "Initiate checkout",
+        "addPaymentInfo": "Add payment information",
         "addToCart": "Add to cart",
-        "viewContent": "View content"
+        "viewContent": "View content",
+        "pageView": "Page view"
       }
     },
     "title": "Event Mapping Configuration - {{platform}}",

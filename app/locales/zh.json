@@ -5378,6 +5378,9 @@
     "shopifyEvent": {
       "checkoutCompleted": "顾客完成结账",
       "checkoutStarted": "顾客开始结账",
+      "checkoutContactInfoSubmitted": "顾客提交联系信息",
+      "checkoutShippingInfoSubmitted": "顾客提交配送信息",
+      "paymentInfoSubmitted": "顾客提交支付信息",
       "productAddedToCart": "添加商品到购物车",
       "productViewed": "查看商品详情",
       "pageViewed": "页面浏览"
@@ -5386,20 +5389,27 @@
       "google": {
         "purchase": "完成购买",
         "beginCheckout": "开始结账",
+        "addShippingInfo": "添加配送信息",
+        "addPaymentInfo": "添加支付信息",
         "addToCart": "添加到购物车",
-        "viewItem": "查看商品"
+        "viewItem": "查看商品",
+        "pageView": "页面浏览"
       },
       "meta": {
         "purchase": "完成购买",
         "initiateCheckout": "开始结账",
+        "addPaymentInfo": "添加支付信息",
         "addToCart": "添加到购物车",
-        "viewContent": "查看内容"
+        "viewContent": "查看内容",
+        "pageView": "页面浏览"
       },
       "tiktok": {
         "completePayment": "完成支付",
         "initiateCheckout": "开始结账",
+        "addPaymentInfo": "添加支付信息",
         "addToCart": "添加到购物车",
-        "viewContent": "查看内容"
+        "viewContent": "查看内容",
+        "pageView": "页面浏览"
       }
     },
     "title": "事件映射配置 - {{platform}}",

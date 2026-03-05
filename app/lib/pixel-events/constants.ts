@@ -22,3 +22,12 @@ export const FUNNEL_EVENTS = [
   "product_viewed",
   "product_added_to_cart",
 ] as const;
+
+const FUNNEL_EVENT_SET = new Set<string>(FUNNEL_EVENTS);
+
+export function inferPixelModeFromMappings(
+  eventMappings: Record<string, unknown> | null | undefined
+): "purchase_only" | "full_funnel" {
+  const keys = Object.keys(eventMappings || {});
+  return keys.some((key) => FUNNEL_EVENT_SET.has(key)) ? "full_funnel" : "purchase_only";
+}

@@ -61,6 +61,24 @@ const SHOPIFY_EVENTS: ShopifyEvent[] = [
     availableParams: ["value", "currency", "items"],
   },
   {
+    id: "checkout_contact_info_submitted",
+    name: "Checkout Contact Info Submitted",
+    description: "eventMapping.shopifyEvent.checkoutContactInfoSubmitted",
+    availableParams: ["value", "currency", "items"],
+  },
+  {
+    id: "checkout_shipping_info_submitted",
+    name: "Checkout Shipping Info Submitted",
+    description: "eventMapping.shopifyEvent.checkoutShippingInfoSubmitted",
+    availableParams: ["value", "currency", "items"],
+  },
+  {
+    id: "payment_info_submitted",
+    name: "Payment Info Submitted",
+    description: "eventMapping.shopifyEvent.paymentInfoSubmitted",
+    availableParams: ["value", "currency", "items"],
+  },
+  {
     id: "product_added_to_cart",
     name: "Product Added to Cart",
     description: "eventMapping.shopifyEvent.productAddedToCart",
@@ -97,6 +115,20 @@ const PLATFORM_EVENTS: Record<Platform, PlatformEvent[]> = {
       optionalParams: ["items"],
     },
     {
+      id: "add_shipping_info",
+      name: "Add Shipping Info",
+      description: "eventMapping.platformEvent.google.addShippingInfo",
+      requiredParams: ["value", "currency"],
+      optionalParams: ["items"],
+    },
+    {
+      id: "add_payment_info",
+      name: "Add Payment Info",
+      description: "eventMapping.platformEvent.google.addPaymentInfo",
+      requiredParams: ["value", "currency"],
+      optionalParams: ["items"],
+    },
+    {
       id: "add_to_cart",
       name: "Add to Cart",
       description: "eventMapping.platformEvent.google.addToCart",
@@ -109,6 +141,13 @@ const PLATFORM_EVENTS: Record<Platform, PlatformEvent[]> = {
       description: "eventMapping.platformEvent.google.viewItem",
       requiredParams: ["value", "currency"],
       optionalParams: ["items"],
+    },
+    {
+      id: "page_view",
+      name: "Page View",
+      description: "eventMapping.platformEvent.google.pageView",
+      requiredParams: [],
+      optionalParams: [],
     },
   ],
   meta: [
@@ -134,11 +173,25 @@ const PLATFORM_EVENTS: Record<Platform, PlatformEvent[]> = {
       optionalParams: ["content_ids", "content_type", "contents"],
     },
     {
+      id: "AddPaymentInfo",
+      name: "Add Payment Info",
+      description: "eventMapping.platformEvent.meta.addPaymentInfo",
+      requiredParams: ["value", "currency"],
+      optionalParams: ["content_ids", "content_type", "contents"],
+    },
+    {
       id: "ViewContent",
       name: "View Content",
       description: "eventMapping.platformEvent.meta.viewContent",
       requiredParams: ["value", "currency"],
       optionalParams: ["content_ids", "content_type", "contents"],
+    },
+    {
+      id: "PageView",
+      name: "Page View",
+      description: "eventMapping.platformEvent.meta.pageView",
+      requiredParams: [],
+      optionalParams: [],
     },
   ],
   tiktok: [
@@ -164,11 +217,25 @@ const PLATFORM_EVENTS: Record<Platform, PlatformEvent[]> = {
       optionalParams: ["content_type", "contents"],
     },
     {
+      id: "AddPaymentInfo",
+      name: "Add Payment Info",
+      description: "eventMapping.platformEvent.tiktok.addPaymentInfo",
+      requiredParams: ["value", "currency"],
+      optionalParams: ["content_type", "contents"],
+    },
+    {
       id: "ViewContent",
       name: "View Content",
       description: "eventMapping.platformEvent.tiktok.viewContent",
       requiredParams: ["value", "currency"],
       optionalParams: ["content_type", "contents"],
+    },
+    {
+      id: "PageView",
+      name: "Page View",
+      description: "eventMapping.platformEvent.tiktok.pageView",
+      requiredParams: [],
+      optionalParams: [],
     },
   ],
 };
@@ -177,6 +244,9 @@ const RECOMMENDED_MAPPINGS: Record<Platform, Record<string, string>> = {
   google: {
     checkout_completed: "purchase",
     checkout_started: "begin_checkout",
+    checkout_contact_info_submitted: "begin_checkout",
+    checkout_shipping_info_submitted: "add_shipping_info",
+    payment_info_submitted: "add_payment_info",
     product_added_to_cart: "add_to_cart",
     product_viewed: "view_item",
     page_viewed: "page_view",
@@ -184,6 +254,9 @@ const RECOMMENDED_MAPPINGS: Record<Platform, Record<string, string>> = {
   meta: {
     checkout_completed: "Purchase",
     checkout_started: "InitiateCheckout",
+    checkout_contact_info_submitted: "InitiateCheckout",
+    checkout_shipping_info_submitted: "InitiateCheckout",
+    payment_info_submitted: "AddPaymentInfo",
     product_added_to_cart: "AddToCart",
     product_viewed: "ViewContent",
     page_viewed: "PageView",
@@ -191,6 +264,9 @@ const RECOMMENDED_MAPPINGS: Record<Platform, Record<string, string>> = {
   tiktok: {
     checkout_completed: "CompletePayment",
     checkout_started: "InitiateCheckout",
+    checkout_contact_info_submitted: "InitiateCheckout",
+    checkout_shipping_info_submitted: "InitiateCheckout",
+    payment_info_submitted: "AddPaymentInfo",
     product_added_to_cart: "AddToCart",
     product_viewed: "ViewContent",
     page_viewed: "PageView",

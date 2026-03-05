@@ -40,6 +40,7 @@ export interface PixelConfigInput {
   eventMappings?: Prisma.InputJsonValue;
   isActive?: boolean;
   environment?: string;
+  migrationStatus?: string;
 }
 
 const shopPixelConfigsCache = new SimpleCache<PixelConfigCredentials[]>({
@@ -227,6 +228,7 @@ async function executeUpsertWithPlatformId(
       serverSideEnabled: data.serverSideEnabled ?? false,
       eventMappings: data.eventMappings ?? undefined,
       isActive: data.isActive ?? true,
+      migrationStatus: data.migrationStatus ?? "in_progress",
       configVersion: 1,
       environment,
       updatedAt: new Date(),
@@ -239,6 +241,7 @@ async function executeUpsertWithPlatformId(
       serverSideEnabled: data.serverSideEnabled ?? false,
       eventMappings: data.eventMappings ?? undefined,
       isActive: data.isActive ?? undefined,
+      migrationStatus: data.migrationStatus ?? undefined,
     },
   });
 }
@@ -267,7 +270,7 @@ async function executeUpsertWithoutPlatformId(
         serverSideEnabled: data.serverSideEnabled ?? false,
         eventMappings: data.eventMappings ?? undefined,
         isActive: data.isActive ?? true,
-        ...(("migrationStatus" in data && data.migrationStatus) ? { migrationStatus: data.migrationStatus as string } : {}),
+      migrationStatus: data.migrationStatus ?? "in_progress",
         updatedAt: new Date(),
       },
     });
@@ -285,7 +288,7 @@ async function executeUpsertWithoutPlatformId(
       serverSideEnabled: data.serverSideEnabled ?? false,
       eventMappings: data.eventMappings ?? undefined,
       isActive: data.isActive ?? true,
-      migrationStatus: ("migrationStatus" in data && data.migrationStatus) ? (data.migrationStatus as string) : "not_started",
+      migrationStatus: data.migrationStatus ?? "not_started",
       updatedAt: new Date(),
     },
   });

@@ -8,6 +8,8 @@ import {
   getExistingWebPixels,
   updateWebPixel,
   isOurWebPixel,
+  resolveWebPixelModeForEnvironment,
+  resolveWebPixelEnvironmentForShop,
 } from "../../services/migration.server";
 import { generateEncryptedIngestionSecret } from "../../utils/token-encryption.server";
 import { logger } from "../../utils/logger.server";
@@ -55,7 +57,16 @@ export async function handleRotateIngestionSecret(
       }
     });
     if (ourPixel) {
-      const result = await updateWebPixel(admin, ourPixel.id, newPlainSecret, sessionShop);
+      const environment = await resolveWebPixelEnvironmentForShop(shopId);
+      const mode = await resolveWebPixelModeForEnvironment(shopId, environment);
+      const result = await updateWebPixel(
+        admin,
+        ourPixel.id,
+        newPlainSecret,
+        sessionShop,
+        environment,
+        mode
+      );
       if (result.success) {
         pixelSyncResult = {
           success: true,
@@ -240,12 +251,14 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
             const ingestionKey = shopData.ingestionSecret
               ? decryptIngestionSecret(shopData.ingestionSecret)
               : undefined;
+            const mode = await resolveWebPixelModeForEnvironment(shop.id, newEnvironment);
             const pixelResult = await updateWebPixel(
               admin,
               shopData.webPixelId,
               ingestionKey,
               shopData.shopDomain || session.shop,
-              newEnvironment
+              newEnvironment,
+              mode
             );
             if (!pixelResult.success) {
               pixelSyncSucceeded = false;

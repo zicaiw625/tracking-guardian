@@ -41,7 +41,14 @@ import { trackEvent } from "../services/analytics.server";
 import { safeFireAndForget } from "../utils/helpers.server";
 import { normalizePlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
-import { createWebPixel, getExistingWebPixels, isOurWebPixel, updateWebPixel } from "../services/migration.server";
+import {
+  createWebPixel,
+  getExistingWebPixels,
+  isOurWebPixel,
+  resolveWebPixelEnvironmentForShop,
+  resolveWebPixelModeForEnvironment,
+  updateWebPixel,
+} from "../services/migration.server";
 import { decryptIngestionSecret, encryptIngestionSecret, isTokenEncrypted } from "../utils/token-encryption.server";
 import { randomBytes } from "crypto";
 
@@ -340,14 +347,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           });
           ourPixelId = ourPixel?.id ?? null;
         }
+        const environment = await resolveWebPixelEnvironmentForShop(shop.id);
+        const mode = await resolveWebPixelModeForEnvironment(shop.id, environment);
         if (ourPixelId) {
-          const result = await updateWebPixel(admin, ourPixelId, ingestionSecret, shopDomain);
+          const result = await updateWebPixel(
+            admin,
+            ourPixelId,
+            ingestionSecret,
+            shopDomain,
+            environment,
+            mode
+          );
           if (!result.success) {
             logger.warn(`[Onboarding] Failed to update WebPixel for ${shopDomain}: ${result.error}`);
             webPixelSetupFailed = true;
           }
         } else {
-          const result = await createWebPixel(admin, ingestionSecret, shopDomain);
+          const result = await createWebPixel(admin, ingestionSecret, shopDomain, environment, mode);
           if (result.success && result.webPixelId) {
             await prisma.shop.update({
               where: { id: shop.id },

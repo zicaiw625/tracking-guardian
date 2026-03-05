@@ -10,7 +10,7 @@ import { createEventSender, subscribeToAnalyticsEvents } from "./events";
 import type { PixelSettings, PixelInit, CustomerPrivacyState, VisitorConsentCollectedEvent } from "./types";
 
 register(({ analytics, settings, init, customerPrivacy }: {
-  analytics: { subscribe: (event: string, handler: (event: unknown) => void) => void };
+  analytics: { subscribe: (event: string, handler: (event: unknown) => void) => Promise<undefined> };
   settings: PixelSettings;
   init: PixelInit;
   customerPrivacy?: { subscribe?: (event: string, handler: (e: VisitorConsentCollectedEvent) => void) => void };

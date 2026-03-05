@@ -4,7 +4,6 @@ import { authenticate } from "../../shopify.server";
 import { i18nServer } from "../../i18n.server";
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
-import { generateSimpleId } from "../../utils/helpers";
 import { safeFireAndForget } from "../../utils/helpers.server";
 import { isPlanAtLeast } from "../../utils/plans";
 import { normalizePlanId } from "../../services/billing/plans";
@@ -15,6 +14,9 @@ import { randomBytes } from "crypto";
 import { trackEvent } from "../../services/analytics.server";
 import { encryptJson } from "../../utils/crypto.server";
 import { z } from "zod";
+import { FUNNEL_EVENTS, inferPixelModeFromMappings } from "../../lib/pixel-events/constants";
+import { requireEntitlementOrThrow } from "../../services/billing/entitlement.server";
+import { upsertPixelConfig } from "../../services/db/pixel-config-repository.server";
 import {
   GoogleCredentialsInputSchema,
   MetaCredentialsInputSchema,
@@ -23,6 +25,7 @@ import {
 
 const SUPPORTED_PLATFORMS = ["google", "meta", "tiktok"] as const;
 type SupportedPlatform = (typeof SUPPORTED_PLATFORMS)[number];
+const FUNNEL_EVENT_SET = new Set<string>(FUNNEL_EVENTS);
 
 function generateIngestionSecret(): string {
   return randomBytes(32).toString("hex");
@@ -164,66 +167,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           },
           select: { id: true },
         });
-        const fullFunnelEvents = ["page_viewed", "product_viewed", "product_added_to_cart", "checkout_started"];
-        const hasFullFunnelEvents = Object.keys(config.eventMappings || {}).some(eventName =>
-          fullFunnelEvents.includes(eventName)
-        );
-        const mode: "purchase_only" | "full_funnel" = hasFullFunnelEvents ? "full_funnel" : "purchase_only";
-        const clientConfig = { mode };
-        const commonData = {
-          credentialsEncrypted,
-          serverSideEnabled,
-          eventMappings: config.eventMappings as object,
-          clientConfig: clientConfig as object,
-          environment: config.environment,
-          migrationStatus: "in_progress" as const,
-          updatedAt: new Date(),
-        };
-        let savedConfig: { id: string };
-        if (platformIdValue) {
-          savedConfig = await prisma.pixelConfig.upsert({
-            where: {
-              shopId_platform_environment_platformId: {
-                shopId: shop.id,
-                platform,
-                environment: config.environment,
-                platformId: platformIdValue,
-              },
-            },
-            update: {
-              platformId: platformIdValue,
-              ...commonData,
-            },
-            create: {
-              id: generateSimpleId("pixel-config"),
-              shopId: shop.id,
-              platform,
-              platformId: platformIdValue,
-              ...commonData,
-            },
-            select: { id: true },
-          });
-        } else if (existingConfig) {
-          savedConfig = await prisma.pixelConfig.update({
-            where: { id: existingConfig.id },
-            data: {
-              platformId: null,
-              ...commonData,
-            },
-            select: { id: true },
-          });
-        } else {
-          savedConfig = await prisma.pixelConfig.create({
-            data: {
-              id: generateSimpleId("pixel-config"),
-              shopId: shop.id,
-              platform,
-              platformId: null,
-              ...commonData,
-            },
-            select: { id: true },
-          });
+        const mode = inferPixelModeFromMappings(config.eventMappings as Record<string, unknown> | null | undefined);
+        if (mode === "full_funnel") {
+          await requireEntitlementOrThrow(shop.id, "full_funnel");
         }
+        const clientConfig = { mode };
+        const savedConfig = await upsertPixelConfig(
+          shop.id,
+          {
+            platform,
+            platformId: platformIdValue,
+            credentialsEncrypted,
+            serverSideEnabled,
+            eventMappings: config.eventMappings as object,
+            clientConfig: clientConfig as object,
+            environment: config.environment,
+            migrationStatus: "in_progress",
+          },
+          { saveSnapshot: true }
+        );
         configIds.push(savedConfig.id);
         if (!existingConfig) {
           createdPlatforms.push(platform);
@@ -271,10 +233,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       if (ourPixelId) {
         await syncWebPixelMode(admin, shop.id, shopDomain, ourPixelId, ingestionSecret, globalEnvironment);
       } else {
-        const fullFunnelEventsList = ["page_viewed", "product_viewed", "product_added_to_cart", "checkout_started"];
-        const globalMode = configs.some(c => 
-            Object.keys(c.eventMappings || {}).some(eventName => fullFunnelEventsList.includes(eventName))
-        ) ? "full_funnel" : "purchase_only";
+        const globalMode = configs.some((c) =>
+          Object.keys(c.eventMappings || {}).some((eventName) => FUNNEL_EVENT_SET.has(eventName))
+        )
+          ? "full_funnel"
+          : "purchase_only";
+        if (globalMode === "full_funnel") {
+          await requireEntitlementOrThrow(shop.id, "full_funnel");
+        }
         
         const result = await createWebPixel(admin, ingestionSecret, shopDomain, globalEnvironment, globalMode);
         if (result.success && result.webPixelId) {
@@ -325,6 +291,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
       return json({ success: true, configIds });
     } catch (error) {
+      if (error instanceof Response) {
+        return error;
+      }
       logger.error("Failed to save pixel configs", error);
       return json({
         success: false,

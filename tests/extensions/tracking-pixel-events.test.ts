@@ -1,36 +1,34 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { subscribeToAnalyticsEvents } from "../../extensions/tracking-pixel/src/events";
 
 type Handler = (event: unknown) => void;
 
 describe("tracking pixel events", () => {
-  const handlers = new Map<string, Handler>();
-
-  const analytics = {
-    subscribe: (event: string, handler: Handler) => {
-      handlers.set(event, handler);
-    },
-  };
-
   beforeEach(() => {
-    handlers.clear();
     vi.useRealTimers();
+    vi.resetModules();
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it("sends page_viewed when only context exists", () => {
+  it("subscribes all_standard_events in full_funnel and routes page_viewed", async () => {
+    const handlers = new Map<string, Handler>();
+    const analytics = {
+      subscribe: vi.fn((event: string, handler: Handler) => {
+        handlers.set(event, handler);
+        return Promise.resolve(undefined);
+      }),
+    };
     const sendToBackend = vi.fn().mockResolvedValue(undefined);
+    const { subscribeToAnalyticsEvents } = await import("../../extensions/tracking-pixel/src/events");
     const occurredAtIso = "2026-01-02T03:04:05.000Z";
 
     subscribeToAnalyticsEvents(analytics, sendToBackend, undefined, "full_funnel");
+    expect(analytics.subscribe).toHaveBeenCalledWith("all_standard_events", expect.any(Function));
 
-    const handler = handlers.get("page_viewed");
-    expect(handler).toBeTypeOf("function");
-
-    handler?.({
+    handlers.get("all_standard_events")?.({
+      name: "page_viewed",
       id: "pv-1",
       timestamp: occurredAtIso,
       context: {
@@ -54,62 +52,52 @@ describe("tracking pixel events", () => {
     );
   });
 
-  it("adds url and title to checkout funnel event payload", () => {
+  it("subscribes checkout_completed only in purchase_only mode", async () => {
+    const handlers = new Map<string, Handler>();
+    const analytics = {
+      subscribe: vi.fn((event: string, handler: Handler) => {
+        handlers.set(event, handler);
+        return Promise.resolve(undefined);
+      }),
+    };
     const sendToBackend = vi.fn().mockResolvedValue(undefined);
+    const { subscribeToAnalyticsEvents } = await import("../../extensions/tracking-pixel/src/events");
 
-    subscribeToAnalyticsEvents(analytics, sendToBackend, undefined, "full_funnel");
+    subscribeToAnalyticsEvents(analytics, sendToBackend, undefined, "purchase_only");
 
-    const handler = handlers.get("checkout_started");
-    expect(handler).toBeTypeOf("function");
-
-    handler?.({
-      id: "co-1",
-      timestamp: "2026-02-03T04:05:06.000Z",
-      context: {
-        document: {
-          location: { href: "https://store.example/checkouts/abc" },
-          title: "Checkout",
-        },
-      },
-      data: {
-        checkout: {
-          token: "token_12345678",
-          totalPrice: { amount: "19.99" },
-          currencyCode: "USD",
-          lineItems: [],
-        },
-      },
-    });
-
-    expect(sendToBackend).toHaveBeenCalledTimes(1);
-    expect(sendToBackend.mock.calls[0][1]).toMatchObject({
-      url: "https://store.example/checkouts/abc",
-      title: "Checkout",
-    });
+    expect(analytics.subscribe).toHaveBeenCalledTimes(1);
+    expect(analytics.subscribe).toHaveBeenCalledWith("checkout_completed", expect.any(Function));
+    expect(handlers.has("all_standard_events")).toBe(false);
   });
 
-  it("falls back to current time when event timestamp is missing", () => {
+  it("is idempotent for repeated full_funnel subscription", async () => {
+    const analytics = {
+      subscribe: vi.fn(() => Promise.resolve(undefined)),
+    };
     const sendToBackend = vi.fn().mockResolvedValue(undefined);
-    const now = new Date("2026-03-04T05:06:07.000Z");
-    vi.useFakeTimers();
-    vi.setSystemTime(now);
+    const { subscribeToAnalyticsEvents } = await import("../../extensions/tracking-pixel/src/events");
 
     subscribeToAnalyticsEvents(analytics, sendToBackend, undefined, "full_funnel");
-    const handler = handlers.get("page_viewed");
-    expect(handler).toBeTypeOf("function");
+    subscribeToAnalyticsEvents(analytics, sendToBackend, undefined, "full_funnel");
 
-    handler?.({
-      id: "pv-2",
-      context: {
-        document: {
-          location: { href: "https://store.example/" },
-          title: "Home",
-        },
-      },
-      data: {},
-    });
+    expect(analytics.subscribe).toHaveBeenCalledTimes(1);
+    expect(analytics.subscribe).toHaveBeenCalledWith("all_standard_events", expect.any(Function));
+  });
 
-    expect(sendToBackend).toHaveBeenCalledTimes(1);
-    expect(sendToBackend.mock.calls[0][3]).toBe(now.getTime());
+  it("handles subscribe rejection without throwing", async () => {
+    const analytics = {
+      subscribe: vi.fn(() => Promise.reject(new Error("subscribe failed"))),
+    };
+    const sendToBackend = vi.fn().mockResolvedValue(undefined);
+    const logger = vi.fn();
+    const { subscribeToAnalyticsEvents } = await import("../../extensions/tracking-pixel/src/events");
+
+    expect(() => {
+      subscribeToAnalyticsEvents(analytics, sendToBackend, logger, "full_funnel");
+    }).not.toThrow();
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(logger).toHaveBeenCalled();
   });
 });

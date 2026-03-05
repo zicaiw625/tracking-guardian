@@ -375,30 +375,21 @@ export async function createWebPixel(admin: AdminApiContext, ingestionKey?: stri
     }
 }
 
-export async function updateWebPixel(admin: AdminApiContext, webPixelId: string, ingestionKey?: string, shopDomain?: string, environment?: "test" | "live", mode?: "purchase_only" | "full_funnel"): Promise<CreateWebPixelResult> {
-    // P0: Fetch existing settings if environment or mode are missing to prevent resetting them to defaults
-    let finalEnvironment = environment;
-    let finalMode = mode;
-
-    if (!finalEnvironment || !finalMode) {
-        try {
-            const existingPixels = await getExistingWebPixels(admin);
-            const currentPixel = existingPixels.find(p => p.id === webPixelId);
-            if (currentPixel && currentPixel.settings) {
-                const settings = JSON.parse(currentPixel.settings);
-                if (!finalEnvironment) {
-                    finalEnvironment = settings.environment as "test" | "live";
-                }
-                if (!finalMode) {
-                    finalMode = settings.mode as "purchase_only" | "full_funnel";
-                }
-            }
-        } catch (e) {
-            logger.warn("Failed to fetch existing settings during updateWebPixel", { error: String(e) });
-        }
+export async function updateWebPixel(
+    admin: AdminApiContext,
+    webPixelId: string,
+    ingestionKey: string | undefined,
+    shopDomain: string | undefined,
+    environment: "test" | "live",
+    mode: "purchase_only" | "full_funnel"
+): Promise<CreateWebPixelResult> {
+    if (!environment || !mode) {
+        return {
+            success: false,
+            error: "missing_mode_or_environment",
+        };
     }
-
-    const pixelSettings = buildWebPixelSettings(ingestionKey || "", shopDomain || "", undefined, finalEnvironment || "live", finalMode);
+    const pixelSettings = buildWebPixelSettings(ingestionKey || "", shopDomain || "", undefined, environment, mode);
     // settings should be passed as an object, not stringified
     try {
         const response = await admin.graphql(`
@@ -482,6 +473,48 @@ export async function upgradeWebPixelSettings(
     return updateWebPixel(admin, webPixelId, existingKey, shopDomain, existingEnvironment, existingMode);
 }
 
+export async function resolveWebPixelModeForEnvironment(
+    shopId: string,
+    environment: "test" | "live"
+): Promise<"purchase_only" | "full_funnel"> {
+    const pixelConfigs = await prisma.pixelConfig.findMany({
+        where: {
+            shopId,
+            isActive: true,
+            environment,
+        },
+        select: {
+            clientConfig: true,
+        },
+    });
+    for (const config of pixelConfigs) {
+        if (config.clientConfig && typeof config.clientConfig === "object") {
+            if ("mode" in config.clientConfig && config.clientConfig.mode === "full_funnel") {
+                return "full_funnel";
+            }
+        }
+    }
+    return "purchase_only";
+}
+
+export async function resolveWebPixelEnvironmentForShop(
+    shopId: string
+): Promise<"test" | "live"> {
+    const [hasLiveConfig, hasTestConfig] = await Promise.all([
+        prisma.pixelConfig.findFirst({
+            where: { shopId, isActive: true, environment: "live" },
+            select: { id: true },
+        }),
+        prisma.pixelConfig.findFirst({
+            where: { shopId, isActive: true, environment: "test" },
+            select: { id: true },
+        }),
+    ]);
+    if (hasLiveConfig) return "live";
+    if (hasTestConfig) return "test";
+    return "live";
+}
+
 export async function syncWebPixelMode(
     admin: AdminApiContext,
     shopId: string,
@@ -491,31 +524,12 @@ export async function syncWebPixelMode(
     environment: "test" | "live" = "live"
 ): Promise<CreateWebPixelResult> {
     try {
-        const pixelConfigs = await prisma.pixelConfig.findMany({
-            where: {
-                shopId,
-                isActive: true,
-                environment,
-            },
-            select: {
-                clientConfig: true,
-            },
-        });
-        let mode: "purchase_only" | "full_funnel" = "purchase_only";
-        for (const config of pixelConfigs) {
-            if (config.clientConfig && typeof config.clientConfig === 'object') {
-                if ('mode' in config.clientConfig && config.clientConfig.mode === 'full_funnel') {
-                    mode = "full_funnel";
-                    break;
-                }
-            }
-        }
+        const mode = await resolveWebPixelModeForEnvironment(shopId, environment);
         logger.info(`Syncing WebPixel mode for ${shopDomain}`, {
             shopId,
             webPixelId,
             mode,
             environment,
-            configCount: pixelConfigs.length,
         });
         return updateWebPixel(admin, webPixelId, ingestionKey, shopDomain, environment, mode);
     } catch (error) {

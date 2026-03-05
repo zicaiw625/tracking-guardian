@@ -663,279 +663,343 @@ export function createEventSender(config: EventSenderConfig) {
   };
 }
 
-export function subscribeToCheckoutCompleted(
-  analytics: {
-    subscribe: (event: string, handler: (event: unknown) => void) => void;
-  },
-  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string, occurredAt?: number) => Promise<void>,
-  logger?: (...args: unknown[]) => void
+type PixelAnalytics = {
+  subscribe: (event: string, handler: (event: unknown) => void) => Promise<undefined>;
+};
+
+type SendToBackend = (
+  eventName: string,
+  data: Record<string, unknown>,
+  eventId?: string,
+  occurredAt?: number
+) => Promise<void>;
+
+type Logger = (...args: unknown[]) => void;
+
+const subscribedEvents = new Set<string>();
+
+function safeSend(
+  sendToBackend: SendToBackend,
+  eventName: string,
+  data: Record<string, unknown>,
+  eventId: string | undefined,
+  occurredAt: number,
+  log: Logger
 ): void {
-  const log = logger || (() => {});
-  analytics.subscribe("checkout_completed", (event: unknown) => {
-    const typedEvent = event as { id?: string; data?: { checkout?: CheckoutData } };
-    const occurredAt = extractOccurredAtMs(event);
-    const checkout = typedEvent.data?.checkout;
-    if (!checkout) return;
-    const orderId = checkout.order?.id;
-    const checkoutToken = checkout.token;
-    if (!orderId) {
-      log("checkout_completed: No order.id available, using checkoutToken for fallback");
+  void sendToBackend(eventName, data, eventId, occurredAt).catch((error) => {
+    log("sendToBackend failed", { eventName, error });
+  });
+}
+
+function safeSubscribe(
+  analytics: PixelAnalytics,
+  eventName: string,
+  handler: (event: unknown) => void,
+  log: Logger
+): void {
+  if (subscribedEvents.has(eventName)) {
+    log("subscription skipped (already subscribed)", { eventName });
+    return;
+  }
+  subscribedEvents.add(eventName);
+  void analytics.subscribe(eventName, (event: unknown) => {
+    try {
+      handler(event);
+    } catch (error) {
+      log("event handler failed", { eventName, error });
     }
-    if (!orderId && !checkoutToken) {
-      log("checkout_completed: No orderId or checkoutToken, skipping");
-      return;
-    }
-    sendToBackend("checkout_completed", {
+  }).catch((error) => {
+    subscribedEvents.delete(eventName);
+    log("subscribe failed", { eventName, error });
+  });
+}
+
+function handleCheckoutCompleted(event: unknown, sendToBackend: SendToBackend, log: Logger): void {
+  const typedEvent = event as { id?: string; data?: { checkout?: CheckoutData } };
+  const occurredAt = extractOccurredAtMs(event);
+  const checkout = typedEvent.data?.checkout;
+  if (!checkout) return;
+  const orderId = checkout.order?.id;
+  const checkoutToken = checkout.token;
+  if (!orderId) {
+    log("checkout_completed: No order.id available, using checkoutToken for fallback");
+  }
+  if (!orderId && !checkoutToken) {
+    log("checkout_completed: No orderId or checkoutToken, skipping");
+    return;
+  }
+  safeSend(
+    sendToBackend,
+    "checkout_completed",
+    {
       orderId: orderId || null,
       checkoutToken: checkoutToken || null,
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: mapCheckoutLineItems(checkout),
-    }, typedEvent.id, occurredAt);
-  });
-  log("Tracking Guardian pixel initialized - checkout_completed subscribed");
+    },
+    typedEvent.id,
+    occurredAt,
+    log
+  );
 }
 
-function subscribeToCheckoutStarted(
-  analytics: {
-    subscribe: (event: string, handler: (event: unknown) => void) => void;
-  },
-  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string, occurredAt?: number) => Promise<void>,
-  logger?: (...args: unknown[]) => void
-): void {
-  const log = logger || (() => {});
-  analytics.subscribe("checkout_started", (event: unknown) => {
-    const typedEvent = event as { id?: string; data?: { checkout?: CheckoutData } };
-    const occurredAt = extractOccurredAtMs(event);
-    const checkout = typedEvent.data?.checkout;
-    if (!checkout) return;
-    const { url, title } = extractContextMeta(event);
-    sendToBackend("checkout_started", {
+function handleCheckoutStarted(event: unknown, sendToBackend: SendToBackend, log: Logger): void {
+  const typedEvent = event as { id?: string; data?: { checkout?: CheckoutData } };
+  const occurredAt = extractOccurredAtMs(event);
+  const checkout = typedEvent.data?.checkout;
+  if (!checkout) return;
+  const { url, title } = extractContextMeta(event);
+  safeSend(
+    sendToBackend,
+    "checkout_started",
+    {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: mapCheckoutLineItems(checkout),
       url,
       title,
-    }, typedEvent.id, occurredAt);
-  });
-  log("checkout_started event subscribed");
+    },
+    typedEvent.id,
+    occurredAt,
+    log
+  );
 }
 
-function subscribeToProductAddedToCart(
-  analytics: {
-    subscribe: (event: string, handler: (event: unknown) => void) => void;
-  },
-  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string, occurredAt?: number) => Promise<void>,
-  logger?: (...args: unknown[]) => void
-): void {
-  const log = logger || (() => {});
-  analytics.subscribe("product_added_to_cart", (event: unknown) => {
-    const typedEvent = event as { id?: string; data?: { cartLine?: CartLine; cart?: { currencyCode?: string } } };
-    const occurredAt = extractOccurredAtMs(event);
-    const cartLine = typedEvent.data?.cartLine;
-    if (!cartLine) return;
-    const { url, title } = extractContextMeta(event);
-    const price = toNumber(cartLine.merchandise?.price?.amount);
-    const quantity = cartLine.quantity || 1;
-    const currency = typedEvent.data?.cart?.currencyCode || null;
-    const merchandise = cartLine.merchandise;
-    const variantId = merchandise?.variant?.id || merchandise?.id || null;
-    const productId = merchandise?.product?.id || null;
-    const itemId = variantId || productId || "";
-    sendToBackend("product_added_to_cart", {
+function handleProductAddedToCart(event: unknown, sendToBackend: SendToBackend, log: Logger): void {
+  const typedEvent = event as { id?: string; data?: { cartLine?: CartLine; cart?: { currencyCode?: string } } };
+  const occurredAt = extractOccurredAtMs(event);
+  const cartLine = typedEvent.data?.cartLine;
+  if (!cartLine) return;
+  const { url, title } = extractContextMeta(event);
+  const price = toNumber(cartLine.merchandise?.price?.amount);
+  const quantity = cartLine.quantity || 1;
+  const currency = typedEvent.data?.cart?.currencyCode || null;
+  const merchandise = cartLine.merchandise;
+  const variantId = merchandise?.variant?.id || merchandise?.id || null;
+  const productId = merchandise?.product?.id || null;
+  const itemId = variantId || productId || "";
+  safeSend(
+    sendToBackend,
+    "product_added_to_cart",
+    {
       value: price * quantity,
-      currency: currency,
+      currency,
       items: [{
         id: itemId,
         name: cartLine.merchandise?.product?.title || "",
-        price: price,
-        quantity: quantity,
-        variantId: variantId,
-        productId: productId,
+        price,
+        quantity,
+        variantId,
+        productId,
         productTitle: cartLine.merchandise?.product?.title || null,
       }],
       url,
       title,
-    }, typedEvent.id, occurredAt);
-  });
-  log("product_added_to_cart event subscribed");
+    },
+    typedEvent.id,
+    occurredAt,
+    log
+  );
 }
 
-function subscribeToPageViewed(
-  analytics: {
-    subscribe: (event: string, handler: (event: unknown) => void) => void;
-  },
-  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string, occurredAt?: number) => Promise<void>,
-  logger?: (...args: unknown[]) => void
-): void {
-  const log = logger || (() => {});
-  analytics.subscribe("page_viewed", (event: unknown) => {
-    const typedEvent = event as {
-      id?: string;
-      data?: {
-        page?: { url?: string; title?: string; currencyCode?: string };
-        cart?: { currencyCode?: string };
-      };
+function handlePageViewed(event: unknown, sendToBackend: SendToBackend, log: Logger): void {
+  const typedEvent = event as {
+    id?: string;
+    data?: {
+      cart?: { currencyCode?: string };
     };
-    const page = typedEvent.data?.page;
-    const occurredAt = extractOccurredAtMs(event);
-    const { url: contextUrl, title: contextTitle } = extractContextMeta(event);
-    const currency = page?.currencyCode || typedEvent.data?.cart?.currencyCode || null;
-    sendToBackend("page_viewed", {
-      url: page?.url || contextUrl,
-      title: page?.title || contextTitle,
+  };
+  const occurredAt = extractOccurredAtMs(event);
+  const { url, title } = extractContextMeta(event);
+  const currency = typedEvent.data?.cart?.currencyCode || null;
+  safeSend(
+    sendToBackend,
+    "page_viewed",
+    {
+      url,
+      title,
       value: 0,
-      currency: currency,
+      currency,
       items: [],
-    }, typedEvent.id, occurredAt);
-  });
-  log("page_viewed event subscribed");
+    },
+    typedEvent.id,
+    occurredAt,
+    log
+  );
 }
 
-function subscribeToProductViewed(
-  analytics: {
-    subscribe: (event: string, handler: (event: unknown) => void) => void;
-  },
-  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string, occurredAt?: number) => Promise<void>,
-  logger?: (...args: unknown[]) => void
-): void {
-  const log = logger || (() => {});
-  analytics.subscribe("product_viewed", (event: unknown) => {
-    const typedEvent = event as {
-      id?: string;
-      data?: {
-        productVariant?: {
-          id?: string;
-          product?: { id?: string; title?: string };
-          price?: { amount?: string | number; currencyCode?: string };
-        };
+function handleProductViewed(event: unknown, sendToBackend: SendToBackend, log: Logger): void {
+  const typedEvent = event as {
+    id?: string;
+    data?: {
+      productVariant?: {
+        id?: string;
+        product?: { id?: string; title?: string };
+        price?: { amount?: string | number; currencyCode?: string };
       };
     };
-    const productVariant = typedEvent.data?.productVariant;
-    const occurredAt = extractOccurredAtMs(event);
-    if (!productVariant) return;
-    const { url, title } = extractContextMeta(event);
-    const price = toNumber(productVariant.price?.amount);
-    const currency = (productVariant.price as { currencyCode?: string } | undefined)?.currencyCode || null;
-    const variantId = productVariant.id || null;
-    const productId = productVariant.product?.id || null;
-    const itemId = variantId || productId || "";
-    sendToBackend("product_viewed", {
+  };
+  const productVariant = typedEvent.data?.productVariant;
+  const occurredAt = extractOccurredAtMs(event);
+  if (!productVariant) return;
+  const { url, title } = extractContextMeta(event);
+  const price = toNumber(productVariant.price?.amount);
+  const currency = (productVariant.price as { currencyCode?: string } | undefined)?.currencyCode || null;
+  const variantId = productVariant.id || null;
+  const productId = productVariant.product?.id || null;
+  const itemId = variantId || productId || "";
+  safeSend(
+    sendToBackend,
+    "product_viewed",
+    {
       value: price,
-      currency: currency,
+      currency,
       items: [{
         id: itemId,
         name: productVariant.product?.title || "",
-        price: price,
+        price,
         quantity: 1,
-        variantId: variantId,
-        productId: productId,
+        variantId,
+        productId,
         productTitle: productVariant.product?.title || null,
       }],
       url,
       title,
-    }, typedEvent.id, occurredAt);
-  });
-  log("product_viewed event subscribed");
+    },
+    typedEvent.id,
+    occurredAt,
+    log
+  );
 }
 
-function subscribeToCheckoutContactInfoSubmitted(
-  analytics: {
-    subscribe: (event: string, handler: (event: unknown) => void) => void;
-  },
-  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string, occurredAt?: number) => Promise<void>,
-  logger?: (...args: unknown[]) => void
-): void {
-  const log = logger || (() => {});
-  analytics.subscribe("checkout_contact_info_submitted", (event: unknown) => {
-    const typedEvent = event as { id?: string; data?: { checkout?: CheckoutData } };
-    const occurredAt = extractOccurredAtMs(event);
-    const checkout = typedEvent.data?.checkout;
-    if (!checkout) return;
-    const { url, title } = extractContextMeta(event);
-    sendToBackend("checkout_contact_info_submitted", {
+function handleCheckoutContactInfoSubmitted(event: unknown, sendToBackend: SendToBackend, log: Logger): void {
+  const typedEvent = event as { id?: string; data?: { checkout?: CheckoutData } };
+  const occurredAt = extractOccurredAtMs(event);
+  const checkout = typedEvent.data?.checkout;
+  if (!checkout) return;
+  const { url, title } = extractContextMeta(event);
+  safeSend(
+    sendToBackend,
+    "checkout_contact_info_submitted",
+    {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: mapCheckoutLineItems(checkout),
       url,
       title,
-    }, typedEvent.id, occurredAt);
-  });
-  log("checkout_contact_info_submitted event subscribed");
+    },
+    typedEvent.id,
+    occurredAt,
+    log
+  );
 }
 
-function subscribeToCheckoutShippingInfoSubmitted(
-  analytics: {
-    subscribe: (event: string, handler: (event: unknown) => void) => void;
-  },
-  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string, occurredAt?: number) => Promise<void>,
-  logger?: (...args: unknown[]) => void
-): void {
-  const log = logger || (() => {});
-  analytics.subscribe("checkout_shipping_info_submitted", (event: unknown) => {
-    const typedEvent = event as { id?: string; data?: { checkout?: CheckoutData } };
-    const occurredAt = extractOccurredAtMs(event);
-    const checkout = typedEvent.data?.checkout;
-    if (!checkout) return;
-    const { url, title } = extractContextMeta(event);
-    sendToBackend("checkout_shipping_info_submitted", {
+function handleCheckoutShippingInfoSubmitted(event: unknown, sendToBackend: SendToBackend, log: Logger): void {
+  const typedEvent = event as { id?: string; data?: { checkout?: CheckoutData } };
+  const occurredAt = extractOccurredAtMs(event);
+  const checkout = typedEvent.data?.checkout;
+  if (!checkout) return;
+  const { url, title } = extractContextMeta(event);
+  safeSend(
+    sendToBackend,
+    "checkout_shipping_info_submitted",
+    {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: mapCheckoutLineItems(checkout),
       url,
       title,
-    }, typedEvent.id, occurredAt);
-  });
-  log("checkout_shipping_info_submitted event subscribed");
+    },
+    typedEvent.id,
+    occurredAt,
+    log
+  );
 }
 
-function subscribeToPaymentInfoSubmitted(
-  analytics: {
-    subscribe: (event: string, handler: (event: unknown) => void) => void;
-  },
-  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string, occurredAt?: number) => Promise<void>,
-  logger?: (...args: unknown[]) => void
-): void {
-  const log = logger || (() => {});
-  analytics.subscribe("payment_info_submitted", (event: unknown) => {
-    const typedEvent = event as { id?: string; data?: { checkout?: CheckoutData } };
-    const occurredAt = extractOccurredAtMs(event);
-    const checkout = typedEvent.data?.checkout;
-    if (!checkout) return;
-    const { url, title } = extractContextMeta(event);
-    sendToBackend("payment_info_submitted", {
+function handlePaymentInfoSubmitted(event: unknown, sendToBackend: SendToBackend, log: Logger): void {
+  const typedEvent = event as { id?: string; data?: { checkout?: CheckoutData } };
+  const occurredAt = extractOccurredAtMs(event);
+  const checkout = typedEvent.data?.checkout;
+  if (!checkout) return;
+  const { url, title } = extractContextMeta(event);
+  safeSend(
+    sendToBackend,
+    "payment_info_submitted",
+    {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: mapCheckoutLineItems(checkout),
       url,
       title,
-    }, typedEvent.id, occurredAt);
-  });
-  log("payment_info_submitted event subscribed");
+    },
+    typedEvent.id,
+    occurredAt,
+    log
+  );
+}
+
+export function subscribeToCheckoutCompleted(
+  analytics: PixelAnalytics,
+  sendToBackend: SendToBackend,
+  logger?: Logger
+): void {
+  const log = logger || (() => {});
+  safeSubscribe(analytics, "checkout_completed", (event) => {
+    handleCheckoutCompleted(event, sendToBackend, log);
+  }, log);
+  log("Tracking Guardian pixel initialized - checkout_completed subscribed");
+}
+
+function dispatchStandardEvent(event: unknown, sendToBackend: SendToBackend, log: Logger): void {
+  const eventName = (event as { name?: string }).name;
+  switch (eventName) {
+    case "checkout_completed":
+      handleCheckoutCompleted(event, sendToBackend, log);
+      return;
+    case "checkout_started":
+      handleCheckoutStarted(event, sendToBackend, log);
+      return;
+    case "checkout_contact_info_submitted":
+      handleCheckoutContactInfoSubmitted(event, sendToBackend, log);
+      return;
+    case "checkout_shipping_info_submitted":
+      handleCheckoutShippingInfoSubmitted(event, sendToBackend, log);
+      return;
+    case "payment_info_submitted":
+      handlePaymentInfoSubmitted(event, sendToBackend, log);
+      return;
+    case "product_added_to_cart":
+      handleProductAddedToCart(event, sendToBackend, log);
+      return;
+    case "product_viewed":
+      handleProductViewed(event, sendToBackend, log);
+      return;
+    case "page_viewed":
+      handlePageViewed(event, sendToBackend, log);
+      return;
+    default:
+      return;
+  }
 }
 
 export function subscribeToAnalyticsEvents(
-  analytics: {
-    subscribe: (event: string, handler: (event: unknown) => void) => void;
-  },
-  sendToBackend: (eventName: string, data: Record<string, unknown>, eventId?: string, occurredAt?: number) => Promise<void>,
-  logger?: (...args: unknown[]) => void,
+  analytics: PixelAnalytics,
+  sendToBackend: SendToBackend,
+  logger?: Logger,
   mode: "purchase_only" | "full_funnel" = "purchase_only"
 ): void {
-  subscribeToCheckoutCompleted(analytics, sendToBackend, logger);
+  const log = logger || (() => {});
   if (mode === "full_funnel") {
-    subscribeToCheckoutStarted(analytics, sendToBackend, logger);
-    subscribeToCheckoutContactInfoSubmitted(analytics, sendToBackend, logger);
-    subscribeToCheckoutShippingInfoSubmitted(analytics, sendToBackend, logger);
-    subscribeToPaymentInfoSubmitted(analytics, sendToBackend, logger);
-    subscribeToProductAddedToCart(analytics, sendToBackend, logger);
-    subscribeToProductViewed(analytics, sendToBackend, logger);
-    subscribeToPageViewed(analytics, sendToBackend, logger);
-    const log = logger || (() => {});
+    safeSubscribe(analytics, "all_standard_events", (event) => {
+      dispatchStandardEvent(event, sendToBackend, log);
+    }, log);
     log("Tracking Guardian pixel initialized - full_funnel mode enabled with all standard events");
+    return;
   }
+  subscribeToCheckoutCompleted(analytics, sendToBackend, log);
 }
