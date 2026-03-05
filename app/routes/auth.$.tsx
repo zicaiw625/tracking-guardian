@@ -28,7 +28,7 @@ function buildSafeReloadTarget(currentUrl: URL, shopifyReload: string): URL | nu
 }
 
 function appendMissingAuthParams(source: URL, target: URL): void {
-    for (const key of ["charge_id", "host", "shop"]) {
+    for (const key of ["charge_id", "host", "shop", "embedded"]) {
         const value = source.searchParams.get(key);
         if (value && !target.searchParams.has(key)) {
             target.searchParams.set(key, value);
@@ -61,7 +61,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         const targetUrl = buildSafeReloadTarget(currentUrl, shopifyReload);
         if (targetUrl) {
             appendMissingAuthParams(currentUrl, targetUrl);
-            return redirect(`${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`);
+            return redirect(targetUrl.toString());
         }
     }
 
