@@ -758,6 +758,11 @@ pnpm test:coverage
   - `run-migration.sh` - 运行数据库迁移
   - `check-before-migration.sh` - 迁移前检查
   - `pre-migration-check.sql` - 迁移前 SQL 检查
+  - `db-preflight-check.sh` - 生产迁移前后结构核验
+  - `db-export-migration-state.sh` - 导出 `_prisma_migrations` 与 diff 快照
+  - `db-backup.sh` - 生成 PostgreSQL 逻辑备份
+  - `db-rehearse-reconcile.sh` - 在克隆库预演对齐迁移
+  - `db-run-prod-reconcile.sh` - 生产维护窗口一键执行（需显式确认）
 
 - **测试/压测**：
   - `e2e-test.sh` - 端到端测试
